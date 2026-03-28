@@ -313,6 +313,10 @@ class ScanShipmentsViewsTests(TestCase):
                     "status_label": "Prêt",
                     "status_value": CartonStatus.PACKED,
                     "status_tone": "ready",
+                    "status_badges": [
+                        {"label": "Disponible", "variant": "prep-packed"},
+                        {"label": "Libre", "variant": "assignment-free"},
+                    ],
                     "detail_url": "/scan/carton/1/edit/",
                     "shipment_reference": "",
                     "location": "",
@@ -330,6 +334,10 @@ class ScanShipmentsViewsTests(TestCase):
                     "status_label": "Affecté",
                     "status_value": CartonStatus.ASSIGNED,
                     "status_tone": "progress",
+                    "status_badges": [
+                        {"label": "Créé", "variant": "prep-draft"},
+                        {"label": "Affecté", "variant": "assignment-assigned"},
+                    ],
                     "detail_url": "/scan/carton/2/edit/",
                     "shipment_reference": "S-001",
                     "location": "",
@@ -349,19 +357,31 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'name="selected_carton_ids"')
         self.assertContains(response, 'name="bulk_action"')
         self.assertContains(response, "scan-carton-bulk-action-select")
+        self.assertContains(response, "scan-carton-table-head")
+        self.assertContains(response, "scan-carton-table-head-label")
+        self.assertContains(response, "scan-carton-status-col")
+        self.assertContains(response, "scan-carton-fill-cell")
         self.assertContains(response, "Liste de colisage")
         self.assertContains(response, "Picking")
         self.assertContains(response, "Marquer en préparation")
         self.assertContains(response, "Marquer prêt / disponible")
         self.assertContains(response, "Marquer affecté")
-        self.assertContains(response, "3 lignes / 18 unités")
-        self.assertContains(response, "1 ligne / 2 unités")
+        self.assertContains(response, "scan-carton-content-lines")
+        self.assertContains(response, "3 lignes")
+        self.assertContains(response, "18 unités")
+        self.assertContains(response, "1 ligne")
+        self.assertContains(response, "2 unités")
+        self.assertContains(response, "Disponible")
+        self.assertContains(response, "Créé")
         self.assertContains(response, 'href="/scan/carton/1/edit/"')
         self.assertContains(response, "Ouvrir")
         self.assertContains(
             response,
-            'class="ui-comp-status-pill scan-carton-status-pill is-progress"',
+            "scan-carton-status-pill--prep-packed",
         )
+        self.assertContains(response, "scan-carton-status-pill--assignment-assigned")
+        self.assertContains(response, "scan-carton-status-pill--assignment-free")
+        self.assertNotContains(response, ">Documents<", html=False)
         self.assertNotContains(response, "scan-carton-status-select-wrap")
         self.assertNotContains(response, "Imprimer / télécharger")
         self.assertNotContains(response, 'class="scan-scan-btn btn btn-danger"')

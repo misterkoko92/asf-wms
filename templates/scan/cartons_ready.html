@@ -42,35 +42,42 @@
           <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
         </div>
         <div class="scan-table-wrap table-responsive">
-          <table class="scan-table table table-sm table-hover" data-table-tools="1">
+          <table class="scan-table scan-carton-table table table-sm table-hover" data-table-tools="1">
             <thead>
               <tr>
-                <th>{% trans "Sélection" %}</th>
-                <th>{% trans "Numero colis" %}</th>
-                <th>{% trans "Date création" %}</th>
-                <th>{% trans "Statut" %}</th>
-                <th>{% trans "N° expédition" %}</th>
-                <th>{% trans "Emplacement" %}</th>
-                <th>{% trans "Remplissage" %}</th>
-                <th>{% trans "Contenu" %}</th>
-                <th>{% trans "Documents" %}</th>
-                <th>{% trans "Actions" %}</th>
+                <th class="scan-carton-table-head scan-carton-select-col"><span class="scan-carton-table-head-label">{% trans "Sélection" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-code-col"><span class="scan-carton-table-head-label">{% trans "Numero colis" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-date-col"><span class="scan-carton-table-head-label">{% trans "Date création" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-status-col"><span class="scan-carton-table-head-label">{% trans "Statut" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-shipment-col"><span class="scan-carton-table-head-label">{% trans "N° expédition" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-location-col"><span class="scan-carton-table-head-label">{% trans "Emplacement" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-fill-col"><span class="scan-carton-table-head-label">{% trans "Remplissage" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-content-col"><span class="scan-carton-table-head-label">{% trans "Contenu" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-actions-col"><span class="scan-carton-table-head-label">{% trans "Actions" %}</span></th>
               </tr>
             </thead>
             <tbody>
               {% for carton in cartons %}
                 <tr>
-                  <td><input type="checkbox" name="selected_carton_ids" value="{{ carton.id }}"></td>
-                  <td>{{ carton.code }}</td>
-                  <td>{{ carton.created_at|date:"d/m/y H\\hi" }}</td>
-                  <td class="status scan-carton-status-cell">
+                  <td class="scan-carton-select-col"><input type="checkbox" name="selected_carton_ids" value="{{ carton.id }}"></td>
+                  <td class="scan-carton-code-col">{{ carton.code }}</td>
+                  <td class="scan-carton-date-col">{{ carton.created_at|date:"d/m/y H\\hi" }}</td>
+                  <td class="status scan-carton-status-cell scan-carton-status-col">
                     <div class="scan-carton-status-display">
-                      <span class="ui-comp-status-pill scan-carton-status-pill is-{{ carton.status_tone }}">{{ carton.status_label }}</span>
+                      <div class="scan-carton-status-stack">
+                        {% if carton.status_badges %}
+                          {% for badge in carton.status_badges %}
+                            <span class="ui-comp-status-pill scan-carton-status-pill scan-carton-status-pill--{{ badge.variant }}">{{ badge.label }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="ui-comp-status-pill scan-carton-status-pill is-{{ carton.status_tone }}">{{ carton.status_label }}</span>
+                        {% endif %}
+                      </div>
                     </div>
                   </td>
-                  <td>{{ carton.shipment_reference|default:"-" }}</td>
-                  <td>{{ carton.location|default:"-" }}</td>
-                  <td>
+                  <td class="scan-carton-shipment-col">{{ carton.shipment_reference|default:"-" }}</td>
+                  <td class="scan-carton-location-col">{{ carton.location|default:"-" }}</td>
+                  <td class="scan-carton-fill-cell scan-carton-fill-col">
                     <div><strong>{% trans "Poids" %}</strong> :
                       {% if carton.weight_kg is not None %}
                         {{ carton.weight_kg|floatformat:2 }} kg
@@ -86,17 +93,17 @@
                       {% endif %}
                     </div>
                   </td>
-                  <td>
-                    {{ carton.summary_line_count }} ligne{{ carton.summary_line_count|pluralize }} / {{ carton.summary_total_quantity }} unité{{ carton.summary_total_quantity|pluralize }}
+                  <td class="scan-carton-content-col">
+                    <div class="scan-carton-content-lines">
+                      <div class="scan-carton-content-line">
+                        {{ carton.summary_line_count }} ligne{{ carton.summary_line_count|pluralize }}
+                      </div>
+                      <div class="scan-carton-content-line scan-carton-content-line-secondary">
+                        {{ carton.summary_total_quantity }} unité{{ carton.summary_total_quantity|pluralize }}
+                      </div>
+                    </div>
                   </td>
-                  <td>
-                    {% if carton.has_packing_list or carton.has_picking %}
-                      {% if carton.has_packing_list %}{% trans "Liste" %}{% endif %}{% if carton.has_picking and carton.has_packing_list %} / {% endif %}{% if carton.has_picking %}Picking{% endif %}
-                    {% else %}
-                      -
-                    {% endif %}
-                  </td>
-                  <td>
+                  <td class="scan-carton-actions-col">
                     <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.detail_url }}">
                       {% trans "Ouvrir" %}
                     </a>

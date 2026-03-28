@@ -1,4 +1,5 @@
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
 from .models import CartonFormat, CartonStatus, ShipmentStatus
 from .scan_helpers import build_product_group_key, build_product_label
@@ -9,6 +10,12 @@ LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.SHIPPED,
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
+}
+
+PREPARATION_STATUSES = {
+    CartonStatus.DRAFT,
+    CartonStatus.PICKING,
+    CartonStatus.PACKED,
 }
 
 MUTATION_BLOCKED_SHIPMENT_STATUSES = {
@@ -42,6 +49,79 @@ def _build_shipment_reference(carton):
     if iata_code:
         return f"({iata_code})"
     return ""
+
+
+def _build_status_label(status_value):
+    try:
+        return CartonStatus(status_value).label
+    except ValueError:
+        return status_value
+
+
+def _iter_status_events(carton):
+    status_events = getattr(carton, "status_events", None)
+    if not status_events:
+        return []
+    if hasattr(status_events, "all"):
+        return list(status_events.all())
+    return list(status_events)
+
+
+def _resolve_preparation_status(carton):
+    status_value = getattr(carton, "status", "")
+    if status_value in PREPARATION_STATUSES:
+        return status_value
+    if status_value in {CartonStatus.LABELED, CartonStatus.SHIPPED}:
+        return CartonStatus.LABELED
+    if status_value == CartonStatus.ASSIGNED:
+        for event in _iter_status_events(carton):
+            previous_status = getattr(event, "previous_status", None)
+            if previous_status in PREPARATION_STATUSES:
+                return previous_status
+        return CartonStatus.PACKED
+    return ""
+
+
+def _build_preparation_status_badge(carton):
+    status_value = _resolve_preparation_status(carton)
+    if status_value in PREPARATION_STATUSES:
+        return {
+            "label": {
+                CartonStatus.DRAFT: CartonStatus.DRAFT.label,
+                CartonStatus.PICKING: CartonStatus.PICKING.label,
+                CartonStatus.PACKED: _("Disponible"),
+            }[status_value],
+            "variant": f"prep-{status_value}",
+        }
+    if status_value == CartonStatus.LABELED:
+        return {
+            "label": CartonStatus.LABELED.label,
+            "variant": "prep-labeled",
+        }
+    return {
+        "label": _("Prépa inconnue"),
+        "variant": "prep-unknown",
+    }
+
+
+def _build_assignment_status_badge(carton):
+    status_value = getattr(carton, "status", "")
+    if status_value == CartonStatus.SHIPPED:
+        return {
+            "label": CartonStatus.SHIPPED.label,
+            "variant": "assignment-shipped",
+        }
+    if status_value in {CartonStatus.ASSIGNED, CartonStatus.LABELED} or getattr(
+        carton, "shipment_id", None
+    ):
+        return {
+            "label": CartonStatus.ASSIGNED.label,
+            "variant": "assignment-assigned",
+        }
+    return {
+        "label": _("Libre"),
+        "variant": "assignment-free",
+    }
 
 
 def _carton_allows_mutation(carton):
@@ -95,10 +175,7 @@ def build_carton_ready_row(carton, *, carton_capacity_cm3):
         and carton.shipment
         and shipment_status in LOCKED_SHIPMENT_STATUSES
     )
-    try:
-        status_label = CartonStatus(carton.status).label
-    except ValueError:
-        status_label = carton.status
+    status_label = _build_status_label(carton.status)
     if carton.shipment_id:
         packing_list_url = _html_delivery_url(
             reverse(
@@ -118,6 +195,10 @@ def build_carton_ready_row(carton, *, carton_capacity_cm3):
         "status_label": status_label,
         "status_value": carton.status,
         "status_tone": resolve_status_tone(carton.status, domain="carton"),
+        "status_badges": [
+            _build_preparation_status_badge(carton),
+            _build_assignment_status_badge(carton),
+        ],
         "can_toggle": (not is_assigned) and carton.status != CartonStatus.SHIPPED,
         "can_mark_labeled": is_assigned
         and not shipment_locked

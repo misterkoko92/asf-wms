@@ -430,7 +430,7 @@ def scan_cartons_ready(request):
     cartons_qs = (
         Carton.objects.filter(cartonitem__isnull=False)
         .select_related("shipment", "current_location", "preassigned_destination")
-        .prefetch_related("cartonitem_set__product_lot__product")
+        .prefetch_related("cartonitem_set__product_lot__product", "status_events")
         .distinct()
         .order_by("-created_at")
     )
