@@ -314,6 +314,11 @@ def _shipment_bundle_action(label, url):
     return {"label": label, "url": url}
 
 
+def _html_delivery_url(url):
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}delivery=html"
+
+
 def _shipment_view_bundle_context(shipment, bundle_key):
     ordered_cartons = _ordered_shipment_cartons(shipment)
     bundle_key = (bundle_key or "").strip()
@@ -382,9 +387,11 @@ def _shipment_view_bundle_context(shipment, bundle_key):
                         "actions": [
                             _shipment_bundle_action(
                                 _("Liste colisage"),
-                                reverse(
-                                    "scan:scan_shipment_carton_document",
-                                    args=[shipment.id, carton.id],
+                                _html_delivery_url(
+                                    reverse(
+                                        "scan:scan_shipment_carton_document",
+                                        args=[shipment.id, carton.id],
+                                    )
                                 ),
                             )
                         ],
@@ -407,7 +414,12 @@ def _shipment_view_bundle_context(shipment, bundle_key):
                         "actions": [
                             _shipment_bundle_action(
                                 _("Étiquette colis"),
-                                reverse("scan:scan_shipment_label", args=[shipment.id, carton.id]),
+                                _html_delivery_url(
+                                    reverse(
+                                        "scan:scan_shipment_label",
+                                        args=[shipment.id, carton.id],
+                                    )
+                                ),
                             ),
                             _shipment_bundle_action(
                                 _("Étiquette contact"),

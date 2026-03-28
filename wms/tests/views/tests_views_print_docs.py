@@ -419,9 +419,17 @@ class PrintDocsViewsTests(TestCase):
         self.assertContains(response, cartons[0].code)
         self.assertContains(response, cartons[1].code)
         self.assertContains(response, "Liste colisage")
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_shipment_carton_document", args=[shipment.id, cartons[0].id])}?delivery=html',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_shipment_carton_document", args=[shipment.id, cartons[1].id])}?delivery=html',
+        )
 
     def test_scan_shipment_view_bundle_routes_standard_labels_to_html_bundle_page(self):
-        shipment, _cartons = self._create_shipment_with_cartons("C-020", "C-010")
+        shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
 
         response = self.client.get(
             reverse(
@@ -436,6 +444,14 @@ class PrintDocsViewsTests(TestCase):
         content = response.content.decode()
         self.assertLess(content.index("Étiquette colis"), content.index("Étiquette contact"))
         self.assertLess(content.index("Étiquette contact"), content.index("Attestation donation"))
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_shipment_label", args=[shipment.id, cartons[0].id])}?delivery=html',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_shipment_label", args=[shipment.id, cartons[1].id])}?delivery=html',
+        )
 
     def test_scan_shipment_view_bundle_routes_all_to_orchestrator_page(self):
         shipment = self._create_shipment()

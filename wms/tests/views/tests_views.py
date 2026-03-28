@@ -623,8 +623,8 @@ class ScanViewTests(TestCase):
         self.assertContains(
             follow_response,
             (
-                f'href="{reverse("scan:scan_carton_document", args=[carton.id])}" '
-                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+                f'href="{reverse("scan:scan_carton_document", args=[carton.id])}?delivery=html" '
+                'target="_blank" rel="noopener"'
             ),
         )
         self.assertContains(
@@ -1349,18 +1349,18 @@ class ScanViewTests(TestCase):
                 'target="_blank" rel="noopener" data-local-document-helper-link="1"'
             ),
         )
-        self.assertNotContains(
+        self.assertContains(
             response,
             (
-                f'href="{reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id])}" '
-                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+                f'href="{reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id])}?delivery=html" '
+                'target="_blank" rel="noopener"'
             ),
         )
-        self.assertNotContains(
+        self.assertContains(
             response,
             (
-                f'href="{reverse("scan:scan_shipment_label", args=[shipment.id, carton.id])}" '
-                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+                f'href="{reverse("scan:scan_shipment_label", args=[shipment.id, carton.id])}?delivery=html" '
+                'target="_blank" rel="noopener"'
             ),
         )
         self.assertContains(response, document.file.url)

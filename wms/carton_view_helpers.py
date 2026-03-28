@@ -18,6 +18,11 @@ MUTATION_BLOCKED_SHIPMENT_STATUSES = {
 }
 
 
+def _html_delivery_url(url):
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}delivery=html"
+
+
 def get_carton_capacity_cm3():
     default_format = CartonFormat.objects.filter(is_default=True).first()
     if default_format is None:
@@ -96,12 +101,16 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
         except ValueError:
             status_label = carton.status
         if carton.shipment_id:
-            packing_list_url = reverse(
-                "scan:scan_shipment_carton_document",
-                args=[carton.shipment_id, carton.id],
+            packing_list_url = _html_delivery_url(
+                reverse(
+                    "scan:scan_shipment_carton_document",
+                    args=[carton.shipment_id, carton.id],
+                )
             )
         else:
-            packing_list_url = reverse("scan:scan_carton_document", args=[carton.id])
+            packing_list_url = _html_delivery_url(
+                reverse("scan:scan_carton_document", args=[carton.id])
+            )
         picking_url = reverse("scan:scan_carton_picking", args=[carton.id])
         cartons.append(
             {

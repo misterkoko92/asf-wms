@@ -118,11 +118,11 @@ class ScanPackHelpersExtraTests(TestCase):
         self.assertEqual([row["code"] for row in result["cartons"]], ["C-001", "C-002"])
         self.assertEqual(
             result["cartons"][0]["packing_list_url"],
-            reverse("scan:scan_carton_document", args=[1]),
+            f'{reverse("scan:scan_carton_document", args=[1])}?delivery=html',
         )
         self.assertEqual(
             result["cartons"][1]["packing_list_url"],
-            reverse("scan:scan_shipment_carton_document", args=[99, 2]),
+            f'{reverse("scan:scan_shipment_carton_document", args=[99, 2])}?delivery=html',
         )
         self.assertEqual(
             result["cartons"][0]["picking_url"],

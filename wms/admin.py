@@ -49,6 +49,7 @@ from .local_document_helper import (
     get_local_helper_document_index,
     is_local_helper_job_request,
 )
+from .print_delivery import wants_browser_print
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -1034,6 +1035,12 @@ class ShipmentAdmin(admin.ModelAdmin):
                     render_documents=render_documents,
                     shipment=shipment,
                 )
+            if wants_browser_print(request, default=True):
+                return render_shipment_document(
+                    request,
+                    shipment,
+                    doc_type,
+                )
             artifact = _try_generate_pack_artifact(
                 pack_code=pack_route.pack_code,
                 shipment=shipment,
@@ -1076,6 +1083,12 @@ class ShipmentAdmin(admin.ModelAdmin):
                 render_documents=render_documents,
                 shipment=shipment,
                 carton=carton,
+            )
+        if wants_browser_print(request, default=True):
+            return render_carton_document(
+                request,
+                shipment,
+                carton,
             )
         artifact = _try_generate_pack_artifact(
             pack_code=pack_route.pack_code,

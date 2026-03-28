@@ -215,6 +215,14 @@ class ShipmentViewHelpersTests(TestCase):
             f"/scan/shipment/{shipment.id}/print-bundle/all/",
         )
         self.assertEqual(
+            actions["carton_print_rows"][0]["actions"][0]["url"],
+            f"/scan/shipment/{shipment.id}/carton/{carton.id}/doc/?delivery=html",
+        )
+        self.assertEqual(
+            actions["carton_print_rows"][0]["actions"][1]["url"],
+            f"/scan/shipment/{shipment.id}/labels/{carton.id}/?delivery=html",
+        )
+        self.assertEqual(
             actions["carton_print_rows"][0]["actions"][2]["url"],
             f"/scan/shipment/{shipment.id}/carton/{carton.id}/contact-label/",
         )
