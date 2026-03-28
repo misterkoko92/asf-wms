@@ -21,6 +21,12 @@ urlpatterns = [
         name="scan_prepare_kits_picking",
     ),
     path("cartons/", views.scan_cartons_ready, name="scan_cartons_ready"),
+    path("cartons/picking/", views.scan_cartons_picking, name="scan_cartons_picking"),
+    path(
+        "cartons/view-bundle/<str:bundle_key>/",
+        views.scan_cartons_view_bundle,
+        name="scan_cartons_view_bundle",
+    ),
     path("shipments-ready/", views.scan_shipments_ready, name="scan_shipments_ready"),
     path(
         "shipments-tracking/",

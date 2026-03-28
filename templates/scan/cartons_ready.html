@@ -22,135 +22,98 @@
     </h2>
     {% include "wms/_local_document_helper_install_panel.html" %}
     {% if cartons %}
-      <div class="scan-table-wrap table-responsive">
-        <table class="scan-table table table-sm table-hover" data-table-tools="1">
-          <thead>
-            <tr>
-              <th>{% trans "Numero colis" %}</th>
-              <th>{% trans "Date création" %}</th>
-              <th>{% trans "Statut" %}</th>
-              <th>{% trans "N° expédition" %}</th>
-              <th>{% trans "Emplacement" %}</th>
-              <th>{% trans "Remplissage" %}</th>
-              <th>{% trans "Actions" %}</th>
-              <th>{% trans "Liste de colisage" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for carton in cartons %}
+      <form method="post" data-carton-bulk-root="1">
+        {% csrf_token %}
+        <div id="carton-bulk-actions" class="scan-filter-actions d-flex flex-wrap gap-2 align-items-center mb-3">
+          <span class="scan-help">{% trans "Actions groupées" %}</span>
+          <button type="submit" name="bulk_document" value="packing_lists" class="scan-scan-btn btn btn-tertiary">
+            {% trans "Liste de colisage" %}
+          </button>
+          <button type="submit" name="bulk_document" value="picking" class="scan-scan-btn btn btn-tertiary">
+            Picking
+          </button>
+          <select name="bulk_action" class="form-select form-select-sm w-auto scan-carton-bulk-action-select">
+            <option value="">{% trans "Changer le statut" %}</option>
+            <option value="bulk_update_cartons_picking">{% trans "Marquer en préparation" %}</option>
+            <option value="bulk_update_cartons_packed">{% trans "Marquer prêt / disponible" %}</option>
+            <option value="bulk_mark_cartons_labeled">{% trans "Marquer étiqueté" %}</option>
+            <option value="bulk_mark_cartons_assigned">{% trans "Marquer affecté" %}</option>
+          </select>
+          <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
+        </div>
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table scan-carton-table table table-sm table-hover" data-table-tools="1">
+            <thead>
               <tr>
-                <td>{{ carton.code }}</td>
-                <td>{{ carton.created_at|date:"d/m/y H\\hi" }}</td>
-                <td class="status scan-carton-status-cell">
-                  {% if carton.can_toggle %}
-                    <form method="post" class="scan-toggle-form">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="update_carton_status">
-                      <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                      <label class="scan-toggle scan-carton-status-select-wrap">
-                        <select
-                          name="status"
-                          class="form-select form-select-sm scan-carton-status-select"
-                          onchange="this.form.submit()"
-                        >
-                          {% for value, label in carton_status_choices %}
-                            <option value="{{ value }}" {% if value == carton.status_value %}selected{% endif %}>
-                              {% if value == "packed" %}{% trans "Disponible" %}{% else %}{{ label }}{% endif %}
-                            </option>
-                          {% endfor %}
-                        </select>
-                      </label>
-                    </form>
-                  {% else %}
-                    <div class="scan-carton-status-display">
-                      <span class="ui-comp-status-pill scan-carton-status-pill is-{{ carton.status_tone }}">{{ carton.status_label }}</span>
-                    </div>
-                    {% if carton.can_mark_labeled %}
-                      <form method="post" class="scan-toggle-form scan-field-gap">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="mark_carton_labeled">
-                        <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn btn btn-sm btn-tertiary">{% trans "Marquer étiqueté" %}</button>
-                      </form>
-                    {% endif %}
-                    {% if carton.can_mark_assigned %}
-                      <form method="post" class="scan-toggle-form scan-field-gap">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="mark_carton_assigned">
-                        <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn btn btn-warning">{% trans "Retirer étiquette" %}</button>
-                      </form>
-                    {% endif %}
-                  {% endif %}
-                </td>
-                <td>{{ carton.shipment_reference|default:"-" }}</td>
-                <td>{{ carton.location|default:"-" }}</td>
-                <td>
-                  <div><strong>{% trans "Poids" %}</strong> :
-                    {% if carton.weight_kg is not None %}
-                      {{ carton.weight_kg|floatformat:2 }} kg
-                    {% else %}
-                      -
-                    {% endif %}
-                  </div>
-                  <div><strong>{% trans "Volume" %}</strong> :
-                    {% if carton.volume_percent is not None %}
-                      {{ carton.volume_percent }}%
-                    {% else %}
-                      -
-                    {% endif %}
-                  </div>
-                </td>
-                <td>
-                  <div class="scan-field scan-field-gap scan-inline-actions ui-comp-actions">
-                    {% if carton.can_edit %}
-                      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_carton_edit' carton.id %}">
-                        {% trans "Modifier" %}
-                      </a>
-                    {% endif %}
-                    {% if carton.can_delete %}
-                      <form method="post" class="scan-toggle-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete_carton">
-                        <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button
-                          type="submit"
-                          class="scan-scan-btn btn btn-danger"
-                          onclick="return confirm('{% trans "Supprimer ce colis ?" %}')"
-                        >
-                          {% trans "Supprimer" %}
-                        </button>
-                      </form>
-                    {% endif %}
-                    {% if not carton.can_edit and not carton.can_delete %}
-                      -
-                    {% endif %}
-                  </div>
-                </td>
-                <td>
-                  {% if carton.packing_list %}
-                    <div class="scan-packing-list">
-                      {% for item in carton.packing_list %}
-                        <div>{{ item.label }} ({{ item.quantity }})</div>
-                      {% endfor %}
-                    </div>
-                    <div class="scan-field scan-field-gap scan-inline-actions ui-comp-actions">
-                      <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
-                        {% trans "Imprimer / télécharger" %}
-                      </a>
-                      <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        Picking
-                      </a>
-                    </div>
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
+                <th class="scan-carton-table-head scan-carton-select-col"><span class="scan-carton-table-head-label">{% trans "Sélection" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-code-col"><span class="scan-carton-table-head-label">{% trans "Numero colis" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-date-col"><span class="scan-carton-table-head-label">{% trans "Date création" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-status-col"><span class="scan-carton-table-head-label">{% trans "Statut" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-shipment-col"><span class="scan-carton-table-head-label">{% trans "N° expédition" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-location-col"><span class="scan-carton-table-head-label">{% trans "Emplacement" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-fill-col"><span class="scan-carton-table-head-label">{% trans "Remplissage" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-content-col"><span class="scan-carton-table-head-label">{% trans "Contenu" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-actions-col"><span class="scan-carton-table-head-label">{% trans "Actions" %}</span></th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {% for carton in cartons %}
+                <tr>
+                  <td class="scan-carton-select-col"><input type="checkbox" name="selected_carton_ids" value="{{ carton.id }}"></td>
+                  <td class="scan-carton-code-col">{{ carton.code }}</td>
+                  <td class="scan-carton-date-col">{{ carton.created_at|date:"d/m/y H\\hi" }}</td>
+                  <td class="status scan-carton-status-cell scan-carton-status-col">
+                    <div class="scan-carton-status-display">
+                      <div class="scan-carton-status-stack">
+                        {% if carton.status_badges %}
+                          {% for badge in carton.status_badges %}
+                            <span class="ui-comp-status-pill scan-carton-status-pill scan-carton-status-pill--{{ badge.variant }}">{{ badge.label }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="ui-comp-status-pill scan-carton-status-pill is-{{ carton.status_tone }}">{{ carton.status_label }}</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </td>
+                  <td class="scan-carton-shipment-col">{{ carton.shipment_reference|default:"-" }}</td>
+                  <td class="scan-carton-location-col">{{ carton.location|default:"-" }}</td>
+                  <td class="scan-carton-fill-cell scan-carton-fill-col">
+                    <div><strong>{% trans "Poids" %}</strong> :
+                      {% if carton.weight_kg is not None %}
+                        {{ carton.weight_kg|floatformat:2 }} kg
+                      {% else %}
+                        -
+                      {% endif %}
+                    </div>
+                    <div><strong>{% trans "Volume" %}</strong> :
+                      {% if carton.volume_percent is not None %}
+                        {{ carton.volume_percent }}%
+                      {% else %}
+                        -
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td class="scan-carton-content-col">
+                    <div class="scan-carton-content-lines">
+                      <div class="scan-carton-content-line">
+                        {{ carton.summary_line_count }} ligne{{ carton.summary_line_count|pluralize }}
+                      </div>
+                      <div class="scan-carton-content-line scan-carton-content-line-secondary">
+                        {{ carton.summary_total_quantity }} unité{{ carton.summary_total_quantity|pluralize }}
+                      </div>
+                    </div>
+                  </td>
+                  <td class="scan-carton-actions-col">
+                    <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.detail_url }}">
+                      {% trans "Ouvrir" %}
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
     {% else %}
       <p class="scan-help ui-comp-note">{% trans "Aucun colis conditionné." %}</p>
     {% endif %}

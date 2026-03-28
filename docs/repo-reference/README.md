@@ -67,6 +67,7 @@ Before closing the change:
 1. re-read the relevant impact-map section
 2. update docs if a rule, route, contract, or smoke changed
 3. verify that the reference tests still describe the real contract
+4. if an important follow-up was explicitly deferred, record it in `docs/deferred-follow-ups.md`
 
 ## Update This Reference When
 

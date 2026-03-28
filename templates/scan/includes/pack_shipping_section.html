@@ -53,6 +53,8 @@
     >
       {% trans "Préparer et mettre en disponible" %}
     </button>
+  {% elif editing_carton %}
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer les modifications" %}</button>
   {% else %}
     <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
   {% endif %}

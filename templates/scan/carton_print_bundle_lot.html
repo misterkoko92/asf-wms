@@ -1,0 +1,26 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - {{ bundle_title }}{% endblock %}
+
+{% block content %}
+  <section id="{{ bundle_id }}" class="scan-card card border-0 ui-comp-card">
+    <div class="scan-field ui-comp-panel">
+      <h1 class="ui-comp-title h4 mb-3">{{ bundle_title }}</h1>
+
+      <div class="scan-field">
+        {% for row in bundle_rows %}
+          <div class="scan-field">
+            <div class="meta mb-2">{{ row.code }}</div>
+            <div class="ui-comp-actions">
+              {% for action in row.actions %}
+                <a class="scan-scan-btn btn btn-tertiary" href="{{ action.url }}" target="_blank" rel="noopener">
+                  {{ action.label }}
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

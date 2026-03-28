@@ -920,6 +920,31 @@ class ScanViewTests(TestCase):
         self.assertContains(response, "Liste picking - kits")
         self.assertContains(response, 'class="picking-table"')
 
+    def test_scan_cartons_picking_renders_rows(self):
+        carton_a = Carton.objects.create(code="C-PICK-A", status=CartonStatus.PICKING)
+        carton_b = Carton.objects.create(code="C-PICK-B", status=CartonStatus.PICKING)
+        CartonItem.objects.create(
+            carton=carton_a,
+            product_lot=ProductLot.objects.first(),
+            quantity=2,
+        )
+        CartonItem.objects.create(
+            carton=carton_b,
+            product_lot=ProductLot.objects.first(),
+            quantity=3,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_picking"),
+            {"carton_ids": f"{carton_a.id},{carton_b.id}"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Liste picking - colis")
+        self.assertContains(response, "C-PICK-A")
+        self.assertContains(response, "C-PICK-B")
+        self.assertContains(response, 'class="picking-table"')
+
     def test_scan_carton_picking_renders_styled_table(self):
         carton = Carton.objects.create(code="C-PICK-1", status=CartonStatus.PICKING)
         CartonItem.objects.create(

@@ -97,6 +97,14 @@ class CartonViewHelpersTests(TestCase):
             shipment_id=77,
             shipment=SimpleNamespace(reference="S-077", status="draft"),
             current_location="A1",
+            status_events=SimpleNamespace(
+                all=lambda: [
+                    SimpleNamespace(
+                        previous_status=CartonStatus.DRAFT,
+                        new_status=CartonStatus.ASSIGNED,
+                    )
+                ]
+            ),
             cartonitem_set=SimpleNamespace(all=lambda: [item_assigned]),
         )
         carton_draft = SimpleNamespace(
@@ -107,6 +115,7 @@ class CartonViewHelpersTests(TestCase):
             shipment_id=None,
             shipment=None,
             current_location="A2",
+            status_events=SimpleNamespace(all=lambda: []),
             cartonitem_set=SimpleNamespace(all=lambda: [item_missing_both]),
         )
         carton_unknown_status = SimpleNamespace(
@@ -118,6 +127,7 @@ class CartonViewHelpersTests(TestCase):
             shipment=None,
             preassigned_destination=None,
             current_location="A3",
+            status_events=SimpleNamespace(all=lambda: []),
             cartonitem_set=SimpleNamespace(all=lambda: [item_missing_volume]),
         )
         carton_preassigned = SimpleNamespace(
@@ -129,19 +139,52 @@ class CartonViewHelpersTests(TestCase):
             shipment=None,
             preassigned_destination=SimpleNamespace(iata_code="NKC"),
             current_location="A4",
+            status_events=SimpleNamespace(all=lambda: []),
             cartonitem_set=SimpleNamespace(all=lambda: [item_draft]),
+        )
+        carton_planned = SimpleNamespace(
+            id=14,
+            code="C-PLANNED",
+            created_at=datetime(2026, 1, 14, 12, 0, 0),
+            status=CartonStatus.ASSIGNED,
+            shipment_id=88,
+            shipment=SimpleNamespace(reference="S-088", status="planned", is_disputed=False),
+            preassigned_destination=None,
+            current_location="A5",
+            status_events=SimpleNamespace(
+                all=lambda: [
+                    SimpleNamespace(
+                        previous_status=CartonStatus.PACKED,
+                        new_status=CartonStatus.ASSIGNED,
+                    )
+                ]
+            ),
+            cartonitem_set=SimpleNamespace(all=lambda: [item_assigned]),
         )
 
         rows = build_cartons_ready_rows(
-            [carton_assigned, carton_draft, carton_unknown_status, carton_preassigned],
+            [
+                carton_assigned,
+                carton_draft,
+                carton_unknown_status,
+                carton_preassigned,
+                carton_planned,
+            ],
             carton_capacity_cm3=5000,
         )
 
-        self.assertEqual([row["id"] for row in rows], [10, 11, 12, 13])
+        self.assertEqual([row["id"] for row in rows], [10, 11, 12, 13, 14])
 
         assigned_row = rows[0]
         self.assertEqual(assigned_row["status_label"], "Affecté")
         self.assertEqual(assigned_row["status_tone"], "progress")
+        self.assertEqual(
+            assigned_row["status_badges"],
+            [
+                {"label": "Créé", "variant": "prep-draft"},
+                {"label": "Affecté", "variant": "assignment-assigned"},
+            ],
+        )
         self.assertFalse(assigned_row["can_toggle"])
         self.assertTrue(assigned_row["can_edit"])
         self.assertTrue(assigned_row["can_delete"])
@@ -160,12 +203,29 @@ class CartonViewHelpersTests(TestCase):
             reverse("scan:scan_carton_picking", args=[10]),
         )
         self.assertTrue(assigned_row["picking_url"].endswith("/scan/carton/10/picking/"))
+        self.assertEqual(
+            assigned_row["detail_url"],
+            reverse("scan:scan_carton_edit", args=[10]),
+        )
+        self.assertEqual(assigned_row["summary_line_count"], 1)
+        self.assertEqual(assigned_row["summary_total_quantity"], 2)
+        self.assertTrue(assigned_row["has_packing_list"])
+        self.assertTrue(assigned_row["has_picking"])
+        self.assertTrue(assigned_row["can_bulk_mark_labeled"])
+        self.assertFalse(assigned_row["can_bulk_mark_assigned"])
         self.assertEqual(assigned_row["weight_kg"], 1.0)
         self.assertEqual(assigned_row["volume_percent"], 40)
 
         draft_row = rows[1]
         self.assertEqual(draft_row["status_label"], "Créé")
         self.assertEqual(draft_row["status_tone"], "progress")
+        self.assertEqual(
+            draft_row["status_badges"],
+            [
+                {"label": "Créé", "variant": "prep-draft"},
+                {"label": "Libre", "variant": "assignment-free"},
+            ],
+        )
         self.assertTrue(draft_row["can_toggle"])
         self.assertTrue(draft_row["can_edit"])
         self.assertTrue(draft_row["can_delete"])
@@ -183,10 +243,38 @@ class CartonViewHelpersTests(TestCase):
         unknown_row = rows[2]
         self.assertEqual(unknown_row["status_label"], "unknown-status")
         self.assertEqual(unknown_row["status_tone"], "progress")
+        self.assertEqual(
+            unknown_row["status_badges"],
+            [
+                {"label": "Prépa inconnue", "variant": "prep-unknown"},
+                {"label": "Libre", "variant": "assignment-free"},
+            ],
+        )
         self.assertIsNone(unknown_row["volume_percent"])
         self.assertEqual(unknown_row["packing_list"][0]["quantity"], 1)
 
         preassigned_row = rows[3]
         self.assertEqual(preassigned_row["shipment_reference"], "(NKC)")
+        self.assertEqual(
+            preassigned_row["status_badges"],
+            [
+                {"label": "Disponible", "variant": "prep-packed"},
+                {"label": "Libre", "variant": "assignment-free"},
+            ],
+        )
         self.assertTrue(preassigned_row["can_edit"])
         self.assertTrue(preassigned_row["can_delete"])
+
+        planned_row = rows[4]
+        self.assertEqual(planned_row["shipment_reference"], "S-088")
+        self.assertEqual(
+            planned_row["status_badges"],
+            [
+                {"label": "Disponible", "variant": "prep-packed"},
+                {"label": "Affecté", "variant": "assignment-assigned"},
+            ],
+        )
+        self.assertFalse(planned_row["can_edit"])
+        self.assertFalse(planned_row["can_delete"])
+        self.assertFalse(planned_row["can_bulk_mark_labeled"])
+        self.assertFalse(planned_row["can_bulk_mark_assigned"])

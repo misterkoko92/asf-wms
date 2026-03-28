@@ -23,7 +23,9 @@ Always check:
 Ask yourself:
 
 - does the same rule exist in the UI API under `api/v1/ui/`?
+- if this is a carton-list change, does `scan_carton_edit` still carry the operational actions and lock states?
 - does the same operation appear in print/document endpoints?
+- if bulk carton actions or grouped documents change, do `scan_carton_picking`, `scan_cartons_picking`, `scan_carton_document`, and grouped bundle routes still match?
 - does release smoke mention this user path?
 - did the business sequence or wording in `docs/mvp_spec.md` change?
 
