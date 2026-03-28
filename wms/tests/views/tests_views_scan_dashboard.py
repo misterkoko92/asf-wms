@@ -669,3 +669,21 @@ class ScanDashboardViewTests(TestCase):
                 "Investiguer la queue email",
             ],
         )
+
+    def test_scan_dashboard_orders_priority_pilotage_flow_and_health_sections(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        content = response.content.decode()
+        self.assertLess(
+            content.index('id="scan-dashboard-priorities"'),
+            content.index('id="scan-dashboard-pilotage"'),
+        )
+        self.assertLess(
+            content.index('id="scan-dashboard-pilotage"'),
+            content.index('id="scan-dashboard-flow"'),
+        )
+        self.assertLess(
+            content.index('id="scan-dashboard-flow"'),
+            content.index('id="scan-dashboard-health"'),
+        )
