@@ -27,7 +27,7 @@
     {% endif %}
     {% if request.scan_is_preparateur and packing_result and packing_result.show_success_modal %}
       {% include "scan/includes/pack_success_modal.html" %}
-      <div class="modal-backdrop fade show"></div>
+      <div id="pack-success-backdrop" class="modal-backdrop fade show"></div>
     {% endif %}
     <div class="scan-card card border-0 ui-comp-card">
       <h2 class="ui-comp-title">

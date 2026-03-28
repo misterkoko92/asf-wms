@@ -34,7 +34,7 @@
         <button
           type="button"
           class="btn btn-primary"
-          onclick="document.getElementById('pack-success-modal').style.display='none';document.getElementById('pack-success-modal').classList.remove('show');"
+          onclick="var modal=document.getElementById('pack-success-modal');if(modal){modal.style.display='none';modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}var backdrop=document.getElementById('pack-success-backdrop');if(backdrop&&backdrop.parentNode){backdrop.parentNode.removeChild(backdrop);}"
         >
           {% trans "Fermer" %}
         </button>

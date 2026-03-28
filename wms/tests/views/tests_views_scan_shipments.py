@@ -499,6 +499,8 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Ranger le colis dans la zone Colis Prets CN")
         self.assertContains(response, "Écrire le numéro CN-20260316-04")
         self.assertContains(response, 'id="pack-success-modal"')
+        self.assertContains(response, 'id="pack-success-backdrop"')
+        self.assertContains(response, "document.getElementById('pack-success-backdrop')")
 
     def test_scan_shipment_create_renders_secondary_draft_button_near_submit(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))
