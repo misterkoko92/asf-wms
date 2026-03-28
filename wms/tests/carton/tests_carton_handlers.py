@@ -213,6 +213,35 @@ class CartonHandlersTests(TestCase):
         self.assertEqual(eligible_carton.status, CartonStatus.LABELED)
         self.assertEqual(locked_carton.status, CartonStatus.ASSIGNED)
 
+    def test_bulk_action_alias_updates_labeled_status_from_selected_rows(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PICKING,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-ALIAS",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "bulk_action": "bulk_mark_cartons_labeled",
+                "selected_carton_ids": [str(carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.status, CartonStatus.LABELED)
+
     def test_bulk_mark_cartons_assigned_updates_only_labeled_rows(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.PICKING,
@@ -248,6 +277,66 @@ class CartonHandlersTests(TestCase):
         ignored_carton.refresh_from_db()
         self.assertEqual(eligible_carton.status, CartonStatus.ASSIGNED)
         self.assertEqual(ignored_carton.status, CartonStatus.ASSIGNED)
+
+    def test_bulk_update_cartons_packed_updates_only_eligible_unassigned_rows(self):
+        eligible_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-READY",
+            status=CartonStatus.PICKING,
+        )
+        ignored_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-READY-LOCKED",
+            status=CartonStatus.ASSIGNED,
+            shipment=Shipment.objects.create(
+                status=ShipmentStatus.PICKING,
+                is_disputed=False,
+                shipper_name="Sender",
+                recipient_name="Recipient",
+                destination_address="1 rue test",
+                destination_country="France",
+            ),
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_update_cartons_packed",
+                "selected_carton_ids": [str(eligible_carton.id), str(ignored_carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        eligible_carton.refresh_from_db()
+        ignored_carton.refresh_from_db()
+        self.assertEqual(eligible_carton.status, CartonStatus.PACKED)
+        self.assertEqual(ignored_carton.status, CartonStatus.ASSIGNED)
+
+    def test_bulk_update_cartons_picking_updates_only_eligible_unassigned_rows(self):
+        eligible_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-PICKING",
+            status=CartonStatus.PACKED,
+        )
+        ignored_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-PICKING-SHIPPED",
+            status=CartonStatus.SHIPPED,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_update_cartons_picking",
+                "selected_carton_ids": [str(eligible_carton.id), str(ignored_carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        eligible_carton.refresh_from_db()
+        ignored_carton.refresh_from_db()
+        self.assertEqual(eligible_carton.status, CartonStatus.PICKING)
+        self.assertEqual(ignored_carton.status, CartonStatus.SHIPPED)
 
     def test_mark_carton_labeled_ignored_when_shipment_status_is_locked(self):
         shipment = Shipment.objects.create(

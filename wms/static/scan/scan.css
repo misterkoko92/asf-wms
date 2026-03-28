@@ -1455,3 +1455,7 @@ h3 {
   background: var(--wms-color-btn-tertiary-hover-bg, var(--bg-2));
   color: var(--wms-color-btn-tertiary-text, var(--ink));
 }
+
+.scan-carton-bulk-action-select {
+  min-width: 24ch;
+}

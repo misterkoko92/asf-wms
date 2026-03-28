@@ -348,8 +348,12 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'id="carton-bulk-actions"')
         self.assertContains(response, 'name="selected_carton_ids"')
         self.assertContains(response, 'name="bulk_action"')
+        self.assertContains(response, "scan-carton-bulk-action-select")
         self.assertContains(response, "Liste de colisage")
         self.assertContains(response, "Picking")
+        self.assertContains(response, "Marquer en préparation")
+        self.assertContains(response, "Marquer prêt / disponible")
+        self.assertContains(response, "Marquer affecté")
         self.assertContains(response, "3 lignes / 18 unités")
         self.assertContains(response, "1 ligne / 2 unités")
         self.assertContains(response, 'href="/scan/carton/1/edit/"')
@@ -393,6 +397,21 @@ class ScanShipmentsViewsTests(TestCase):
             response,
             f"{reverse('scan:scan_cartons_view_bundle', args=['packing_lists'])}?carton_ids={carton.id}",
         )
+
+    def test_scan_cartons_ready_bulk_apply_updates_selected_cartons_to_packed(self):
+        carton = Carton.objects.create(code="C-BULK-READY", status=CartonStatus.PICKING)
+
+        response = self.client.post(
+            reverse("scan:scan_cartons_ready"),
+            {
+                "bulk_action": "bulk_update_cartons_packed",
+                "selected_carton_ids": [str(carton.id)],
+            },
+        )
+
+        self.assertRedirects(response, reverse("scan:scan_cartons_ready"))
+        carton.refresh_from_db()
+        self.assertEqual(carton.status, CartonStatus.PACKED)
 
     def test_scan_carton_edit_renders_carton_fiche_sections(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)

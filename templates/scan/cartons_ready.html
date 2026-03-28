@@ -32,10 +32,12 @@
           <button type="submit" name="bulk_document" value="picking" class="scan-scan-btn btn btn-tertiary">
             Picking
           </button>
-          <select name="bulk_action" class="form-select form-select-sm w-auto">
+          <select name="bulk_action" class="form-select form-select-sm w-auto scan-carton-bulk-action-select">
             <option value="">{% trans "Changer le statut" %}</option>
+            <option value="bulk_update_cartons_picking">{% trans "Marquer en préparation" %}</option>
+            <option value="bulk_update_cartons_packed">{% trans "Marquer prêt / disponible" %}</option>
             <option value="bulk_mark_cartons_labeled">{% trans "Marquer étiqueté" %}</option>
-            <option value="bulk_mark_cartons_assigned">{% trans "Retirer étiquette" %}</option>
+            <option value="bulk_mark_cartons_assigned">{% trans "Marquer affecté" %}</option>
           </select>
           <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
         </div>
