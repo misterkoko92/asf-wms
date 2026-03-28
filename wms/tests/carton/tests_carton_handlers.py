@@ -169,6 +169,86 @@ class CartonHandlersTests(TestCase):
         carton.refresh_from_db()
         self.assertEqual(carton.status, CartonStatus.ASSIGNED)
 
+    def test_bulk_mark_cartons_labeled_updates_only_eligible_rows(self):
+        editable_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PICKING,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        locked_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        eligible_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-1",
+            status=CartonStatus.ASSIGNED,
+            shipment=editable_shipment,
+        )
+        locked_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-2",
+            status=CartonStatus.ASSIGNED,
+            shipment=locked_shipment,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_mark_cartons_labeled",
+                "selected_carton_ids": [str(eligible_carton.id), str(locked_carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        eligible_carton.refresh_from_db()
+        locked_carton.refresh_from_db()
+        self.assertEqual(eligible_carton.status, CartonStatus.LABELED)
+        self.assertEqual(locked_carton.status, CartonStatus.ASSIGNED)
+
+    def test_bulk_mark_cartons_assigned_updates_only_labeled_rows(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PICKING,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        eligible_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-3",
+            status=CartonStatus.LABELED,
+            shipment=shipment,
+        )
+        ignored_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-4",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_mark_cartons_assigned",
+                "selected_carton_ids": [str(eligible_carton.id), str(ignored_carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        eligible_carton.refresh_from_db()
+        ignored_carton.refresh_from_db()
+        self.assertEqual(eligible_carton.status, CartonStatus.ASSIGNED)
+        self.assertEqual(ignored_carton.status, CartonStatus.ASSIGNED)
+
     def test_mark_carton_labeled_ignored_when_shipment_status_is_locked(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.SHIPPED,
@@ -197,7 +277,7 @@ class CartonHandlersTests(TestCase):
         carton.refresh_from_db()
         self.assertEqual(carton.status, CartonStatus.ASSIGNED)
 
-    def test_delete_carton_unpacks_and_deletes_non_shipped_carton(self):
+    def test_delete_carton_ignores_planned_shipment_carton(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,
             is_disputed=False,
@@ -226,6 +306,6 @@ class CartonHandlersTests(TestCase):
         response = handle_carton_status_update(request)
 
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(Carton.objects.filter(pk=carton.id).exists())
+        self.assertTrue(Carton.objects.filter(pk=carton.id).exists())
         self.lot.refresh_from_db()
-        self.assertEqual(self.lot.quantity_on_hand, 10)
+        self.assertEqual(self.lot.quantity_on_hand, 8)

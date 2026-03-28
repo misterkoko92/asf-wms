@@ -302,7 +302,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.2"')
         self.assertContains(response, 'data-local-document-helper-latest-version="0.1.2"')
 
-    def test_scan_cartons_ready_uses_available_label_and_updated_status_controls(self):
+    def test_scan_cartons_ready_uses_bulk_toolbar_and_open_action(self):
         with mock.patch(
             "wms.views_scan_shipments.build_cartons_ready_rows",
             return_value=[
@@ -310,16 +310,16 @@ class ScanShipmentsViewsTests(TestCase):
                     "id": 1,
                     "code": "C-READY",
                     "created_at": None,
+                    "status_label": "Prêt",
                     "status_value": CartonStatus.PACKED,
                     "status_tone": "ready",
-                    "can_toggle": True,
-                    "can_mark_labeled": False,
-                    "can_mark_assigned": False,
+                    "detail_url": "/scan/carton/1/edit/",
                     "shipment_reference": "",
                     "location": "",
-                    "packing_list": [],
-                    "packing_list_url": "",
-                    "picking_url": "",
+                    "summary_line_count": 3,
+                    "summary_total_quantity": 18,
+                    "has_packing_list": True,
+                    "has_picking": True,
                     "weight_kg": None,
                     "volume_percent": None,
                 },
@@ -330,14 +330,13 @@ class ScanShipmentsViewsTests(TestCase):
                     "status_label": "Affecté",
                     "status_value": CartonStatus.ASSIGNED,
                     "status_tone": "progress",
-                    "can_toggle": False,
-                    "can_mark_labeled": True,
-                    "can_mark_assigned": False,
+                    "detail_url": "/scan/carton/2/edit/",
                     "shipment_reference": "S-001",
                     "location": "",
-                    "packing_list": [],
-                    "packing_list_url": "",
-                    "picking_url": "",
+                    "summary_line_count": 1,
+                    "summary_total_quantity": 2,
+                    "has_packing_list": True,
+                    "has_picking": True,
                     "weight_kg": None,
                     "volume_percent": None,
                 },
@@ -346,18 +345,106 @@ class ScanShipmentsViewsTests(TestCase):
             response = self.client.get(reverse("scan:scan_cartons_ready"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "scan-carton-status-cell")
-        self.assertContains(response, "scan-carton-status-select-wrap")
-        self.assertContains(response, "Disponible")
-        self.assertContains(response, "scan-carton-status-display")
+        self.assertContains(response, 'id="carton-bulk-actions"')
+        self.assertContains(response, 'name="selected_carton_ids"')
+        self.assertContains(response, 'name="bulk_action"')
+        self.assertContains(response, "Liste de colisage")
+        self.assertContains(response, "Picking")
+        self.assertContains(response, "3 lignes / 18 unités")
+        self.assertContains(response, "1 ligne / 2 unités")
+        self.assertContains(response, 'href="/scan/carton/1/edit/"')
+        self.assertContains(response, "Ouvrir")
         self.assertContains(
             response,
             'class="ui-comp-status-pill scan-carton-status-pill is-progress"',
         )
+        self.assertNotContains(response, "scan-carton-status-select-wrap")
+        self.assertNotContains(response, "Imprimer / télécharger")
+        self.assertNotContains(response, 'class="scan-scan-btn btn btn-danger"')
+
+    def test_scan_cartons_ready_bulk_picking_redirects_to_grouped_route(self):
+        carton = Carton.objects.create(code="C-BULK-PICK", status=CartonStatus.PICKING)
+
+        response = self.client.post(
+            reverse("scan:scan_cartons_ready"),
+            {
+                "bulk_document": "picking",
+                "selected_carton_ids": [str(carton.id)],
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('scan:scan_cartons_picking')}?carton_ids={carton.id}",
+        )
+
+    def test_scan_cartons_ready_bulk_packing_lists_redirects_to_bundle_route(self):
+        carton = Carton.objects.create(code="C-BULK-DOC", status=CartonStatus.PICKING)
+
+        response = self.client.post(
+            reverse("scan:scan_cartons_ready"),
+            {
+                "bulk_document": "packing_lists",
+                "selected_carton_ids": [str(carton.id)],
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('scan:scan_cartons_view_bundle', args=['packing_lists'])}?carton_ids={carton.id}",
+        )
+
+    def test_scan_carton_edit_renders_carton_fiche_sections(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        carton = Carton.objects.create(
+            code="C-FICHE-001",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+
+        response = self.client.get(reverse("scan:scan_carton_edit", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "scan/pack.html")
+        self.assertContains(response, f"Fiche colis {carton.code}")
+        self.assertContains(response, "Synthèse")
+        self.assertContains(response, "Contenu")
+        self.assertContains(response, "Documents")
+        self.assertContains(response, "Modifier")
         self.assertContains(
             response,
-            'class="scan-scan-btn btn btn-sm btn-tertiary"',
+            reverse("scan:scan_shipment_edit", args=[shipment.id]),
         )
+        self.assertContains(
+            response,
+            reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id]),
+        )
+        self.assertContains(
+            response,
+            reverse("scan:scan_carton_picking", args=[carton.id]),
+        )
+
+    def test_scan_carton_edit_renders_read_only_fiche_when_shipment_is_planned(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
+        carton = Carton.objects.create(
+            code="C-LOCKED-001",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+
+        response = self.client.get(reverse("scan:scan_carton_edit", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "scan/pack.html")
+        self.assertContains(response, f"Fiche colis {carton.code}")
+        self.assertContains(response, "Colis verrouillé")
+        self.assertContains(response, "Expédition planifiée")
+        self.assertContains(
+            response,
+            reverse("scan:scan_shipment_edit", args=[shipment.id]),
+        )
+        self.assertNotContains(response, 'id="carton-edit-panel"')
+        self.assertNotContains(response, 'id="pack-lines"')
 
     def test_scan_shipments_tracking_renders_rows_context(self):
         with mock.patch(

@@ -3,6 +3,8 @@
 from .views_print_docs import (
     scan_carton_document,
     scan_carton_picking,
+    scan_cartons_picking,
+    scan_cartons_view_bundle,
     scan_shipment_carton_document,
     scan_shipment_document,
     scan_shipment_document_delete,
@@ -31,6 +33,8 @@ DOCUMENT_EXPORTS = (
     "scan_shipment_carton_document",
     "scan_shipment_donation_certificate",
     "scan_carton_document",
+    "scan_cartons_picking",
+    "scan_cartons_view_bundle",
     "scan_carton_picking",
 )
 

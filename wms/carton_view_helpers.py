@@ -12,6 +12,7 @@ LOCKED_SHIPMENT_STATUSES = {
 }
 
 MUTATION_BLOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
     ShipmentStatus.SHIPPED,
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
@@ -54,88 +55,101 @@ def _carton_allows_mutation(carton):
     return getattr(shipment, "status", None) not in MUTATION_BLOCKED_SHIPMENT_STATUSES
 
 
-def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
-    cartons = []
-    for carton in cartons_qs:
-        product_totals = {}
-        weight_total_g = 0
-        volume_total_cm3 = 0
-        missing_weight = False
-        missing_volume = False
-        for item in carton.cartonitem_set.all():
-            product = item.product_lot.product
-            lot_code = item.product_lot.lot_code
-            key = build_product_group_key(product, lot_code)
-            if key not in product_totals:
-                product_totals[key] = {
-                    "label": build_product_label(product, lot_code),
-                    "quantity": 0,
-                }
-            product_totals[key]["quantity"] += item.quantity
-            if product.weight_g:
-                weight_total_g += product.weight_g * item.quantity
-            else:
-                missing_weight = True
-            if product.volume_cm3:
-                volume_total_cm3 += product.volume_cm3 * item.quantity
-            else:
-                missing_volume = True
-        packing_list = sorted(product_totals.values(), key=lambda row: row["label"])
-        if weight_total_g == 0 and missing_weight:
-            weight_kg = None
-        else:
-            weight_kg = weight_total_g / 1000 if weight_total_g else None
-        if carton_capacity_cm3 and volume_total_cm3 and not missing_volume:
-            volume_percent = round(float(volume_total_cm3) / float(carton_capacity_cm3) * 100)
-        else:
-            volume_percent = None
-        is_assigned = carton.shipment_id is not None
-        shipment_status = getattr(getattr(carton, "shipment", None), "status", None)
-        shipment_locked = (
-            carton.shipment_id is not None
-            and carton.shipment
-            and shipment_status in LOCKED_SHIPMENT_STATUSES
-        )
-        try:
-            status_label = CartonStatus(carton.status).label
-        except ValueError:
-            status_label = carton.status
-        if carton.shipment_id:
-            packing_list_url = _html_delivery_url(
-                reverse(
-                    "scan:scan_shipment_carton_document",
-                    args=[carton.shipment_id, carton.id],
-                )
-            )
-        else:
-            packing_list_url = _html_delivery_url(
-                reverse("scan:scan_carton_document", args=[carton.id])
-            )
-        picking_url = reverse("scan:scan_carton_picking", args=[carton.id])
-        cartons.append(
-            {
-                "id": carton.id,
-                "code": carton.code,
-                "created_at": carton.created_at,
-                "status_label": status_label,
-                "status_value": carton.status,
-                "status_tone": resolve_status_tone(carton.status, domain="carton"),
-                "can_toggle": (not is_assigned) and carton.status != CartonStatus.SHIPPED,
-                "can_mark_labeled": is_assigned
-                and not shipment_locked
-                and carton.status in {CartonStatus.ASSIGNED, CartonStatus.PACKED},
-                "can_mark_assigned": is_assigned
-                and not shipment_locked
-                and carton.status == CartonStatus.LABELED,
-                "can_edit": _carton_allows_mutation(carton),
-                "can_delete": _carton_allows_mutation(carton),
-                "shipment_reference": _build_shipment_reference(carton),
-                "location": carton.current_location,
-                "packing_list": packing_list,
-                "packing_list_url": packing_list_url,
-                "picking_url": picking_url,
-                "weight_kg": weight_kg,
-                "volume_percent": volume_percent,
+def build_carton_ready_row(carton, *, carton_capacity_cm3):
+    product_totals = {}
+    weight_total_g = 0
+    volume_total_cm3 = 0
+    missing_weight = False
+    missing_volume = False
+    for item in carton.cartonitem_set.all():
+        product = item.product_lot.product
+        lot_code = item.product_lot.lot_code
+        key = build_product_group_key(product, lot_code)
+        if key not in product_totals:
+            product_totals[key] = {
+                "label": build_product_label(product, lot_code),
+                "quantity": 0,
             }
+        product_totals[key]["quantity"] += item.quantity
+        if product.weight_g:
+            weight_total_g += product.weight_g * item.quantity
+        else:
+            missing_weight = True
+        if product.volume_cm3:
+            volume_total_cm3 += product.volume_cm3 * item.quantity
+        else:
+            missing_volume = True
+    packing_list = sorted(product_totals.values(), key=lambda row: row["label"])
+    if weight_total_g == 0 and missing_weight:
+        weight_kg = None
+    else:
+        weight_kg = weight_total_g / 1000 if weight_total_g else None
+    if carton_capacity_cm3 and volume_total_cm3 and not missing_volume:
+        volume_percent = round(float(volume_total_cm3) / float(carton_capacity_cm3) * 100)
+    else:
+        volume_percent = None
+    is_assigned = carton.shipment_id is not None
+    shipment_status = getattr(getattr(carton, "shipment", None), "status", None)
+    shipment_locked = (
+        carton.shipment_id is not None
+        and carton.shipment
+        and shipment_status in LOCKED_SHIPMENT_STATUSES
+    )
+    try:
+        status_label = CartonStatus(carton.status).label
+    except ValueError:
+        status_label = carton.status
+    if carton.shipment_id:
+        packing_list_url = _html_delivery_url(
+            reverse(
+                "scan:scan_shipment_carton_document",
+                args=[carton.shipment_id, carton.id],
+            )
         )
-    return cartons
+    else:
+        packing_list_url = _html_delivery_url(
+            reverse("scan:scan_carton_document", args=[carton.id])
+        )
+    picking_url = reverse("scan:scan_carton_picking", args=[carton.id])
+    return {
+        "id": carton.id,
+        "code": carton.code,
+        "created_at": carton.created_at,
+        "status_label": status_label,
+        "status_value": carton.status,
+        "status_tone": resolve_status_tone(carton.status, domain="carton"),
+        "can_toggle": (not is_assigned) and carton.status != CartonStatus.SHIPPED,
+        "can_mark_labeled": is_assigned
+        and not shipment_locked
+        and carton.status in {CartonStatus.ASSIGNED, CartonStatus.PACKED},
+        "can_mark_assigned": is_assigned
+        and not shipment_locked
+        and carton.status == CartonStatus.LABELED,
+        "can_edit": _carton_allows_mutation(carton),
+        "can_delete": _carton_allows_mutation(carton),
+        "can_bulk_mark_labeled": is_assigned
+        and not shipment_locked
+        and carton.status in {CartonStatus.ASSIGNED, CartonStatus.PACKED},
+        "can_bulk_mark_assigned": is_assigned
+        and not shipment_locked
+        and carton.status == CartonStatus.LABELED,
+        "shipment_reference": _build_shipment_reference(carton),
+        "location": carton.current_location,
+        "detail_url": reverse("scan:scan_carton_edit", args=[carton.id]),
+        "summary_line_count": len(packing_list),
+        "summary_total_quantity": sum(item["quantity"] for item in packing_list),
+        "has_packing_list": bool(packing_list_url),
+        "has_picking": bool(picking_url),
+        "packing_list": packing_list,
+        "packing_list_url": packing_list_url,
+        "picking_url": picking_url,
+        "weight_kg": weight_kg,
+        "volume_percent": volume_percent,
+    }
+
+
+def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
+    return [
+        build_carton_ready_row(carton, carton_capacity_cm3=carton_capacity_cm3)
+        for carton in cartons_qs
+    ]

@@ -16,6 +16,7 @@ from .local_document_helper import (
     is_local_helper_job_request,
 )
 from .models import Carton, Shipment
+from .prepare_kits_helpers import _parse_carton_ids, build_prepare_kits_picking_context
 from .print_context import build_carton_picking_context
 from .print_delivery import wants_browser_print, wants_external_pdf
 from .print_pack_engine import (
@@ -45,6 +46,7 @@ TEMPLATE_PACKING_LIST_CARTON = "print/liste_colisage_carton.html"
 TEMPLATE_PICKING_LIST_CARTON = "print/picking_list_carton.html"
 TEMPLATE_SHIPMENT_PRINT_BUNDLE = "scan/shipment_print_bundle.html"
 TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT = "scan/shipment_print_bundle_lot.html"
+TEMPLATE_CARTON_PRINT_BUNDLE_LOT = "scan/carton_print_bundle_lot.html"
 
 SHIPMENT_VIEW_DOCUMENT_CONFIG = {
     "shipment_note": {
@@ -716,6 +718,57 @@ def scan_carton_picking(request, carton_id):
             TEMPLATE_PICKING_LIST_CARTON,
             build_carton_picking_context(carton),
         ),
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_cartons_picking(request):
+    carton_ids = _parse_carton_ids(request.GET.get("carton_ids"))
+    context = build_prepare_kits_picking_context(carton_ids)
+    if context is None:
+        raise Http404(_("Aucun picking disponible."))
+    return render(
+        request,
+        "print/picking_list_kits.html",
+        {
+            **context,
+            "picking_title": _("Liste picking - colis"),
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_cartons_view_bundle(request, bundle_key):
+    carton_ids = _parse_carton_ids(request.GET.get("carton_ids"))
+    cartons = list(Carton.objects.filter(id__in=carton_ids).order_by("code", "id"))
+    if not cartons:
+        raise Http404(_("Aucun carton sélectionné."))
+    normalized_bundle_key = (bundle_key or "").strip()
+    if normalized_bundle_key != "packing_lists":
+        raise Http404(_("Lot de documents introuvable."))
+    return render(
+        request,
+        TEMPLATE_CARTON_PRINT_BUNDLE_LOT,
+        {
+            "bundle_id": "carton-packing-lists-bundle",
+            "bundle_title": _("Lot listes colisage"),
+            "bundle_rows": [
+                {
+                    "code": carton.code,
+                    "actions": [
+                        {
+                            "label": _("Liste colisage"),
+                            "url": _html_delivery_url(
+                                reverse("scan:scan_carton_document", args=[carton.id])
+                            ),
+                        }
+                    ],
+                }
+                for carton in cartons
+            ],
+        },
     )
 
 

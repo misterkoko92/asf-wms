@@ -11,7 +11,11 @@ from django.utils.translation import ngettext
 from django.views.decorators.http import require_http_methods
 
 from .carton_handlers import handle_carton_status_update
-from .carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
+from .carton_view_helpers import (
+    build_carton_ready_row,
+    build_cartons_ready_rows,
+    get_carton_capacity_cm3,
+)
 from .forms import (
     ScanPackForm,
     ScanPrepareKitsForm,
@@ -119,6 +123,7 @@ LOCAL_DOCUMENT_HELPER_APP_LABEL = "asf-wms"
 LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE = "scan:scan_local_document_helper_installer"
 
 EDIT_BLOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
     ShipmentStatus.SHIPPED,
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
@@ -216,6 +221,37 @@ def _carton_is_editable(carton):
     if getattr(shipment, "is_disputed", False):
         return False
     return shipment.status not in EDIT_BLOCKED_SHIPMENT_STATUSES
+
+
+def _build_carton_lock_notice(carton):
+    if carton.status == CartonStatus.SHIPPED:
+        return {
+            "title": _("Colis verrouillé"),
+            "body": _("Ce colis est déjà expédié et ne peut plus être modifié."),
+            "tone": "warning",
+        }
+    shipment = getattr(carton, "shipment", None)
+    if not shipment:
+        return None
+    if getattr(shipment, "is_disputed", False):
+        return {
+            "title": _("Colis verrouillé"),
+            "body": _("Expédition en litige : modifications verrouillées."),
+            "tone": "warning",
+        }
+    if shipment.status == ShipmentStatus.PLANNED:
+        return {
+            "title": _("Colis verrouillé"),
+            "body": _("Expédition planifiée : modifications verrouillées."),
+            "tone": "warning",
+        }
+    if shipment.status in EDIT_BLOCKED_SHIPMENT_STATUSES:
+        return {
+            "title": _("Colis verrouillé"),
+            "body": _("Expédition verrouillée : modifications impossibles."),
+            "tone": "warning",
+        }
+    return None
 
 
 def _render_shipment_form(
@@ -369,6 +405,22 @@ def _render_shipment_tracking(
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_cartons_ready(request):
+    if request.method == "POST":
+        bulk_document = (request.POST.get("bulk_document") or "").strip()
+        selected_carton_ids = [
+            value for value in request.POST.getlist("selected_carton_ids") if value
+        ]
+        if bulk_document and selected_carton_ids:
+            carton_ids_value = ",".join(selected_carton_ids)
+            if bulk_document == "picking":
+                return redirect(
+                    f"{reverse('scan:scan_cartons_picking')}?carton_ids={carton_ids_value}"
+                )
+            if bulk_document == "packing_lists":
+                return redirect(
+                    f"{reverse('scan:scan_cartons_view_bundle', args=['packing_lists'])}?carton_ids={carton_ids_value}"
+                )
+
     response = handle_carton_status_update(request)
     if response:
         return response
@@ -672,7 +724,8 @@ def scan_carton_edit(request, carton_id):
         ).prefetch_related("cartonitem_set__product_lot__product"),
         pk=carton_id,
     )
-    if not _carton_is_editable(editing_carton):
+    carton_can_edit = _carton_is_editable(editing_carton)
+    if request.method == "POST" and not carton_can_edit:
         messages.error(request, _("Impossible de modifier ce colis."))
         return redirect("scan:scan_cartons_ready")
 
@@ -686,36 +739,72 @@ def scan_carton_edit(request, carton_id):
             form_initial["current_location"] = editing_carton.current_location
 
     form = ScanPackForm(request.POST or None, initial=form_initial)
-    product_options = build_product_options(include_kits=True)
-    carton_formats, default_format = build_carton_formats()
-    line_errors = {}
     packing_result = None
+    if carton_can_edit:
+        product_options = build_product_options(include_kits=True)
+        carton_formats, default_format = build_carton_formats()
+        line_errors = {}
 
-    if request.method == "POST":
-        response, pack_state = handle_pack_post(
-            request,
-            form=form,
-            default_format=default_format,
-            editing_carton=editing_carton,
-        )
-        carton_format_id = pack_state["carton_format_id"]
-        carton_custom = pack_state["carton_custom"]
-        line_count = pack_state["line_count"]
-        line_values = pack_state["line_values"]
-        line_errors = pack_state["line_errors"]
-        missing_defaults = pack_state.get("missing_defaults", [])
-        confirm_defaults = pack_state.get("confirm_defaults", False)
-        if response:
-            return response
+        if request.method == "POST":
+            response, pack_state = handle_pack_post(
+                request,
+                form=form,
+                default_format=default_format,
+                editing_carton=editing_carton,
+            )
+            carton_format_id = pack_state["carton_format_id"]
+            carton_custom = pack_state["carton_custom"]
+            line_count = pack_state["line_count"]
+            line_values = pack_state["line_values"]
+            line_errors = pack_state["line_errors"]
+            missing_defaults = pack_state.get("missing_defaults", [])
+            confirm_defaults = pack_state.get("confirm_defaults", False)
+            if response:
+                return response
+        else:
+            (
+                carton_format_id,
+                carton_custom,
+                line_count,
+                line_values,
+            ) = build_pack_defaults(default_format, carton=editing_carton)
+            missing_defaults = []
+            confirm_defaults = False
     else:
-        (
-            carton_format_id,
-            carton_custom,
-            line_count,
-            line_values,
-        ) = build_pack_defaults(default_format, carton=editing_carton)
+        product_options = []
+        carton_formats = []
+        carton_custom = {
+            "length_cm": editing_carton.length_cm or "",
+            "width_cm": editing_carton.width_cm or "",
+            "height_cm": editing_carton.height_cm or "",
+            "max_weight_g": "",
+        }
+        carton_format_id = "custom"
+        line_count = 0
+        line_values = []
+        line_errors = {}
         missing_defaults = []
         confirm_defaults = False
+
+    carton_summary = build_carton_ready_row(
+        editing_carton,
+        carton_capacity_cm3=get_carton_capacity_cm3(),
+    )
+    carton_shipment_url = (
+        reverse("scan:scan_shipment_edit", args=[editing_carton.shipment_id])
+        if editing_carton.shipment_id
+        else ""
+    )
+    carton_documents = [
+        {
+            "label": _("Liste de colisage"),
+            "url": carton_summary["packing_list_url"],
+        },
+        {
+            "label": _("Picking"),
+            "url": carton_summary["picking_url"],
+        },
+    ]
 
     return _render_pack_page(
         request,
@@ -730,7 +819,18 @@ def scan_carton_edit(request, carton_id):
         packing_result=packing_result,
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
-        extra_context={"editing_carton": editing_carton},
+        extra_context={
+            "active": ACTIVE_CARTONS_READY,
+            "editing_carton": editing_carton,
+            "carton_can_edit": carton_can_edit,
+            "carton_edit_mode": request.method == "POST",
+            "carton_summary": carton_summary,
+            "carton_documents": carton_documents,
+            "carton_shipment_url": carton_shipment_url,
+            "carton_lock_notice": None
+            if carton_can_edit
+            else _build_carton_lock_notice(editing_carton),
+        },
     )
 
 

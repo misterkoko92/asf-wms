@@ -2,7 +2,7 @@ from django.db import transaction
 from django.shortcuts import redirect
 
 from .carton_status_events import set_carton_status
-from .models import Carton, CartonStatus, ShipmentStatus
+from .models import Carton, CartonStatus, Shipment, ShipmentStatus
 from .services import StockError, unpack_carton
 from .shipment_status import sync_shipment_ready_state
 
@@ -14,6 +14,7 @@ LOCKED_SHIPMENT_STATUSES = {
 }
 
 MUTATION_BLOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
     ShipmentStatus.SHIPPED,
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
@@ -49,6 +50,8 @@ def handle_carton_status_update(request):
         "mark_carton_labeled",
         "mark_carton_assigned",
         "delete_carton",
+        "bulk_mark_cartons_labeled",
+        "bulk_mark_cartons_assigned",
     }
     if action not in allowed_actions:
         return None
@@ -91,6 +94,43 @@ def handle_carton_status_update(request):
             return redirect("scan:scan_cartons_ready")
         if shipment is not None:
             sync_shipment_ready_state(shipment)
+        return redirect("scan:scan_cartons_ready")
+
+    if action in {"bulk_mark_cartons_labeled", "bulk_mark_cartons_assigned"}:
+        cartons = list(
+            Carton.objects.filter(pk__in=request.POST.getlist("selected_carton_ids"))
+            .select_related("shipment")
+            .order_by("id")
+        )
+        touched_shipments = set()
+        for selected_carton in cartons:
+            if not selected_carton.shipment_id or _shipment_is_locked(selected_carton):
+                continue
+            if action == "bulk_mark_cartons_labeled" and selected_carton.status in {
+                CartonStatus.ASSIGNED,
+                CartonStatus.PACKED,
+            }:
+                set_carton_status(
+                    carton=selected_carton,
+                    new_status=CartonStatus.LABELED,
+                    reason="mark_labeled",
+                    user=getattr(request, "user", None),
+                )
+                touched_shipments.add(selected_carton.shipment_id)
+            if (
+                action == "bulk_mark_cartons_assigned"
+                and selected_carton.status == CartonStatus.LABELED
+            ):
+                set_carton_status(
+                    carton=selected_carton,
+                    new_status=CartonStatus.ASSIGNED,
+                    reason="mark_assigned",
+                    user=getattr(request, "user", None),
+                )
+                touched_shipments.add(selected_carton.shipment_id)
+        if touched_shipments:
+            for shipment in Shipment.objects.filter(pk__in=touched_shipments):
+                sync_shipment_ready_state(shipment)
         return redirect("scan:scan_cartons_ready")
 
     if not carton or not carton.shipment_id or _shipment_is_locked(carton):

@@ -20,6 +20,8 @@ from .views_portal import (
 from .views_print import (
     scan_carton_document,
     scan_carton_picking,
+    scan_cartons_picking,
+    scan_cartons_view_bundle,
     scan_print_template_edit,
     scan_print_template_preview,
     scan_print_templates,
@@ -179,6 +181,8 @@ PRINT_EXPORTS = (
     "scan_shipment_carton_document",
     "scan_shipment_donation_certificate",
     "scan_carton_document",
+    "scan_cartons_picking",
+    "scan_cartons_view_bundle",
     "scan_carton_picking",
     "scan_shipment_labels",
     "scan_shipment_label",

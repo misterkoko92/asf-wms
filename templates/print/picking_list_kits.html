@@ -58,7 +58,7 @@
 {% block body %}
   <section class="picking-sheet">
     <div class="picking-head">
-      <h1>{% trans "Liste picking - kits" %}</h1>
+      <h1>{% if picking_title %}{{ picking_title }}{% else %}{% trans "Liste picking - kits" %}{% endif %}</h1>
       <p class="picking-meta">{% trans "Cartons" %}: {{ carton_codes|join:", " }}</p>
     </div>
 

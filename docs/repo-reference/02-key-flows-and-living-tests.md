@@ -40,8 +40,10 @@ Use it when you need to answer:
 ### What the flow covers
 
 - stock update and stock availability
+- carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - shipment creation or draft/edit
 - carton status progression
+- grouped carton print/document entrypoints
 - tracking events
 - document upload and print/document endpoints
 - label generation

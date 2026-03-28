@@ -131,13 +131,30 @@ class CartonViewHelpersTests(TestCase):
             current_location="A4",
             cartonitem_set=SimpleNamespace(all=lambda: [item_draft]),
         )
+        carton_planned = SimpleNamespace(
+            id=14,
+            code="C-PLANNED",
+            created_at=datetime(2026, 1, 14, 12, 0, 0),
+            status=CartonStatus.ASSIGNED,
+            shipment_id=88,
+            shipment=SimpleNamespace(reference="S-088", status="planned", is_disputed=False),
+            preassigned_destination=None,
+            current_location="A5",
+            cartonitem_set=SimpleNamespace(all=lambda: [item_assigned]),
+        )
 
         rows = build_cartons_ready_rows(
-            [carton_assigned, carton_draft, carton_unknown_status, carton_preassigned],
+            [
+                carton_assigned,
+                carton_draft,
+                carton_unknown_status,
+                carton_preassigned,
+                carton_planned,
+            ],
             carton_capacity_cm3=5000,
         )
 
-        self.assertEqual([row["id"] for row in rows], [10, 11, 12, 13])
+        self.assertEqual([row["id"] for row in rows], [10, 11, 12, 13, 14])
 
         assigned_row = rows[0]
         self.assertEqual(assigned_row["status_label"], "Affecté")
@@ -160,6 +177,16 @@ class CartonViewHelpersTests(TestCase):
             reverse("scan:scan_carton_picking", args=[10]),
         )
         self.assertTrue(assigned_row["picking_url"].endswith("/scan/carton/10/picking/"))
+        self.assertEqual(
+            assigned_row["detail_url"],
+            reverse("scan:scan_carton_edit", args=[10]),
+        )
+        self.assertEqual(assigned_row["summary_line_count"], 1)
+        self.assertEqual(assigned_row["summary_total_quantity"], 2)
+        self.assertTrue(assigned_row["has_packing_list"])
+        self.assertTrue(assigned_row["has_picking"])
+        self.assertTrue(assigned_row["can_bulk_mark_labeled"])
+        self.assertFalse(assigned_row["can_bulk_mark_assigned"])
         self.assertEqual(assigned_row["weight_kg"], 1.0)
         self.assertEqual(assigned_row["volume_percent"], 40)
 
@@ -190,3 +217,10 @@ class CartonViewHelpersTests(TestCase):
         self.assertEqual(preassigned_row["shipment_reference"], "(NKC)")
         self.assertTrue(preassigned_row["can_edit"])
         self.assertTrue(preassigned_row["can_delete"])
+
+        planned_row = rows[4]
+        self.assertEqual(planned_row["shipment_reference"], "S-088")
+        self.assertFalse(planned_row["can_edit"])
+        self.assertFalse(planned_row["can_delete"])
+        self.assertFalse(planned_row["can_bulk_mark_labeled"])
+        self.assertFalse(planned_row["can_bulk_mark_assigned"])

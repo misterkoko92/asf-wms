@@ -453,6 +453,34 @@ class PrintDocsViewsTests(TestCase):
             f'{reverse("scan:scan_shipment_label", args=[shipment.id, cartons[1].id])}?delivery=html',
         )
 
+    def test_scan_cartons_view_bundle_routes_packing_lists_to_html_bundle_page(self):
+        carton_a = self._create_standalone_carton_with_item()
+        carton_a.code = "C-BUNDLE-A"
+        carton_a.save(update_fields=["code"])
+        product_lot = carton_a.cartonitem_set.first().product_lot
+        carton_b = Carton.objects.create(code="C-BUNDLE-B")
+        CartonItem.objects.create(carton=carton_b, product_lot=product_lot, quantity=1)
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_view_bundle", kwargs={"bundle_key": "packing_lists"}),
+            {"carton_ids": f"{carton_a.id},{carton_b.id}"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="carton-packing-lists-bundle"')
+        self.assertContains(response, "Lot listes colisage")
+        self.assertContains(response, "C-BUNDLE-A")
+        self.assertContains(response, "C-BUNDLE-B")
+        self.assertContains(response, "Liste colisage")
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_carton_document", args=[carton_a.id])}?delivery=html',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_carton_document", args=[carton_b.id])}?delivery=html',
+        )
+
     def test_scan_shipment_view_bundle_routes_all_to_orchestrator_page(self):
         shipment = self._create_shipment()
 
