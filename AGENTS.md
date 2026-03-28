@@ -25,6 +25,39 @@
 - If the user authorizes until explicit revocation, treat that as a standing preference, but still re-ask at least once at the start of each new thread before substantial work begins.
 - If the user does not authorize GitHub network access for the current thread, continue with sandbox-safe work and stop before any blocked GitHub network step.
 
+### Recommended persistent command prefixes
+
+- Safe to keep broadly authorized for routine work:
+  - `["git", "add"]`
+  - `["git", "commit"]`
+  - `["git", "push"]`
+  - `["git", "pull"]`
+  - `["git", "fetch"]`
+  - `["git", "switch"]`
+  - `["gh", "pr"]`
+  - `["gh", "run"]`
+  - `["gh", "workflow"]`
+  - `["gh", "api"]`
+  - `["gh", "auth", "status"]`
+- Keep only if regularly needed, otherwise authorize case by case:
+  - `["gh", "auth", "login"]`
+  - `["gh", "pr", "merge"]`
+  - `["git", "checkout", "-b"]`
+  - `["git", "branch", "-d"]`
+- Avoid broad persistent authorization for:
+  - `["gh"]`
+  - `["git"]`
+  - `["git", "push", "--force"]`
+  - `["git", "reset"]`
+  - `["git", "rebase"]`
+  - wide shell wrappers such as `["/bin/zsh", "-lc"]`
+
+### Clarification on repeated approvals
+
+- A user authorization for the thread and a sandbox/tool approval are separate layers.
+- "Authorized until explicit revocation" means the repo policy question does not need to be re-negotiated again in the same thread.
+- The desktop/tooling layer may still ask for approval when the exact command prefix is not already authorized, when a command is wrapped differently, or when the action falls outside existing sandbox allowances.
+
 ## Scope policy: Translation paused
 
 - By default, exclude French / English translation scope from analysis, planning, code changes, tests, and verification.
