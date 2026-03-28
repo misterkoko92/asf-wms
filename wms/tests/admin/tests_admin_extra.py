@@ -813,8 +813,31 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
                 "wms.admin._artifact_pdf_response",
                 return_value="pdf-response",
             ) as pdf_response_mock,
+            mock.patch(
+                "wms.admin.render_shipment_document",
+                return_value="html-response",
+            ) as render_mock,
         ):
             response = shipment_admin.print_document(request, shipment.id, "shipment_note")
+        self.assertEqual(response, "html-response")
+        render_mock.assert_called_once_with(request, shipment, "shipment_note")
+        generate_mock.assert_not_called()
+        pdf_response_mock.assert_not_called()
+
+        pdf_request = self.factory.get("/admin/?delivery=pdf")
+        pdf_request.user = self.superuser
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                return_value=artifact,
+            ) as generate_mock,
+            mock.patch(
+                "wms.admin._artifact_pdf_response",
+                return_value="pdf-response",
+            ) as pdf_response_mock,
+        ):
+            response = shipment_admin.print_document(pdf_request, shipment.id, "shipment_note")
         self.assertEqual(response, "pdf-response")
         generate_mock.assert_called_once_with(
             pack_code="C",
@@ -887,8 +910,31 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
                 "wms.admin._artifact_pdf_response",
                 return_value="carton-pdf",
             ) as pdf_response_mock,
+            mock.patch(
+                "wms.admin.render_carton_document",
+                return_value="html-carton",
+            ) as render_mock,
         ):
             response = shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
+        self.assertEqual(response, "html-carton")
+        render_mock.assert_called_once_with(request, shipment, carton)
+        generate_mock.assert_not_called()
+        pdf_response_mock.assert_not_called()
+
+        pdf_request = self.factory.get("/admin/?delivery=pdf")
+        pdf_request.user = self.superuser
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                return_value=artifact,
+            ) as generate_mock,
+            mock.patch(
+                "wms.admin._artifact_pdf_response",
+                return_value="carton-pdf",
+            ) as pdf_response_mock,
+        ):
+            response = shipment_admin.print_carton_packing_list(pdf_request, shipment.id, carton.id)
         self.assertEqual(response, "carton-pdf")
         generate_mock.assert_called_once_with(
             pack_code="B",
@@ -929,7 +975,8 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         self,
     ):
         shipment_admin = ShipmentAdmin(models.Shipment, self.site)
-        request = self._request(superuser=True)
+        request = self.factory.get("/admin/?delivery=pdf")
+        request.user = self.superuser
         shipment = self._shipment(reference="260210")
 
         with (
@@ -963,7 +1010,8 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         self,
     ):
         shipment_admin = ShipmentAdmin(models.Shipment, self.site)
-        request = self._request(superuser=True)
+        request = self.factory.get("/admin/?delivery=pdf")
+        request.user = self.superuser
         shipment = self._shipment(reference="260211")
         carton = models.Carton.objects.create(code="CART-ADM-XLSX", shipment=shipment)
 

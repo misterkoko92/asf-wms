@@ -161,6 +161,11 @@ def _pdf_delivery_url(url):
     return f"{url}{separator}delivery=pdf"
 
 
+def _html_delivery_url(url):
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}delivery=html"
+
+
 def build_shipment_dossier_print_actions(shipment):
     grouped_print_actions = [
         {
@@ -202,11 +207,15 @@ def build_shipment_dossier_print_actions(shipment):
                 "actions": [
                     {
                         "label": _("Liste colisage"),
-                        "url": reverse(DOC_ROUTE_CARTON, args=[shipment.id, carton.id]),
+                        "url": _html_delivery_url(
+                            reverse(DOC_ROUTE_CARTON, args=[shipment.id, carton.id])
+                        ),
                     },
                     {
                         "label": _("Étiquette colis"),
-                        "url": reverse("scan:scan_shipment_label", args=[shipment.id, carton.id]),
+                        "url": _html_delivery_url(
+                            reverse("scan:scan_shipment_label", args=[shipment.id, carton.id])
+                        ),
                     },
                     {
                         "label": _("Étiquette contact"),

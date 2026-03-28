@@ -10,6 +10,11 @@ from .scan_product_helpers import (
 )
 
 
+def _html_delivery_url(url):
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}delivery=html"
+
+
 def build_pack_line_values(line_count, data=None):
     lines = []
     for index in range(1, line_count + 1):
@@ -215,12 +220,16 @@ def build_packing_result(carton_ids):
             aggregate[key]["quantity"] += item.quantity
         items_sorted = sorted(rows.values(), key=lambda row: row["label"])
         if carton.shipment_id:
-            packing_list_url = reverse(
-                "scan:scan_shipment_carton_document",
-                args=[carton.shipment_id, carton.id],
+            packing_list_url = _html_delivery_url(
+                reverse(
+                    "scan:scan_shipment_carton_document",
+                    args=[carton.shipment_id, carton.id],
+                )
             )
         else:
-            packing_list_url = reverse("scan:scan_carton_document", args=[carton.id])
+            packing_list_url = _html_delivery_url(
+                reverse("scan:scan_carton_document", args=[carton.id])
+            )
         picking_url = reverse("scan:scan_carton_picking", args=[carton.id])
         metadata = metadata_by_carton_id.get(carton.id, {})
         zone_label = metadata.get("zone_label") or ""

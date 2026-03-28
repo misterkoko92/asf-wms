@@ -1470,9 +1470,18 @@ class UiCartonsView(APIView):
             .distinct()
             .order_by("-created_at")
         )
+        carton_shipment_ids = {carton.id: carton.shipment_id for carton in cartons_qs}
         rows = build_cartons_ready_rows(cartons_qs, carton_capacity_cm3=carton_capacity_cm3)
         cartons = []
         for row in rows:
+            shipment_id = carton_shipment_ids.get(row["id"])
+            if shipment_id:
+                packing_list_url = reverse(
+                    "scan:scan_shipment_carton_document",
+                    args=[shipment_id, row["id"]],
+                )
+            else:
+                packing_list_url = reverse("scan:scan_carton_document", args=[row["id"]])
             cartons.append(
                 {
                     "id": row["id"],
@@ -1485,7 +1494,7 @@ class UiCartonsView(APIView):
                     "weight_kg": row["weight_kg"],
                     "volume_percent": row["volume_percent"],
                     "packing_list": row["packing_list"],
-                    "packing_list_url": row["packing_list_url"],
+                    "packing_list_url": packing_list_url,
                     "picking_url": row["picking_url"],
                 }
             )

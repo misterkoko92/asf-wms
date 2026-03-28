@@ -1,21 +1,39 @@
 {% extends "print/base_document.html" %}
+{% load static %}
 
 {% block title %}Attestation douane{% endblock %}
 
 {% block extra_style %}
-  @page { margin: 8mm; }
+  @page { size: A4 landscape; margin: 8mm; }
+  .print-header { display: none; }
+  .print-body { padding-bottom: 0; }
   .sheet {
+    --sheet-label-width: 25%;
+    --sheet-value-width: 25%;
     display: grid;
     gap: 4mm;
     font-size: 9.5pt;
     line-height: 1.25;
   }
+  .sheet-header {
+    display: grid;
+    grid-template-columns: 22mm 1fr;
+    gap: 5mm;
+    align-items: center;
+  }
+  .sheet-logo {
+    width: 22mm;
+    max-height: 22mm;
+    object-fit: contain;
+  }
   .sheet-org {
-    width: 72mm;
-    border: 1px solid #000;
-    padding: 3mm;
+    border: 0px solid #000;
+    padding: 2mm 4mm;
+    display: grid;
+    gap: 0.8mm;
     font-size: 8.75pt;
-    white-space: pre-line;
+    line-height: 1.2;
+    text-align: center;
   }
   .sheet-table {
     width: 100%;
@@ -23,7 +41,10 @@
   }
   .sheet-table th,
   .sheet-table td {
-    border: 1px solid #000;
+    border-left: 1px solid #000;
+    border-right: 1px solid #000;
+    border-top: 0;
+    border-bottom: 0;
     padding: 2.2mm 2.5mm;
     vertical-align: top;
     font-size: 9pt;
@@ -32,47 +53,123 @@
     background: #fff;
     text-align: left;
     font-weight: 700;
+    white-space: nowrap;
+  }
+  .sheet-col-label {
+    width: var(--sheet-label-width);
+  }
+  .sheet-col-value {
+    width: var(--sheet-value-width);
+  }
+  .sheet-table tr:first-child > * {
+    border-top: 1px solid #000;
+  }
+  .sheet-table tr:last-child > * {
+    border-bottom: 1px solid #000;
+  }
+  .sheet-routing-table tr > * + *,
+  .sheet-party-table tr > * + * {
+    border-left: 1px solid #000;
+  }
+  .sheet-table .sheet-section-row > th,
+  .sheet-table .sheet-section-row > td {
+    border-bottom: 1px solid #000;
   }
   .sheet-section-title {
     font-weight: 700;
     text-transform: uppercase;
   }
+  .sheet-en {
+    font-style: italic;
+    font-weight: 400;
+  }
+  .sheet-highlight {
+    color: #c20000;
+  }
+  .sheet-emphasis-row th,
+  .sheet-emphasis-row td {
+    font-size: 14pt;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .sheet-emphasis-row th {
+    color: #000;
+  }
+  .sheet-emphasis-row td {
+    color: #c20000;
+  }
   .customs-note {
     border: 1px solid #000;
     padding: 4mm;
-    white-space: pre-line;
     font-size: 9pt;
+  }
+  .sheet-party-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3mm;
+    align-items: start;
+  }
+  .sheet-party-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+  .sheet-party-table th,
+  .sheet-party-table td {
+    padding: 1.5mm 1.8mm;
+    font-size: 7.8pt;
+    line-height: 1.15;
+  }
+  .sheet-party-table th {
+    white-space: normal;
+  }
+  .sheet-party-table .sheet-col-label {
+    width: 40%;
+  }
+  .sheet-party-table .sheet-section-title {
+    font-size: 8pt;
+    white-space: nowrap;
   }
 {% endblock %}
 
 {% block body %}
   <div id="customs-note-sheet" class="sheet">
-    <div class="sheet-org">Aviation Sans Frontieres - Bat. 7200, Rue de la remise - 95700 Roissy En France
-messmed@aviation-sans-frontieres-fr.org
-+33 6 50 03 72 36
-Association reconnue d'utilité publique depuis 1993</div>
+    <div id="customs-note-header" class="sheet-header">
+      <img class="sheet-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
+      <div class="sheet-org">
+        <div>Bat. 7200, Rue de la remise - 95700 Roissy En France</div>
+        <div>messmed@aviation-sans-frontieres-fr.org</div>
+        <div>+33 6 50 03 72 36</div>
+        <div>Association reconnue d'utilité publique depuis 1993</div>
+      </div>
+    </div>
 
-    <table class="sheet-table">
-      <tr>
+    <table id="customs-note-routing-primary" class="sheet-table sheet-routing-table">
+      <colgroup>
+        <col class="sheet-col-label">
+        <col class="sheet-col-value">
+        <col class="sheet-col-label">
+        <col class="sheet-col-value">
+      </colgroup>
+      <tr class="sheet-emphasis-row">
         <th>ORIGINE</th>
-        <td>FRANCE</td>
+        <td class="sheet-highlight">FRANCE</td>
         <th>DESTINATION</th>
-        <td>{{ destination_city|default:destination_address|default:"-" }}</td>
+        <td class="sheet-highlight">{{ destination_city|default:destination_address|default:"-" }}</td>
       </tr>
-      <tr>
+      <tr class="sheet-emphasis-row">
         <th>DEP. IATA CODE</th>
-        <td>CDG</td>
+        <td class="sheet-highlight">CDG</td>
         <th>DEST. IATA CODE</th>
-        <td>{{ destination_iata|default:"-" }}</td>
+        <td class="sheet-highlight">{{ destination_iata|default:"-" }}</td>
       </tr>
       <tr>
-        <th>NUMERO D'EXPEDITION / Expedition number</th>
+        <th>NUMERO D'EXPEDITION / <span class="sheet-en">Expedition number</span></th>
         <td>{{ shipment_ref }}</td>
-        <th>NUMERO DE VOL / Flight Nb</th>
+        <th>NUMERO DE VOL / <span class="sheet-en">Flight Nb</span></th>
         <td>&nbsp;</td>
       </tr>
       <tr>
-        <th>POIDS TOTAL / Total Weight</th>
+        <th>POIDS TOTAL / <span class="sheet-en">Total Weight</span></th>
         <td>
           {% if weight_total_kg %}
             {{ weight_total_kg|floatformat:2 }} kg
@@ -80,60 +177,83 @@ Association reconnue d'utilité publique depuis 1993</div>
             -
           {% endif %}
         </td>
-        <th>DATE DE VOL / Flight Date</th>
+        <th>DATE DE VOL / <span class="sheet-en">Flight Date</span></th>
         <td>&nbsp;</td>
       </tr>
       <tr>
-        <th>NOMBRE DE COLIS / Nb of parcels</th>
+        <th>NOMBRE DE COLIS / <span class="sheet-en">Nb of parcels</span></th>
         <td>{{ carton_count }}</td>
         <th>&nbsp;</th>
         <td>&nbsp;</td>
       </tr>
+    </table>
+
+    <table id="customs-note-routing-secondary" class="sheet-table sheet-routing-table">
+      <colgroup>
+        <col class="sheet-col-label">
+        <col class="sheet-col-value">
+        <col class="sheet-col-label">
+        <col class="sheet-col-value">
+      </colgroup>
       <tr>
-        <th>TRANSITAIRE / Forwarding Agent</th>
+        <th>TRANSITAIRE / <span class="sheet-en">Forwarding Agent</span></th>
         <td>&nbsp;</td>
-        <th>VISA DOUANE / Customs date</th>
+        <th>VISA DOUANE / <span class="sheet-en">Customs date</span></th>
         <td>&nbsp;</td>
       </tr>
       <tr>
-        <th>NUMERO EX / Export. Nb</th>
+        <th>NUMERO EX / <span class="sheet-en">Export. Nb</span></th>
         <td>&nbsp;</td>
-        <th>RESP. DOUANE ASF / ASF Customs agent</th>
+        <th>RESP. DOUANE ASF / <span class="sheet-en">ASF Customs agent</span></th>
         <td>&nbsp;</td>
       </tr>
     </table>
 
-    <table class="sheet-table">
-      <tr><th colspan="2" class="sheet-section-title">EXPEDITEUR / Shipper</th></tr>
-      <tr><th>Nom / Name</th><td>{% firstof shipper_info.person shipper_info.company "-" %}</td></tr>
-      <tr><th>Organisation / Organization</th><td>{{ shipper_info.company|default:"-" }}</td></tr>
-      <tr><th>Adresse / Address</th><td>{{ shipper_info.address|default:"-" }}</td></tr>
-      <tr><th>Contact</th><td>{{ shipper_info.email|default:"-" }}</td></tr>
-      <tr><th>TELEPHONE / Phone</th><td>{{ shipper_info.phone|default:"-" }}</td></tr>
-    </table>
+    <div id="customs-note-parties" class="sheet-party-grid">
+      <table class="sheet-table sheet-party-table">
+        <colgroup>
+          <col class="sheet-col-label">
+          <col>
+        </colgroup>
+        <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">EXPEDITEUR / <span class="sheet-en">Shipper</span></th></tr>
+        <tr><th>Nom / <span class="sheet-en">Name</span></th><td>{% firstof shipper_info.person shipper_info.company "-" %}</td></tr>
+        <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td>{{ shipper_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / <span class="sheet-en">Address</span></th><td>{{ shipper_info.address|default:"-" }}</td></tr>
+        <tr><th>Contact</th><td>{{ shipper_info.email|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td>{{ shipper_info.phone|default:"-" }}</td></tr>
+      </table>
 
-    <table class="sheet-table">
-      <tr><th colspan="2" class="sheet-section-title">DESTINATAIRE / Consignee</th></tr>
-      <tr><th>Nom / Name</th><td>{% firstof recipient_info.person recipient_info.company "-" %}</td></tr>
-      <tr><th>Organisation / Organization</th><td>{{ recipient_info.company|default:"-" }}</td></tr>
-      <tr><th>Adresse / Address</th><td>{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
-      <tr><th>Contact</th><td>{{ recipient_info.email|default:"-" }}</td></tr>
-      <tr><th>TELEPHONE / Phone</th><td>{{ recipient_info.phone|default:"-" }}</td></tr>
-    </table>
+      <table class="sheet-table sheet-party-table">
+        <colgroup>
+          <col class="sheet-col-label">
+          <col>
+        </colgroup>
+        <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">DESTINATAIRE / <span class="sheet-en">Consignee</span></th></tr>
+        <tr><th>Nom / <span class="sheet-en">Name</span></th><td>{% firstof recipient_info.person recipient_info.company "-" %}</td></tr>
+        <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td>{{ recipient_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / <span class="sheet-en">Address</span></th><td>{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
+        <tr><th>Contact</th><td>{{ recipient_info.email|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td>{{ recipient_info.phone|default:"-" }}</td></tr>
+      </table>
 
-    <table class="sheet-table">
-      <tr><th colspan="2" class="sheet-section-title">CORRESPONDANT / Local Agent</th></tr>
-      <tr><th>Nom / Name</th><td>{% firstof correspondent_info.person correspondent_info.company "-" %}</td></tr>
-      <tr><th>Organisation / Organization</th><td>{{ correspondent_info.company|default:"-" }}</td></tr>
-      <tr><th>Adresse / Address</th><td>{{ correspondent_info.address|default:"-" }}</td></tr>
-      <tr><th>Contact</th><td>{{ correspondent_info.email|default:"-" }}</td></tr>
-      <tr><th>TELEPHONE / Phone</th><td>{{ correspondent_info.phone|default:"-" }}</td></tr>
-    </table>
+      <table class="sheet-table sheet-party-table">
+        <colgroup>
+          <col class="sheet-col-label">
+          <col>
+        </colgroup>
+        <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">CORRESPONDANT / <span class="sheet-en">Local Agent</span></th></tr>
+        <tr><th>Nom / <span class="sheet-en">Name</span></th><td>{% firstof correspondent_info.person correspondent_info.company "-" %}</td></tr>
+        <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td>{{ correspondent_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / <span class="sheet-en">Address</span></th><td>{{ correspondent_info.address|default:"-" }}</td></tr>
+        <tr><th>Contact</th><td>{{ correspondent_info.email|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td>{{ correspondent_info.phone|default:"-" }}</td></tr>
+      </table>
+    </div>
 
-    <div class="customs-note">CES COLIS SONT TOUS VERIFIES AUX RAYONS X PAR LES SERVICES
-DE LA SURETE D'AIR FRANCE D'ORLY OU DE ROISSY CHARLES DE GAULLE.
-
-These parcels have all been verified by X-ray by the Air France safety department in Orly
-or Roissy Charles de Gaulle airport.</div>
+    <div class="customs-note">
+      <div>CES COLIS SONT TOUS VERIFIES AUX RAYONS X PAR LES SERVICES DE LA SURETE D'AIR FRANCE D'ORLY OU DE ROISSY CHARLES DE GAULLE.</div>
+      <br>
+      <div class="sheet-en">These parcels have all been verified by X-ray by the Air France safety department in Orly or Roissy Charles de Gaulle airport.</div>
+    </div>
   </div>
 {% endblock %}

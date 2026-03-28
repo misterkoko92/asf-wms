@@ -1,11 +1,30 @@
 {% extends "print/base_document.html" %}
+{% load static %}
 {% block title %}Liste colisage lot{% endblock %}
 
 {% block extra_style %}
+  @page { size: A5 landscape; margin: 8mm; }
+  .print-header { display: none; }
   .print-body { padding-bottom: 0; }
   .packing-sheet {
     display: grid;
     gap: 4mm;
+  }
+  .packing-sheet-header {
+    display: grid;
+    grid-template-columns: 18mm 1fr 18mm;
+    gap: 4mm;
+    align-items: center;
+  }
+  .packing-sheet-logo {
+    width: 18mm;
+    max-height: 18mm;
+    object-fit: contain;
+  }
+  .packing-sheet-heading {
+    display: grid;
+    gap: 0.6mm;
+    text-align: center;
   }
   .packing-sheet-title {
     font-family: Arial, sans-serif;
@@ -32,13 +51,45 @@
     text-align: left;
     font-weight: 700;
   }
+  .packing-items-table {
+    table-layout: fixed;
+  }
+  .packing-col-carton {
+    width: 25mm;
+  }
+  .packing-col-product {
+    width: auto;
+  }
+  .packing-col-quantity {
+    width: 35mm;
+  }
+  .packing-col-expiry {
+    width: 35mm;
+  }
+  .packing-items-table th:nth-child(1),
+  .packing-items-table th:nth-child(3),
+  .packing-items-table th:nth-child(4) {
+    white-space: nowrap;
+  }
+  .packing-items-table td:nth-child(2),
+  .packing-items-table th:nth-child(2) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 {% endblock %}
 
 {% block body %}
   <div id="packing-list-shipment-sheet" class="packing-sheet">
-    <div class="packing-sheet-title">LISTE DE COLISAGE</div>
-    <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus - Produits non dangereux</div>
-    <div class="packing-sheet-subtitle">Origine des dons : France</div>
+    <div id="packing-list-shipment-header" class="packing-sheet-header">
+      <img class="packing-sheet-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
+      <div class="packing-sheet-heading">
+        <div class="packing-sheet-title">LISTE DE COLISAGE</div>
+        <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus - Produits non dangereux</div>
+        <div class="packing-sheet-subtitle">Origine des dons : France</div>
+      </div>
+      <div aria-hidden="true"></div>
+    </div>
 
     <table class="packing-meta-table">
       <tr>
@@ -55,7 +106,13 @@
       </tr>
     </table>
 
-    <table>
+    <table id="packing-list-shipment-table" class="packing-items-table">
+      <colgroup>
+        <col class="packing-col-carton">
+        <col class="packing-col-product">
+        <col class="packing-col-quantity">
+        <col class="packing-col-expiry">
+      </colgroup>
       <thead>
         <tr>
           <th>COLIS N°</th>

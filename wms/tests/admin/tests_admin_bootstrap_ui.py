@@ -109,6 +109,7 @@ class AdminBootstrapUiTests(TestCase):
             response,
             reverse("admin:wms_shipment_print_doc", args=[self.shipment.id, "shipment_note"]),
         )
+        self.assertNotContains(response, 'data-local-document-helper-link="1"')
 
     def test_admin_bootstrap_css_centers_button_text(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "wms" / "admin-bootstrap.css"

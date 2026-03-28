@@ -8,7 +8,7 @@
       <div class="scan-inline scan-inline-gap">
         <strong>{% blocktrans with carton_code=carton.code %}Carton {{ carton_code }}{% endblocktrans %}</strong>
         <div class="scan-inline-actions ui-comp-actions">
-          <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+          <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
             {% trans "Imprimer / télécharger" %}
           </a>
           <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">

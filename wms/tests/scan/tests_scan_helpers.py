@@ -38,7 +38,7 @@ class PackingResultTests(TestCase):
         self.assertTrue(any(label.endswith("Lot LOT-2") for label in labels))
         self.assertEqual(
             result["cartons"][0]["packing_list_url"],
-            reverse("scan:scan_carton_document", args=[carton.id]),
+            f'{reverse("scan:scan_carton_document", args=[carton.id])}?delivery=html',
         )
         self.assertEqual(
             result["cartons"][0]["picking_url"],
