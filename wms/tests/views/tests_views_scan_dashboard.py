@@ -687,3 +687,21 @@ class ScanDashboardViewTests(TestCase):
             content.index('id="scan-dashboard-flow"'),
             content.index('id="scan-dashboard-health"'),
         )
+
+    def test_scan_dashboard_renders_six_priority_cards_with_explicit_actions(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, "Voir les expéditions prêtes")
+        self.assertContains(response, "Traiter les blocages workflow")
+        self.assertContains(response, "Contrôler le stock")
+        self.assertContains(response, "Investiguer la queue email")
+
+    def test_scan_dashboard_groups_kpi_and_chart_inside_pilotage_block(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        content = response.content.decode()
+        pilotage_start = content.index('id="scan-dashboard-pilotage"')
+        self.assertIn('id="scan-dashboard-kpi-panel"', content[pilotage_start:])
+        self.assertIn('id="scan-dashboard-chart-panel"', content[pilotage_start:])
