@@ -86,39 +86,14 @@
 
   <section id="scan-dashboard-priorities" class="scan-dashboard-section">
     <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% trans "Expéditions" %}</h2>
+      <h2>{% trans "Priorités" %}</h2>
       <div class="scan-kpi-grid">
-        {% for card in shipment_cards %}
+        {% for card in priority_cards %}
           <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
             <span class="scan-kpi-label">{{ card.label }}</span>
             <span class="scan-kpi-value">{{ card.value }}</span>
             <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% blocktrans with hours=tracking_alert_hours %}Suivi / Alertes (&gt; {{ hours }}h){% endblocktrans %}</h2>
-      <div class="scan-kpi-grid">
-        {% for card in tracking_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% blocktrans with hours=workflow_blockage_hours %}Blocages workflow (&gt; {{ hours }}h){% endblocktrans %}</h2>
-      <div class="scan-kpi-grid">
-        {% for card in workflow_blockage_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
+            <span class="scan-kpi-help"><strong>{{ card.cta_label }}</strong></span>
           </a>
         {% endfor %}
       </div>
@@ -127,32 +102,37 @@
 
   <section id="scan-dashboard-pilotage" class="scan-dashboard-section">
     <div class="scan-card card border-0 ui-comp-card">
-      <h2>KPI</h2>
-      <div class="scan-kpi-grid">
-        {% for card in kpi_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% blocktrans with shipments_total=shipments_total %}Graphique expéditions ({{ shipments_total }}){% endblocktrans %}</h2>
-      <div class="scan-chart-bars">
-        {% for row in shipment_chart_rows %}
-          <div class="scan-chart-row">
-            <div class="scan-chart-label">{{ row.destination_label }}</div>
-            <div class="scan-chart-track mb-2">
-              <div class="scan-chart-bar" style="width: {{ row.shipment_percent }}%;"></div>
-            </div>
-            <div class="scan-chart-value">{{ row.shipment_count }} {% trans "expéditions" %} / {{ row.equivalent_units }} {% trans "équiv" %}</div>
+      <h2>{% trans "Pilotage" %}</h2>
+      <div class="scan-dashboard-pilotage-grid">
+        <div id="scan-dashboard-kpi-panel" class="ui-comp-panel">
+          <h2>KPI</h2>
+          <div class="scan-kpi-grid">
+            {% for card in kpi_cards %}
+              <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+                <span class="scan-kpi-label">{{ card.label }}</span>
+                <span class="scan-kpi-value">{{ card.value }}</span>
+                <span class="scan-kpi-help">{{ card.help }}</span>
+              </a>
+            {% endfor %}
           </div>
-        {% empty %}
-          <p class="scan-help mb-0">{% trans "Aucune expédition sur la période sélectionnée." %}</p>
-        {% endfor %}
+        </div>
+
+        <div id="scan-dashboard-chart-panel" class="ui-comp-panel">
+          <h2>{% blocktrans with shipments_total=shipments_total %}Graphique expéditions ({{ shipments_total }}){% endblocktrans %}</h2>
+          <div class="scan-chart-bars">
+            {% for row in shipment_chart_rows %}
+              <div class="scan-chart-row">
+                <div class="scan-chart-label">{{ row.destination_label }}</div>
+                <div class="scan-chart-track mb-2">
+                  <div class="scan-chart-bar" style="width: {{ row.shipment_percent }}%;"></div>
+                </div>
+                <div class="scan-chart-value">{{ row.shipment_count }} {% trans "expéditions" %} / {{ row.equivalent_units }} {% trans "équiv" %}</div>
+              </div>
+            {% empty %}
+              <p class="scan-help mb-0">{% trans "Aucune expédition sur la période sélectionnée." %}</p>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
   </section>
