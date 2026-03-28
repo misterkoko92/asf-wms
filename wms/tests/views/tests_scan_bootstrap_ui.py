@@ -1149,6 +1149,18 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'name="shipment_status"')
         self.assertNotContains(response, 'name="period"')
 
+    def test_scan_dashboard_renders_cockpit_header_toolbar_and_sections(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-dashboard-page-header"')
+        self.assertContains(response, 'id="scan-dashboard-toolbar"')
+        self.assertContains(response, 'id="scan-dashboard-toolbar-advanced"')
+        self.assertContains(response, 'id="scan-dashboard-section-nav"')
+        self.assertContains(response, 'id="scan-dashboard-priorities"')
+        self.assertContains(response, 'id="scan-dashboard-pilotage"')
+        self.assertContains(response, 'id="scan-dashboard-flow"')
+        self.assertContains(response, 'id="scan-dashboard-health"')
+
     def test_scan_forms_keep_requested_controls_on_single_desktop_rows(self):
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
