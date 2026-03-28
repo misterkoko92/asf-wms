@@ -85,9 +85,12 @@
   </nav>
 
   <section id="scan-dashboard-priorities" class="scan-dashboard-section">
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% trans "Priorités" %}</h2>
-      <div class="scan-kpi-grid">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Priorités" %}</h2>
+        <p class="scan-help mb-0">{% trans "Commencez par les urgences et les blocages du jour." %}</p>
+      </div>
+      <div class="scan-kpi-grid scan-dashboard-priority-grid">
         {% for card in priority_cards %}
           <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
             <span class="scan-kpi-label">{{ card.label }}</span>
@@ -101,11 +104,14 @@
   </section>
 
   <section id="scan-dashboard-pilotage" class="scan-dashboard-section">
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% trans "Pilotage" %}</h2>
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Pilotage" %}</h2>
+        <p class="scan-help mb-0">{% trans "Lisez les volumes de la période puis descendez dans le détail." %}</p>
+      </div>
       <div class="scan-dashboard-pilotage-grid">
         <div id="scan-dashboard-kpi-panel" class="ui-comp-panel">
-          <h2>KPI</h2>
+          <h2 class="h5 ui-comp-title mb-3">{% trans "KPI" %}</h2>
           <div class="scan-kpi-grid">
             {% for card in kpi_cards %}
               <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
@@ -118,7 +124,7 @@
         </div>
 
         <div id="scan-dashboard-chart-panel" class="ui-comp-panel">
-          <h2>{% blocktrans with shipments_total=shipments_total %}Graphique expéditions ({{ shipments_total }}){% endblocktrans %}</h2>
+          <h2 class="h5 ui-comp-title mb-3">{% blocktrans with shipments_total=shipments_total %}Graphique expéditions ({{ shipments_total }}){% endblocktrans %}</h2>
           <div class="scan-chart-bars">
             {% for row in shipment_chart_rows %}
               <div class="scan-chart-row">
@@ -138,94 +144,90 @@
   </section>
 
   <section id="scan-dashboard-flow" class="scan-dashboard-section">
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% trans "Colis" %}</h2>
-      <div class="scan-kpi-grid">
-        {% for card in carton_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
-        {% endfor %}
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Flux" %}</h2>
+        <p class="scan-help mb-0">{% trans "Consultez le stock, les colis et les flux entrants." %}</p>
       </div>
-    </div>
-
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% trans "Stock" %}</h2>
-      <div class="scan-kpi-grid">
-        {% for card in stock_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
-        {% endfor %}
-      </div>
-      {% if low_stock_rows %}
-        <div class="scan-table-wrap table-responsive">
-          <table class="scan-table table table-sm table-hover">
-            <thead>
-              <tr>
-                <th>{% trans "Produit" %}</th>
-                <th>{% trans "Réf" %}</th>
-                <th>{% trans "Disponible" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in low_stock_rows %}
-                <tr>
-                  <td>{{ row.name }}</td>
-                  <td>{{ row.sku }}</td>
-                  <td class="qty">{{ row.available_qty }}</td>
-                </tr>
+      <div class="scan-dashboard-flow-grid">
+        {% for section in flow_sections %}
+          <div
+            id="{{ section.id }}"
+            class="ui-comp-panel scan-dashboard-flow-panel{% if section.id == 'scan-dashboard-stock' %} scan-dashboard-flow-panel-stock{% endif %}"
+          >
+            <div class="scan-dashboard-subsection-header">
+              <h3 class="h5 ui-comp-title mb-1">{{ section.title }}</h3>
+              {% if section.description %}
+                <p class="scan-help mb-0">{{ section.description }}</p>
+              {% endif %}
+            </div>
+            <div class="scan-kpi-grid">
+              {% for card in section.cards %}
+                <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+                  <span class="scan-kpi-label">{{ card.label }}</span>
+                  <span class="scan-kpi-value">{{ card.value }}</span>
+                  <span class="scan-kpi-help">{{ card.help }}</span>
+                </a>
               {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <p class="scan-help">{% blocktrans with threshold=low_stock_threshold %}Top 10 des produits sous le seuil global &lt; {{ threshold }}.{% endblocktrans %}</p>
-      {% else %}
-        <p class="scan-help">{% blocktrans with threshold=low_stock_threshold %}Aucun produit sous le seuil de stock bas (&lt; {{ threshold }}).{% endblocktrans %}</p>
-      {% endif %}
-    </div>
-
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% trans "Réceptions / Commandes" %}</h2>
-      <div class="scan-kpi-grid">
-        {% for card in flow_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
+            </div>
+            {% if section.id == "scan-dashboard-stock" %}
+              {% if low_stock_rows %}
+                <div class="scan-table-wrap table-responsive">
+                  <table class="scan-table table table-sm table-hover">
+                    <thead>
+                      <tr>
+                        <th>{% trans "Produit" %}</th>
+                        <th>{% trans "Réf" %}</th>
+                        <th>{% trans "Disponible" %}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in low_stock_rows %}
+                        <tr>
+                          <td>{{ row.name }}</td>
+                          <td>{{ row.sku }}</td>
+                          <td class="qty">{{ row.available_qty }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                <p class="scan-help mb-0">{% blocktrans with threshold=low_stock_threshold %}Top 10 des produits sous le seuil global &lt; {{ threshold }}.{% endblocktrans %}</p>
+              {% else %}
+                <p class="scan-help mb-0">{% blocktrans with threshold=low_stock_threshold %}Aucun produit sous le seuil de stock bas (&lt; {{ threshold }}).{% endblocktrans %}</p>
+              {% endif %}
+            {% endif %}
+          </div>
         {% endfor %}
       </div>
     </div>
   </section>
 
   <section id="scan-dashboard-health" class="scan-dashboard-section">
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2>{% trans "Technique / Queue email" %}</h2>
-      <div class="scan-kpi-grid">
-        {% for card in technical_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
-        {% endfor %}
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Santé système" %}</h2>
+        <p class="scan-help mb-0">{% trans "Surveillez la queue email et les délais de suivi sans prendre le dessus sur l’opérationnel." %}</p>
       </div>
-    </div>
-
-    <div class="scan-card card border-0">
-      <h2>{% trans "Suivi SLA" %}</h2>
-      <div class="scan-kpi-grid">
-        {% for card in sla_cards %}
-          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
-            <span class="scan-kpi-label">{{ card.label }}</span>
-            <span class="scan-kpi-value">{{ card.value }}</span>
-            <span class="scan-kpi-help">{{ card.help }}</span>
-          </a>
+      <div class="scan-dashboard-health-grid">
+        {% for section in system_health_sections %}
+          <div id="{{ section.id }}" class="ui-comp-panel scan-dashboard-health-panel">
+            <div class="scan-dashboard-subsection-header">
+              <h3 class="h5 ui-comp-title mb-1">{{ section.title }}</h3>
+              {% if section.description %}
+                <p class="scan-help mb-0">{{ section.description }}</p>
+              {% endif %}
+            </div>
+            <div class="scan-kpi-grid">
+              {% for card in section.cards %}
+                <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+                  <span class="scan-kpi-label">{{ card.label }}</span>
+                  <span class="scan-kpi-value">{{ card.value }}</span>
+                  <span class="scan-kpi-help">{{ card.help }}</span>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
         {% endfor %}
       </div>
     </div>
