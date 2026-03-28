@@ -111,7 +111,7 @@
       </div>
       <div class="scan-dashboard-pilotage-grid">
         <div id="scan-dashboard-kpi-panel" class="ui-comp-panel">
-          <h2 class="h5 ui-comp-title mb-3">{% trans "KPI" %}</h2>
+          <h2>{% trans "KPI" %}</h2>
           <div class="scan-kpi-grid">
             {% for card in kpi_cards %}
               <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
