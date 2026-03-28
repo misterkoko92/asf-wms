@@ -124,6 +124,7 @@ DOCUMENT_SCAN_BACKEND=noop python manage.py check_document_scan_runtime --allow-
 
 ## Docs
 - Index: `docs/README.md`
+- Repository reference: `docs/repo-reference/README.md`
 - Global audit (2026-02-19): `docs/audit_2026-02-19.md`
 - MVP spec: `docs/mvp_spec.md`
 - Backlog: `docs/backlog.md`

@@ -128,7 +128,8 @@ Do not try to cover every user journey with smoke tests.
 Use smoke checks only for nominal, cross-layer chains that prove the app is still wired correctly after a change. In this repo, the reference CI smoke guards are:
 
 - `api.tests.tests_ui_e2e_workflows`
-- `wms.tests.emailing.tests_email_flows_e2e`
+- `wms.tests.emailing.tests_notifications_queue`
+- `wms.tests.emailing.tests_order_status_notifications`
 - `wms.tests.planning.tests_smoke_planning_flow`
 
 Add a new CI smoke only when a new critical chain spans multiple layers and existing unit, integration, and view tests would not catch a wiring regression. Keep user variants, error branches, and detailed business rules in the targeted test suites instead of duplicating them in smoke coverage.

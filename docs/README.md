@@ -11,6 +11,14 @@ Last functional alignment update: **February 19, 2026**.
 - `docs/backlog.md`: roadmap with delivered baseline and next priorities.
 - `docs/phases_0_3_recap.md`: consolidated summary of delivered phases 0, 1, 2 and 3.
 
+## Repository reference
+
+- `docs/repo-reference/README.md`: canonical maintenance entry point for repo architecture, key flows, propagation checks, and shared contracts.
+- `docs/repo-reference/01-architecture-and-entrypoints.md`: routing map, runtime layering, and first files to open by change type.
+- `docs/repo-reference/02-key-flows-and-living-tests.md`: critical E2E or partial flows plus their living reference tests.
+- `docs/repo-reference/03-impact-map.md`: propagation checklist for recurring maintenance changes.
+- `docs/repo-reference/04-shared-contracts.md`: shared cross-screen and cross-surface contracts that must stay aligned.
+
 ## Operations
 
 - `docs/operations.md`: operations runbook, deployment flow, incident playbooks, and lifecycle rules.

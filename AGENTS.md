@@ -78,3 +78,11 @@
 - When override is used, limit changes strictly to what was requested.
 
 For details, see `docs/policies/translation-paused.md` and `docs/policies/next-migration-paused.md`.
+
+## Repository reference policy
+
+- Before substantial analysis, planning, or implementation work on the repo, read `docs/repo-reference/README.md` plus the relevant sections it points to.
+- Treat `docs/repo-reference/README.md` as the canonical maintenance entry point for repo architecture, key flows, propagation checks, and shared contracts.
+- When working on a ticket, use `docs/repo-reference/03-impact-map.md` to decide whether a change should propagate to other screens, APIs, docs, smoke checks, or shared contracts.
+- Before declaring work complete, re-check the relevant impact-map and shared-contract sections to confirm whether any repo-reference docs also need an update.
+- If a change modifies a critical route, flow, shared UI contract, shipment-party rule, smoke rule, or named reference test, update the relevant file(s) under `docs/repo-reference/` in the same work.
