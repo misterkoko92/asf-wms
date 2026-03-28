@@ -139,6 +139,21 @@ def _build_card(*, label, value, help_text, url, tone="neutral"):
     }
 
 
+def _extend_card(card, **updates):
+    value = dict(card)
+    value.update(updates)
+    return value
+
+
+def _build_dashboard_section(*, section_id, title, cards, description=""):
+    return {
+        "id": section_id,
+        "title": title,
+        "description": description,
+        "cards": cards,
+    }
+
+
 def _annotate_tracking_dates(queryset):
     return queryset.annotate(
         planned_at=Max(
@@ -919,6 +934,135 @@ def scan_dashboard(request):
         for row in sla_rows
     ]
 
+    page_actions = [
+        {
+            "label": _("Nouvelle expédition"),
+            "url": reverse("scan:scan_shipment_create"),
+            "tone": "primary",
+        },
+        {
+            "label": _("Suivi expéditions"),
+            "url": reverse("scan:scan_shipments_tracking"),
+            "tone": "tertiary",
+        },
+        {
+            "label": _("Vue stock"),
+            "url": reverse("scan:scan_stock"),
+            "tone": "tertiary",
+        },
+    ]
+    dashboard_anchors = [
+        {"id": "scan-dashboard-priorities", "label": _("Priorités")},
+        {"id": "scan-dashboard-pilotage", "label": _("Pilotage")},
+        {"id": "scan-dashboard-flow", "label": _("Flux")},
+        {"id": "scan-dashboard-health", "label": _("Santé")},
+    ]
+    priority_cards = [
+        _build_card(
+            label=_("Expéditions prêtes"),
+            value=status_map.get(ShipmentStatus.PACKED, 0),
+            help_text=_("Toutes étiquetées, prêtes au planning."),
+            url=reverse("scan:scan_shipments_ready"),
+            tone="success",
+        ),
+        _build_card(
+            label=_("Blocages workflow"),
+            value=sum(workflow_blockage_snapshot.values()),
+            help_text=_("Commandes et dossiers bloqués à traiter."),
+            url=reverse("scan:scan_shipments_ready"),
+            tone="danger" if sum(workflow_blockage_snapshot.values()) else "success",
+        ),
+        _build_card(
+            label=_("Suivi en retard"),
+            value=planned_alert_count + shipped_alert_count + correspondent_alert_count,
+            help_text=_("Expéditions en attente d'une étape de suivi."),
+            url=reverse("scan:scan_shipments_tracking"),
+            tone=(
+                "danger"
+                if planned_alert_count + shipped_alert_count + correspondent_alert_count
+                else "success"
+            ),
+        ),
+        _build_card(
+            label=_("Litiges ouverts"),
+            value=shipments_scope.filter(
+                is_disputed=True,
+                closed_at__isnull=True,
+            ).count(),
+            help_text=_("Expéditions bloquées à traiter."),
+            url=reverse("scan:scan_shipments_tracking"),
+            tone="danger",
+        ),
+        _build_card(
+            label=_("Stock bas"),
+            value=stock_snapshot["low_stock_count"],
+            help_text=_("Produits sous le seuil global."),
+            url=reverse("scan:scan_stock"),
+            tone="danger" if stock_snapshot["low_stock_count"] else "success",
+        ),
+        _build_card(
+            label=_("Queue email"),
+            value=email_queue_snapshot["failed_count"]
+            + email_queue_snapshot["stale_processing_count"],
+            help_text=_("Échecs ou traitements bloqués à investiguer."),
+            url=reverse("scan:scan_dashboard"),
+            tone=(
+                "danger"
+                if email_queue_snapshot["failed_count"]
+                + email_queue_snapshot["stale_processing_count"]
+                else "success"
+            ),
+        ),
+    ]
+    priority_cards = [
+        _extend_card(card, cta_label=cta_label)
+        for card, cta_label in zip(
+            priority_cards,
+            [
+                _("Voir les expéditions prêtes"),
+                _("Traiter les blocages workflow"),
+                _("Ouvrir le suivi expédition"),
+                _("Traiter les litiges"),
+                _("Contrôler le stock"),
+                _("Investiguer la queue email"),
+            ],
+        )
+    ]
+    flow_sections = [
+        _build_dashboard_section(
+            section_id="scan-dashboard-stock",
+            title=_("Stock"),
+            description=_("Synthèse stock et produits sous seuil."),
+            cards=stock_cards,
+        ),
+        _build_dashboard_section(
+            section_id="scan-dashboard-cartons",
+            title=_("Colis"),
+            description=_("État opérationnel des colis."),
+            cards=carton_cards,
+        ),
+        _build_dashboard_section(
+            section_id="scan-dashboard-receipts-orders",
+            title=_("Réceptions / Commandes"),
+            description=_("Flux entrants et demandes à traiter."),
+            cards=flow_cards,
+        ),
+    ]
+    system_health_sections = [
+        _build_dashboard_section(
+            section_id="scan-dashboard-technical",
+            title=_("Technique / Queue email"),
+            description=_("État de la file email et du traitement."),
+            cards=technical_cards,
+        ),
+        _build_dashboard_section(
+            section_id="scan-dashboard-sla",
+            title=_("Suivi SLA"),
+            description=_("Temps de passage entre étapes de suivi."),
+            cards=sla_cards,
+        ),
+    ]
+
     period_label_map = dict(PERIOD_CHOICES)
     context = {
         "active": ACTIVE_DASHBOARD,
@@ -944,6 +1088,11 @@ def scan_dashboard(request):
         "technical_cards": technical_cards,
         "workflow_blockage_cards": workflow_blockage_cards,
         "sla_cards": sla_cards,
+        "page_actions": page_actions,
+        "dashboard_anchors": dashboard_anchors,
+        "priority_cards": priority_cards,
+        "flow_sections": flow_sections,
+        "system_health_sections": system_health_sections,
         "low_stock_rows": stock_snapshot["low_stock_rows"],
         "low_stock_threshold": low_stock_threshold,
         "tracking_alert_hours": tracking_alert_hours,
