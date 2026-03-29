@@ -20,6 +20,14 @@
       <span>{% trans "Vue Colis" %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ cartons|length }}</span>
     </h2>
+    {% if shipment_reference_filter %}
+      <div class="scan-field d-flex flex-wrap align-items-center gap-2">
+        <span class="scan-help ui-comp-note">Expédition filtrée : {{ shipment_reference_filter }}</span>
+        <a class="scan-scan-btn btn btn-tertiary btn-sm" href="{% url 'scan:scan_cartons_ready' %}">
+          Voir tous les colis
+        </a>
+      </div>
+    {% endif %}
     {% include "wms/_local_document_helper_install_panel.html" %}
     {% if cartons %}
       <form method="post" data-carton-bulk-root="1">

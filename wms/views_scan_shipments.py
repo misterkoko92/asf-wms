@@ -426,6 +426,7 @@ def scan_cartons_ready(request):
         return response
 
     carton_capacity_cm3 = get_carton_capacity_cm3()
+    shipment_reference_filter = (request.GET.get("shipment_reference") or "").strip()
 
     cartons_qs = (
         Carton.objects.filter(cartonitem__isnull=False)
@@ -434,6 +435,8 @@ def scan_cartons_ready(request):
         .distinct()
         .order_by("-created_at")
     )
+    if shipment_reference_filter:
+        cartons_qs = cartons_qs.filter(shipment__reference__iexact=shipment_reference_filter)
     cartons = build_cartons_ready_rows(cartons_qs, carton_capacity_cm3=carton_capacity_cm3)
 
     return render(
@@ -449,6 +452,7 @@ def scan_cartons_ready(request):
                     (CartonStatus.PACKED, CartonStatus.PACKED.label),
                 ]
             ),
+            "shipment_reference_filter": shipment_reference_filter,
             **_build_local_document_helper_context(request),
         },
     )
