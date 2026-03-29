@@ -64,7 +64,7 @@ class ScanImportViewTests(TestCase):
         response = self.client.get(f"{self.url}?export=missing")
         self.assertEqual(response.status_code, 404)
 
-    def test_scan_import_get_includes_selector_assets_and_stock_radio_markup(self):
+    def test_scan_import_get_includes_selector_assets_and_stock_toggle_markup(self):
         self.client.force_login(self.superuser)
 
         response = self.client.get(self.url)
@@ -73,9 +73,14 @@ class ScanImportViewTests(TestCase):
         self.assertContains(response, "scan/import_selectors.css")
         self.assertContains(response, "scan/import_selectors.js")
         self.assertContains(response, 'id="scan-import-selector-data"')
+        self.assertContains(response, "scan-toggle-btn-group")
+        self.assertContains(response, "scan-toggle-btn-group--stacked")
+        self.assertContains(response, "scan-toggle-btn")
+        self.assertContains(response, 'id="stock_mode_movement"')
+        self.assertContains(response, 'id="stock_mode_overwrite"')
         self.assertContains(
             response,
-            'class="form-check form-check-inline scan-import-radio-option"',
+            'class="btn-check"',
         )
 
     def test_scan_import_products_update_existing_is_checked_by_default(self):
@@ -90,13 +95,28 @@ class ScanImportViewTests(TestCase):
             html=True,
         )
 
-    def test_scan_import_css_centers_inline_stock_radio_options(self):
-        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "import_selectors.css"
-        css_content = css_path.read_text(encoding="utf-8")
+    def test_scan_import_stock_toggle_styles_live_in_shared_scan_stylesheets(self):
+        scan_css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.css"
+        scan_bootstrap_css_path = (
+            Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        )
 
-        self.assertIn(".scan-import-radio-option {", css_content)
-        self.assertIn("align-items: center;", css_content)
-        self.assertIn("margin-top: 0;", css_content)
+        scan_css_content = scan_css_path.read_text(encoding="utf-8")
+        scan_bootstrap_css_content = scan_bootstrap_css_path.read_text(encoding="utf-8")
+
+        self.assertIn(".scan-toggle-btn-group {", scan_css_content)
+        self.assertIn(".scan-toggle-btn-group--stacked {", scan_css_content)
+        self.assertIn(
+            "grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));",
+            scan_css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-toggle-btn-group--stacked {", scan_bootstrap_css_content
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .btn-check:checked + .scan-toggle-btn,",
+            scan_bootstrap_css_content,
+        )
 
     def test_scan_import_contacts_card_is_bulk_only(self):
         self.client.force_login(self.superuser)
