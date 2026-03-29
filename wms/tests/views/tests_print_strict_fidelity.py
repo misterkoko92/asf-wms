@@ -173,7 +173,6 @@ class PrintStrictFidelityTests(TestCase):
         self.assertIn(f'id="shipment-label-iata-{carton.id}"', content)
         self.assertIn(f'id="shipment-label-footer-{carton.id}"', content)
         self.assertIn("EXP N°", content)
-        self.assertIn("Colis /", content)
-        self.assertIn("Parcel", content)
+        self.assertIn("N° 1 / 1", content)
         self.assertIn("label-iata-wrap", content)
         self.assertIn("label-qr-wrap", content)
