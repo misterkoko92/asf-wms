@@ -1,0 +1,43 @@
+{% load static %}
+
+<div id="donation-certificate-sheet" class="certificate">
+  <div id="donation-certificate-header" class="certificate-header">
+    <img class="certificate-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
+    <div class="certificate-heading">
+      <div id="donation-certificate-title" class="certificate-title">ATTESTATION DE DONATION</div>
+      <div class="certificate-city certificate-accent">{{ destination_city|default:"VILLE"|upper }}</div>
+    </div>
+    <div aria-hidden="true"></div>
+  </div>
+
+  <table class="certificate-table">
+    <tr><th>Je soussigné :</th><td class="certificate-value">M. Edouard Gonnu</td></tr>
+    <tr><th>Titre :</th><td class="certificate-value">Responsable de la Messagerie Médicale</td></tr>
+    <tr><th>De l'Association :</th><td class="certificate-value">Aviation Sans Frontieres</td></tr>
+    <tr><th>Adresse :</th><td class="certificate-value">Orly Fret 768 - 94 398 Orly Aérogare Cedex</td></tr>
+  </table>
+
+  <div id="donation-certificate-body" class="certificate-line certificate-body-intro">Atteste que le(s) colis faisant l’objet de la présente expédition par l’intermédiaire d’Aviation Sans Frontières est (sont) un (des) don(s) de notre association à :</div>
+
+  <table class="certificate-table">
+    <tr><th>Nom :</th><td class="certificate-value">{% firstof recipient_info.person recipient_info.company "-" %}</td></tr>
+    <tr><th>Structure :</th><td class="certificate-value">{{ recipient_info.company|default:"-" }}</td></tr>
+    <tr><th>Adresse :</th><td class="certificate-value certificate-value--single-line">{{ recipient_donation_address }}</td></tr>
+    <tr><th>Téléphone :</th><td class="certificate-value">{{ recipient_info.phone|default:"-" }}</td></tr>
+    <tr><th>Mail :</th><td class="certificate-value">{{ recipient_info.email|default:"-" }}</td></tr>
+    <tr><th>En cas d'urgence :</th><td class="certificate-value">{% firstof correspondent_info.person correspondent_info.company "-" %}</td></tr>
+  </table>
+
+  <div id="donation-certificate-notes" class="certificate-notes">
+    <div class="certificate-line">Ces colis ne contient (nent) que du matériel médical et chirurgical envoyés à titre humanitaire.</div>
+    <div class="certificate-line">Ces articles médicaux sont pour la santé humaine et ne sont pas destinés à être revendus.</div>
+    <div class="certificate-line">Ils ne sont pas soumis aux biens à double usage- sans valeur commerciale :</div>
+  </div>
+  <div id="donation-certificate-signoff" class="certificate-signoff">
+    <div id="donation-certificate-signoff-lines" class="certificate-signoff-lines">
+      <div id="donation-certificate-customs-value" class="certificate-line certificate-emphasis">Valeur uniquement pour la douane : 1.00 euro -</div>
+      <div class="certificate-line">Fait à Orly, France le : {{ document_date|date:"d/m/Y" }}</div>
+    </div>
+    <img class="certificate-stamp" src="{% static 'scan/cachet.png' %}" alt="Cachet">
+  </div>
+</div>

@@ -1,0 +1,48 @@
+<div id="contact-label" class="contact-label">
+  <div class="contact-label-meta">
+    <div>Expédition: {{ shipment_ref }}</div>
+    <div>Colis: {{ carton_code }}</div>
+    <div>Destination: {{ destination_label|default:destination_address }}</div>
+  </div>
+
+  <div id="contact-label-parties" class="sheet-party-grid">
+    <table id="contact-label-shipper" class="sheet-table sheet-party-table">
+      <colgroup>
+        <col class="sheet-col-label">
+        <col>
+      </colgroup>
+      <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">EXPEDITEUR / <span class="sheet-en">Shipper</span></th></tr>
+      <tr><th>Nom / <span class="sheet-en">Name</span></th><td class="contact-value">{% firstof shipper_info.person shipper_info.name "-" %}</td></tr>
+      <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td class="contact-value">{{ shipper_info.company|default:"-" }}</td></tr>
+      <tr><th>Adresse / <span class="sheet-en">Address</span></th><td class="contact-value">{{ shipper_info.address|default:"-" }}</td></tr>
+      <tr><th>Contact</th><td class="contact-value">{{ shipper_info.email|default:"-" }}</td></tr>
+      <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td class="contact-value">{{ shipper_info.phone|default:"-" }}</td></tr>
+    </table>
+
+    <table id="contact-label-recipient" class="sheet-table sheet-party-table">
+      <colgroup>
+        <col class="sheet-col-label">
+        <col>
+      </colgroup>
+      <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">DESTINATAIRE / <span class="sheet-en">Consignee</span></th></tr>
+      <tr><th>Nom / <span class="sheet-en">Name</span></th><td class="contact-value">{% firstof recipient_info.person recipient_info.name "-" %}</td></tr>
+      <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td class="contact-value">{{ recipient_info.company|default:"-" }}</td></tr>
+      <tr><th>Adresse / <span class="sheet-en">Address</span></th><td class="contact-value">{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
+      <tr><th>Contact</th><td class="contact-value">{{ recipient_info.email|default:"-" }}</td></tr>
+      <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td class="contact-value">{{ recipient_info.phone|default:"-" }}</td></tr>
+    </table>
+
+    <table id="contact-label-correspondent" class="sheet-table sheet-party-table">
+      <colgroup>
+        <col class="sheet-col-label">
+        <col>
+      </colgroup>
+      <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">CORRESPONDANT / <span class="sheet-en">Local Agent</span></th></tr>
+      <tr><th>Nom / <span class="sheet-en">Name</span></th><td class="contact-value">{% firstof correspondent_info.person correspondent_info.name "-" %}</td></tr>
+      <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td class="contact-value">{{ correspondent_info.company|default:"-" }}</td></tr>
+      <tr><th>Adresse / <span class="sheet-en">Address</span></th><td class="contact-value">{{ correspondent_info.address|default:"-" }}</td></tr>
+      <tr><th>Contact</th><td class="contact-value">{{ correspondent_info.email|default:"-" }}</td></tr>
+      <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td class="contact-value">{{ correspondent_info.phone|default:"-" }}</td></tr>
+    </table>
+  </div>
+</div>

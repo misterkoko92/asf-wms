@@ -3,6 +3,7 @@ from io import BytesIO
 from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -17,7 +18,12 @@ from .local_document_helper import (
 )
 from .models import Carton, Shipment
 from .prepare_kits_helpers import _parse_carton_ids, build_prepare_kits_picking_context
-from .print_context import build_carton_picking_context
+from .print_context import (
+    build_carton_contact_label_context,
+    build_carton_picking_context,
+    build_label_context,
+    build_shipment_document_context,
+)
 from .print_delivery import wants_browser_print, wants_external_pdf
 from .print_pack_engine import (
     PrintPackEngineError,
@@ -47,6 +53,8 @@ TEMPLATE_PICKING_LIST_CARTON = "print/picking_list_carton.html"
 TEMPLATE_SHIPMENT_PRINT_BUNDLE = "scan/shipment_print_bundle.html"
 TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT = "scan/shipment_print_bundle_lot.html"
 TEMPLATE_CARTON_PRINT_BUNDLE_LOT = "scan/carton_print_bundle_lot.html"
+TEMPLATE_SHIPMENT_BUNDLE_A4 = "print/shipment_bundle_a4.html"
+TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP = "print/shipment_bundle_a5_two_up.html"
 
 SHIPMENT_VIEW_DOCUMENT_CONFIG = {
     "shipment_note": {
@@ -321,7 +329,89 @@ def _html_delivery_url(url):
     return f"{url}{separator}delivery=html"
 
 
-def _shipment_view_bundle_context(shipment, bundle_key):
+def _render_print_partial(template_name, context):
+    return render_to_string(template_name, context)
+
+
+def _build_shipment_paper_bundle_sections(shipment):
+    return [
+        {
+            "id": "shipment-paper-section-shipment_note",
+            "html": _render_print_partial(
+                "print/partials/shipment_note_body.html",
+                build_shipment_document_context(shipment, "shipment_note"),
+            ),
+        },
+        {
+            "id": "shipment-paper-section-customs",
+            "html": _render_print_partial(
+                "print/partials/customs_note_body.html",
+                build_shipment_document_context(shipment, "customs"),
+            ),
+        },
+        {
+            "id": "shipment-paper-section-packing_list",
+            "html": _render_print_partial(
+                "print/partials/packing_list_shipment_body.html",
+                build_shipment_document_context(shipment, "packing_list_shipment"),
+            ),
+        },
+    ]
+
+
+def _build_shipment_label_payload(shipment, carton, *, position, total):
+    label_context = build_label_context(shipment, position=position, total=total)
+    return {
+        "city": label_context["label_city"],
+        "iata": label_context["label_iata"],
+        "shipment_ref": label_context["label_shipment_ref"],
+        "position": label_context["label_position"],
+        "total": label_context["label_total"],
+        "qr_url": label_context.get("label_qr_url") or "",
+        "carton_id": carton.id,
+    }
+
+
+def _build_shipment_standard_label_bundle_items(request, shipment):
+    shipment.ensure_qr_code(request=request)
+    cartons = _ordered_shipment_cartons(shipment)
+    total = len(cartons)
+    items = []
+    for doc_type in ("contact_label", "shipment_label", "donation_certificate"):
+        for position, carton in enumerate(cartons, start=1):
+            if doc_type == "contact_label":
+                html = _render_print_partial(
+                    "print/partials/contact_label_body.html",
+                    build_carton_contact_label_context(shipment, carton),
+                )
+            elif doc_type == "shipment_label":
+                html = _render_print_partial(
+                    "print/partials/shipment_label_body.html",
+                    {
+                        "label": _build_shipment_label_payload(
+                            shipment,
+                            carton,
+                            position=position,
+                            total=total,
+                        )
+                    },
+                )
+            else:
+                html = _render_print_partial(
+                    "print/partials/donation_certificate_body.html",
+                    build_shipment_document_context(shipment, "donation_certificate"),
+                )
+            items.append(
+                {
+                    "wrapper_id": f"shipment-standard-labels-item-{doc_type}-{carton.id}",
+                    "doc_type": doc_type,
+                    "html": html,
+                }
+            )
+    return items
+
+
+def _shipment_view_bundle_context(request, shipment, bundle_key):
     ordered_cartons = _ordered_shipment_cartons(shipment)
     bundle_key = (bundle_key or "").strip()
     if bundle_key == "all":
@@ -349,30 +439,12 @@ def _shipment_view_bundle_context(shipment, bundle_key):
         }
     if bundle_key == "paper":
         return {
-            "template_name": TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT,
+            "template_name": TEMPLATE_SHIPMENT_BUNDLE_A4,
             "context": {
                 "shipment": shipment,
-                "bundle_id": "shipment-paper-bundle",
                 "bundle_title": _("Lot papier A4"),
-                "bundle_actions": [
-                    _shipment_bundle_action(
-                        _("Bon d'expédition"),
-                        reverse(
-                            "scan:scan_shipment_view_document", args=[shipment.id, "shipment_note"]
-                        ),
-                    ),
-                    _shipment_bundle_action(
-                        _("Document douane"),
-                        reverse("scan:scan_shipment_view_document", args=[shipment.id, "customs"]),
-                    ),
-                    _shipment_bundle_action(
-                        _("Liste générale"),
-                        reverse(
-                            "scan:scan_shipment_view_document", args=[shipment.id, "packing_list"]
-                        ),
-                    ),
-                ],
-                "bundle_rows": [],
+                "bundle_sections": _build_shipment_paper_bundle_sections(shipment),
+                "hide_footer": True,
             },
         }
     if bundle_key == "carton_lists":
@@ -404,43 +476,11 @@ def _shipment_view_bundle_context(shipment, bundle_key):
         }
     if bundle_key == "standard_labels":
         return {
-            "template_name": TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT,
+            "template_name": TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP,
             "context": {
                 "shipment": shipment,
-                "bundle_id": "shipment-standard-labels-bundle",
                 "bundle_title": _("Lot étiquettes standard"),
-                "bundle_actions": [],
-                "bundle_rows": [
-                    {
-                        "code": carton.code,
-                        "actions": [
-                            _shipment_bundle_action(
-                                _("Étiquette colis"),
-                                _html_delivery_url(
-                                    reverse(
-                                        "scan:scan_shipment_label",
-                                        args=[shipment.id, carton.id],
-                                    )
-                                ),
-                            ),
-                            _shipment_bundle_action(
-                                _("Étiquette contact"),
-                                reverse(
-                                    "scan:scan_shipment_contact_label",
-                                    args=[shipment.id, carton.id],
-                                ),
-                            ),
-                            _shipment_bundle_action(
-                                _("Attestation donation"),
-                                reverse(
-                                    "scan:scan_shipment_donation_certificate",
-                                    args=[shipment.id, carton.id],
-                                ),
-                            ),
-                        ],
-                    }
-                    for carton in ordered_cartons
-                ],
+                "bundle_items": _build_shipment_standard_label_bundle_items(request, shipment),
             },
         }
     raise Http404("Bundle type not found")
@@ -820,7 +860,7 @@ def scan_shipment_view_document(request, shipment_id, document_key):
 @require_http_methods(["GET"])
 def scan_shipment_view_bundle(request, shipment_id, bundle_key):
     shipment = _get_shipment_by_id(shipment_id)
-    bundle = _shipment_view_bundle_context(shipment, bundle_key)
+    bundle = _shipment_view_bundle_context(request, shipment, bundle_key)
     return render(
         request,
         bundle["template_name"],

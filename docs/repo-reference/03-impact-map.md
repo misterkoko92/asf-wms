@@ -144,6 +144,7 @@ Ask yourself:
 - is the same document reachable from scan, admin, and API?
 - does the print-template editor still expose the current contract?
 - do bundle/view/export routes all need the same adjustment?
+- is this grouped route now a direct printable HTML surface, or does it intentionally remain an action page because it targets the continuous-roll printer?
 
 Run or inspect first:
 
