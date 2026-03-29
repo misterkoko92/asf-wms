@@ -178,17 +178,7 @@
                     </div>
                   </div>
 
-                  <div id="custom-carton-fields" class="scan-field">
-                    <label class="form-label">{% trans "Dimensions carton (cm) et poids max (g)" %}</label>
-                    <div class="scan-inline scan-inline-equal">
-                      <input type="number" step="0.01" name="carton_length_cm" id="id_carton_length_cm" placeholder='{% trans "Longueur" %}' value="{{ carton_custom.length_cm }}">
-                      <input type="number" step="0.01" name="carton_width_cm" id="id_carton_width_cm" placeholder='{% trans "Largeur" %}' value="{{ carton_custom.width_cm }}">
-                    </div>
-                    <div class="scan-inline scan-inline-equal scan-inline-gap">
-                      <input type="number" step="0.01" name="carton_height_cm" id="id_carton_height_cm" placeholder='{% trans "Hauteur" %}' value="{{ carton_custom.height_cm }}">
-                      <input type="number" step="1" name="carton_max_weight_g" id="id_carton_max_weight_g" placeholder='{% trans "Poids max" %}' value="{{ carton_custom.max_weight_g }}">
-                    </div>
-                  </div>
+                  {% include "scan/includes/pack_custom_format_fields.html" %}
 
                   <div class="pack-lines" id="pack-lines"></div>
                   <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn mb-3" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
@@ -228,17 +218,7 @@
             </div>
           </div>
 
-          <div id="custom-carton-fields" class="scan-field">
-            <label class="form-label">{% trans "Dimensions carton (cm) et poids max (g)" %}</label>
-            <div class="scan-inline scan-inline-equal">
-              <input type="number" step="0.01" name="carton_length_cm" id="id_carton_length_cm" placeholder='{% trans "Longueur" %}' value="{{ carton_custom.length_cm }}">
-              <input type="number" step="0.01" name="carton_width_cm" id="id_carton_width_cm" placeholder='{% trans "Largeur" %}' value="{{ carton_custom.width_cm }}">
-            </div>
-            <div class="scan-inline scan-inline-equal scan-inline-gap">
-              <input type="number" step="0.01" name="carton_height_cm" id="id_carton_height_cm" placeholder='{% trans "Hauteur" %}' value="{{ carton_custom.height_cm }}">
-              <input type="number" step="1" name="carton_max_weight_g" id="id_carton_max_weight_g" placeholder='{% trans "Poids max" %}' value="{{ carton_custom.max_weight_g }}">
-            </div>
-          </div>
+          {% include "scan/includes/pack_custom_format_fields.html" %}
 
           <div class="pack-lines" id="pack-lines"></div>
           <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn mb-3" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>

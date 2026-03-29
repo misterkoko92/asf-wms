@@ -46,6 +46,7 @@ Stable primitives currently documented:
 
 - `ui_button`
 - `ui_field`
+- `ui_file_input`
 - `ui_alert`
 - `ui_status_badge`
 - `ui_switch`

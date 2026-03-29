@@ -4,21 +4,45 @@
 {% block title %}{% trans "WMS Scan - FAQ & Documentation" %}{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0 ui-comp-card scan-faq-summary-card">
-    <h2 class="ui-comp-title">{% trans "Sommaire" %}</h2>
-    <p class="scan-help">
-      {% trans "Cliquez sur un titre pour aller directement à la section." %}
-    </p>
-    <ul id="scan-faq-summary-list" class="scan-faq-summary-list scan-faq-summary-grid"></ul>
-  </div>
+  <div class="scan-faq-layout">
+    <aside class="scan-card card border-0 ui-comp-card scan-faq-summary-card">
+      <h2 class="ui-comp-title">{% trans "Sommaire" %}</h2>
+      <p class="scan-help">
+        {% trans "Cliquez sur un titre pour aller directement à la section." %}
+      </p>
+      <nav id="scan-faq-summary-nav" class="scan-faq-summary-nav scan-faq-summary-scroll-region" aria-label="{% trans "Sommaire FAQ" %}">
+        <div id="scan-faq-summary-list" class="scan-faq-summary-list scan-faq-nav-list scan-faq-summary-scroll-list">
+          <section class="scan-faq-nav-group" data-faq-summary-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
+            <h3 class="scan-faq-nav-group-heading">{% trans "Fondamentaux" %}</h3>
+            <ul class="scan-faq-nav-group-list"></ul>
+          </section>
+          <section class="scan-faq-nav-group" data-faq-summary-group="stock-prep" data-faq-group-title="{% trans "Stocks & préparation" %}">
+            <h3 class="scan-faq-nav-group-heading">{% trans "Stocks & préparation" %}</h3>
+            <ul class="scan-faq-nav-group-list"></ul>
+          </section>
+          <section class="scan-faq-nav-group" data-faq-summary-group="shipments" data-faq-group-title="{% trans "Expéditions" %}">
+            <h3 class="scan-faq-nav-group-heading">{% trans "Expéditions" %}</h3>
+            <ul class="scan-faq-nav-group-list"></ul>
+          </section>
+          <section class="scan-faq-nav-group" data-faq-summary-group="receiving-imports" data-faq-group-title="{% trans "Réception & imports" %}">
+            <h3 class="scan-faq-nav-group-heading">{% trans "Réception & imports" %}</h3>
+            <ul class="scan-faq-nav-group-list"></ul>
+          </section>
+          <section class="scan-faq-nav-group" data-faq-summary-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
+            <h3 class="scan-faq-nav-group-heading">{% trans "Portails & support" %}</h3>
+            <ul class="scan-faq-nav-group-list"></ul>
+          </section>
+        </div>
+      </nav>
+    </aside>
 
-  <div
-    id="scan-faq-content"
-    data-faq-collapsible="true"
-    data-faq-default-expanded="false"
-    data-faq-open-on-summary-click="true"
-  >
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <div
+      id="scan-faq-content"
+      data-faq-collapsible="true"
+      data-faq-default-expanded="false"
+      data-faq-open-on-summary-click="true"
+    >
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
     <h2 class="ui-comp-title">{% trans "Vue d'ensemble" %}</h2>
     <p>
       {% blocktrans trimmed %}
@@ -43,7 +67,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
     <h2 class="ui-comp-title">{% trans "Accès & rôles" %}</h2>
     <ul>
       <li>{% trans "Les pages /scan internes sont protégées par login staff." %}</li>
@@ -54,7 +78,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
     <h2 class="ui-comp-title">{% trans "Contacts (registre unifié)" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}La page <strong>Admin &gt; Contacts</strong> pilote le référentiel unifié <strong>contacts + shipment parties</strong>.{% endblocktrans %}</li>
@@ -66,7 +90,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
     <h2 class="ui-comp-title">{% trans "Données de référence" %}</h2>
     <p>{% trans "Avant utilisation, vérifier ces données :" %}</p>
     <ul>
@@ -86,7 +110,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
     <h2 class="ui-comp-title">{% trans "Flux principaux" %}</h2>
     <p class="scan-help">
       {% trans "Les parcours ci-dessous résument l'ordre des pages à ouvrir et des boutons principaux à utiliser." %}
@@ -169,7 +193,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
     <h2 class="ui-comp-title">{% trans "Référence scan" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}<strong>Voir les états</strong> regroupe les pages de consultation: <strong>Vue Stock</strong>, <strong>Vue Kits</strong>, <strong>Vue Colis</strong>, <strong>Dossiers</strong>, <strong>Vue Commande</strong> et <strong>Vue Réception</strong>. Leur objectif est de contrôler l'état courant et d'utiliser les actions rapides de tableau.{% endblocktrans %}</li>
@@ -179,7 +203,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="stock-prep" data-faq-group-title="{% trans "Stocks & préparation" %}">
     <h2 class="ui-comp-title">{% trans "Vue stock" %}</h2>
     <ul>
       <li>{% trans "Recherche multi-clés : nom, SKU, barcode, EAN." %}</li>
@@ -191,7 +215,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="stock-prep" data-faq-group-title="{% trans "Stocks & préparation" %}">
     <h2 class="ui-comp-title">{% trans "MAJ stock" %}</h2>
     <ul>
       <li>{% trans "Sélection produit par nom, SKU, barcode ou EAN (scan caméra possible)." %}</li>
@@ -202,7 +226,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="stock-prep" data-faq-group-title="{% trans "Stocks & préparation" %}">
     <h2 class="ui-comp-title">{% trans "Supprimer produit" %}</h2>
     <ul>
       <li>{% trans "Retire du stock pour casse, perte ou correction." %}</li>
@@ -211,7 +235,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="stock-prep" data-faq-group-title="{% trans "Stocks & préparation" %}">
     <h2 class="ui-comp-title">{% trans "Préparation (cartons)" %}</h2>
     <ul>
       <li>{% trans "Choisir un format de carton (ou personnaliser les dimensions)." %}</li>
@@ -235,7 +259,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="shipments" data-faq-group-title="{% trans "Expéditions" %}">
     <h2 class="ui-comp-title">{% trans "Créer une expédition" %}</h2>
     <ul>
       <li>{% trans "Séquencement: destination d'abord, puis expéditeur, puis destinataire + correspondant, puis le reste du formulaire." %}</li>
@@ -252,7 +276,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="shipments" data-faq-group-title="{% trans "Expéditions" %}">
     <h2 class="ui-comp-title">{% trans "Vue Colis" %}</h2>
     <ul>
       <li>{% trans "Liste tous les cartons préparés avec leur statut et contenu." %}</li>
@@ -263,7 +287,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="shipments" data-faq-group-title="{% trans "Expéditions" %}">
     <h2 class="ui-comp-title">{% trans "Dossiers" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}Cette vue sert à rechercher une expédition existante par numéro, expéditeur, destinataire ou destination.{% endblocktrans %}</li>
@@ -290,7 +314,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="shipments" data-faq-group-title="{% trans "Expéditions" %}">
     <h2 class="ui-comp-title">{% trans "Suivi des expéditions (Gestion)" %}</h2>
     <ul>
       <li>{% trans "Cette vue affiche les expéditions en statut Planifié, Expédié, Reçu escale et Livré." %}</li>
@@ -301,7 +325,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="shipments" data-faq-group-title="{% trans "Expéditions" %}">
     <h2 class="ui-comp-title">{% trans "Documents & étiquettes" %}</h2>
     <ul>
       <li>{% trans "Bon d'expédition, listes de colisage et attestation sont générés par expédition." %}</li>
@@ -311,7 +335,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
     <h2 class="ui-comp-title">{% trans "Vue Commande (associations)" %}</h2>
     <ul>
       <li>{% trans "Liste des demandes associations avec statut de revue." %}</li>
@@ -321,7 +345,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="receiving-imports" data-faq-group-title="{% trans "Réception & imports" %}">
     <h2 class="ui-comp-title">{% trans "Réception palette" %}</h2>
     <ul>
       <li>{% trans "Enregistre une réception avec donateur + transporteur." %}</li>
@@ -351,7 +375,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="receiving-imports" data-faq-group-title="{% trans "Réception & imports" %}">
     <h2 class="ui-comp-title">{% trans "Réception association" %}</h2>
     <ul>
       <li>{% trans "Enregistre cartons + hors format pour une association." %}</li>
@@ -360,7 +384,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="receiving-imports" data-faq-group-title="{% trans "Réception & imports" %}">
     <h2 class="ui-comp-title">{% trans "Réception standard (don/palette)" %}</h2>
     <ul>
       <li>{% trans "Créer une réception puis ajouter des lignes produits." %}</li>
@@ -370,7 +394,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="receiving-imports" data-faq-group-title="{% trans "Réception & imports" %}">
     <h2 class="ui-comp-title">{% trans "Vue réception" %}</h2>
     <ul>
       <li>{% trans "Filtre rapide : Palette, Association ou Tout." %}</li>
@@ -378,7 +402,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="receiving-imports" data-faq-group-title="{% trans "Réception & imports" %}">
     <h2 class="ui-comp-title">{% trans "Imports (admin)" %}</h2>
     <ul>
       <li>{% trans "Ajout unitaire ou import CSV/XLS/XLSX par bloc." %}</li>
@@ -394,7 +418,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="receiving-imports" data-faq-group-title="{% trans "Réception & imports" %}">
     <h2 class="ui-comp-title">{% trans "Templates (admin)" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}La page <strong>Gestion &gt; Templates</strong> pilote les templates XLSX Print Pack (superuser uniquement).{% endblocktrans %}</li>
@@ -409,7 +433,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="shipments" data-faq-group-title="{% trans "Expéditions" %}">
     <h2 class="ui-comp-title">{% trans "Suivi expédition (QR)" %}</h2>
     <ul>
       <li>{% trans "Un QR code est généré à la création de l'expédition." %}</li>
@@ -431,7 +455,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
     <h2 class="ui-comp-title">{% trans "Scanner & synchronisation" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}Le bouton <strong>Scan</strong> ouvre la caméra et remplit le champ cible.{% endblocktrans %}</li>
@@ -442,7 +466,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
     <h2 class="ui-comp-title">{% trans "Référence planning" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}<strong>Runs</strong> liste l'historique des générations. Le bouton <strong>Créer un run</strong> ouvre la création, et le bouton <strong>Ouvrir</strong> affiche le détail d'une semaine.{% endblocktrans %}</li>
@@ -453,7 +477,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
     <h2 class="ui-comp-title">{% trans "Portal association" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}<strong>Connexion et accès</strong> : le bouton <strong>Demander un compte</strong> crée une demande d'accès, <strong>Se connecter</strong> ouvre la session, et <strong>Mot de passe oublié / Première connexion</strong> envoie le lien de définition ou de réinitialisation du mot de passe.{% endblocktrans %}</li>
@@ -465,7 +489,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
     <h2 class="ui-comp-title">{% trans "Espace bénévole" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}<strong>Accès bénévole</strong> : la page de demande de compte enregistre une candidature, le bouton <strong>Envoyer</strong> soumet le formulaire, <strong>Aller à la connexion</strong> revient sur la page de login, puis <strong>Se connecter</strong> ouvre le portail personnel du bénévole.{% endblocktrans %}</li>
@@ -476,7 +500,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
     <h2 class="ui-comp-title">{% trans "Administration & support" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}<strong>Contacts</strong> est le cockpit org-role. Il active les rôles, les scopes expéditeur, les bindings destinataire et les contacts principaux. C'est la page à corriger quand un sélecteur expéditeur, destinataire ou correspondant paraît incomplet.{% endblocktrans %}</li>
@@ -487,7 +511,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="ecosystem" data-faq-group-title="{% trans "Portails & support" %}">
     <h2 class="ui-comp-title">{% trans "FAQ rapide" %}</h2>
     <ul>
       <li>{% blocktrans trimmed %}<strong>Mes listes sont vides</strong> : vérifier les rôles actifs, scopes expéditeurs et bindings destinataires.{% endblocktrans %}</li>
@@ -498,6 +522,7 @@
       <li>{% blocktrans trimmed %}<strong>Correspondant introuvable</strong> : vérifier le correspondant lié sur la destination sélectionnée.{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}<strong>Le QR n'ouvre rien</strong> : vérifier SITE_BASE_URL et relancer l'app.{% endblocktrans %}</li>
     </ul>
+  </div>
   </div>
   </div>
 {% endblock %}

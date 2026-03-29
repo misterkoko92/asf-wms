@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n wms_ui %}
 <form method="post" class="row g-3 ui-comp-form" data-admin-contact-form="1">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_contact">
@@ -36,12 +36,7 @@
                 {{ contact_form.entity_type.errors }}
             </div>
             <div class="scan-field col-12 col-lg-4 d-flex align-items-end">
-                <div class="form-check form-switch scan-inline-switch">
-                    {{ contact_form.is_active }}
-                    <label class="form-check-label" for="{{ contact_form.is_active.id_for_label }}">
-                        {{ contact_form.is_active.label }}
-                    </label>
-                </div>
+                {% ui_switch field=contact_form.is_active wide=True %}
             </div>
         </div>
     </div>
@@ -222,12 +217,7 @@
                  data-contact-field-group="use-org-address"
                  data-contact-businesses="donor,transporter,volunteer,shipper,recipient,correspondent"
                  data-contact-entities="person">
-                <div class="form-check form-switch scan-inline-switch">
-                    {{ contact_form.use_organization_address }}
-                    <label class="form-check-label" for="{{ contact_form.use_organization_address.id_for_label }}">
-                        {{ contact_form.use_organization_address.label }}
-                    </label>
-                </div>
+                {% ui_switch field=contact_form.use_organization_address wide=True %}
                 {{ contact_form.use_organization_address.errors }}
             </div>
         </div>
@@ -261,12 +251,7 @@
             <div class="scan-field col-12 col-lg-4 d-flex align-items-end"
                  data-contact-field-group="shipment-shipper-scope"
                  data-contact-businesses="shipper">
-                <div class="form-check form-switch scan-inline-switch">
-                    {{ contact_form.can_send_to_all }}
-                    <label class="form-check-label" for="{{ contact_form.can_send_to_all.id_for_label }}">
-                        {{ contact_form.can_send_to_all.label }}
-                    </label>
-                </div>
+                {% ui_switch field=contact_form.can_send_to_all wide=True %}
             </div>
         </div>
     </div>

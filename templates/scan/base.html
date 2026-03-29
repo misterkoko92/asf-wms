@@ -196,7 +196,7 @@
   <script src="{% static 'scan/scan.js' %}"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}?v=55")
+      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}?v=56")
         .then(function(registration) {
           if (registration.update) {
             registration.update();

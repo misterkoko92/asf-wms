@@ -306,10 +306,13 @@ class ScanShipmentsViewsTests(TestCase):
             response = self.client.get(reverse("scan:scan_shipments_ready"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-shipments-ready-table")
         self.assertContains(response, "scan-shipment-reference-col")
+        self.assertContains(response, "scan-shipments-ready-head-label")
         self.assertContains(response, "Nb Colis Equivalent")
         self.assertContains(response, "scan-shipment-ready-col")
         self.assertContains(response, "6 docs")
+        self.assertContains(response, "scan-shipment-status-cell")
         self.assertContains(
             response,
             'class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--planned is-progress"',
@@ -395,10 +398,17 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "scan-carton-bulk-action-select")
         self.assertContains(response, "scan-carton-table-head")
         self.assertContains(response, "scan-carton-table-head-label")
+        self.assertContains(
+            response,
+            'name="bulk_document" value="packing_lists" class="scan-scan-btn btn btn-outline-secondary"',
+        )
+        self.assertContains(
+            response,
+            'name="bulk_document" value="picking" class="scan-scan-btn btn btn-outline-success"',
+        )
         self.assertContains(response, "scan-carton-status-col")
         self.assertContains(response, "scan-carton-fill-cell")
-        self.assertContains(response, "Liste de colisage")
-        self.assertContains(response, "Picking")
+        self.assertContains(response, "scan-carton-select-checkbox")
         self.assertContains(response, "Marquer en préparation")
         self.assertContains(response, "Marquer prêt / disponible")
         self.assertContains(response, "Marquer affecté")
@@ -567,8 +577,14 @@ class ScanShipmentsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-pack-add-line-btn")
-        self.assertContains(response, "Préparer sans conditionner")
-        self.assertContains(response, "Préparer et mettre en disponible")
+        self.assertContains(response, 'value="prepare_without_conditioning"')
+        self.assertContains(response, 'value="prepare_available"')
+        self.assertContains(response, "btn btn-outline-secondary")
+        self.assertContains(response, "btn btn-success")
+        self.assertContains(response, 'for="id_carton_length_cm">Longueur</label>')
+        self.assertContains(response, 'for="id_carton_width_cm">Largeur</label>')
+        self.assertContains(response, 'for="id_carton_height_cm">Hauteur</label>')
+        self.assertContains(response, 'for="id_carton_max_weight_g">Poids</label>')
         self.assertContains(response, "ui-comp-actions")
         self.assertNotContains(response, "Ajouter emplacement")
 
@@ -736,16 +752,18 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            'id="shipment-dossier-grouped-print-actions" class="ui-comp-actions"',
+            'id="shipment-dossier-grouped-print-actions"',
         )
         self.assertContains(
             response,
-            'id="shipment-dossier-paper-print-actions" class="ui-comp-actions"',
+            'id="shipment-dossier-paper-print-actions"',
         )
         self.assertContains(
             response,
-            'id="shipment-dossier-pdf-export-actions" class="ui-comp-actions"',
+            'id="shipment-dossier-pdf-export-actions"',
         )
+        self.assertContains(response, "shipment-dossier-document-actions")
+        self.assertContains(response, "ui-comp-file-input")
         self.assertContains(response, 'id="shipment-dossier-carton-print-actions"')
         self.assertContains(response, 'id="shipment-receipt-allocations-table"')
         self.assertContains(response, receipt.reference)
@@ -755,7 +773,7 @@ class ScanShipmentsViewsTests(TestCase):
         response = self.client.get(reverse("scan:scan_prepare_kits"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "scan-prepare-kits-top-panel", count=1)
+        self.assertContains(response, "scan-prepare-kits-top-panel-full", count=1)
         self.assertContains(response, "scan-prepare-kits-top-group", count=2)
 
     def test_scan_shipments_tracking_uses_primary_follow_up_and_secondary_close_buttons(self):

@@ -48,7 +48,7 @@
     {% for value, label in account_doc_types %}
       <div class="portal-doc-upload-row">
         <label class="form-label" for="id_doc_{{ value }}">{{ label }}</label>
-        <input class="form-control" type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
+        {% ui_file_input name="doc_file_"|add:value field_id="id_doc_"|add:value %}
       </div>
     {% endfor %}
     {% ui_button label=add_documents_label button_type="submit" variant="primary" extra_classes="scan-submit" %}

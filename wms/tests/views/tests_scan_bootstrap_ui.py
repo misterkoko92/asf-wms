@@ -136,6 +136,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'data-table-tools="1"')
         self.assertContains(response, "form-check form-switch")
         self.assertContains(response, "scan-inline-switch")
+        self.assertContains(response, "scan-switch-control")
         self.assertContains(response, "id_include_zero")
         self.assertContains(response, "Inclure les produits avec stock")
 
@@ -448,15 +449,15 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="shipment-dossier-pdf-export-actions"')
         self.assertContains(
             response,
-            'id="shipment-dossier-grouped-print-actions" class="ui-comp-actions"',
+            'id="shipment-dossier-grouped-print-actions" class="ui-comp-actions shipment-dossier-document-actions"',
         )
         self.assertContains(
             response,
-            'id="shipment-dossier-paper-print-actions" class="ui-comp-actions"',
+            'id="shipment-dossier-paper-print-actions" class="ui-comp-actions shipment-dossier-document-actions"',
         )
         self.assertContains(
             response,
-            'id="shipment-dossier-pdf-export-actions" class="ui-comp-actions"',
+            'id="shipment-dossier-pdf-export-actions" class="ui-comp-actions shipment-dossier-document-actions"',
         )
         self.assertContains(response, 'id="shipment-additional-document-upload-actions"')
         self.assertContains(response, 'id="shipment-additional-document-list"')
@@ -623,8 +624,14 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_shipments_ready"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "<span>NUMERO</span><br>", html=True)
-        self.assertContains(response, "<span>EXPEDITION</span>", html=True)
+        self.assertContains(
+            response,
+            '<span class="scan-shipments-ready-head-label">NUMERO</span><br>',
+        )
+        self.assertContains(
+            response,
+            '<span class="scan-shipments-ready-head-label">EXPEDITION</span>',
+        )
 
     def test_scan_faq_uses_dossiers_vocabulary_for_shipment_list(self):
         response = self.client.get(reverse("scan:scan_faq"))
@@ -796,6 +803,7 @@ class ScanBootstrapUiTests(TestCase):
                 if route_name == "scan:scan_pack":
                     self.assertContains(response, "form-check form-switch")
                     self.assertContains(response, "scan-inline-switch")
+                    self.assertContains(response, "scan-switch-control")
                     self.assertContains(
                         response,
                         "Autoriser l'ajout avec valeurs standard",
@@ -859,17 +867,28 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
-        self.assertContains(response, "form-check form-check-inline")
+        self.assertContains(response, "ui-comp-file-input")
+        self.assertContains(response, "btn-check")
+        self.assertContains(response, "scan-toggle-btn-group")
         self.assertContains(response, "id_listing_file_type_pdf")
         self.assertContains(response, "id_listing_file_type_excel")
         self.assertContains(response, "id_listing_file_type_csv")
 
-    def test_scan_receive_pallet_uses_inline_radio_alignment_markers(self):
+    def test_scan_receive_pallet_uses_toggle_button_radio_groups(self):
         response = self.client.get(reverse("scan:scan_receive_pallet"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "scan-radio-inline-group-tight", count=2)
-        self.assertContains(response, "scan-radio-inline-choice", count=5)
+        self.assertContains(
+            response,
+            'class="scan-toggle-btn-group scan-toggle-btn-group--compact"',
+            count=2,
+        )
+        self.assertContains(
+            response,
+            'class="btn btn-outline-secondary scan-toggle-btn"',
+            count=5,
+        )
+        self.assertContains(response, "btn-check", count=5)
 
     def test_scan_receive_pallet_breaks_into_named_workflow_sections(self):
         response = self.client.get(reverse("scan:scan_receive_pallet"))
@@ -890,6 +909,36 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
+        self.assertContains(response, "ui-comp-file-input")
+
+    def test_scan_file_upload_surfaces_use_shared_file_input_component(self):
+        self.client.force_login(self.superuser)
+        shipment = Shipment.objects.create(
+            reference="EXP-BOOT-FILE",
+            shipper_name="ASF",
+            recipient_name="Dest",
+            destination_address="1 Rue Test",
+            status=ShipmentStatus.DRAFT,
+            created_by=self.superuser,
+        )
+
+        receive_pallet_response = self.client.get(reverse("scan:scan_receive_pallet"))
+        self.assertEqual(receive_pallet_response.status_code, 200)
+        self.assertContains(receive_pallet_response, "ui-comp-file-input")
+
+        receive_association_response = self.client.get(reverse("scan:scan_receive_association"))
+        self.assertEqual(receive_association_response.status_code, 200)
+        self.assertContains(receive_association_response, "ui-comp-file-input")
+
+        import_response = self.client.get(reverse("scan:scan_import"))
+        self.assertEqual(import_response.status_code, 200)
+        self.assertContains(import_response, "ui-comp-file-input", count=6)
+
+        shipment_edit_response = self.client.get(
+            reverse("scan:scan_shipment_edit", args=[shipment.id])
+        )
+        self.assertEqual(shipment_edit_response.status_code, 200)
+        self.assertContains(shipment_edit_response, "ui-comp-file-input")
 
     def test_scan_receive_surfaces_break_into_named_workflow_sections(self):
         receive_response = self.client.get(reverse("scan:scan_receive"))
@@ -998,6 +1047,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'name="action" value="product_file"')
         self.assertContains(response, 'id="product_file"')
         self.assertContains(response, 'name="stock_mode"')
+        self.assertContains(response, 'id="stock_mode_movement"')
+        self.assertContains(response, 'id="stock_mode_overwrite"')
+        self.assertContains(response, "scan-toggle-btn-group")
+        self.assertContains(response, "scan-toggle-btn")
+        self.assertContains(response, "btn-check")
         self.assertContains(
             response,
             reverse("scan:scan_import") + "?export=products",
@@ -1221,6 +1275,8 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(prepare_kits_response.status_code, 200)
         self.assertContains(prepare_kits_response, "scan-prepare-kits-main-row")
         self.assertContains(prepare_kits_response, "scan-prepare-kits-actions-inline")
+        self.assertContains(prepare_kits_response, "scan-prepare-kits-top-panel-full")
+        self.assertContains(prepare_kits_response, "scan-prepare-kits-top-inner")
         self.assertContains(prepare_kits_response, "scan-prepare-kits-top-field")
         self.assertContains(prepare_kits_response, "scan-prepare-kits-composition-field")
 
@@ -1482,6 +1538,8 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, reverse("scan:scan_admin_design"))
         self.assertContains(response, 'id="ui-lab-component-name"')
         self.assertContains(response, 'name="ui_lab_catalog_live_preview"')
+        self.assertContains(response, "ui_file_input")
+        self.assertContains(response, "ui-comp-file-input")
         self.assertContains(response, 'id="ui-lab-contract-alert"')
         self.assertContains(response, 'id="ui-lab-contract-panel"')
         self.assertContains(response, 'id="ui-lab-contract-toolbar"')
@@ -1493,6 +1551,7 @@ class ScanBootstrapUiTests(TestCase):
             response,
             'class="form-check form-switch scan-inline-switch scan-inline-switch-wide"',
         )
+        self.assertContains(response, "scan-switch-control")
         self.assertContains(response, 'class="ui-comp-status-pill is-ready"')
         self.assertContains(response, "ui-comp-alert")
         self.assertNotContains(response, 'name="action" value="save"')

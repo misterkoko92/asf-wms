@@ -237,6 +237,7 @@ class ScanAdminViewTests(TestCase):
             response,
             f'id="scan-admin-contact-action-{contact.id}"',
         )
+        self.assertContains(response, "scan-admin-contact-action-select")
         self.assertContains(response, "Voir les choix")
         self.assertContains(response, "Modifier")
         self.assertContains(response, "Désactiver")

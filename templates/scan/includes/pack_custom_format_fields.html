@@ -1,0 +1,25 @@
+{% load i18n %}
+
+<div id="custom-carton-fields" class="scan-field scan-pack-custom-fields">
+  <label class="form-label">{% trans "Dimensions carton personnalisées" %}</label>
+  <div class="scan-pack-custom-grid">
+    <div class="scan-field">
+      <label class="form-label" for="id_carton_length_cm">{% trans "Longueur" %}</label>
+      <input type="number" step="0.01" name="carton_length_cm" id="id_carton_length_cm" value="{{ carton_custom.length_cm }}">
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="id_carton_width_cm">{% trans "Largeur" %}</label>
+      <input type="number" step="0.01" name="carton_width_cm" id="id_carton_width_cm" value="{{ carton_custom.width_cm }}">
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="id_carton_height_cm">{% trans "Hauteur" %}</label>
+      <input type="number" step="0.01" name="carton_height_cm" id="id_carton_height_cm" value="{{ carton_custom.height_cm }}">
+    </div>
+  </div>
+  <div class="scan-pack-custom-grid scan-pack-custom-grid--weight">
+    <div class="scan-field">
+      <label class="form-label" for="id_carton_max_weight_g">{% trans "Poids" %}</label>
+      <input type="number" step="1" name="carton_max_weight_g" id="id_carton_max_weight_g" value="{{ carton_custom.max_weight_g }}">
+    </div>
+  </div>
+</div>

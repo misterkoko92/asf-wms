@@ -663,9 +663,24 @@ h3 {
   table-layout: fixed;
 }
 
+.scan-table.scan-shipments-ready-table {
+  table-layout: fixed;
+  font-size: 13px;
+  min-width: 0;
+}
+
 .scan-table.scan-carton-table td {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.scan-table.scan-shipments-ready-table th,
+.scan-table.scan-shipments-ready-table td {
+  padding: 7px 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  vertical-align: middle;
 }
 
 .scan-table th,
@@ -702,6 +717,17 @@ h3 {
   overflow-wrap: normal;
   word-break: normal;
   hyphens: none;
+}
+
+.scan-shipments-ready-head {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.scan-shipments-ready-head-label {
+  display: inline-block;
+  max-width: 100%;
+  padding-inline: 0.25rem 1rem;
 }
 
 .scan-table th.scan-table-sortable {
@@ -931,6 +957,16 @@ h3 {
   padding-right: 0.42rem;
 }
 
+.scan-table.scan-carton-table td.scan-carton-select-col,
+.scan-table.scan-carton-table th.scan-carton-select-col {
+  vertical-align: middle;
+}
+
+.scan-carton-select-checkbox {
+  display: block;
+  margin: 0 auto;
+}
+
 .scan-carton-content-lines {
   display: flex;
   flex-direction: column;
@@ -1009,29 +1045,157 @@ h3 {
   margin: 0;
 }
 
-.scan-inline-switch {
+.scan-toggle-btn-group {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.scan-toggle-btn-group--compact .scan-toggle-btn {
+  min-width: 5.5rem;
+}
+
+.scan-toggle-btn-group--stacked {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.scan-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.58rem 0.9rem;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.3;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.scan-toggle-btn-group--stacked .scan-toggle-btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 0.95rem;
+}
+
+.scan-inline-switch {
+  position: relative;
+  display: flex;
   gap: 0.7rem;
   width: 100%;
-  min-height: var(--wms-input-height);
   margin-bottom: 0;
-  padding: 0.18rem 0;
+  padding: 0;
 }
 
 .scan-inline-switch .form-check-input {
-  margin: 0.12rem 0 0;
-  float: none;
-  flex: 0 0 auto;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
 }
 
-.scan-inline-switch .form-check-label {
+.scan-inline-switch .scan-switch-label {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+  width: 100%;
   margin: 0;
+  cursor: pointer;
+}
+
+.scan-inline-switch .scan-switch-copy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.scan-inline-switch .scan-switch-title {
+  display: block;
   font-weight: 700;
+  line-height: 1.35;
+}
+
+.scan-inline-switch .scan-switch-caption {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.scan-switch-control {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem;
+  border-radius: 999px;
+}
+
+.scan-switch-track {
+  position: relative;
+  display: inline-flex;
+  width: 2.85rem;
+  height: 1.65rem;
+  border: 1px solid #bac7c1;
+  border-radius: 999px;
+  background: #d8e1dc;
+  box-shadow: inset 0 1px 1px rgba(47, 58, 54, 0.08);
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.scan-switch-handle {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: #fffdf9;
+  box-shadow: 0 1px 3px rgba(47, 58, 54, 0.22);
+  transition: transform 0.16s ease;
+}
+
+.scan-inline-switch .form-check-input:focus-visible + .scan-switch-label .scan-switch-control,
+.scan-inline-switch .form-check-input:focus + .scan-switch-label .scan-switch-control {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(111, 154, 141, 0.24);
+  border-radius: 999px;
+}
+
+.scan-inline-switch .form-check-input:checked + .scan-switch-label .scan-switch-track {
+  border-color: #5f8c7f;
+  background: #6f9a8d;
+}
+
+.scan-inline-switch .form-check-input:checked + .scan-switch-label .scan-switch-handle {
+  transform: translateX(1.2rem);
+}
+
+.scan-inline-switch .form-check-input:disabled + .scan-switch-label {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .scan-inline-switch-wide {
   max-width: 100%;
+}
+
+.ui-comp-file-input {
+  width: 100%;
+}
+
+.ui-comp-file-input::file-selector-button {
+  cursor: pointer;
 }
 
 .scan-shipment-contact-slot {
@@ -1055,8 +1219,38 @@ h3 {
   margin-bottom: 0;
 }
 
+.scan-prepare-kits-top-panel-full {
+  width: 100%;
+}
+
+.scan-prepare-kits-top-layout.scan-inline {
+  grid-template-columns: minmax(0, 1.35fr) minmax(14rem, 0.85fr);
+  align-items: start;
+}
+
+.scan-prepare-kits-top-inner {
+  width: 100%;
+  gap: var(--wms-field-gap);
+}
+
 .scan-prepare-kits-top-group {
   min-width: 0;
+}
+
+.scan-pack-custom-fields {
+  margin-bottom: 0.25rem;
+}
+
+.scan-pack-custom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scan-pack-custom-grid--weight {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 14rem;
+  margin-top: 8px;
 }
 
 .scan-shipment-reference-col {
@@ -1075,6 +1269,50 @@ h3 {
 .scan-shipment-date {
   display: inline-grid;
   gap: 0.08rem;
+}
+
+.scan-table.scan-shipments-ready-table .scan-shipment-reference-col {
+  width: 8rem;
+}
+
+.scan-table.scan-shipments-ready-table .scan-shipment-ready-col {
+  width: 7.5rem;
+}
+
+.scan-table.scan-shipments-ready-table .scan-shipment-actions-col {
+  width: 7rem;
+}
+
+.scan-table.scan-shipments-ready-table .scan-shipment-date {
+  justify-items: center;
+}
+
+.scan-shipment-status-cell {
+  min-width: 0;
+}
+
+.scan-shipment-status-display {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.scan-table.scan-shipments-ready-table .scan-shipment-status-pill {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.15;
+  padding: 0.3rem 0.42rem;
+}
+
+.scan-table.scan-shipments-ready-table td.qty {
+  text-align: center;
+}
+
+.scan-table.scan-shipments-ready-table .scan-shipment-actions-col .btn {
+  width: 100%;
+  min-width: 0;
 }
 
 .scan-shipment-status-pill.scan-shipment-status--draft {
@@ -1213,6 +1451,18 @@ h3 {
   min-width: auto;
   padding: 6px 8px;
   font-size: 13px;
+}
+
+.shipment-dossier-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.75rem;
+  align-items: flex-start;
+}
+
+.scan-admin-contact-action-select {
+  min-width: 11.5rem;
+  padding-right: 2.35rem;
 }
 
 .scan-divider {

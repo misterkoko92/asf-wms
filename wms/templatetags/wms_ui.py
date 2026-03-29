@@ -1,5 +1,6 @@
 from django import template
 from django.forms.utils import flatatt
+from django.utils.html import format_html
 
 from wms.status_badges import build_status_class
 
@@ -26,7 +27,7 @@ def _join_classes(*parts):
     return " ".join(classes)
 
 
-def _normalize_attrs(attrs=None, **extra_attrs):
+def _normalize_attr_map(attrs=None, **extra_attrs):
     normalized = {}
     for key, value in (attrs or {}).items():
         if value in (None, False, ""):
@@ -36,6 +37,11 @@ def _normalize_attrs(attrs=None, **extra_attrs):
         if value in (None, False, ""):
             continue
         normalized[key] = value
+    return normalized
+
+
+def _normalize_attrs(attrs=None, **extra_attrs):
+    normalized = _normalize_attr_map(attrs, **extra_attrs)
     return flatatt(normalized)
 
 
@@ -121,9 +127,10 @@ def ui_field(
 
 @register.inclusion_tag("wms/components/switch.html")
 def ui_switch(
-    name,
-    id,
-    label,
+    field=None,
+    name="",
+    id="",
+    label="",
     checked=False,
     help_text="",
     wide=False,
@@ -131,13 +138,40 @@ def ui_switch(
     value="1",
     attrs=None,
 ):
+    switch_name = name or getattr(field, "html_name", "") or getattr(field, "name", "")
+    switch_id = id or (field.id_for_label if field else "")
+    switch_label = label or getattr(field, "label", "")
+    label_id = f"{switch_id}-label" if switch_id else ""
+    help_id = f"{switch_id}-caption" if switch_id and help_text else ""
+    input_attrs = _normalize_attr_map(
+        attrs,
+        role="switch",
+        **{
+            "class": "form-check-input",
+            "id": switch_id or None,
+            "aria-labelledby": label_id or None,
+            "aria-describedby": help_id or None,
+        },
+    )
+    if field:
+        input_html = field.as_widget(attrs=input_attrs)
+    else:
+        checkbox_attrs = _normalize_attr_map(
+            input_attrs,
+            type="checkbox",
+            name=switch_name or None,
+            value=value,
+            checked="checked" if _as_bool(checked) else None,
+        )
+        input_html = format_html("<input{}>", flatatt(checkbox_attrs))
+
     return {
-        "name": name,
-        "id": id,
-        "label": label,
-        "checked": _as_bool(checked),
+        "input_html": input_html,
+        "id": switch_id,
+        "label": switch_label,
         "help_text": help_text,
-        "value": value,
+        "label_id": label_id,
+        "help_id": help_id,
         "wrapper_classes": _join_classes(
             "form-check",
             "form-switch",
@@ -145,7 +179,41 @@ def ui_switch(
             "scan-inline-switch-wide" if _as_bool(wide) else "",
             extra_classes,
         ),
-        "attrs": _normalize_attrs(attrs),
+    }
+
+
+@register.inclusion_tag("wms/components/file_input.html")
+def ui_file_input(
+    field=None,
+    name="",
+    field_id="",
+    accept="",
+    required=False,
+    multiple=False,
+    extra_classes="",
+    attrs=None,
+):
+    classes = _join_classes("form-control", "ui-comp-file-input", extra_classes)
+    widget_attrs = _normalize_attr_map(
+        attrs,
+        accept=accept or None,
+        required="required" if _as_bool(required) else None,
+        multiple="multiple" if _as_bool(multiple) else None,
+        **{"class": classes},
+    )
+    if field:
+        return {
+            "input_html": field.as_widget(attrs=widget_attrs),
+        }
+
+    input_attrs = _normalize_attr_map(
+        widget_attrs,
+        type="file",
+        id=field_id or None,
+        name=name or None,
+    )
+    return {
+        "input_html": format_html("<input{}>", flatatt(input_attrs)),
     }
 
 

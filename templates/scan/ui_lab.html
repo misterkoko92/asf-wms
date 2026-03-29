@@ -77,6 +77,7 @@
         <ul class="ui-lab-governance-list">
           <li><code>ui_button</code></li>
           <li><code>ui_field</code></li>
+          <li><code>ui_file_input</code></li>
           <li><code>ui_alert</code></li>
           <li><code>ui_status_badge</code></li>
           <li><code>ui_switch</code></li>
@@ -115,6 +116,7 @@
         <ul class="ui-lab-governance-list">
           <li><code>ui_button</code>: {% trans "Un seul primary par zone d'action." %}</li>
           <li><code>ui_field</code>: {% trans "Label, contrôle, aide et erreur restent groupés." %}</li>
+          <li><code>ui_file_input</code>: {% trans "Upload local avec rendu homogène, sans bouton navigateur brut." %}</li>
           <li><code>ui_alert</code>: {% trans "Feedback de section, pas erreur inline." %}</li>
           <li><code>ui_status_badge</code>: {% trans "Statut court, jamais action." %}</li>
           <li><code>ui_switch</code>: {% trans "Booléen simple, jamais navigation." %}</li>
@@ -144,6 +146,11 @@
       {% ui_button label=tertiary_action_label href=scan_admin_design_url variant="tertiary" %}
     </div>
     {% ui_field field_id="ui-lab-component-name" label=component_name_label field_html=ui_lab_component_name_field help_text=component_name_help %}
+    <div class="scan-field">
+      <label class="form-label" for="ui-lab-upload">{% trans "Import fichier" %}</label>
+      {% ui_file_input name="ui_lab_upload" field_id="ui-lab-upload" accept=".csv,.xlsx,.xls" %}
+      <div class="scan-help ui-comp-note">{% trans "Primitive shared pour imports et pièces jointes." %}</div>
+    </div>
     {% ui_switch name="ui_lab_catalog_live_preview" id="ui-lab-catalog-live-preview" label=live_preview_label checked=True wide=True %}
     <div class="ui-lab-row">
       {% ui_status_badge label=ready_status_label status_value="ready" domain="order" %}

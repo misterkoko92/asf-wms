@@ -34,10 +34,10 @@
         {% csrf_token %}
         <div id="carton-bulk-actions" class="scan-filter-actions d-flex flex-wrap gap-2 align-items-center mb-3">
           <span class="scan-help">{% trans "Actions groupées" %}</span>
-          <button type="submit" name="bulk_document" value="packing_lists" class="scan-scan-btn btn btn-tertiary">
+          <button type="submit" name="bulk_document" value="packing_lists" class="scan-scan-btn btn btn-outline-secondary">
             {% trans "Liste de colisage" %}
           </button>
-          <button type="submit" name="bulk_document" value="picking" class="scan-scan-btn btn btn-tertiary">
+          <button type="submit" name="bulk_document" value="picking" class="scan-scan-btn btn btn-outline-success">
             Picking
           </button>
           <select name="bulk_action" class="form-select form-select-sm w-auto scan-carton-bulk-action-select">
@@ -53,7 +53,7 @@
           <table class="scan-table scan-carton-table table table-sm table-hover" data-table-tools="1">
             <thead>
               <tr>
-                <th class="scan-carton-table-head scan-carton-select-col"><span class="scan-carton-table-head-label">{% trans "Sélection" %}</span></th>
+                <th class="scan-carton-table-head scan-carton-select-col text-center align-middle"><span class="scan-carton-table-head-label">{% trans "Sélection" %}</span></th>
                 <th class="scan-carton-table-head scan-carton-code-col"><span class="scan-carton-table-head-label">{% trans "Numero colis" %}</span></th>
                 <th class="scan-carton-table-head scan-carton-date-col"><span class="scan-carton-table-head-label">{% trans "Date création" %}</span></th>
                 <th class="scan-carton-table-head scan-carton-status-col"><span class="scan-carton-table-head-label">{% trans "Statut" %}</span></th>
@@ -67,7 +67,9 @@
             <tbody>
               {% for carton in cartons %}
                 <tr>
-                  <td class="scan-carton-select-col"><input type="checkbox" name="selected_carton_ids" value="{{ carton.id }}"></td>
+                  <td class="scan-carton-select-col text-center align-middle">
+                    <input class="scan-carton-select-checkbox" type="checkbox" name="selected_carton_ids" value="{{ carton.id }}">
+                  </td>
                   <td class="scan-carton-code-col">{{ carton.code }}</td>
                   <td class="scan-carton-date-col">{{ carton.created_at|date:"d/m/y H\\hi" }}</td>
                   <td class="status scan-carton-status-cell scan-carton-status-col">
