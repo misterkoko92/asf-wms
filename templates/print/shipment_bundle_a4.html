@@ -1,12 +1,23 @@
 {% extends "print/base_document.html" %}
-{% load static %}
 
-{% block title %}Bon expédition{% endblock %}
+{% block title %}{{ bundle_title }}{% endblock %}
 
 {% block extra_style %}
   @page { size: A4 landscape; margin: 8mm; }
   .print-header { display: none; }
   .print-body { padding-bottom: 0; }
+  .paper-bundle {
+    display: grid;
+    gap: 0;
+  }
+  .paper-bundle-section {
+    page-break-after: always;
+    break-after: page;
+  }
+  .paper-bundle-section:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
   .sheet {
     --sheet-label-width: 25%;
     --sheet-value-width: 25%;
@@ -67,7 +78,7 @@
   .sheet-table tr:last-child > * {
     border-bottom: 1px solid #000;
   }
-  .sheet-routing-table tr > * + * ,
+  .sheet-routing-table tr > * + *,
   .sheet-party-table tr > * + * {
     border-left: 1px solid #000;
   }
@@ -138,8 +149,90 @@
     border-bottom: 1px solid #000;
     height: 8mm;
   }
+  .customs-note {
+    border: 1px solid #000;
+    padding: 4mm;
+    font-size: 9pt;
+  }
+  .packing-sheet {
+    display: grid;
+    gap: 4mm;
+  }
+  .packing-sheet-header {
+    display: grid;
+    grid-template-columns: 18mm 1fr 18mm;
+    gap: 4mm;
+    align-items: center;
+  }
+  .packing-sheet-logo {
+    width: 18mm;
+    max-height: 18mm;
+    object-fit: contain;
+  }
+  .packing-sheet-heading {
+    display: grid;
+    gap: 0.6mm;
+    text-align: center;
+  }
+  .packing-sheet-title {
+    font-family: Arial, sans-serif;
+    font-size: 16pt;
+    font-weight: 700;
+    text-align: center;
+    margin: 0;
+  }
+  .packing-sheet-subtitle {
+    text-align: center;
+    font-size: 10pt;
+  }
+  .packing-meta-table {
+    margin-top: 0;
+  }
+  .packing-meta-table th,
+  .packing-meta-table td {
+    border: 1px solid #000;
+    padding: 2.2mm 2.5mm;
+    font-size: 9pt;
+  }
+  .packing-meta-table th {
+    background: #fff;
+    text-align: left;
+    font-weight: 700;
+  }
+  .packing-items-table {
+    table-layout: fixed;
+  }
+  .packing-col-carton {
+    width: 25mm;
+  }
+  .packing-col-product {
+    width: auto;
+  }
+  .packing-col-quantity {
+    width: 35mm;
+  }
+  .packing-col-expiry {
+    width: 35mm;
+  }
+  .packing-items-table th:nth-child(1),
+  .packing-items-table th:nth-child(3),
+  .packing-items-table th:nth-child(4) {
+    white-space: nowrap;
+  }
+  .packing-items-table td:nth-child(2),
+  .packing-items-table th:nth-child(2) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 {% endblock %}
 
 {% block body %}
-  {% include "print/partials/shipment_note_body.html" %}
+  <div id="shipment-paper-print-document" class="paper-bundle">
+    {% for section in bundle_sections %}
+      <section id="{{ section.id }}" class="paper-bundle-section">
+        {{ section.html|safe }}
+      </section>
+    {% endfor %}
+  </div>
 {% endblock %}

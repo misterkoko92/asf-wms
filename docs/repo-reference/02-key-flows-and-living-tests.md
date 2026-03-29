@@ -44,6 +44,7 @@ Use it when you need to answer:
 - shipment creation or draft/edit
 - carton status progression
 - grouped carton print/document entrypoints
+- direct HTML print bundles for shipment `paper` and `standard_labels`, with `carton_lists` kept as a per-carton action page for continuous-roll printing
 - tracking events
 - document upload and print/document endpoints
 - label generation

@@ -93,35 +93,8 @@
 
 {% block body %}
   {% for label in labels %}
-    <div class="label-page" id="shipment-label-{{ label.carton_id|default:forloop.counter }}">
-      <div
-        class="label-city"
-        id="shipment-label-city-{{ label.carton_id|default:forloop.counter }}"
-      >{{ label.city|default:"" }}</div>
-      <div class="label-iata-row">
-        <div class="label-iata-wrap">
-          <div
-            class="label-iata"
-            id="shipment-label-iata-{{ label.carton_id|default:forloop.counter }}"
-          >{{ label.iata|default:"" }}</div>
-        </div>
-        {% if label.qr_url %}
-          <div class="label-qr-wrap">
-            <img class="label-qr" src="{{ label.qr_url }}" alt="{% blocktrans with shipment_ref=label.shipment_ref|default:'' %}QR expédition {{ shipment_ref }}{% endblocktrans %}">
-          </div>
-        {% endif %}
-      </div>
-      <div
-        class="label-footer"
-        id="shipment-label-footer-{{ label.carton_id|default:forloop.counter }}"
-      >
-        <div class="label-box">
-          <span class="label-box-text">EXP N° {{ label.shipment_ref }}</span>
-        </div>
-        <div class="label-box small">
-          <span class="label-box-text">Colis / <em>Parcel</em> N° {{ label.position }} / {{ label.total }}</span>
-        </div>
-      </div>
+    <div class="label-page" id="shipment-label-{{ label.carton_id|default:'single' }}">
+      {% include "print/partials/shipment_label_body.html" %}
     </div>
   {% endfor %}
 {% endblock %}

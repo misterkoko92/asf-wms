@@ -1,0 +1,292 @@
+{% extends "print/base_label.html" %}
+
+{% block title %}{{ bundle_title }}{% endblock %}
+
+{% block extra_style %}
+  @page { size: A4 portrait; margin: 8mm; }
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    color: #000;
+  }
+  .bundle-a5-sheets {
+    display: grid;
+    gap: 0;
+  }
+  .bundle-a5-sheet {
+    min-height: calc(297mm - 16mm);
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 4mm;
+    page-break-after: always;
+    break-after: page;
+  }
+  .bundle-a5-sheet:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .bundle-a5-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .bundle-a5-item-surface {
+    min-height: 100%;
+    padding: 2mm 0;
+  }
+  .contact-label {
+    display: grid;
+    gap: 4mm;
+    font-size: 9.5pt;
+    line-height: 1.25;
+  }
+  .contact-label-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3mm 8mm;
+    font-size: 10pt;
+    font-weight: 700;
+  }
+  .sheet-table {
+    width: 100%;
+    margin-top: 0;
+    border-collapse: collapse;
+  }
+  .sheet-table th,
+  .sheet-table td {
+    border-left: 1px solid #000;
+    border-right: 1px solid #000;
+    border-top: 0;
+    border-bottom: 0;
+    padding: 1.5mm 1.8mm;
+    vertical-align: top;
+    font-size: 7.8pt;
+    line-height: 1.15;
+    text-align: left;
+  }
+  .sheet-table th {
+    background: #fff;
+    font-weight: 700;
+    white-space: normal;
+  }
+  .sheet-table tr:first-child > * {
+    border-top: 1px solid #000;
+  }
+  .sheet-table tr:last-child > * {
+    border-bottom: 1px solid #000;
+  }
+  .sheet-table .sheet-section-row > th,
+  .sheet-table .sheet-section-row > td {
+    border-bottom: 1px solid #000;
+  }
+  .sheet-section-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 8pt;
+    white-space: nowrap;
+  }
+  .sheet-en {
+    font-style: italic;
+    font-weight: 400;
+  }
+  .sheet-party-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3mm;
+    align-items: start;
+  }
+  .sheet-party-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+  .sheet-party-table tr > * + * {
+    border-left: 1px solid #000;
+  }
+  .sheet-col-label {
+    width: 40%;
+  }
+  .contact-value {
+    white-space: pre-line;
+  }
+  .label-city {
+    border: 5px solid #333;
+    padding: 10mm 6mm;
+    text-align: center;
+    font-size: 36pt;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .label-iata {
+    border: 8px solid #d11;
+    color: #d11;
+    padding: 6mm 10mm;
+    font-size: 54pt;
+    font-weight: 900;
+    letter-spacing: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .label-iata-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8mm;
+  }
+  .label-iata-wrap {
+    grid-column: 2;
+    display: flex;
+    justify-content: center;
+  }
+  .label-qr-wrap {
+    grid-column: 3;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .label-qr {
+    border: 3px solid #333;
+    height: 36mm;
+    width: 36mm;
+    object-fit: contain;
+  }
+  .label-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8mm;
+    margin-top: 6mm;
+  }
+  .label-box {
+    border: 5px solid #333;
+    padding: 6mm 8mm;
+    font-size: 26pt;
+    font-weight: 800;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+  }
+  .label-box.small {
+    max-width: 45%;
+    letter-spacing: 2px;
+  }
+  .label-box-text {
+    display: inline-flex;
+    gap: 0.35em;
+    align-items: baseline;
+    font-weight: 800;
+  }
+  .label-box-text em {
+    font-style: italic;
+    font-weight: 800;
+    text-transform: none;
+  }
+  .certificate {
+    display: grid;
+    gap: 4mm;
+    font-size: 9pt;
+  }
+  .certificate-header {
+    display: grid;
+    grid-template-columns: 18mm 1fr 18mm;
+    gap: 4mm;
+    align-items: center;
+  }
+  .certificate-logo {
+    width: 18mm;
+    max-height: 18mm;
+    object-fit: contain;
+  }
+  .certificate-heading {
+    display: grid;
+    gap: 0.5mm;
+    text-align: center;
+  }
+  .certificate-title {
+    font-size: 16pt;
+    font-weight: 700;
+    text-align: center;
+  }
+  .certificate-city {
+    text-align: center;
+    font-size: 16pt;
+    font-weight: 700;
+  }
+  .certificate-accent {
+    color: #c20000;
+  }
+  .certificate-table {
+    margin-top: 0;
+  }
+  .certificate-table th,
+  .certificate-table td {
+    border: 0;
+    padding: 1.2mm 0;
+    font-size: 9pt;
+    vertical-align: top;
+  }
+  .certificate-table th {
+    width: 34mm;
+    background: transparent;
+    text-align: left;
+    font-weight: 700;
+  }
+  .certificate-value {
+    border-bottom: 1px solid #000;
+    min-height: 5mm;
+  }
+  .certificate-value--single-line {
+    white-space: normal;
+  }
+  .certificate-line {
+    white-space: pre-line;
+    font-size: 9pt;
+    line-height: 1;
+  }
+  .certificate-body-intro {
+    white-space: normal;
+  }
+  .certificate-notes {
+    display: grid;
+    gap: 1mm;
+  }
+  .certificate-emphasis {
+    font-weight: 700;
+  }
+  .certificate-signoff {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 6mm;
+  }
+  .certificate-signoff-lines {
+    display: grid;
+    gap: 1mm;
+  }
+  .certificate-stamp {
+    height: 18mm;
+  }
+{% endblock %}
+
+{% block body %}
+  <div id="shipment-standard-labels-print-document" class="bundle-a5-sheets">
+    {% for item in bundle_items %}
+      {% if forloop.first or forloop.counter0|divisibleby:2 %}
+        <section class="bundle-a5-sheet">
+      {% endif %}
+      <article
+        id="{{ item.wrapper_id }}"
+        class="bundle-a5-item"
+        data-print-doc-type="{{ item.doc_type }}"
+      >
+        <div class="bundle-a5-item-surface">
+          {{ item.html|safe }}
+        </div>
+      </article>
+      {% if forloop.counter|divisibleby:2 or forloop.last %}
+        </section>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endblock %}

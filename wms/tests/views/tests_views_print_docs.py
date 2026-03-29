@@ -386,7 +386,7 @@ class PrintDocsViewsTests(TestCase):
         )
         self.assertEqual(response.content.decode(), "contact-html")
 
-    def test_scan_shipment_view_bundle_routes_paper_to_html_bundle_page(self):
+    def test_scan_shipment_view_bundle_routes_paper_to_direct_printable_html(self):
         shipment = self._create_shipment()
 
         response = self.client.get(
@@ -397,11 +397,21 @@ class PrintDocsViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="shipment-paper-bundle"')
-        self.assertContains(response, "Lot papier A4")
-        self.assertContains(response, "Bon d")
-        self.assertContains(response, "Document douane")
-        self.assertContains(response, "Liste générale")
+        self.assertContains(response, 'id="shipment-paper-print-document"')
+        self.assertNotContains(response, 'id="shipment-paper-bundle"')
+        self.assertNotContains(response, 'class="scan-scan-btn btn btn-tertiary"')
+        content = response.content.decode()
+        self.assertLess(
+            content.index('id="shipment-paper-section-shipment_note"'),
+            content.index('id="shipment-paper-section-customs"'),
+        )
+        self.assertLess(
+            content.index('id="shipment-paper-section-customs"'),
+            content.index('id="shipment-paper-section-packing_list"'),
+        )
+        self.assertContains(response, 'id="shipment-note-sheet"')
+        self.assertContains(response, 'id="customs-note-sheet"')
+        self.assertContains(response, 'id="packing-list-shipment-sheet"')
 
     def test_scan_shipment_view_bundle_routes_carton_lists_to_html_bundle_page(self):
         shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
@@ -428,7 +438,7 @@ class PrintDocsViewsTests(TestCase):
             f'{reverse("scan:scan_shipment_carton_document", args=[shipment.id, cartons[1].id])}?delivery=html',
         )
 
-    def test_scan_shipment_view_bundle_routes_standard_labels_to_html_bundle_page(self):
+    def test_scan_shipment_view_bundle_routes_standard_labels_to_direct_printable_html(self):
         shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
 
         response = self.client.get(
@@ -439,19 +449,34 @@ class PrintDocsViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="shipment-standard-labels-bundle"')
-        self.assertContains(response, "Lot étiquettes standard")
+        self.assertContains(response, 'id="shipment-standard-labels-print-document"')
+        self.assertNotContains(response, 'id="shipment-standard-labels-bundle"')
+        self.assertNotContains(response, 'class="scan-scan-btn btn btn-tertiary"')
         content = response.content.decode()
-        self.assertLess(content.index("Étiquette colis"), content.index("Étiquette contact"))
-        self.assertLess(content.index("Étiquette contact"), content.index("Attestation donation"))
-        self.assertContains(
-            response,
-            f'{reverse("scan:scan_shipment_label", args=[shipment.id, cartons[0].id])}?delivery=html',
+        self.assertContains(response, 'data-print-doc-type="contact_label"', count=2)
+        self.assertContains(response, 'data-print-doc-type="shipment_label"', count=2)
+        self.assertContains(response, 'data-print-doc-type="donation_certificate"', count=2)
+        self.assertLess(
+            content.index(f'id="shipment-standard-labels-item-contact_label-{cartons[1].id}"'),
+            content.index(f'id="shipment-standard-labels-item-contact_label-{cartons[0].id}"'),
         )
-        self.assertContains(
-            response,
-            f'{reverse("scan:scan_shipment_label", args=[shipment.id, cartons[1].id])}?delivery=html',
+        self.assertLess(
+            content.index(f'id="shipment-standard-labels-item-contact_label-{cartons[0].id}"'),
+            content.index(f'id="shipment-standard-labels-item-shipment_label-{cartons[1].id}"'),
         )
+        self.assertLess(
+            content.index(f'id="shipment-standard-labels-item-shipment_label-{cartons[0].id}"'),
+            content.index(
+                f'id="shipment-standard-labels-item-donation_certificate-{cartons[1].id}"'
+            ),
+        )
+        self.assertContains(response, 'id="contact-label"')
+        self.assertContains(response, 'id="shipment-label-')
+        self.assertContains(response, 'id="donation-certificate-sheet"')
+        self.assertContains(response, '<span class="label-box-text">N° 1 / 2</span>')
+        self.assertContains(response, '<span class="label-box-text">N° 2 / 2</span>')
+        self.assertNotContains(response, "Colis /")
+        self.assertNotContains(response, "Parcel")
 
     def test_scan_cartons_view_bundle_routes_packing_lists_to_html_bundle_page(self):
         carton_a = self._create_standalone_carton_with_item()

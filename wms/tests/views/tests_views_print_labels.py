@@ -261,6 +261,25 @@ class PrintLabelsViewsTests(TestCase):
         )
         response_mock.assert_called_once()
 
+    def test_scan_shipment_label_html_renders_short_parcel_counter(self):
+        shipment = self._create_shipment()
+        _carton_second = Carton.objects.create(code="C-LABEL-020", shipment=shipment)
+        carton_first = Carton.objects.create(code="C-LABEL-010", shipment=shipment)
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_label",
+                kwargs={"shipment_id": shipment.id, "carton_id": carton_first.id},
+            ),
+            {"delivery": "html"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-label-')
+        self.assertContains(response, '<span class="label-box-text">N° 1 / 2</span>')
+        self.assertNotContains(response, "Colis /")
+        self.assertNotContains(response, "Parcel")
+
     def test_scan_shipment_contact_label_renders_carton_contact_template(self):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-CONTACT-001", shipment=shipment)
