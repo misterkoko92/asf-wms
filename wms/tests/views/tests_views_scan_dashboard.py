@@ -629,3 +629,79 @@ class ScanDashboardViewTests(TestCase):
         self.assertContains(response, 'id="id_chart_end"')
         self.assertContains(response, 'name="shipment_status"')
         self.assertNotContains(response, 'name="period"')
+
+    def test_scan_dashboard_exposes_actions_anchors_and_grouped_sections(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            [item["id"] for item in response.context["dashboard_anchors"]],
+            [
+                "scan-dashboard-priorities",
+                "scan-dashboard-pilotage",
+                "scan-dashboard-flow",
+                "scan-dashboard-health",
+            ],
+        )
+        self.assertEqual(
+            response.context["page_actions"][0]["url"],
+            reverse("scan:scan_shipment_create"),
+        )
+        self.assertEqual(len(response.context["priority_cards"]), 6)
+        self.assertEqual(response.context["flow_sections"][0]["id"], "scan-dashboard-stock")
+        self.assertEqual(
+            response.context["system_health_sections"][0]["id"],
+            "scan-dashboard-technical",
+        )
+
+    def test_scan_dashboard_priority_cards_include_explicit_cta_labels(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            [card["cta_label"] for card in response.context["priority_cards"]],
+            [
+                "Voir les expéditions prêtes",
+                "Traiter les blocages workflow",
+                "Ouvrir le suivi expédition",
+                "Traiter les litiges",
+                "Contrôler le stock",
+                "Investiguer la queue email",
+            ],
+        )
+
+    def test_scan_dashboard_orders_priority_pilotage_flow_and_health_sections(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        content = response.content.decode()
+        self.assertLess(
+            content.index('id="scan-dashboard-priorities"'),
+            content.index('id="scan-dashboard-pilotage"'),
+        )
+        self.assertLess(
+            content.index('id="scan-dashboard-pilotage"'),
+            content.index('id="scan-dashboard-flow"'),
+        )
+        self.assertLess(
+            content.index('id="scan-dashboard-flow"'),
+            content.index('id="scan-dashboard-health"'),
+        )
+
+    def test_scan_dashboard_renders_six_priority_cards_with_explicit_actions(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, "Voir les expéditions prêtes")
+        self.assertContains(response, "Traiter les blocages workflow")
+        self.assertContains(response, "Contrôler le stock")
+        self.assertContains(response, "Investiguer la queue email")
+
+    def test_scan_dashboard_groups_kpi_and_chart_inside_pilotage_block(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        content = response.content.decode()
+        pilotage_start = content.index('id="scan-dashboard-pilotage"')
+        self.assertIn('id="scan-dashboard-kpi-panel"', content[pilotage_start:])
+        self.assertIn('id="scan-dashboard-chart-panel"', content[pilotage_start:])
