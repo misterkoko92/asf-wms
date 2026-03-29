@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% trans "Document" as default_document_label %}
 <div class="scan-field">
@@ -6,7 +6,7 @@
   <form method="post" enctype="multipart/form-data" action="{% url 'scan:scan_shipment_document_upload' shipment.id %}">
     {% csrf_token %}
     <div id="shipment-additional-document-upload-actions" class="scan-inline ui-comp-actions">
-      <input type="file" name="document_file" required>
+      {% ui_file_input name="document_file" field_id="id_document_file" required=True %}
       <button type="submit" class="scan-scan-btn btn btn-secondary">{% trans "Uploader" %}</button>
     </div>
     <div class="scan-help">{% trans "Formats autorises: PDF, JPG, PNG, XLSX, DOCX." %}</div>

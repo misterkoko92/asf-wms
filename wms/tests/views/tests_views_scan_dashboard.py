@@ -645,6 +645,10 @@ class ScanDashboardViewTests(TestCase):
         )
         self.assertEqual(
             response.context["page_actions"][0]["url"],
+            reverse("scan:scan_pack"),
+        )
+        self.assertEqual(
+            response.context["page_actions"][1]["url"],
             reverse("scan:scan_shipment_create"),
         )
         self.assertEqual(len(response.context["priority_cards"]), 6)

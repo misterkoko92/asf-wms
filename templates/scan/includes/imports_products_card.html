@@ -1,4 +1,4 @@
-{% load i18n static %}
+{% load i18n static wms_ui %}
 
 <section id="scan-imports-products" class="scan-card card border-0 ui-comp-card">
   <h2 class="ui-comp-title">{% trans "Import produits" %}</h2>
@@ -112,7 +112,7 @@
     <input type="hidden" name="action" value="product_file">
     <div class="scan-field">
       <label class="form-label" for="product_file">{% trans "Fichier produits (CSV/XLS/XLSX)" %}</label>
-      <input type="file" id="product_file" name="import_file" accept=".csv,.xlsx,.xls">
+      {% ui_file_input name="import_file" field_id="product_file" accept=".csv,.xlsx,.xls" %}
     </div>
     <div class="scan-field">
       <label class="form-label" for="product_update">
@@ -122,32 +122,30 @@
     </div>
     <div class="scan-field">
       <span class="form-label d-block">{% trans "Gestion du stock importé (champ quantity/stock)" %}</span>
-      <div class="scan-import-radio-group">
-        <div class="form-check form-check-inline scan-import-radio-option">
-          <input
-            type="radio"
-            class="form-check-input"
-            id="stock_mode_movement"
-            name="stock_mode"
-            value="movement"
-            checked
-          >
-          <label class="form-check-label" for="stock_mode_movement">
-            {% trans "Faire des mouvements de stock (ajouter la quantité importée)" %}
-          </label>
-        </div>
-        <div class="form-check form-check-inline scan-import-radio-option">
-          <input
-            type="radio"
-            class="form-check-input"
-            id="stock_mode_overwrite"
-            name="stock_mode"
-            value="overwrite"
-          >
-          <label class="form-check-label" for="stock_mode_overwrite">
-            {% trans "Écraser la valeur du stock (remise à zéro puis valeur importée)" %}
-          </label>
-        </div>
+      <div class="scan-toggle-btn-group scan-toggle-btn-group--stacked" role="radiogroup" aria-label="{% trans "Gestion du stock importé" %}">
+        <input
+          type="radio"
+          class="btn-check"
+          id="stock_mode_movement"
+          name="stock_mode"
+          value="movement"
+          autocomplete="off"
+          checked
+        >
+        <label class="btn btn-outline-secondary scan-toggle-btn" for="stock_mode_movement">
+          {% trans "Faire des mouvements de stock (ajouter la quantité importée)" %}
+        </label>
+        <input
+          type="radio"
+          class="btn-check"
+          id="stock_mode_overwrite"
+          name="stock_mode"
+          value="overwrite"
+          autocomplete="off"
+        >
+        <label class="btn btn-outline-secondary scan-toggle-btn" for="stock_mode_overwrite">
+          {% trans "Écraser la valeur du stock (remise à zéro puis valeur importée)" %}
+        </label>
       </div>
     </div>
     <div class="scan-filter-actions ui-comp-actions">

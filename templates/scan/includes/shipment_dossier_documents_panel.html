@@ -2,7 +2,7 @@
 
 <div class="scan-field">
   <label class="form-label">{% trans "Impression groupée" %}</label>
-  <div id="shipment-dossier-grouped-print-actions" class="ui-comp-actions">
+  <div id="shipment-dossier-grouped-print-actions" class="ui-comp-actions shipment-dossier-document-actions">
     {% for action in dossier_print_actions.grouped_print_actions %}
       <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ action.url }}" target="_blank" rel="noopener">
         {{ action.label }}
@@ -13,7 +13,7 @@
 
 <div class="scan-field">
   <label class="form-label">{% trans "Documents papier" %}</label>
-  <div id="shipment-dossier-paper-print-actions" class="ui-comp-actions">
+  <div id="shipment-dossier-paper-print-actions" class="ui-comp-actions shipment-dossier-document-actions">
     {% for action in dossier_print_actions.paper_print_actions %}
       <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ action.url }}" target="_blank" rel="noopener">
         {{ action.label }}
@@ -27,9 +27,9 @@
   <div id="shipment-dossier-carton-print-actions" class="scan-docs">
     {% if dossier_print_actions.carton_print_rows %}
       {% for row in dossier_print_actions.carton_print_rows %}
-        <div class="scan-field">
-          <div class="meta mb-2">{{ row.code }}</div>
-          <div class="ui-comp-actions">
+          <div class="scan-field">
+            <div class="meta mb-2">{{ row.code }}</div>
+          <div class="ui-comp-actions shipment-dossier-document-actions">
             {% for action in row.actions %}
               <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ action.url }}" target="_blank" rel="noopener">
                 {{ action.label }}
@@ -46,7 +46,7 @@
 
 <div class="scan-field">
   <label class="form-label">{% trans "Exports PDF" %}</label>
-  <div id="shipment-dossier-pdf-export-actions" class="ui-comp-actions">
+  <div id="shipment-dossier-pdf-export-actions" class="ui-comp-actions shipment-dossier-document-actions">
     {% for action in dossier_print_actions.pdf_export_actions %}
       <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ action.url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
         {{ action.label }}

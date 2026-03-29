@@ -3,7 +3,7 @@
   .billing-toggle-grid {
     display: grid;
     gap: 0.9rem;
-    align-items: start;
+    align-items: end;
   }
 
   .billing-form-stack {
@@ -37,10 +37,23 @@
 
   .billing-field {
     min-width: 0;
+    display: grid;
+    gap: 0.35rem;
+    align-content: end;
   }
 
   .billing-field--full {
     grid-column: 1 / -1;
+  }
+
+  .billing-field > label,
+  .billing-field > .form-label {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 2.8rem;
+    margin: 0;
+    text-align: left;
   }
 
   .billing-grid .billing-field textarea {
@@ -55,23 +68,28 @@
   .billing-toggle {
     display: grid;
     gap: 0.45rem;
-    justify-items: center;
-    text-align: center;
+    justify-items: start;
+    text-align: left;
+    align-content: end;
   }
 
   .billing-toggle__label {
-    display: block;
-    min-height: 2.7rem;
+    display: flex;
+    width: 100%;
+    min-height: 2.8rem;
     margin: 0;
+    align-items: center;
+    justify-content: flex-start;
     font-weight: 600;
     line-height: 1.35;
   }
 
   .billing-toggle__control {
     display: flex;
+    width: 100%;
     min-height: 2rem;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .billing-toggle__control input {
@@ -92,14 +110,65 @@
     width: 1rem;
     height: 1rem;
     margin-left: 0.35rem;
+    padding: 0;
     align-items: center;
     justify-content: center;
+    border: 0;
     border-radius: 999px;
     background: rgba(15, 95, 79, 0.12);
     color: #0f5f4f;
     font-size: 0.72rem;
     font-weight: 700;
     cursor: help;
+    position: relative;
+    flex: 0 0 auto;
+  }
+
+  .scan-design-help-dot::before,
+  .scan-design-help-dot::after {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease-in-out;
+  }
+
+  .scan-design-help-dot::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 0.15rem);
+    transform: translateX(-50%);
+    border-width: 0.35rem;
+    border-style: solid;
+    border-color: transparent transparent rgba(47, 58, 54, 0.95) transparent;
+  }
+
+  .scan-design-help-dot::after {
+    content: attr(data-help-text);
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 0.5rem);
+    transform: translateX(-50%);
+    z-index: 20;
+    width: min(22rem, 75vw);
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.65rem;
+    background: rgba(47, 58, 54, 0.95);
+    color: #fffdf9;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: normal;
+    box-shadow: 0 10px 24px rgba(23, 33, 30, 0.18);
+  }
+
+  .scan-design-help-dot:hover::before,
+  .scan-design-help-dot:hover::after,
+  .scan-design-help-dot:focus::before,
+  .scan-design-help-dot:focus::after {
+    opacity: 1;
   }
 
   @media (max-width: 1400px) {

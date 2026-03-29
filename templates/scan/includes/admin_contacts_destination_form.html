@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n wms_ui %}
 <form method="post" class="row g-3 ui-comp-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_destination">
@@ -44,12 +44,7 @@
         {{ destination_form.correspondent_contact_id.errors }}
     </div>
     <div class="scan-field col-12 col-lg-4 d-flex align-items-end">
-        <div class="form-check form-switch scan-inline-switch">
-            {{ destination_form.is_active }}
-            <label class="form-check-label" for="{{ destination_form.is_active.id_for_label }}">
-                {{ destination_form.is_active.label }}
-            </label>
-        </div>
+        {% ui_switch field=destination_form.is_active wide=True %}
     </div>
     {% if destination_duplicate_candidates %}
         <div class="col-12">

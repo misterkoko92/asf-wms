@@ -380,6 +380,20 @@ body.portal-bootstrap-enabled {
   color: var(--wms-color-text);
 }
 
+.portal-bootstrap-enabled .ui-comp-file-input {
+  width: 100%;
+}
+
+.portal-bootstrap-enabled .ui-comp-file-input::file-selector-button {
+  padding: 0.58rem 0.85rem;
+  margin-right: 0.75rem;
+  border: 0;
+  border-right: 1px solid var(--wms-input-border);
+  background: var(--wms-color-surface-alt);
+  color: var(--wms-color-text);
+  font-weight: 700;
+}
+
 .portal-bootstrap-enabled .portal-recipient-grid-3 {
   display: grid;
   gap: var(--wms-field-gap) calc(var(--wms-space-unit) * 1.5);

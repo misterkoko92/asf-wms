@@ -947,11 +947,63 @@ body.scan-bootstrap-enabled {
   padding-left: 0;
 }
 
-.scan-bootstrap-enabled .scan-faq-summary-list.scan-faq-summary-grid {
+.scan-bootstrap-enabled .scan-faq-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-card {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-nav {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-scroll-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-list.scan-faq-nav-list {
+  display: grid;
+  gap: 0.95rem;
+  min-height: 0;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-scroll-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.scan-bootstrap-enabled .scan-faq-nav-group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.scan-bootstrap-enabled .scan-faq-nav-group-heading {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-soft);
+}
+
+.scan-bootstrap-enabled .scan-faq-nav-group-list {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.55rem;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
 }
 
 .scan-bootstrap-enabled .scan-faq-summary-item {
@@ -961,22 +1013,23 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-faq-summary-link {
   display: block;
-  padding: 0.55rem 0.75rem;
+  padding: 0.55rem 0.7rem;
   border: 1px solid var(--scan-boot-border-strong);
   border-radius: 0.7rem;
-  background: var(--scan-boot-surface-muted);
+  background: var(--scan-boot-surface);
   color: var(--ds-text);
   font-weight: 600;
   line-height: 1.25;
   text-decoration: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .scan-bootstrap-enabled .scan-faq-summary-link:hover,
 .scan-bootstrap-enabled .scan-faq-summary-link:focus {
-  background: var(--scan-boot-surface);
+  background: var(--scan-boot-surface-muted);
   border-color: var(--wms-input-focus-border);
   color: var(--ds-text);
+  transform: translateX(1px);
 }
 
 .scan-bootstrap-enabled .scan-faq-title {
@@ -993,6 +1046,32 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-faq-card-body {
   padding-top: 0.4rem;
+}
+
+@media (min-width: 1200px) {
+  .scan-bootstrap-enabled .scan-faq-layout {
+    grid-template-columns: minmax(17rem, 19rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .scan-bootstrap-enabled .scan-faq-summary-card {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow: hidden;
+  }
+
+  .scan-bootstrap-enabled .scan-faq-summary-scroll-region {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .scan-bootstrap-enabled .scan-faq-summary-scroll-list {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.25rem;
+    scrollbar-gutter: stable;
+  }
 }
 
 .scan-bootstrap-enabled .ui-comp-form {
@@ -1050,6 +1129,31 @@ body.scan-bootstrap-enabled {
   padding-top: 0;
 }
 
+.scan-bootstrap-enabled .ui-comp-file-input {
+  width: 100%;
+}
+
+.scan-bootstrap-enabled .ui-comp-file-input::file-selector-button {
+  padding: 0.58rem 0.85rem;
+  margin-right: 0.75rem;
+  border: 0;
+  border-right: 1px solid var(--scan-boot-border-strong);
+  background: var(--scan-boot-surface-muted);
+  color: var(--ds-text);
+  font-weight: 700;
+}
+
+.scan-bootstrap-enabled .shipment-dossier-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.75rem;
+  align-items: flex-start;
+}
+
+.scan-bootstrap-enabled .scan-admin-contact-action-select {
+  padding-right: 2.55rem;
+}
+
 .scan-bootstrap-enabled .scan-dashboard-page-header,
 .scan-bootstrap-enabled .scan-dashboard-toolbar,
 .scan-bootstrap-enabled .scan-dashboard-section-nav,
@@ -1071,6 +1175,10 @@ body.scan-bootstrap-enabled {
   flex-wrap: wrap;
   gap: 0.55rem;
   justify-content: flex-end;
+}
+
+.scan-bootstrap-enabled .scan-dashboard-page-actions .btn {
+  white-space: nowrap;
 }
 
 .scan-bootstrap-enabled .scan-dashboard-section-nav {
@@ -1209,12 +1317,77 @@ body.scan-bootstrap-enabled {
   margin-bottom: 0;
 }
 
+.scan-bootstrap-enabled .scan-toggle-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.scan-bootstrap-enabled .scan-toggle-btn-group--stacked {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.scan-bootstrap-enabled .scan-toggle-btn {
+  border-color: var(--scan-boot-border-strong);
+  background: var(--scan-boot-surface);
+  color: var(--ds-text);
+  box-shadow: none;
+}
+
+.scan-bootstrap-enabled .scan-toggle-btn:hover,
+.scan-bootstrap-enabled .scan-toggle-btn:focus {
+  border-color: var(--wms-input-focus-border);
+  background: var(--scan-boot-surface-muted);
+  color: var(--ds-text);
+}
+
+.scan-bootstrap-enabled .btn-check:checked + .scan-toggle-btn,
+.scan-bootstrap-enabled .btn-check:active + .scan-toggle-btn {
+  border-color: var(--wms-input-focus-border);
+  background: var(--wms-nav-item-active-bg);
+  color: var(--ds-text);
+  box-shadow: none;
+}
+
 .scan-bootstrap-enabled .scan-inline-switch {
   margin-bottom: 0;
 }
 
 .scan-bootstrap-enabled .scan-inline-switch .form-check-input {
-  margin-top: 0.12rem;
+  margin-top: 0;
+}
+
+.scan-bootstrap-enabled .scan-inline-switch .scan-switch-title {
+  color: var(--ds-text);
+}
+
+.scan-bootstrap-enabled .scan-inline-switch .scan-switch-caption {
+  color: var(--ds-text-soft);
+}
+
+.scan-bootstrap-enabled .scan-inline-switch .scan-switch-track {
+  border-color: var(--scan-boot-border-strong);
+  background: var(--scan-boot-surface-muted);
+}
+
+.scan-bootstrap-enabled .scan-inline-switch .scan-switch-handle {
+  background: #fffdf9;
+}
+
+.scan-bootstrap-enabled .scan-inline-switch .form-check-input:checked + .scan-switch-label .scan-switch-track {
+  border-color: var(--wms-input-focus-border);
+  background: var(--ds-primary);
+}
+
+.scan-bootstrap-enabled .scan-table.scan-shipments-ready-table {
+  table-layout: fixed;
+  min-width: 0;
+}
+
+.scan-bootstrap-enabled .scan-table.scan-shipments-ready-table .scan-shipment-actions-col .btn {
+  width: 100%;
+  min-width: 0;
 }
 
 .scan-bootstrap-enabled .scan-week-input {
@@ -1696,6 +1869,17 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
     align-items: end;
   }
 
+  .scan-bootstrap-enabled .scan-prepare-kits-main-row .scan-prepare-kits-top-panel-full {
+    grid-column: 1 / -1;
+    justify-self: start;
+    max-width: min(100%, 62rem);
+  }
+
+  .scan-bootstrap-enabled .scan-prepare-kits-top-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(15rem, 18rem);
+    align-items: start;
+  }
+
   .scan-bootstrap-enabled .scan-prepare-kits-main-row .scan-prepare-kits-composition-field,
   .scan-bootstrap-enabled .scan-prepare-kits-main-row .scan-prepare-kits-actions-inline {
     grid-column: 1 / -1;
@@ -1715,6 +1899,10 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
   .scan-bootstrap-enabled .scan-pack-shipping-actions-inline {
     justify-content: flex-start;
     flex-wrap: nowrap !important;
+  }
+
+  .scan-bootstrap-enabled .scan-prepare-kits-actions-inline .ms-lg-auto {
+    margin-left: auto !important;
   }
 
 }

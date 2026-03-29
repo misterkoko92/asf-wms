@@ -1,4 +1,4 @@
-{% load i18n static %}
+{% load i18n static wms_ui %}
 
 <section id="scan-imports-warehouses" class="scan-card card border-0 ui-comp-card">
   <h2 class="ui-comp-title">{% trans "Import entrepôts" %}</h2>
@@ -25,7 +25,7 @@
     <input type="hidden" name="action" value="warehouse_file">
     <div class="scan-field">
       <label class="form-label" for="warehouse_file">{% trans "Fichier entrepôts (CSV/XLS/XLSX)" %}</label>
-      <input type="file" id="warehouse_file" name="import_file" accept=".csv,.xlsx,.xls">
+      {% ui_file_input name="import_file" field_id="warehouse_file" accept=".csv,.xlsx,.xls" %}
     </div>
     <div class="scan-filter-actions ui-comp-actions">
       <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Importer entrepôts" %}</button>

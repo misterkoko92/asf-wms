@@ -125,9 +125,13 @@ class WmsUiTemplateTagTests(SimpleTestCase):
         self.assertIn('name="notify"', rendered)
         self.assertIn('id="id_notify"', rendered)
         self.assertIn('value="1"', rendered)
+        self.assertIn('role="switch"', rendered)
         self.assertIn("checked", rendered)
         self.assertIn("Avertir &lt;unsafe&gt;", rendered)
         self.assertIn("Contacte le correspondant &lt;unsafe&gt;", rendered)
+        self.assertIn("scan-switch-control", rendered)
+        self.assertIn("scan-switch-track", rendered)
+        self.assertIn("scan-switch-caption", rendered)
 
     def test_ui_field_wraps_existing_form_markup_help_text_and_errors(self):
         template = Template(

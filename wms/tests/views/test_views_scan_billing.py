@@ -637,11 +637,11 @@ class ScanBillingViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            'title="Chaque article ou colis correspondant a cette regle compte pour ce nombre d&#x27;unites d&#x27;expedition."',
+            'data-help-text="Chaque article ou colis correspondant a cette regle compte pour ce nombre d&#x27;unites d&#x27;expedition."',
         )
         self.assertContains(
             response,
-            'title="Departage les regles a specificite egale. Plus la valeur est petite, plus la regle est prioritaire."',
+            'data-help-text="Departage les regles a specificite egale. Plus la valeur est petite, plus la regle est prioritaire."',
         )
 
     def test_scan_billing_editor_page_reorders_currency_and_manual_sections(self):

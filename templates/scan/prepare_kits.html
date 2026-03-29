@@ -24,8 +24,8 @@
 
     <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-prepare-kits-main-row">
       {% csrf_token %}
-      <div class="scan-field ui-comp-panel scan-prepare-kits-top-panel col-12">
-        <div class="scan-inline scan-inline-equal scan-inline-top scan-inline-gap">
+      <div class="scan-field ui-comp-panel scan-prepare-kits-top-panel scan-prepare-kits-top-panel-full col-12">
+        <div class="scan-prepare-kits-top-layout scan-prepare-kits-top-inner scan-inline scan-inline-top scan-inline-gap">
           <div class="scan-field scan-prepare-kits-top-field scan-prepare-kits-top-group">
             <label class="form-label" for="{{ form.kit_id.id_for_label }}">{% trans "Nom du kit" %}</label>
             {{ form.kit_id }}
@@ -77,9 +77,9 @@
         </div>
       </div>
 
-      <div class="ui-comp-actions scan-prepare-kits-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
+      <div class="ui-comp-actions scan-prepare-kits-actions-inline col-12 d-flex flex-wrap gap-2 align-items-center">
         <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
-        <a class="scan-scan-btn btn btn-tertiary" href="{{ kit_create_url }}" target="_blank" rel="noopener">
+        <a class="scan-scan-btn btn btn-tertiary ms-auto" href="{{ kit_create_url }}" target="_blank" rel="noopener">
           {% trans "Créer un nouveau kit" %}
         </a>
       </div>

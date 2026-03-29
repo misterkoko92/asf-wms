@@ -936,6 +936,11 @@ def scan_dashboard(request):
 
     page_actions = [
         {
+            "label": _("Nouveau colis"),
+            "url": reverse("scan:scan_pack"),
+            "tone": "tertiary",
+        },
+        {
             "label": _("Nouvelle expédition"),
             "url": reverse("scan:scan_shipment_create"),
             "tone": "primary",

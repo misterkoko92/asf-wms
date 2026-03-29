@@ -36,7 +36,7 @@
           <label class="form-label" for="{{ rule_form.units_per_item.id_for_label }}">
             {{ rule_form.units_per_item.label }}
             {% if rule_form.units_per_item.help_text %}
-              <span class="scan-design-help-dot" title="{{ rule_form.units_per_item.help_text }}" aria-label="{{ rule_form.units_per_item.help_text }}">?</span>
+              <button type="button" class="scan-design-help-dot" data-help-text="{{ rule_form.units_per_item.help_text }}" aria-label="{{ rule_form.units_per_item.help_text }}">?</button>
             {% endif %}
           </label>
           {{ rule_form.units_per_item }}
@@ -46,7 +46,7 @@
           <label class="form-label" for="{{ rule_form.priority.id_for_label }}">
             {{ rule_form.priority.label }}
             {% if rule_form.priority.help_text %}
-              <span class="scan-design-help-dot" title="{{ rule_form.priority.help_text }}" aria-label="{{ rule_form.priority.help_text }}">?</span>
+              <button type="button" class="scan-design-help-dot" data-help-text="{{ rule_form.priority.help_text }}" aria-label="{{ rule_form.priority.help_text }}">?</button>
             {% endif %}
           </label>
           {{ rule_form.priority }}

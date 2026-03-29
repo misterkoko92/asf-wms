@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% trans "Hors format n°" as out_of_format_number_label %}
 {% trans "Description" as description_label %}
@@ -76,7 +76,7 @@
 
     <div class="scan-field scan-receive-association-field col-12 col-lg-4">
       <label class="form-label" for="id_pickup_charge_proof">Justificatif enl&egrave;vement</label>
-      {{ create_form.pickup_charge_proof }}
+      {% ui_file_input field=create_form.pickup_charge_proof %}
       {% for error in create_form.pickup_charge_proof.errors %}
         <div class="scan-message error">{{ error }}</div>
       {% endfor %}

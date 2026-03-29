@@ -50,38 +50,40 @@
     {% endif %}
     {% if shipments %}
       <div class="scan-table-wrap table-responsive">
-        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+        <table class="scan-table scan-shipments-ready-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th class="scan-shipment-reference-col">
-                <span>NUMERO</span><br>
-                <span>EXPEDITION</span>
+              <th class="scan-shipments-ready-head scan-shipment-reference-col">
+                <span class="scan-shipments-ready-head-label">NUMERO</span><br>
+                <span class="scan-shipments-ready-head-label">EXPEDITION</span>
               </th>
-              <th>{% trans "Statut" %}</th>
-              <th>{% trans "Nb colis" %}</th>
-              <th>{% trans "Nb Colis Equivalent" %}</th>
-              <th>{% trans "Destination (IATA)" %}</th>
-              <th>{% trans "Expéditeur" %}</th>
-              <th>{% trans "Destinataire" %}</th>
-              <th>{% trans "Date création" %}</th>
-              <th class="scan-shipment-ready-col">{% trans "Date mise en disponible" %}</th>
-              <th>{% trans "Documents" %}</th>
-              <th class="scan-shipment-actions-col">{% trans "Actions" %}</th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Statut" %}</span></th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Nb colis" %}</span></th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Nb Colis Equivalent" %}</span></th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Destination (IATA)" %}</span></th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Expéditeur" %}</span></th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Destinataire" %}</span></th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Date création" %}</span></th>
+              <th class="scan-shipments-ready-head scan-shipment-ready-col"><span class="scan-shipments-ready-head-label">{% trans "Date mise en disponible" %}</span></th>
+              <th class="scan-shipments-ready-head"><span class="scan-shipments-ready-head-label">{% trans "Documents" %}</span></th>
+              <th class="scan-shipments-ready-head scan-shipment-actions-col"><span class="scan-shipments-ready-head-label">{% trans "Actions" %}</span></th>
             </tr>
           </thead>
           <tbody>
             {% for shipment in shipments %}
               <tr>
-                <td>{{ shipment.reference }}</td>
-                <td class="status">
-                  <span class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--{{ shipment.status_variant }} is-{{ shipment.status_tone }}">{{ shipment.status_label }}</span>
+                <td class="scan-shipments-ready-cell scan-shipment-reference-col">{{ shipment.reference }}</td>
+                <td class="status scan-shipment-status-cell">
+                  <div class="scan-shipment-status-display">
+                    <span class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--{{ shipment.status_variant }} is-{{ shipment.status_tone }}">{{ shipment.status_label }}</span>
+                  </div>
                 </td>
-                <td class="qty">{{ shipment.carton_count }}</td>
-                <td class="qty">{{ shipment.equivalent_carton_count }}</td>
-                <td>{{ shipment.destination_iata|default:"-" }}</td>
-                <td>{{ shipment.shipper_name }}</td>
-                <td>{{ shipment.recipient_name }}</td>
-                <td>
+                <td class="qty scan-shipments-ready-cell">{{ shipment.carton_count }}</td>
+                <td class="qty scan-shipments-ready-cell">{{ shipment.equivalent_carton_count }}</td>
+                <td class="scan-shipments-ready-cell">{{ shipment.destination_iata|default:"-" }}</td>
+                <td class="scan-shipments-ready-cell">{{ shipment.shipper_name }}</td>
+                <td class="scan-shipments-ready-cell">{{ shipment.recipient_name }}</td>
+                <td class="scan-shipments-ready-cell">
                   <div class="scan-shipment-date">
                     <div>{{ shipment.created_at|date:"d/m/y"|default:"-" }}</div>
                     {% if shipment.created_at %}
@@ -89,7 +91,7 @@
                     {% endif %}
                   </div>
                 </td>
-                <td class="scan-shipment-ready-col">
+                <td class="scan-shipment-ready-col scan-shipments-ready-cell">
                   {% if shipment.ready_at %}
                     <div class="scan-shipment-date">
                       <div>{{ shipment.ready_at|date:"d/m/y" }}</div>
@@ -99,8 +101,8 @@
                     -
                   {% endif %}
                 </td>
-                <td>{{ shipment.documents_summary|default:"-" }}</td>
-                <td class="scan-shipment-actions-col">
+                <td class="scan-shipments-ready-cell">{{ shipment.documents_summary|default:"-" }}</td>
+                <td class="scan-shipment-actions-col scan-shipments-ready-cell">
                   <div class="scan-inline ui-comp-actions">
                     <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_edit' shipment.id %}">{% trans "Ouvrir" %}</a>
                   </div>

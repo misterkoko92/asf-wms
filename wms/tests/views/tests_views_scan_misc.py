@@ -23,9 +23,23 @@ class ScanMiscViewsTests(TestCase):
         response = self.client.get(reverse("scan:scan_faq"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Sommaire")
+        self.assertContains(response, 'class="scan-faq-layout"')
+        self.assertContains(response, 'id="scan-faq-summary-nav"')
+        self.assertContains(response, "scan-faq-summary-scroll-region")
         self.assertContains(response, 'id="scan-faq-summary-list"')
-        self.assertContains(response, 'class="scan-faq-summary-list scan-faq-summary-grid"')
+        self.assertContains(response, "scan-faq-summary-scroll-list")
+        self.assertContains(response, "scan-faq-summary-list")
+        self.assertContains(response, "scan-faq-nav-list")
         self.assertContains(response, 'id="scan-faq-content"')
+
+    def test_scan_faq_summary_supports_grouped_nav_sections(self):
+        response = self.client.get(reverse("scan:scan_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "data-faq-group=")
+        self.assertContains(response, "data-faq-group-title=")
+        self.assertContains(response, "data-faq-summary-group=")
+        self.assertContains(response, "scan-faq-nav-group-heading")
 
     def test_scan_faq_sections_are_marked_collapsible(self):
         response = self.client.get(reverse("scan:scan_faq"))
@@ -64,7 +78,7 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response["Cache-Control"], "no-cache")
         self.assertEqual(response["Service-Worker-Allowed"], "/scan/")
         self.assertIn("CACHE_NAME", response.content.decode())
-        self.assertIn("wms-scan-v55", response.content.decode())
+        self.assertIn("wms-scan-v56", response.content.decode())
         self.assertEqual(response["Content-Type"], "application/javascript")
 
     def test_scan_base_registers_versioned_service_worker_url(self):
@@ -73,7 +87,7 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            f'{reverse("scan:scan_service_worker")}?v=55',
+            f'{reverse("scan:scan_service_worker")}?v=56',
         )
 
     def test_scan_faq_requires_staff(self):

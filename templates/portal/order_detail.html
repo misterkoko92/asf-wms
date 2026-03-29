@@ -1,5 +1,5 @@
 {% extends "portal/base.html" %}
-{% load i18n wms_status %}
+{% load i18n wms_status wms_ui %}
 
 {% block title %}{% trans "Commande" %}{% endblock %}
 
@@ -110,7 +110,7 @@
           {% for value, label in order_doc_types %}
             <div class="portal-doc-upload-row">
               <label class="form-label" for="id_doc_{{ value }}">{{ label }}</label>
-              <input class="form-control" type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
+              {% ui_file_input name="doc_file_"|add:value field_id="id_doc_"|add:value %}
             </div>
           {% endfor %}
           <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter les documents" %}</button>

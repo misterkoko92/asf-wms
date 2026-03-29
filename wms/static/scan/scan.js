@@ -3613,7 +3613,21 @@
     const openOnSummaryClick = faqContent.dataset.faqOpenOnSummaryClick === 'true';
     const usedIds = new Set();
     const sectionOpeners = new Map();
-    summaryList.innerHTML = '';
+    const summaryGroups = new Map();
+    summaryList
+      .querySelectorAll('[data-faq-summary-group]')
+      .forEach(groupSection => {
+        const list = groupSection.querySelector('.scan-faq-nav-group-list');
+        if (!list) {
+          return;
+        }
+        list.innerHTML = '';
+        groupSection.hidden = false;
+        summaryGroups.set(groupSection.dataset.faqSummaryGroup, {
+          section: groupSection,
+          list,
+        });
+      });
 
     sections.forEach(card => {
       const title = card.querySelector('h2.ui-comp-title');
@@ -3672,7 +3686,7 @@
       const summaryItem = document.createElement('li');
       summaryItem.className = 'scan-faq-summary-item';
       const summaryLink = document.createElement('a');
-      summaryLink.className = 'scan-faq-summary-link';
+      summaryLink.className = 'scan-faq-summary-link scan-faq-nav-link';
       summaryLink.href = `#${card.id}`;
       summaryLink.textContent = titleText;
       if (openOnSummaryClick && sectionOpeners.has(card.id)) {
@@ -3684,7 +3698,28 @@
         });
       }
       summaryItem.appendChild(summaryLink);
-      summaryList.appendChild(summaryItem);
+      const groupKey = card.dataset.faqGroup || 'foundations';
+      let summaryGroup = summaryGroups.get(groupKey);
+      if (!summaryGroup) {
+        const fallbackSection = document.createElement('section');
+        fallbackSection.className = 'scan-faq-nav-group';
+        fallbackSection.dataset.faqSummaryGroup = groupKey;
+        const fallbackHeading = document.createElement('h3');
+        fallbackHeading.className = 'scan-faq-nav-group-heading';
+        fallbackHeading.textContent = card.dataset.faqGroupTitle || groupKey;
+        const fallbackList = document.createElement('ul');
+        fallbackList.className = 'scan-faq-nav-group-list';
+        fallbackSection.appendChild(fallbackHeading);
+        fallbackSection.appendChild(fallbackList);
+        summaryList.appendChild(fallbackSection);
+        summaryGroup = {
+          section: fallbackSection,
+          list: fallbackList,
+        };
+        summaryGroups.set(groupKey, summaryGroup);
+      }
+      summaryGroup.section.hidden = false;
+      summaryGroup.list.appendChild(summaryItem);
     });
 
     if (openOnSummaryClick && collapsible) {
