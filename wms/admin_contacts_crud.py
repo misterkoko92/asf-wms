@@ -128,6 +128,8 @@ def _contact_initial_from_instance(contact: Contact) -> dict[str, object]:
         "business_type": business_type,
         "entity_type": contact.contact_type,
         "organization_name": organization.name if organization else "",
+        "legal_form": getattr(organization or contact, "legal_form", ""),
+        "beneficiary_count": getattr(organization or contact, "beneficiary_count", None),
         "title": contact.title
         if contact.contact_type == ContactType.PERSON
         else getattr(referent, "title", ""),

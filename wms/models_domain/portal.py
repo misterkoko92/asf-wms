@@ -8,6 +8,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from contacts.models import RecipientLegalForm
+
 from ..document_scan import DocumentScanStatus
 from .catalog import Product
 from .inventory import Destination, ProductLot
@@ -356,6 +358,12 @@ class AssociationRecipient(models.Model):
     postal_code = models.CharField(max_length=20, blank=True)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=80, default="France")
+    legal_form = models.CharField(
+        max_length=30,
+        choices=RecipientLegalForm.choices,
+        blank=True,
+    )
+    beneficiary_count = models.PositiveIntegerField(null=True, blank=True)
     notes = models.TextField(blank=True)
     notify_deliveries = models.BooleanField(default=False)
     is_delivery_contact = models.BooleanField(default=False)
@@ -449,6 +457,11 @@ class AccountDocumentType(models.TextChoices):
     OTHER = "other", "Autre"
 
 
+class RecipientStructureDocumentType(models.TextChoices):
+    REGISTRATION_PROOF = "registration_proof", "Preuve d'enregistrement"
+    STATUTES = "statutes", "Statut"
+
+
 class AccountDocument(models.Model):
     association_contact = models.ForeignKey(
         "contacts.Contact",
@@ -496,6 +509,52 @@ class AccountDocument(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_doc_type_display()} - {self.status}"
+
+
+class RecipientStructureDocument(models.Model):
+    contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.CASCADE,
+        related_name="recipient_structure_documents",
+    )
+    doc_type = models.CharField(max_length=40, choices=RecipientStructureDocumentType.choices)
+    status = models.CharField(
+        max_length=20,
+        choices=DocumentReviewStatus.choices,
+        default=DocumentReviewStatus.PENDING,
+    )
+    file = models.FileField(upload_to="recipient_structure_documents/")
+    scan_status = models.CharField(
+        max_length=20,
+        choices=DocumentScanStatus.choices,
+        default=DocumentScanStatus.CLEAN,
+    )
+    scan_message = models.CharField(max_length=255, blank=True)
+    scan_updated_at = models.DateTimeField(null=True, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recipient_structure_documents_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["contact", "doc_type"],
+                name="wms_recipient_structure_doc_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.contact} - {self.get_doc_type_display()}"
 
 
 class OrderLine(models.Model):

@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from contacts.capabilities import ContactCapabilityType, ensure_contact_capability
@@ -11,6 +12,10 @@ from wms.admin_contacts_merge_service import (
 )
 from wms.models import (
     Destination,
+    DocumentReviewStatus,
+    DocumentScanStatus,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
@@ -205,6 +210,74 @@ class AdminContactsMergeServiceTests(TestCase):
             ).exists()
         )
         self.assertEqual(target.addresses.count(), 1)
+
+    def test_merge_organization_moves_structure_documents_and_compliance_fields(self):
+        source = Contact.objects.create(
+            name="Hopital Source",
+            contact_type=ContactType.ORGANIZATION,
+            legal_form="association",
+            beneficiary_count=120,
+            is_active=True,
+        )
+        target = Contact.objects.create(
+            name="Hopital Target",
+            contact_type=ContactType.ORGANIZATION,
+            legal_form="",
+            beneficiary_count=None,
+            is_active=True,
+        )
+        source_doc = RecipientStructureDocument.objects.create(
+            contact=source,
+            doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("registration-proof.pdf", b"%PDF-1.4 registration proof"),
+            scan_status=DocumentScanStatus.PENDING,
+        )
+
+        merge_contacts(source_contact=source, target_contact=target)
+
+        target.refresh_from_db()
+        source_doc.refresh_from_db()
+        self.assertEqual(target.legal_form, "association")
+        self.assertEqual(target.beneficiary_count, 120)
+        self.assertEqual(source_doc.contact, target)
+
+    def test_merge_organization_deduplicates_structure_documents_by_type(self):
+        source = Contact.objects.create(
+            name="Hopital Source",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        target = Contact.objects.create(
+            name="Hopital Target",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        RecipientStructureDocument.objects.create(
+            contact=source,
+            doc_type=RecipientStructureDocumentType.STATUTES,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("source-statutes.pdf", b"%PDF-1.4 source statutes"),
+            scan_status=DocumentScanStatus.PENDING,
+        )
+        target_doc = RecipientStructureDocument.objects.create(
+            contact=target,
+            doc_type=RecipientStructureDocumentType.STATUTES,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("target-statutes.pdf", b"%PDF-1.4 target statutes"),
+            scan_status=DocumentScanStatus.CLEAN,
+        )
+
+        merge_contacts(source_contact=source, target_contact=target)
+
+        remaining_docs = list(
+            RecipientStructureDocument.objects.filter(
+                doc_type=RecipientStructureDocumentType.STATUTES,
+            ).order_by("id")
+        )
+        self.assertEqual(len(remaining_docs), 1)
+        self.assertEqual(remaining_docs[0].id, target_doc.id)
+        self.assertEqual(remaining_docs[0].contact, target)
 
     def test_merge_addresses_copies_distinct_source_address(self):
         source = Contact.objects.create(

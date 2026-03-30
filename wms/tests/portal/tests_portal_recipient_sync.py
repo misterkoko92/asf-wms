@@ -1,10 +1,14 @@
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
+from wms import models as wms_models
 from wms import portal_recipient_sync
 from wms.models import (
     AssociationRecipient,
     Destination,
+    DocumentReviewStatus,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
@@ -47,18 +51,86 @@ class PortalRecipientSyncTests(TestCase):
         )
 
     def _create_recipient(self):
+        payload = {
+            "association_contact": self.association,
+            "destination": self.destination_a,
+            "name": "A.S.L.A.V Congo",
+            "structure_name": "A.S.L.A.V Congo",
+            "emails": "recipient@example.org; second@example.org",
+            "phones": "+242061234567; +33600000000",
+            "address_line1": "1 Rue Test",
+            "city": "Brazzaville",
+            "country": "Rep. du Congo",
+            "is_active": True,
+        }
+        recipient_field_names = {field.name for field in AssociationRecipient._meta.get_fields()}
+        if "legal_form" in recipient_field_names:
+            payload["legal_form"] = "association"
+        if "beneficiary_count" in recipient_field_names:
+            payload["beneficiary_count"] = 120
         return AssociationRecipient.objects.create(
-            association_contact=self.association,
-            destination=self.destination_a,
-            name="A.S.L.A.V Congo",
-            structure_name="A.S.L.A.V Congo",
-            emails="recipient@example.org; second@example.org",
-            phones="+242061234567; +33600000000",
-            address_line1="1 Rue Test",
-            city="Brazzaville",
-            country="Rep. du Congo",
+            **payload,
+        )
+
+    def test_contact_and_portal_recipient_models_expose_structure_compliance_fields(self):
+        contact_field_names = {field.name for field in Contact._meta.get_fields()}
+        recipient_field_names = {field.name for field in AssociationRecipient._meta.get_fields()}
+
+        self.assertIn("legal_form", contact_field_names)
+        self.assertIn("beneficiary_count", contact_field_names)
+        self.assertIn("legal_form", recipient_field_names)
+        self.assertIn("beneficiary_count", recipient_field_names)
+
+    def test_wms_model_facade_exports_recipient_structure_document_types_and_model(self):
+        self.assertTrue(hasattr(wms_models, "RecipientStructureDocumentType"))
+        self.assertTrue(hasattr(wms_models, "RecipientStructureDocument"))
+
+    def test_sync_copies_structure_compliance_fields_to_synced_contact(self):
+        field_names = {field.name for field in AssociationRecipient._meta.get_fields()}
+        if "legal_form" not in field_names or "beneficiary_count" not in field_names:
+            self.fail("AssociationRecipient doit exposer legal_form et beneficiary_count.")
+
+        contact_field_names = {field.name for field in Contact._meta.get_fields()}
+        if (
+            "legal_form" not in contact_field_names
+            or "beneficiary_count" not in contact_field_names
+        ):
+            self.fail("Contact doit exposer legal_form et beneficiary_count.")
+
+        recipient = self._create_recipient()
+
+        synced = sync_association_recipient_to_contact(recipient)
+        synced.refresh_from_db()
+
+        self.assertEqual(synced.legal_form, "association")
+        self.assertEqual(synced.beneficiary_count, 120)
+
+    def test_recipient_structure_documents_are_unique_per_contact_and_type(self):
+        recipient_document_model = getattr(wms_models, "RecipientStructureDocument", None)
+        recipient_document_type = getattr(wms_models, "RecipientStructureDocumentType", None)
+
+        self.assertIsNotNone(recipient_document_model)
+        self.assertIsNotNone(recipient_document_type)
+
+        contact = Contact.objects.create(
+            name="Structure documentée",
+            contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
+        recipient_document_model.objects.create(
+            contact=contact,
+            doc_type=recipient_document_type.REGISTRATION_PROOF,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("registration-proof.pdf", b"%PDF-1.7 proof"),
+        )
+
+        with self.assertRaises(IntegrityError):
+            recipient_document_model.objects.create(
+                contact=contact,
+                doc_type=recipient_document_type.REGISTRATION_PROOF,
+                status=DocumentReviewStatus.PENDING,
+                file=SimpleUploadedFile("registration-proof-duplicate.pdf", b"%PDF-1.7 proof"),
+            )
 
     def test_sync_is_idempotent_for_same_recipient(self):
         recipient = self._create_recipient()

@@ -93,17 +93,22 @@ Why it is shared:
 - operational contacts affect shipment create/edit selectors
 - admin contact tools can repair or reshape the same graph
 - permissions and default bindings rely on the same data chain
+- recipient structure compliance fields (`legal_form`, `beneficiary_count`) and uploaded structure documents now travel with the same graph
 
 Maintenance rule:
 
 - never treat portal recipient edits as pure presentation changes
 - verify whether the change impacts synchronization, authorizations, default contacts, or scan selectors
+- if recipient compliance fields or documents change, update portal creation/edit, synced `Contact`, `scan/contacts`, and admin merge/deduplication behavior together
 
 Reference tests:
 
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 - `wms/tests/views/tests_views_scan_admin_shipment_parties.py`
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_views_scan_admin.py`
+- `wms/tests/scan/tests_admin_contacts_merge_service.py`
 - `api/tests/tests_ui_e2e_workflows.py`
 
 ## 4. Workflow Notification Contract
