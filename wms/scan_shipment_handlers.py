@@ -411,6 +411,11 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                     recipient_name=recipient_contact.name,
                     correspondent_name=correspondent_contact.name,
                 )
+                record_shipment_dossier_activity(
+                    shipment=shipment,
+                    label="Dossier modifié",
+                    save=False,
+                )
                 shipment.save(
                     update_fields=[
                         "destination",
@@ -423,6 +428,8 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         "destination_address",
                         "destination_country",
                         "party_snapshot",
+                        "dossier_last_activity_at",
+                        "dossier_last_activity_label",
                     ]
                 )
                 related_order = _related_order_for_shipment(shipment)
@@ -533,10 +540,6 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                             user=getattr(request, "user", None),
                         )
             sync_shipment_ready_state(shipment)
-            record_shipment_dossier_activity(
-                shipment=shipment,
-                label="Dossier modifié",
-            )
             messages.success(
                 request,
                 _("Expédition mise à jour: %(reference)s.") % {"reference": shipment.reference},
