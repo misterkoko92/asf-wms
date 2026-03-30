@@ -187,7 +187,8 @@ class ShipmentViewHelpersTests(TestCase):
             [
                 "Imprimer tous les documents d'expédition",
                 "Imprimer dossier papier",
-                "Imprimer toutes les listes colisage carton",
+                "Imprimer toutes les listes colisage carton (rouleau continu)",
+                "Imprimer toutes les listes par carton",
                 "Imprimer toutes les étiquettes standard",
             ],
         )
@@ -213,6 +214,10 @@ class ShipmentViewHelpersTests(TestCase):
         self.assertEqual(
             actions["grouped_print_actions"][0]["url"],
             f"/scan/shipment/{shipment.id}/print-bundle/all/",
+        )
+        self.assertEqual(
+            actions["grouped_print_actions"][3]["url"],
+            f"/scan/shipment/{shipment.id}/print-bundle/carton_lists_a4/",
         )
         self.assertEqual(
             actions["carton_print_rows"][0]["actions"][0]["url"],

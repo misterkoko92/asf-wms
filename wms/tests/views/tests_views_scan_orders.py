@@ -115,9 +115,35 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.context_data["remaining_total"], 8)
 
     def test_scan_orders_view_get_renders_rows_context(self):
+        rows = [
+            {
+                "id": 1,
+                "reference": "ORD-1",
+                "review_status_value": OrderReviewStatus.PENDING,
+                "can_create_shipment": False,
+            },
+            {
+                "id": 2,
+                "reference": "ORD-2",
+                "review_status_value": OrderReviewStatus.CHANGES_REQUESTED,
+                "can_create_shipment": False,
+            },
+            {
+                "id": 3,
+                "reference": "ORD-3",
+                "review_status_value": OrderReviewStatus.APPROVED,
+                "can_create_shipment": True,
+            },
+            {
+                "id": 4,
+                "reference": "ORD-4",
+                "review_status_value": OrderReviewStatus.REJECTED,
+                "can_create_shipment": False,
+            },
+        ]
         with mock.patch(
             "wms.views_scan_orders.build_orders_view_rows",
-            return_value=[{"id": 1, "reference": "ORD-1"}],
+            return_value=rows,
         ):
             with mock.patch(
                 "wms.views_scan_orders.render",
@@ -127,7 +153,20 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/orders_view.html")
         self.assertEqual(response.context_data["active"], "orders_view")
-        self.assertEqual(response.context_data["orders"], [{"id": 1, "reference": "ORD-1"}])
+        self.assertEqual(response.context_data["orders"], rows)
+        self.assertEqual(
+            [card["id"] for card in response.context_data["summary_cards"]],
+            [
+                "to-validate",
+                "changes-requested",
+                "approved-without-shipment",
+                "rejected-orders",
+            ],
+        )
+        self.assertEqual(
+            [card["value"] for card in response.context_data["summary_cards"]],
+            [1, 1, 1, 1],
+        )
         self.assertEqual(response.context_data["approved_status"], OrderReviewStatus.APPROVED)
         self.assertEqual(response.context_data["rejected_status"], OrderReviewStatus.REJECTED)
         self.assertEqual(

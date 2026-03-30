@@ -1,5 +1,5 @@
 <div class="scan-field">
-  <label class="form-label">R&eacute;ceptions association li&eacute;es</label>
+  <label class="form-label fw-bold">R&eacute;ceptions association li&eacute;es</label>
   {% if receipt_allocations %}
     <table id="shipment-receipt-allocations-table" class="scan-table">
       <thead>
@@ -21,7 +21,7 @@
         {% endfor %}
       </tbody>
     </table>
-  {% else %}
+{% else %}
     <div class="scan-help">Aucune r&eacute;ception association allou&eacute;e pour le moment.</div>
   {% endif %}
 </div>

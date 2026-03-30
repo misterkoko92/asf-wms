@@ -586,6 +586,30 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-week-input")
 
+    def test_scan_shipments_tracking_renders_summary_cards_and_next_action_column(self):
+        response = self.client.get(reverse("scan:scan_shipments_tracking"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-shipments-tracking-summary"')
+        self.assertContains(response, "<th>À faire</th>", html=True)
+
+    def test_scan_orders_view_renders_summary_cards_and_action_column(self):
+        Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association Action",
+            destination_address="3 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+        )
+
+        response = self.client.get(reverse("scan:scan_orders_view"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-orders-view-summary"')
+        self.assertContains(response, "<th>Action attendue</th>", html=True)
+        self.assertNotContains(response, "Modifier:")
+        self.assertNotContains(response, "Refus:")
+
     def test_scan_shipments_tracking_uses_design_classes_for_close_buttons(self):
         Shipment.objects.create(
             shipper_name="Shipper Tracking",
@@ -1198,9 +1222,9 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-primary")
         self.assertContains(response, 'name="kpi_start"')
         self.assertContains(response, 'name="kpi_end"')
-        self.assertContains(response, 'name="chart_start"')
-        self.assertContains(response, 'name="chart_end"')
-        self.assertContains(response, 'name="shipment_status"')
+        self.assertNotContains(response, 'name="chart_start"')
+        self.assertNotContains(response, 'name="chart_end"')
+        self.assertNotContains(response, 'name="shipment_status"')
         self.assertNotContains(response, 'name="period"')
 
     def test_scan_dashboard_renders_cockpit_header_toolbar_and_sections(self):
@@ -1208,7 +1232,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-dashboard-page-header"')
         self.assertContains(response, 'id="scan-dashboard-toolbar"')
-        self.assertContains(response, 'id="scan-dashboard-toolbar-advanced"')
+        self.assertNotContains(response, 'id="scan-dashboard-toolbar-advanced"')
         self.assertContains(response, 'id="scan-dashboard-section-nav"')
         self.assertContains(response, 'id="scan-dashboard-priorities"')
         self.assertContains(response, 'id="scan-dashboard-pilotage"')

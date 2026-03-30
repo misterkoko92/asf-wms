@@ -438,6 +438,25 @@ class PrintDocsViewsTests(TestCase):
             f'{reverse("scan:scan_shipment_carton_document", args=[shipment.id, cartons[1].id])}?delivery=html',
         )
 
+    def test_scan_shipment_view_bundle_routes_carton_lists_a4_to_direct_printable_html(self):
+        shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_view_bundle",
+                kwargs={"shipment_id": shipment.id, "bundle_key": "carton_lists_a4"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-carton-lists-a4-print-document"')
+        self.assertContains(response, "Lot listes colisage A4")
+        self.assertContains(response, 'class="packing-four-up-pages"')
+        self.assertContains(response, 'class="packing-four-up-page"', count=1)
+        self.assertContains(response, cartons[0].code)
+        self.assertContains(response, cartons[1].code)
+        self.assertNotContains(response, 'id="shipment-carton-lists-a4-bundle"')
+
     def test_scan_shipment_view_bundle_routes_standard_labels_to_direct_printable_html(self):
         shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
 
@@ -520,6 +539,7 @@ class PrintDocsViewsTests(TestCase):
         self.assertContains(response, 'id="shipment-print-bundle"')
         self.assertContains(response, "Lot papier A4")
         self.assertContains(response, "Lot rouleau continu")
+        self.assertContains(response, "Lot A4 4 par page")
         self.assertContains(response, "Lot étiquettes standard")
 
     def test_scan_shipment_donation_certificate_renders_locked_template(self):

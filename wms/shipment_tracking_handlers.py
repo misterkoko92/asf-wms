@@ -11,6 +11,7 @@ from .models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
 )
+from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_status import sync_shipment_ready_state
 from .workflow_observability import log_shipment_dispute_action
 
@@ -144,6 +145,10 @@ def _handle_dispute_action(
             shipment.is_disputed = True
             shipment.disputed_at = timezone.now()
             shipment.save(update_fields=["is_disputed", "disputed_at"])
+            record_shipment_dossier_activity(
+                shipment=shipment,
+                label="Expédition mise en litige",
+            )
         log_shipment_dispute_action(
             shipment=shipment,
             action="set_disputed",
@@ -188,6 +193,10 @@ def _handle_dispute_action(
                     user=getattr(request, "user", None),
                 )
         sync_shipment_ready_state(shipment)
+        record_shipment_dossier_activity(
+            shipment=shipment,
+            label="Litige résolu",
+        )
         log_shipment_dispute_action(
             shipment=shipment,
             action="resolve_dispute",
@@ -269,6 +278,10 @@ def handle_shipment_tracking_post(
                     reason="tracking_boarding_ok",
                     user=getattr(request, "user", None),
                 )
+    record_shipment_dossier_activity(
+        shipment=shipment,
+        label="Suivi mis à jour",
+    )
     messages.success(request, _("Suivi mis à jour."))
     return _redirect_to_tracking(
         shipment,

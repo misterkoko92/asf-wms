@@ -76,6 +76,9 @@ class ShipmentDocumentHandlersTests(TestCase):
         self.assertEqual(event.source, "wms.document_scan")
         self.assertEqual(event.event_type, "scan_document")
         self.assertEqual(event.status, IntegrationStatus.PENDING)
+        self.shipment.refresh_from_db()
+        self.assertEqual(self.shipment.dossier_last_activity_label, "Document ajouté")
+        self.assertIsNotNone(self.shipment.dossier_last_activity_at)
 
     def test_delete_removes_additional_document(self):
         document = Document.objects.create(
@@ -90,6 +93,9 @@ class ShipmentDocumentHandlersTests(TestCase):
         response = self.client.post(delete_url, {})
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Document.objects.filter(id=document.id).exists())
+        self.shipment.refresh_from_db()
+        self.assertEqual(self.shipment.dossier_last_activity_label, "Document supprimé")
+        self.assertIsNotNone(self.shipment.dossier_last_activity_at)
 
     def test_delete_rejects_non_additional_document(self):
         document = Document.objects.create(

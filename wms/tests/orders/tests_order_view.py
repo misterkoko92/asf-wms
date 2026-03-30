@@ -9,6 +9,7 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     Shipment,
+    ShipmentStatus,
 )
 from wms.order_view_handlers import handle_orders_view_action
 from wms.order_view_helpers import build_orders_view_rows
@@ -194,6 +195,8 @@ class OrderViewHelpersTests(TestCase):
             association_contact=None,
             recipient_contact=None,
             recipient_name="Recipient Fallback",
+            review_status=OrderReviewStatus.PENDING,
+            shipment=None,
             documents=SimpleNamespace(all=lambda: []),
         )
 
@@ -205,3 +208,66 @@ class OrderViewHelpersTests(TestCase):
 
         self.assertEqual(rows[0]["association_name"], "Recipient Fallback")
         self.assertEqual(rows[0]["documents"], [])
+
+    def test_build_orders_view_rows_exposes_action_oriented_status_payloads(self):
+        orders = [
+            SimpleNamespace(
+                association_contact=None,
+                recipient_contact=None,
+                recipient_name="Pending",
+                review_status=OrderReviewStatus.PENDING,
+                shipment=None,
+                documents=SimpleNamespace(all=lambda: []),
+            ),
+            SimpleNamespace(
+                association_contact=None,
+                recipient_contact=None,
+                recipient_name="Changes",
+                review_status=OrderReviewStatus.CHANGES_REQUESTED,
+                shipment=None,
+                documents=SimpleNamespace(all=lambda: []),
+            ),
+            SimpleNamespace(
+                association_contact=None,
+                recipient_contact=None,
+                recipient_name="Approved",
+                review_status=OrderReviewStatus.APPROVED,
+                shipment=None,
+                documents=SimpleNamespace(all=lambda: []),
+            ),
+            SimpleNamespace(
+                association_contact=None,
+                recipient_contact=None,
+                recipient_name="Rejected",
+                review_status=OrderReviewStatus.REJECTED,
+                shipment=SimpleNamespace(
+                    status=ShipmentStatus.PLANNED,
+                    is_disputed=False,
+                ),
+                documents=SimpleNamespace(all=lambda: []),
+            ),
+        ]
+
+        with mock.patch(
+            "wms.order_view_helpers.build_order_creator_info",
+            return_value={"name": "Creator", "phone": "", "email": ""},
+        ):
+            rows = build_orders_view_rows(orders)
+
+        self.assertEqual(rows[0]["review_status_display"]["label"], "En attente de validation")
+        self.assertEqual(
+            rows[0]["next_action_label"],
+            "Valider ou demander des modifications",
+        )
+        self.assertFalse(rows[0]["can_create_shipment"])
+        self.assertEqual(rows[0]["shipment_status_display"]["label"], "-")
+
+        self.assertEqual(rows[1]["next_action_label"], "Recontacter l'association")
+        self.assertFalse(rows[1]["can_create_shipment"])
+
+        self.assertEqual(rows[2]["next_action_label"], "Créer l'expédition")
+        self.assertTrue(rows[2]["can_create_shipment"])
+
+        self.assertEqual(rows[3]["next_action_label"], "Expliquer le refus")
+        self.assertFalse(rows[3]["can_create_shipment"])
+        self.assertEqual(rows[3]["shipment_status_display"]["label"], "Planifié")

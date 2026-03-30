@@ -72,49 +72,5 @@
 {% endblock %}
 
 {% block body %}
-  <div id="packing-list-carton-sheet" class="packing-sheet">
-    <div id="packing-list-carton-header" class="packing-sheet-header">
-      <img class="packing-sheet-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
-      <div class="packing-sheet-heading">
-        <div class="packing-sheet-title">LISTE DE COLISAGE</div>
-        <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus</div>
-        <div class="packing-sheet-subtitle">Produits non dangereux</div>
-      </div>
-      <div aria-hidden="true"></div>
-    </div>
-    <div class="packing-ref-row">
-      <span class="packing-ref-label">Référence du colis :</span>
-      <span>{{ carton_code }}</span>
-    </div>
-
-    <table id="packing-list-carton-table" class="packing-table">
-      <colgroup>
-        <col class="packing-col-product">
-        <col class="packing-col-quantity">
-        <col class="packing-col-expiry">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>PRODUIT</th>
-          <th>QUANTITE</th>
-          <th>DATE LIMITE</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in item_rows %}
-          <tr>
-            <td>{{ row.product }}</td>
-            <td>{{ row.quantity }}</td>
-            <td>
-              {% if row.expires_on %}
-                {{ row.expires_on|date:"d/m/Y" }}
-              {% else %}
-                -
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {% include "print/partials/packing_list_carton_body.html" with sheet_id="packing-list-carton-sheet" header_id="packing-list-carton-header" table_id="packing-list-carton-table" %}
 {% endblock %}

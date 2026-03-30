@@ -76,6 +76,8 @@ class Shipment(models.Model):
     ready_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
+    dossier_last_activity_at = models.DateTimeField(null=True, blank=True)
+    dossier_last_activity_label = models.CharField(max_length=120, blank=True, default="")
     closed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

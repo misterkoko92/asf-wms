@@ -16,6 +16,7 @@ from .models import (
     ShipmentStatus,
 )
 from .services import StockError, pack_carton, pack_carton_from_reserved
+from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_helpers import (
     build_destination_label,
     parse_shipment_lines,
@@ -410,6 +411,11 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                     recipient_name=recipient_contact.name,
                     correspondent_name=correspondent_contact.name,
                 )
+                record_shipment_dossier_activity(
+                    shipment=shipment,
+                    label="Dossier modifié",
+                    save=False,
+                )
                 shipment.save(
                     update_fields=[
                         "destination",
@@ -422,6 +428,8 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         "destination_address",
                         "destination_country",
                         "party_snapshot",
+                        "dossier_last_activity_at",
+                        "dossier_last_activity_label",
                     ]
                 )
                 related_order = _related_order_for_shipment(shipment)

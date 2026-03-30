@@ -6,6 +6,7 @@ from django.contrib.auth.models import Group
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from contacts.models import Contact, ContactType
 from wms.helper_install import build_helper_install_context
@@ -26,6 +27,7 @@ from wms.models import (
     ShipmentTrackingStatus,
     Warehouse,
 )
+from wms.shipment_view_helpers import build_shipments_tracking_rows
 
 
 class ScanShipmentsViewsTests(TestCase):
@@ -551,7 +553,36 @@ class ScanShipmentsViewsTests(TestCase):
     def test_scan_shipments_tracking_renders_rows_context(self):
         with mock.patch(
             "wms.views_scan_shipments.build_shipments_tracking_rows",
-            return_value=[{"id": 1, "reference": "S-TRACK-001"}],
+            return_value=[
+                {
+                    "id": 1,
+                    "reference": "S-TRACK-001",
+                    "is_disputed": True,
+                    "can_close": False,
+                    "status_value": ShipmentStatus.PLANNED,
+                },
+                {
+                    "id": 2,
+                    "reference": "S-TRACK-002",
+                    "is_disputed": False,
+                    "can_close": True,
+                    "status_value": ShipmentStatus.DELIVERED,
+                },
+                {
+                    "id": 3,
+                    "reference": "S-TRACK-003",
+                    "is_disputed": False,
+                    "can_close": False,
+                    "status_value": ShipmentStatus.SHIPPED,
+                },
+                {
+                    "id": 4,
+                    "reference": "S-TRACK-004",
+                    "is_disputed": False,
+                    "can_close": False,
+                    "status_value": ShipmentStatus.RECEIVED_CORRESPONDENT,
+                },
+            ],
         ):
             with mock.patch(
                 "wms.views_scan_shipments.render",
@@ -563,8 +594,67 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["active"], "shipments_tracking")
         self.assertEqual(
             response.context_data["shipments"],
-            [{"id": 1, "reference": "S-TRACK-001"}],
+            [
+                {
+                    "id": 1,
+                    "reference": "S-TRACK-001",
+                    "is_disputed": True,
+                    "can_close": False,
+                    "status_value": ShipmentStatus.PLANNED,
+                },
+                {
+                    "id": 2,
+                    "reference": "S-TRACK-002",
+                    "is_disputed": False,
+                    "can_close": True,
+                    "status_value": ShipmentStatus.DELIVERED,
+                },
+                {
+                    "id": 3,
+                    "reference": "S-TRACK-003",
+                    "is_disputed": False,
+                    "can_close": False,
+                    "status_value": ShipmentStatus.SHIPPED,
+                },
+                {
+                    "id": 4,
+                    "reference": "S-TRACK-004",
+                    "is_disputed": False,
+                    "can_close": False,
+                    "status_value": ShipmentStatus.RECEIVED_CORRESPONDENT,
+                },
+            ],
         )
+        self.assertEqual(
+            [card["id"] for card in response.context_data["summary_cards"]],
+            [
+                "open-disputes",
+                "closable-cases",
+                "waiting-stopover",
+                "waiting-delivery",
+            ],
+        )
+        self.assertEqual(
+            [card["value"] for card in response.context_data["summary_cards"]],
+            [1, 1, 1, 1],
+        )
+
+    def test_build_shipments_tracking_rows_marks_dispute_with_primary_next_action(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+
+        row = build_shipments_tracking_rows([shipment])[0]
+
+        self.assertEqual(row["next_action_label"], "Traiter le litige")
+        self.assertEqual(row["row_tone"], "danger")
+        self.assertEqual(row["status_display"]["label"], "Litige - Planifié")
 
     def test_scan_pack_hides_top_reference_scan_button(self):
         response = self.client.get(reverse("scan:scan_pack"))
@@ -841,6 +931,8 @@ class ScanShipmentsViewsTests(TestCase):
         shipment.refresh_from_db()
         self.assertIsNotNone(shipment.closed_at)
         self.assertEqual(shipment.closed_by, self.staff_user)
+        self.assertEqual(shipment.dossier_last_activity_label, "Dossier clôturé")
+        self.assertIsNotNone(shipment.dossier_last_activity_at)
         log_mock.assert_called_once_with(
             shipment=shipment,
             user=self.staff_user,
@@ -1136,6 +1228,14 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_shipment_edit_renders_dossier_sections_and_primary_actions(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        shipment.dossier_last_activity_at = timezone.now()
+        shipment.dossier_last_activity_label = "Document ajouté"
+        shipment.save(
+            update_fields=[
+                "dossier_last_activity_at",
+                "dossier_last_activity_label",
+            ]
+        )
         Carton.objects.create(code="C-DOS-1", shipment=shipment)
 
         response = self.client.get(
@@ -1155,16 +1255,34 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Exports PDF")
         self.assertContains(response, "Imprimer tous les documents")
         self.assertContains(response, "Imprimer dossier papier")
-        self.assertContains(response, "Imprimer toutes les listes colisage carton")
+        self.assertContains(
+            response, "Imprimer toutes les listes colisage carton (rouleau continu)"
+        )
+        self.assertContains(response, "Imprimer toutes les listes par carton")
         self.assertContains(response, "Imprimer toutes les étiquettes standard")
         self.assertContains(response, "Étiquette contact")
         self.assertContains(response, "Voir les colis")
+        self.assertContains(response, "Dernière MAJ :")
+        self.assertContains(response, "Document ajouté")
+        self.assertContains(response, 'id="shipment-dossier-primary-actions"')
+        self.assertContains(response, 'id="shipment-dossier-secondary-actions"')
         self.assertContains(
             response,
             f'{reverse("scan:scan_cartons_ready")}?shipment_reference={shipment.reference}',
         )
         self.assertNotContains(response, "Documents générés")
         self.assertNotContains(response, "Feuille contact")
+        content = response.content.decode()
+        header_start = content.index('id="shipment-dossier-header"')
+        header_end = content.index("</section>", header_start)
+        header_html = content[header_start:header_end]
+        self.assertLess(header_html.index("Voir les colis"), header_html.index("Modifier"))
+        self.assertLess(header_html.index("Modifier"), header_html.index("Ouvrir suivi"))
+        self.assertLess(header_html.index("Ouvrir suivi"), header_html.index("Retour aux dossiers"))
+        self.assertLess(
+            header_html.index('id="shipment-dossier-primary-actions"'),
+            header_html.index('id="shipment-dossier-secondary-actions"'),
+        )
 
     def test_scan_shipment_edit_get_renders_context(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
