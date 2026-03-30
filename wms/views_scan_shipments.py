@@ -376,6 +376,57 @@ def _close_shipment_case(request, shipment):
     messages.success(request, _("Dossier clôturé."))
 
 
+def _build_shipments_tracking_summary_cards(shipments):
+    return [
+        {
+            "id": "open-disputes",
+            "label": _("Litiges ouverts"),
+            "value": sum(
+                1
+                for shipment in shipments
+                if shipment.get("is_disputed") and not shipment.get("is_closed", False)
+            ),
+            "help": _("Dossiers en litige à traiter."),
+            "url": reverse("scan:scan_shipments_tracking"),
+            "tone": "danger",
+        },
+        {
+            "id": "closable-cases",
+            "label": _("Dossiers clôturables"),
+            "value": sum(1 for shipment in shipments if shipment.get("can_close")),
+            "help": _("Toutes étapes validées, clôture possible."),
+            "url": reverse("scan:scan_shipments_tracking"),
+            "tone": "success",
+        },
+        {
+            "id": "waiting-stopover",
+            "label": _("En attente escale"),
+            "value": sum(
+                1
+                for shipment in shipments
+                if shipment.get("status_value") == ShipmentStatus.SHIPPED
+                and not shipment.get("is_closed", False)
+            ),
+            "help": _("Expédiées sans confirmation reçu escale."),
+            "url": reverse("scan:scan_shipments_tracking"),
+            "tone": "warn",
+        },
+        {
+            "id": "waiting-delivery",
+            "label": _("En attente livraison"),
+            "value": sum(
+                1
+                for shipment in shipments
+                if shipment.get("status_value") == ShipmentStatus.RECEIVED_CORRESPONDENT
+                and not shipment.get("is_closed", False)
+            ),
+            "help": _("Reçu escale sans livraison confirmée."),
+            "url": reverse("scan:scan_shipments_tracking"),
+            "tone": "warn",
+        },
+    ]
+
+
 def _render_shipment_tracking(
     request,
     *,
@@ -657,12 +708,14 @@ def scan_shipments_tracking(request):
         )
 
     shipments = build_shipments_tracking_rows(shipments_qs)
+    summary_cards = _build_shipments_tracking_summary_cards(shipments)
     return render(
         request,
         TEMPLATE_SHIPMENTS_TRACKING,
         {
             "active": ACTIVE_SHIPMENTS_TRACKING,
             "shipments": shipments,
+            "summary_cards": summary_cards,
             "planned_week_value": planned_week_value,
             "closed_filter": closed_filter,
             "close_inactive_message": _("Il reste des étapes à valider, vérifier avant de clore"),

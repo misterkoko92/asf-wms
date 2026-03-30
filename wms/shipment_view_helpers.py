@@ -552,6 +552,41 @@ def build_shipments_ready_rows(shipments_qs):
     return shipments
 
 
+def _tracking_last_step_payload(
+    *,
+    planned_at,
+    boarding_ok_at,
+    shipped_at,
+    received_correspondent_at,
+    delivered_at,
+):
+    if delivered_at:
+        return _("Livré"), delivered_at
+    if received_correspondent_at:
+        return _("Reçu escale"), received_correspondent_at
+    if shipped_at:
+        return _("Expédié"), shipped_at
+    if boarding_ok_at:
+        return _("OK mise à bord"), boarding_ok_at
+    if planned_at:
+        return _("Planifié"), planned_at
+    return _("Aucune étape"), None
+
+
+def _tracking_next_action_label(*, shipment, is_disputed, is_closed, can_close, dates):
+    if is_disputed:
+        return _("Traiter le litige")
+    if is_closed:
+        return _("Aucune action")
+    if can_close:
+        return _("Clore le dossier")
+    if shipment.status == ShipmentStatus.SHIPPED and not dates["received_correspondent_at"]:
+        return _("Confirmer reçu escale")
+    if shipment.status == ShipmentStatus.RECEIVED_CORRESPONDENT and not dates["delivered_at"]:
+        return _("Confirmer livraison")
+    return _("Aucune action")
+
+
 def build_shipments_tracking_rows(shipments_qs):
     shipments = []
     for shipment in shipments_qs:
@@ -573,14 +608,36 @@ def build_shipments_tracking_rows(shipments_qs):
         is_fully_completed = tracking_steps_complete and shipment.status == ShipmentStatus.DELIVERED
         is_disputed = bool(getattr(shipment, "is_disputed", False))
         is_closed = bool(getattr(shipment, "closed_at", None))
+        carton_count = getattr(shipment, "carton_count", None)
+        last_step_label, last_step_at = _tracking_last_step_payload(
+            planned_at=planned_at,
+            boarding_ok_at=boarding_ok_at,
+            shipped_at=shipped_at,
+            received_correspondent_at=received_correspondent_at,
+            delivered_at=delivered_at,
+        )
+        can_close = is_fully_completed and not is_disputed and not is_closed
+        next_action_label = _tracking_next_action_label(
+            shipment=shipment,
+            is_disputed=is_disputed,
+            is_closed=is_closed,
+            can_close=can_close,
+            dates={
+                "planned_at": planned_at,
+                "boarding_ok_at": boarding_ok_at,
+                "shipped_at": shipped_at,
+                "received_correspondent_at": received_correspondent_at,
+                "delivered_at": delivered_at,
+            },
+        )
 
         shipments.append(
             {
                 "id": shipment.id,
                 "reference": shipment.reference,
                 "tracking_token": shipment.tracking_token,
-                "carton_count": shipment.carton_count
-                if shipment.carton_count is not None
+                "carton_count": carton_count
+                if carton_count is not None
                 else shipment.carton_set.count(),
                 "shipper_name": _shipment_party_label(
                     shipment,
@@ -603,7 +660,13 @@ def build_shipments_tracking_rows(shipments_qs):
                 "is_closed": is_closed,
                 "closed_at": getattr(shipment, "closed_at", None),
                 "closed_by": getattr(shipment, "closed_by", None),
-                "can_close": is_fully_completed and not is_disputed and not is_closed,
+                "can_close": can_close,
+                "status_value": shipment.status,
+                "status_display": present_shipment_status(shipment),
+                "last_step_label": last_step_label,
+                "last_step_at": last_step_at,
+                "next_action_label": str(next_action_label),
+                "row_tone": "danger" if is_disputed else ("success" if can_close else "neutral"),
             }
         )
 

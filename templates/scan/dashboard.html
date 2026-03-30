@@ -44,34 +44,13 @@
           <label class="form-label" for="id_kpi_end">{% trans "Date de fin" %}</label>
           <input id="id_kpi_end" name="kpi_end" type="date" class="form-control" value="{{ kpi_end }}">
         </div>
-        <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
-          <label class="form-label" for="id_shipment_status">{% trans "État expédition" %}</label>
-          <select id="id_shipment_status" name="shipment_status" class="form-select">
-            <option value="">{% trans "Tous les états" %}</option>
-            {% for value, label in chart_status_choices %}
-              <option value="{{ value }}"{% if shipment_status == value %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
         <div class="scan-filter-actions scan-dashboard-filter-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-end">
           <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
           <a class="btn btn-tertiary" href="{% url 'scan:scan_dashboard' %}">{% trans "Réinitialiser" %}</a>
         </div>
         <p class="scan-help col-12 mb-0">
-          {% trans "La destination filtre les widgets expédition/suivi et le graphique. Le stock reste un instantané global." %}
+          {% trans "La destination filtre les widgets expédition et suivi. Le stock reste un instantané global." %}
         </p>
-      </div>
-      <div id="scan-dashboard-toolbar-advanced" class="scan-dashboard-toolbar-advanced mt-3">
-        <div class="scan-filters row g-3 scan-dashboard-filter-row">
-          <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
-            <label class="form-label" for="id_chart_start">{% trans "Date de début graphique" %}</label>
-            <input id="id_chart_start" name="chart_start" type="date" class="form-control" value="{{ chart_start }}">
-          </div>
-          <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
-            <label class="form-label" for="id_chart_end">{% trans "Date de fin graphique" %}</label>
-            <input id="id_chart_end" name="chart_end" type="date" class="form-control" value="{{ chart_end }}">
-          </div>
-        </div>
       </div>
     </div>
   </form>
@@ -119,23 +98,6 @@
                 <span class="scan-kpi-value">{{ card.value }}</span>
                 <span class="scan-kpi-help">{{ card.help }}</span>
               </a>
-            {% endfor %}
-          </div>
-        </div>
-
-        <div id="scan-dashboard-chart-panel" class="ui-comp-panel">
-          <h2 class="h5 ui-comp-title mb-3">{% blocktrans with shipments_total=shipments_total %}Graphique expéditions ({{ shipments_total }}){% endblocktrans %}</h2>
-          <div class="scan-chart-bars">
-            {% for row in shipment_chart_rows %}
-              <div class="scan-chart-row">
-                <div class="scan-chart-label">{{ row.destination_label }}</div>
-                <div class="scan-chart-track mb-2">
-                  <div class="scan-chart-bar" style="width: {{ row.shipment_percent }}%;"></div>
-                </div>
-                <div class="scan-chart-value">{{ row.shipment_count }} {% trans "expéditions" %} / {{ row.equivalent_units }} {% trans "équiv" %}</div>
-              </div>
-            {% empty %}
-              <p class="scan-help mb-0">{% trans "Aucune expédition sur la période sélectionnée." %}</p>
             {% endfor %}
           </div>
         </div>

@@ -17,6 +17,57 @@ ACTIVE_ORDER = "order"
 ACTIVE_ORDERS_VIEW = "orders_view"
 
 
+def _build_orders_view_summary_cards(rows):
+    to_validate = 0
+    changes_requested = 0
+    approved_without_shipment = 0
+    rejected = 0
+
+    for row in rows:
+        review_status = row.get("review_status_value")
+        can_create_shipment = bool(row.get("can_create_shipment"))
+        if review_status == OrderReviewStatus.PENDING:
+            to_validate += 1
+        elif review_status == OrderReviewStatus.CHANGES_REQUESTED:
+            changes_requested += 1
+        elif review_status == OrderReviewStatus.REJECTED:
+            rejected += 1
+
+        if review_status == OrderReviewStatus.APPROVED and can_create_shipment:
+            approved_without_shipment += 1
+
+    return [
+        {
+            "id": "to-validate",
+            "label": "À valider",
+            "value": to_validate,
+            "help": "Commandes en attente de revue",
+            "tone": "warn",
+        },
+        {
+            "id": "changes-requested",
+            "label": "Modifications demandées",
+            "value": changes_requested,
+            "help": "Relance opérateur",
+            "tone": "warn",
+        },
+        {
+            "id": "approved-without-shipment",
+            "label": "Validées sans expédition",
+            "value": approved_without_shipment,
+            "help": "À transformer en dossier",
+            "tone": "success",
+        },
+        {
+            "id": "rejected-orders",
+            "label": "Refusées",
+            "value": rejected,
+            "help": "Décisions à expliciter si besoin",
+            "tone": "danger",
+        },
+    ]
+
+
 def _build_orders_queryset():
     return (
         Order.objects.select_related(
@@ -48,12 +99,14 @@ def _render_scan_order(request, *, product_options, order_state):
 
 
 def _render_orders_view(request, *, rows):
+    summary_cards = _build_orders_view_summary_cards(rows)
     return render(
         request,
         TEMPLATE_ORDERS_VIEW,
         {
             "active": ACTIVE_ORDERS_VIEW,
             "orders": rows,
+            "summary_cards": summary_cards,
             "review_status_choices": sorted_choices(OrderReviewStatus.choices),
             "approved_status": OrderReviewStatus.APPROVED,
             "rejected_status": OrderReviewStatus.REJECTED,

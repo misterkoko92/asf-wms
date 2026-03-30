@@ -1385,6 +1385,53 @@ body.scan-bootstrap-enabled {
   min-width: 0;
 }
 
+.scan-bootstrap-enabled .scan-orders-view-summary {
+  margin-top: 1rem;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-table {
+  min-width: 0;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-primary {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-reference {
+  font-weight: 700;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-status-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-status-form .btn {
+  width: fit-content;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-action-cell {
+  min-width: 15rem;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-action-cell .ui-comp-status-pill {
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-fulfillment {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.scan-bootstrap-enabled .scan-orders-view-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .scan-bootstrap-enabled .scan-table.scan-shipments-ready-table .scan-shipment-actions-col .btn {
   width: 100%;
   min-width: 0;

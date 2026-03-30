@@ -255,3 +255,23 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
             previous_status=ShipmentStatus.SHIPPED,
             new_status=ShipmentStatus.PACKED,
         )
+
+    def test_shipments_tracking_list_surfaces_dispute_as_primary_operator_signal(self):
+        shipment = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Agent",
+            actor_structure="ASF",
+            comments="planned",
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipments_tracking"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Litige")
+        self.assertContains(response, "Traiter le litige")

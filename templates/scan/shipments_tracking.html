@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n wms_status %}
 
 {% block title %}{% if LANGUAGE_CODE|slice:":2" == "en" %}WMS Scan - Shipment tracking{% else %}{% trans "WMS Scan - Suivi des expéditions" %}{% endif %}{% endblock %}
 
@@ -35,35 +35,64 @@
       </div>
     </form>
 
-    {% if shipments %}
-      <div class="scan-table-wrap table-responsive">
-        <table class="scan-table table table-sm table-hover" data-table-tools="1">
-          <thead>
-            <tr>
-              <th>{% trans "N° expédition" %}</th>
-              <th>{% trans "Nb colis" %}</th>
-              <th>{% trans "Expéditeur" %}</th>
-              <th>{% trans "Destinataire" %}</th>
-              <th>{% trans "Planifié" %}</th>
-              <th>{% trans "OK mise à bord" %}</th>
-              <th>{% trans "Expédié" %}</th>
-              <th>{% trans "Reçu escale" %}</th>
-              <th>{% trans "Livré" %}</th>
-              <th>{% trans "Actions" %}</th>
-            </tr>
-          </thead>
-          <tbody>
+    <div id="scan-shipments-tracking-summary" class="scan-kpi-grid scan-shipments-tracking-summary mt-4 mb-4">
+      {% for card in summary_cards %}
+        <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+          <span class="scan-kpi-label">{{ card.label }}</span>
+          <span class="scan-kpi-value">{{ card.value }}</span>
+          <span class="scan-kpi-help">{{ card.help }}</span>
+        </a>
+      {% endfor %}
+    </div>
+
+    <div class="scan-table-wrap table-responsive">
+      <table class="scan-table table table-sm table-hover" data-table-tools="1">
+        <thead>
+          <tr>
+            <th>{% trans "Dossier" %}</th>
+            <th>{% trans "Parties" %}</th>
+            <th>{% trans "Avancement" %}</th>
+            <th>{% trans "À faire" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if shipments %}
             {% for shipment in shipments %}
-              <tr>
-                <td>{{ shipment.reference }}</td>
-                <td class="qty">{{ shipment.carton_count }}</td>
-                <td>{{ shipment.shipper_name }}</td>
-                <td>{{ shipment.recipient_name }}</td>
-                <td>{{ shipment.planned_at|date:"d/m/y H\\hi"|default:"-" }}</td>
-                <td>{{ shipment.boarding_ok_at|date:"d/m/y H\\hi"|default:"-" }}</td>
-                <td>{{ shipment.shipped_at|date:"d/m/y H\\hi"|default:"-" }}</td>
-                <td>{{ shipment.received_correspondent_at|date:"d/m/y H\\hi"|default:"-" }}</td>
-                <td>{{ shipment.delivered_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+              <tr class="scan-shipments-tracking-row{% if shipment.row_tone != 'neutral' %} is-{{ shipment.row_tone }}{% endif %}">
+                <td class="scan-shipments-tracking-primary-cell">
+                  <div class="scan-shipments-tracking-primary">
+                    <div class="scan-shipments-tracking-reference">{{ shipment.reference }}</div>
+                    <div class="scan-inline ui-comp-actions gap-2">
+                      {% if shipment.is_disputed %}
+                        <span class="ui-comp-status-pill is-error">{% trans "Litige" %}</span>
+                      {% endif %}
+                      {% if shipment.is_closed %}
+                        <span class="ui-comp-status-pill is-info">{% trans "Clôturé" %}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div>{{ shipment.shipper_name }}</div>
+                  <div>{{ shipment.recipient_name }}</div>
+                  <div class="scan-help">{{ shipment.carton_count }} {% trans "colis" %}</div>
+                </td>
+                <td>
+                  <div class="scan-field-gap">
+                    <span class="{% status_pill_class shipment.status_value 'shipment' shipment.is_disputed %}">
+                      {{ shipment.status_display.label }}
+                    </span>
+                  </div>
+                  <div class="scan-help">
+                    {% if shipment.last_step_at %}
+                      {{ shipment.last_step_label }} · {{ shipment.last_step_at|date:"d/m/y H\\hi" }}
+                    {% else %}
+                      {{ shipment.last_step_label }}
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="scan-shipments-tracking-next-action">{{ shipment.next_action_label }}</td>
                 <td>
                   <div class="scan-inline-actions">
                     <a class="scan-scan-btn btn btn-primary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
@@ -109,17 +138,17 @@
                         {% blocktrans with closed_at=shipment.closed_at|date:"d/m/y H\\hi" %}Clôturé le {{ closed_at }}{% endblocktrans %}
                       {% endif %}
                     </small>
-                  {% elif shipment.is_disputed %}
-                    <small>{% trans "Litige en cours" %}</small>
                   {% endif %}
                 </td>
               </tr>
             {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p class="scan-help ui-comp-note">{% trans "Aucune expédition correspondante." %}</p>
-    {% endif %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="scan-help ui-comp-note">{% trans "Aucune expédition correspondante." %}</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
   </div>
 {% endblock %}

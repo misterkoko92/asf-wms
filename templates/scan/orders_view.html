@@ -5,29 +5,44 @@
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="h4 mb-2 ui-comp-title">{% trans "Vue Commande" %}</h2>
-    <p class="scan-help ui-comp-note">{% trans "Suivi des commandes des associations." %}</p>
-  </div>
+    <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
+      <span>{% trans "Vue Commande" %}</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ orders|length }}</span>
+    </h2>
+    <p class="scan-help ui-comp-note">{% trans "Pilotage des validations, relances et créations d'expédition." %}</p>
 
-  <div class="scan-card card border-0 ui-comp-card">
+    <div id="scan-orders-view-summary" class="scan-kpi-grid scan-orders-view-summary mt-4 mb-4">
+      {% for card in summary_cards %}
+        <article class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+          <span class="scan-kpi-label">{{ card.label }}</span>
+          <span class="scan-kpi-value">{{ card.value }}</span>
+          <span class="scan-kpi-help">{{ card.help }}</span>
+        </article>
+      {% endfor %}
+    </div>
+
     {% if orders %}
       <div class="scan-table-wrap table-responsive">
-        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+        <table class="scan-table scan-orders-view-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>{% trans "Date" %}</th>
-              <th>{% trans "Association" %}</th>
+              <th>{% trans "Commande" %}</th>
               <th>{% trans "Contact" %}</th>
-              <th>{% trans "Statut commande" %}</th>
-              <th>{% trans "Expédition" %}</th>
-              <th>{% trans "Documents" %}</th>
+              <th>{% trans "Statut revue" %}</th>
+              <th>{% trans "Action attendue" %}</th>
+              <th>{% trans "Expédition & documents" %}</th>
             </tr>
           </thead>
           <tbody>
             {% for row in orders %}
               <tr>
-                <td>{{ row.order.created_at|date:"Y/m/d" }}</td>
-                <td>{{ row.association_name }}</td>
+                <td class="scan-orders-view-primary-cell">
+                  <div class="scan-orders-view-primary">
+                    <div class="scan-orders-view-reference">{{ row.reference_label }}</div>
+                    <div>{{ row.association_name }}</div>
+                    <div class="scan-help">{{ row.order.created_at|date:"d/m/y H\\hi" }}</div>
+                  </div>
+                </td>
                 <td>
                   <div>{{ row.creator.name }}</div>
                   <div class="scan-help">
@@ -37,13 +52,13 @@
                     {% if row.creator.email %}{{ row.creator.email }}{% else %}-{% endif %}
                   </div>
                 </td>
-                <td>
+                <td class="scan-orders-view-status-cell">
                   <div class="scan-field-gap">
-                    <span class="{% status_pill_class row.order.review_status 'order_review' %}">
-                      {{ row.order.get_review_status_display }}
+                    <span class="{% status_pill_class row.review_status_value 'order_review' %}">
+                      {{ row.review_status_display.label }}
                     </span>
                   </div>
-                  <form method="post" class="scan-inline">
+                  <form method="post" class="scan-orders-view-status-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="order_id" value="{{ row.order.id }}">
@@ -57,49 +72,44 @@
                     <button type="submit" class="scan-scan-btn btn btn-secondary">{% trans "Mettre à jour" %}</button>
                   </form>
                 </td>
-                <td>
-                  {% if row.order.review_status == approved_status %}
-                    <form method="post">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="create_shipment">
-                      <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                      <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Créer l'expédition" %}</button>
-                    </form>
-                  {% else %}
-                    -
-                  {% endif %}
+                <td class="scan-orders-view-action-cell">
+                  <span class="ui-comp-status-pill{% if row.next_action_tone != 'neutral' %} is-{{ row.next_action_tone }}{% endif %}">
+                    {{ row.next_action_label }}
+                  </span>
                 </td>
-                <td>
-                  {% if row.order.review_status == approved_status %}
+                <td class="scan-orders-view-fulfillment-cell">
+                  <div class="scan-orders-view-fulfillment">
+                    {% if row.shipment_status_display.label != "-" %}
+                      <div class="scan-field-gap">
+                        <span class="{% status_pill_class row.shipment_status_display.value 'shipment' row.shipment_status_display.is_disputed %}">
+                          {{ row.shipment_status_display.label }}
+                        </span>
+                      </div>
+                    {% endif %}
+                    {% if row.can_create_shipment %}
+                      <form method="post" class="scan-inline-actions">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create_shipment">
+                        <input type="hidden" name="order_id" value="{{ row.order.id }}">
+                        <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Créer l'expédition" %}</button>
+                      </form>
+                    {% endif %}
                     {% if row.documents %}
-                      <div class="scan-docs">
+                      <div class="scan-docs scan-orders-view-docs">
                         {% for doc in row.documents %}
                           <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
                             {{ doc.label }}
                           </a>
                         {% endfor %}
                       </div>
-                    {% else %}
+                    {% elif row.review_status_value == approved_status %}
                       <span class="scan-help">{% trans "Aucun document" %}</span>
+                    {% else %}
+                      <span class="scan-help">-</span>
                     {% endif %}
-                  {% else %}
-                    -
-                  {% endif %}
+                  </div>
                 </td>
               </tr>
-              {% if row.order.review_status == rejected_status %}
-                <tr>
-                  <td colspan="6" class="scan-help">
-                    {% trans "Refus:" %} {% trans "contactez" %} {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} {% trans "pour expliquer le motif." %}
-                  </td>
-                </tr>
-              {% elif row.order.review_status == changes_status %}
-                <tr>
-                  <td colspan="6" class="scan-help">
-                    {% trans "Modifier:" %} {% trans "contactez" %} {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} {% trans "pour confirmer les changements." %}
-                  </td>
-                </tr>
-              {% endif %}
             {% endfor %}
           </tbody>
         </table>
