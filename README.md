@@ -160,6 +160,30 @@ Notes:
 - Contacts: `python manage.py loaddata contacts/fixtures/sample_contacts.json`
 - Receptions: `python manage.py loaddata wms/fixtures/sample_receipts.json` (necessite les fixtures contacts + chain)
 
+## Local exhaustive QA seed
+Use the local-only exhaustive seed when you need one disposable dataset that lights up the main legacy Django flows together: dashboard, stock, cartons, shipments, tracking, portal, volunteer, billing, queues, and uploaded documents.
+
+```bash
+python manage.py seed_local_exhaustive_data \
+  --scenario=local-exhaustive \
+  --with-demo-documents \
+  --with-queue-backlog \
+  --with-planning-solve \
+  --with-e2e-baseline
+```
+
+Useful flags:
+- `--fresh`: runs the operational reset first, then reseeds the local scenario
+- `--with-demo-documents`: attaches representative uploaded files to portal/account/order flows
+- `--with-queue-backlog`: creates email and document-scan queue rows across pending, processing, processed, and failed states
+- `--with-planning-solve`: seeds the planning recipe and solves one run
+- `--with-e2e-baseline`: adds a few deterministic extra rows reserved for local UI/API smoke checks
+
+Notes:
+- the dataset is fictional but keeps production-like formats and status shapes
+- the command output prints the seeded local users, default password, key URLs, and summary counts
+- rerunning the same `--scenario` is idempotent; use a different scenario slug to keep multiple local namespaces side by side
+
 ## Admin workflows
 - Stock movements: Reception stock, Ajuster stock, Transferer stock, Preparer carton
 - Cartons: action Deconditionner pour remettre en stock
