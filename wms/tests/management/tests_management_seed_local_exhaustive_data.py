@@ -1,0 +1,432 @@
+from io import StringIO
+
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.test import TestCase
+from django.urls import reverse
+
+from wms.models import (
+    AccountDocument,
+    AssociationBillingChangeRequest,
+    AssociationBillingProfile,
+    AssociationPortalContact,
+    AssociationProfile,
+    AssociationRecipient,
+    BillingAssociationPriceOverride,
+    BillingDocument,
+    BillingDocumentCorrectionState,
+    BillingDocumentKind,
+    BillingDocumentLine,
+    BillingDocumentReceipt,
+    BillingDocumentShipment,
+    BillingDocumentStatus,
+    BillingIssue,
+    BillingPayment,
+    Carton,
+    CartonStatus,
+    CommunicationChannel,
+    CommunicationTemplate,
+    DocumentReviewStatus,
+    IntegrationEvent,
+    Order,
+    OrderDocument,
+    OrderLine,
+    PlanningRun,
+    PlanningRunStatus,
+    Product,
+    ProductLot,
+    ProductLotStatus,
+    PublicAccountRequest,
+    Receipt,
+    ReceiptShipmentAllocation,
+    Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentStatus,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
+    VolunteerAvailability,
+    VolunteerConstraint,
+    VolunteerProfile,
+)
+
+
+class SeedLocalExhaustiveDataCommandTests(TestCase):
+    def test_command_creates_named_local_dataset_summary(self):
+        output = StringIO()
+
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=local-exhaustive",
+            stdout=output,
+        )
+
+        rendered = output.getvalue()
+        self.assertIn("Scenario local-exhaustive ready", rendered)
+        self.assertIn("Users:", rendered)
+        self.assertIn("URLs:", rendered)
+        self.assertIn("users=", rendered)
+        self.assertIn("shipments=", rendered)
+        self.assertIn("planning_runs=", rendered)
+
+    def test_command_creates_local_users_profiles_and_contact_roles(self):
+        call_command("seed_local_exhaustive_data", "--scenario=users")
+
+        self.assertGreaterEqual(
+            AssociationProfile.objects.filter(user__username__contains="users").count(),
+            2,
+        )
+        self.assertGreaterEqual(
+            AssociationPortalContact.objects.filter(email__contains="users").count(),
+            4,
+        )
+        self.assertGreaterEqual(ShipmentShipper.objects.count(), 2)
+        self.assertGreaterEqual(ShipmentRecipientOrganization.objects.count(), 2)
+        self.assertGreaterEqual(ShipmentAuthorizedRecipientContact.objects.count(), 2)
+        self.assertGreaterEqual(Product.objects.filter(name__contains="[LOCAL users]").count(), 3)
+        self.assertTrue(
+            CommunicationTemplate.objects.filter(
+                label__icontains="users",
+                channel=CommunicationChannel.EMAIL,
+            ).exists()
+        )
+        self.assertTrue(
+            CommunicationTemplate.objects.filter(
+                label__icontains="users",
+                channel=CommunicationChannel.WHATSAPP,
+            ).exists()
+        )
+
+    def test_command_creates_actionable_shipments_cartons_and_alert_rows(self):
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=ops",
+            "--with-queue-backlog",
+        )
+
+        self.assertTrue(
+            Shipment.objects.filter(
+                shipper_name__contains="[LOCAL ops]",
+                reference__startswith="EXP-TEMP-",
+            ).exists()
+        )
+        self.assertGreaterEqual(Carton.objects.filter(status=CartonStatus.PACKED).count(), 1)
+        self.assertGreaterEqual(Carton.objects.filter(status=CartonStatus.LABELED).count(), 1)
+        self.assertGreaterEqual(Carton.objects.filter(status=CartonStatus.SHIPPED).count(), 1)
+        self.assertGreaterEqual(
+            Shipment.objects.filter(
+                shipper_name__contains="[LOCAL ops]",
+                is_disputed=True,
+            ).count(),
+            1,
+        )
+        self.assertTrue(
+            Shipment.objects.filter(
+                shipper_name__contains="[LOCAL ops]",
+                status=ShipmentStatus.DELIVERED,
+                closed_at__isnull=True,
+            ).exists()
+        )
+        self.assertTrue(
+            ShipmentTrackingEvent.objects.filter(status=ShipmentTrackingStatus.PLANNED).exists()
+        )
+        self.assertTrue(
+            ShipmentTrackingEvent.objects.filter(
+                status=ShipmentTrackingStatus.RECEIVED_RECIPIENT
+            ).exists()
+        )
+        self.assertGreaterEqual(IntegrationEvent.objects.filter(source="wms.email").count(), 1)
+        self.assertGreaterEqual(
+            IntegrationEvent.objects.filter(source="wms.document_scan").count(),
+            1,
+        )
+
+    def test_command_creates_portal_orders_documents_and_billing_requests(self):
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=portal",
+            "--with-demo-documents",
+        )
+
+        self.assertGreaterEqual(Order.objects.count(), 2)
+        self.assertGreaterEqual(AccountDocument.objects.count(), 1)
+        self.assertGreaterEqual(OrderDocument.objects.count(), 1)
+        self.assertGreaterEqual(AssociationBillingChangeRequest.objects.count(), 1)
+        self.assertGreaterEqual(AssociationRecipient.objects.count(), 2)
+        self.assertGreaterEqual(PublicAccountRequest.objects.count(), 1)
+        self.assertTrue(
+            AccountDocument.objects.filter(status=DocumentReviewStatus.PENDING).exists()
+        )
+        self.assertTrue(OrderDocument.objects.filter(status=DocumentReviewStatus.APPROVED).exists())
+
+    def test_command_can_seed_solved_planning_and_volunteer_profiles(self):
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=planning",
+            "--with-planning-solve",
+        )
+
+        self.assertGreaterEqual(
+            VolunteerProfile.objects.filter(user__username__contains="planning").count(),
+            3,
+        )
+        self.assertTrue(
+            VolunteerProfile.objects.filter(
+                user__username__contains="planning",
+                must_change_password=True,
+            ).exists()
+        )
+        self.assertGreaterEqual(
+            VolunteerAvailability.objects.filter(
+                volunteer__user__username__contains="planning"
+            ).count(),
+            3,
+        )
+        self.assertGreaterEqual(
+            VolunteerConstraint.objects.filter(
+                volunteer__user__username__contains="planning"
+            ).count(),
+            2,
+        )
+        self.assertTrue(PlanningRun.objects.filter(status=PlanningRunStatus.SOLVED).exists())
+
+    def test_command_is_idempotent_and_fresh_can_reset_previous_runtime_rows(self):
+        Shipment.objects.create(
+            reference="OUTSIDER-001",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Outsider shipper",
+            recipient_name="Outsider recipient",
+            destination_address="Rue externe",
+            destination_country="France",
+        )
+
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=repeatable",
+            "--with-demo-documents",
+            "--with-queue-backlog",
+        )
+        first_counts = {
+            "shipments": Shipment.objects.filter(reference__contains="REPEATABLE").count(),
+            "profiles": AssociationProfile.objects.filter(
+                user__username__contains="repeatable"
+            ).count(),
+            "documents": BillingDocument.objects.filter(
+                association_profile__user__username__contains="repeatable"
+            ).count(),
+            "events": IntegrationEvent.objects.filter(external_id__contains="repeatable").count(),
+        }
+
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=repeatable",
+            "--with-demo-documents",
+            "--with-queue-backlog",
+        )
+
+        self.assertEqual(
+            Shipment.objects.filter(reference__contains="REPEATABLE").count(),
+            first_counts["shipments"],
+        )
+        self.assertEqual(
+            AssociationProfile.objects.filter(user__username__contains="repeatable").count(),
+            first_counts["profiles"],
+        )
+        self.assertEqual(
+            BillingDocument.objects.filter(
+                association_profile__user__username__contains="repeatable"
+            ).count(),
+            first_counts["documents"],
+        )
+        self.assertEqual(
+            IntegrationEvent.objects.filter(external_id__contains="repeatable").count(),
+            first_counts["events"],
+        )
+
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=after-reset",
+            "--fresh",
+        )
+
+        self.assertFalse(Shipment.objects.filter(reference="OUTSIDER-001").exists())
+        self.assertTrue(Shipment.objects.filter(reference__startswith="LOCAL-AFTER-RESET").exists())
+
+    def test_command_creates_billing_documents_receipts_and_price_overrides(self):
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=billing",
+            "--with-demo-documents",
+        )
+
+        self.assertGreaterEqual(
+            AssociationBillingProfile.objects.filter(
+                association_profile__user__username__contains="billing"
+            ).count(),
+            2,
+        )
+        self.assertGreaterEqual(
+            BillingAssociationPriceOverride.objects.filter(
+                association_billing_profile__association_profile__user__username__contains="billing"
+            ).count(),
+            2,
+        )
+        self.assertTrue(
+            BillingDocument.objects.filter(
+                association_profile__user__username__contains="billing",
+                kind=BillingDocumentKind.QUOTE,
+                status=BillingDocumentStatus.ISSUED,
+            ).exists()
+        )
+        self.assertTrue(
+            BillingDocument.objects.filter(
+                association_profile__user__username__contains="billing",
+                kind=BillingDocumentKind.INVOICE,
+                status=BillingDocumentStatus.PARTIALLY_PAID,
+            ).exists()
+        )
+        self.assertTrue(
+            BillingDocument.objects.filter(
+                association_profile__user__username__contains="billing",
+                kind=BillingDocumentKind.CREDIT_NOTE,
+                status=BillingDocumentStatus.ISSUED,
+            ).exists()
+        )
+        self.assertTrue(
+            BillingDocument.objects.filter(
+                association_profile__user__username__contains="billing",
+                correction_state=BillingDocumentCorrectionState.IN_REVIEW,
+            ).exists()
+        )
+        self.assertGreaterEqual(
+            BillingDocumentShipment.objects.filter(
+                document__association_profile__user__username__contains="billing"
+            ).count(),
+            2,
+        )
+        self.assertGreaterEqual(
+            BillingDocumentReceipt.objects.filter(
+                document__association_profile__user__username__contains="billing"
+            ).count(),
+            1,
+        )
+        self.assertGreaterEqual(
+            BillingDocumentLine.objects.filter(
+                document__association_profile__user__username__contains="billing"
+            ).count(),
+            4,
+        )
+        self.assertGreaterEqual(
+            BillingPayment.objects.filter(
+                document__association_profile__user__username__contains="billing"
+            ).count(),
+            1,
+        )
+        self.assertGreaterEqual(
+            BillingIssue.objects.filter(
+                document__association_profile__user__username__contains="billing"
+            ).count(),
+            1,
+        )
+        self.assertGreaterEqual(Receipt.objects.count(), 2)
+        self.assertGreaterEqual(ReceiptShipmentAllocation.objects.count(), 1)
+
+    def test_command_lights_up_dashboard_cards_and_extended_states(self):
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=dashboard",
+            "--with-demo-documents",
+            "--with-queue-backlog",
+            "--with-e2e-baseline",
+        )
+        staff_user = get_user_model().objects.get(username="scan-dashboard-admin")
+        self.client.force_login(staff_user)
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        shipment_cards = {
+            card["label"]: card["value"] for card in response.context["shipment_cards"]
+        }
+        self.assertGreaterEqual(shipment_cards["Brouillons"], 1)
+        self.assertGreaterEqual(shipment_cards["En cours"], 1)
+        self.assertGreaterEqual(shipment_cards["Prêtes"], 1)
+        self.assertGreaterEqual(shipment_cards["Litiges ouverts"], 1)
+
+        carton_cards = {card["label"]: card["value"] for card in response.context["carton_cards"]}
+        self.assertGreaterEqual(carton_cards["En préparation"], 1)
+        self.assertGreaterEqual(carton_cards["Prêts non affectés"], 1)
+        self.assertGreaterEqual(carton_cards["Affectés non étiquetés"], 1)
+        self.assertGreaterEqual(carton_cards["Étiquetés"], 1)
+        self.assertGreaterEqual(carton_cards["Colis expédiés"], 1)
+
+        stock_cards = {card["label"]: card["value"] for card in response.context["stock_cards"]}
+        self.assertGreaterEqual(stock_cards["Produits actifs"], 1)
+        self.assertGreaterEqual(stock_cards["Lots disponibles"], 1)
+        self.assertGreaterEqual(stock_cards["Quantité disponible"], 1)
+        self.assertGreaterEqual(stock_cards["Stock bas (< 20)"], 1)
+
+        flow_cards = {card["label"]: card["value"] for card in response.context["flow_cards"]}
+        self.assertGreaterEqual(flow_cards["Réceptions en attente"], 1)
+        self.assertGreaterEqual(flow_cards["Cmd en attente de validation"], 1)
+        self.assertGreaterEqual(flow_cards["Cmd à modifier"], 1)
+        self.assertGreaterEqual(flow_cards["Cmd validées sans expédition"], 1)
+
+        tracking_cards = {
+            card["label"]: card["value"] for card in response.context["tracking_cards"]
+        }
+        self.assertGreaterEqual(tracking_cards["Planifiées sans mise à bord >72h"], 1)
+        self.assertGreaterEqual(tracking_cards["Expédiées sans reçu escale >72h"], 1)
+        self.assertGreaterEqual(tracking_cards["Reçu escale sans livraison >72h"], 1)
+        self.assertGreaterEqual(tracking_cards["Dossiers clôturables"], 1)
+
+        technical_cards = {
+            card["label"]: card["value"] for card in response.context["technical_cards"]
+        }
+        self.assertGreaterEqual(technical_cards["Queue email en attente"], 1)
+        self.assertGreaterEqual(technical_cards["Queue email en traitement"], 1)
+        self.assertGreaterEqual(technical_cards["Queue email en échec"], 1)
+        self.assertGreaterEqual(technical_cards["Queue email bloquée (timeout)"], 1)
+
+        workflow_cards = {
+            card["label"]: card["value"] for card in response.context["workflow_blockage_cards"]
+        }
+        self.assertGreaterEqual(workflow_cards["Expéditions Création/En cours >72h"], 1)
+        self.assertGreaterEqual(workflow_cards["Cmd validées sans expédition >72h"], 1)
+        self.assertGreaterEqual(workflow_cards["Dossiers livrés non clos"], 1)
+        self.assertGreaterEqual(workflow_cards["Dossiers en litige ouverts"], 1)
+
+        self.assertTrue(response.context["low_stock_rows"])
+
+    def test_command_creates_status_change_ready_orders_and_documents(self):
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=notifications",
+            "--with-demo-documents",
+        )
+
+        self.assertGreaterEqual(
+            Order.objects.filter(
+                association_contact__name__contains="[LOCAL notifications]"
+            ).count(),
+            4,
+        )
+        self.assertGreaterEqual(
+            OrderLine.objects.filter(
+                order__association_contact__name__contains="[LOCAL notifications]"
+            ).count(),
+            4,
+        )
+        self.assertTrue(
+            ProductLot.objects.filter(
+                product__name__contains="[LOCAL notifications]",
+                status=ProductLotStatus.QUARANTINED,
+            ).exists()
+        )
+        self.assertTrue(
+            ProductLot.objects.filter(
+                product__name__contains="[LOCAL notifications]",
+                status=ProductLotStatus.EXPIRED,
+            ).exists()
+        )
