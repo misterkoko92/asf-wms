@@ -1,6 +1,6 @@
 {% load i18n %}
 
-<section class="scan-card portal-card card border-0 shadow-sm">
+<section id="planning-version-header" class="scan-card portal-card card border-0 shadow-sm">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
       <div>
@@ -8,11 +8,16 @@
           <h1 class="h3 mb-0">{{ dashboard.header.title }}</h1>
           <span class="badge rounded-pill text-bg-secondary">{{ dashboard.header.status_badge }}</span>
         </div>
+        <p class="text-muted mb-0 mt-2">
+          Version v{{ dashboard.header.version_number }} · Creee par {{ dashboard.header.created_by|default:"-" }} · {{ dashboard.header.period_label }}
+        </p>
       </div>
       <div class="d-flex gap-2 flex-wrap">
         {% if version.based_on %}
           <a class="btn btn-tertiary" href="{% url 'planning:version_diff' version.pk %}">{% trans "Voir le diff" %}</a>
         {% endif %}
+        <a class="btn btn-tertiary" href="#planning-version-exports">Exports</a>
+        <a class="btn btn-tertiary" href="#planning-version-history">Nouvelle version</a>
         {% if version.status == "draft" %}
           <form method="post" action="{% url 'planning:version_publish' version.pk %}">
             {% csrf_token %}
@@ -22,48 +27,52 @@
       </div>
     </div>
 
-    <div class="row g-3">
-      <div class="col-md-3">
-        <div class="small text-muted">{% trans "Cree par" %}</div>
-        <div>{{ dashboard.header.created_by|default:"-" }}</div>
-      </div>
-      <div class="col-md-3">
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
         <div class="small text-muted">{% trans "Creation" %}</div>
         <div>{{ dashboard.header.created_at|default:"-" }}</div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <div class="small text-muted">{% trans "Publication" %}</div>
         <div>{{ dashboard.header.published_at|default:"-" }}</div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <div class="small text-muted">{% trans "Periode" %}</div>
         <div>{{ dashboard.header.period_label }}</div>
       </div>
     </div>
 
-    <div class="scan-table-wrap table-responsive mt-3">
-      <table class="scan-table table table-sm table-hover align-middle mb-0">
-        <thead>
-          <tr>
-            <th>{% trans "Mode vols" %}</th>
-            <th>{% trans "Nb vols utilises" %}</th>
-            <th>{% trans "Nb colis disponibles" %}</th>
-            <th>{% trans "Nb colis affectes" %}</th>
-            <th>{% trans "Nb benevoles disponibles" %}</th>
-            <th>{% trans "Nb benevoles affectes" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{{ dashboard.header.summary.flight_mode|default:"-" }}</td>
-            <td>{{ dashboard.header.summary.used_flight_count }}</td>
-            <td>{{ dashboard.header.summary.available_carton_count }}</td>
-            <td>{{ dashboard.header.summary.assigned_carton_count }}</td>
-            <td>{{ dashboard.header.summary.available_volunteer_count }}</td>
-            <td>{{ dashboard.header.summary.assigned_volunteer_count }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="scan-kpi-grid">
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">{% trans "Mode vols" %}</span>
+        <span class="scan-kpi-value">{{ dashboard.header.summary.flight_mode|default:"-" }}</span>
+        <span class="scan-kpi-help">Source vols du run</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">{% trans "Nb vols utilises" %}</span>
+        <span class="scan-kpi-value">{{ dashboard.header.summary.used_flight_count }}</span>
+        <span class="scan-kpi-help">Vols mobilises dans le planning</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">{% trans "Nb colis disponibles" %}</span>
+        <span class="scan-kpi-value">{{ dashboard.header.summary.available_carton_count }}</span>
+        <span class="scan-kpi-help">Volume entrant de la semaine</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">{% trans "Nb colis affectes" %}</span>
+        <span class="scan-kpi-value">{{ dashboard.header.summary.assigned_carton_count }}</span>
+        <span class="scan-kpi-help">Colis deja integres au plan</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">{% trans "Nb benevoles disponibles" %}</span>
+        <span class="scan-kpi-value">{{ dashboard.header.summary.available_volunteer_count }}</span>
+        <span class="scan-kpi-help">Disponibilites chargees dans le run</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">{% trans "Nb benevoles affectes" %}</span>
+        <span class="scan-kpi-value">{{ dashboard.header.summary.assigned_volunteer_count }}</span>
+        <span class="scan-kpi-help">Benevoles actifs sur la version</span>
+      </div>
     </div>
   </div>
 </section>

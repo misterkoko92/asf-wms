@@ -5,8 +5,16 @@
 
 {% block content %}
   {% include "planning/_version_header.html" %}
-  {% include "planning/_version_week_view_block.html" %}
-  {% include "planning/_version_planning_summary_block.html" %}
+  {% include "planning/_version_priorities_block.html" %}
+
+  <nav id="planning-version-sections-nav" class="scan-card portal-card card border-0 shadow-sm mt-3" aria-label="Sections planning">
+    <div class="card-body d-flex flex-wrap gap-2">
+      {% for link in section_links %}
+        <a class="btn btn-tertiary btn-sm" href="#{{ link.id }}">{{ link.label }}</a>
+      {% endfor %}
+    </div>
+  </nav>
+
   {% include "planning/_version_planning_block.html" %}
   {% include "planning/_version_unassigned_block.html" %}
 
@@ -20,6 +28,8 @@
   </div>
 
   {% include "planning/_version_communications_block.html" %}
+  {% include "planning/_version_week_view_block.html" %}
+  {% include "planning/_version_planning_summary_block.html" %}
   {% include "planning/_version_history_block.html" %}
   <script src="{% static 'wms/planning_communications_helper.js' %}"></script>
   <script src="{% static 'wms/planning_communications_editor.js' %}"></script>

@@ -26,6 +26,7 @@
 </style>
 
 <section
+  id="planning-version-communications"
   class="scan-card portal-card card border-0 shadow-sm mt-3"
   data-planning-communication-helper="1"
   data-planning-helper-origin="127.0.0.1:38555"
@@ -96,14 +97,25 @@
     </div>
 
     {% if dashboard.communications.groups %}
-      <form method="post" class="vstack gap-3">
-        {% csrf_token %}
-        <input type="hidden" name="draft_action" value="save">
-        {% if draft_formset.forms %}
-          {{ draft_formset.management_form }}
-        {% endif %}
+      <div class="scan-kpi-grid mt-3">
         {% for group in dashboard.communications.groups %}
-          <article class="border rounded-3 p-3" data-family-key="{{ group.family_key }}">
+          <a href="#planning-communication-family-{{ group.family_key }}" class="scan-kpi-card{% if group.is_priority %} is-primary{% endif %}">
+            <span class="scan-kpi-label">{{ group.family_label }}</span>
+            <span class="scan-kpi-value">{{ group.drafts|length }}</span>
+            <span class="scan-kpi-help">{{ group.change_summary }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      <details class="mt-3" {% if dashboard.communications.draft_count and dashboard.communications.draft_count <= 4 %}open{% endif %}>
+        <summary class="btn btn-tertiary btn-sm">Afficher le detail des brouillons</summary>
+        <form method="post" class="vstack gap-3 mt-3">
+          {% csrf_token %}
+          <input type="hidden" name="draft_action" value="save">
+          {% if draft_formset.forms %}
+            {{ draft_formset.management_form }}
+          {% endif %}
+          {% for group in dashboard.communications.groups %}
+            <article id="planning-communication-family-{{ group.family_key }}" class="border rounded-3 p-3" data-family-key="{{ group.family_key }}">
             <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
               <div>
                 <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
@@ -251,14 +263,15 @@
             {% if group.is_collapsed %}
               </details>
             {% endif %}
-          </article>
-        {% endfor %}
-        {% if draft_formset.forms %}
-          <div class="d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary">{% trans "Enregistrer les brouillons" %}</button>
-          </div>
-        {% endif %}
-      </form>
+            </article>
+          {% endfor %}
+          {% if draft_formset.forms %}
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary">{% trans "Enregistrer les brouillons" %}</button>
+            </div>
+          {% endif %}
+        </form>
+      </details>
     {% else %}
       <p class="text-muted mb-0">{% trans "Aucun brouillon genere." %}</p>
     {% endif %}

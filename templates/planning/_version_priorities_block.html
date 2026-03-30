@@ -1,0 +1,20 @@
+<section id="planning-version-priorities" class="scan-card portal-card card border-0 shadow-sm mt-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+      <div>
+        <h2 class="h5 mb-1">Priorites</h2>
+        <p class="text-muted mb-0">Commencez par les points qui appellent une action immediate.</p>
+      </div>
+    </div>
+    <div class="scan-kpi-grid">
+      {% for card in priority_cards %}
+        <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+          <span class="scan-kpi-label">{{ card.label }}</span>
+          <span class="scan-kpi-value">{{ card.value }}</span>
+          <span class="scan-kpi-help">{{ card.help }}</span>
+          <span class="scan-kpi-help"><strong>{{ card.cta_label }}</strong></span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>

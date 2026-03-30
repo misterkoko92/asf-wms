@@ -71,6 +71,8 @@ Practical rule:
 - URL root: `wms/planning_urls.py`
 - Runtime modules: `wms/views_planning.py`, `wms/models_domain/planning.py`, `wms/planning/*`
 - Templates: `templates/planning/`
+- Primary cockpit surfaces: run list, run detail, version detail
+- Current cockpit shell contract: planning pages reuse the scan shell and keep the operator hierarchy `header -> priorities -> section nav -> main planning by flight -> secondary details`
 
 ### API
 

@@ -116,6 +116,16 @@ def _attach_operator_options(version, dashboard):
             assignment=assignment,
             context=context,
         )
+    for group in dashboard["flight_groups"]:
+        for assignment_row in group["assignments"]:
+            assignment = assignments_by_id.get(assignment_row["assignment_id"])
+            if assignment is None:
+                continue
+            assignment_row["editor_options"] = build_assignment_editor_options(
+                version,
+                assignment=assignment,
+                context=context,
+            )
 
     shipments_by_id = {snapshot.pk: snapshot for snapshot in version.run.shipment_snapshots.all()}
     for row in dashboard["unassigned_shipments"]:
@@ -140,6 +150,121 @@ def _validation_error_message(exc: ValidationError) -> str:
     if getattr(exc, "messages", None):
         return "; ".join(exc.messages)
     return str(exc)
+
+
+def _build_run_attention_items(runs):
+    items = []
+    for run in runs:
+        versions = list(run.versions.all())
+        latest_version = versions[-1] if versions else None
+        if run.status == PlanningRunStatus.READY:
+            items.append(
+                {
+                    "title": str(run),
+                    "help": "Pret a generer.",
+                    "cta_label": "Generer",
+                    "href": reverse("planning:run_detail", args=[run.pk]),
+                    "tone": "primary",
+                }
+            )
+            continue
+        if run.status == PlanningRunStatus.VALIDATION_FAILED:
+            items.append(
+                {
+                    "title": str(run),
+                    "help": "Issues a corriger avant solveur.",
+                    "cta_label": "Verifier",
+                    "href": reverse("planning:run_detail", args=[run.pk]),
+                    "tone": "warning",
+                }
+            )
+            continue
+        if latest_version is not None:
+            items.append(
+                {
+                    "title": str(run),
+                    "help": f"Derniere version: v{latest_version.number} {latest_version.get_status_display()}",
+                    "cta_label": "Ouvrir",
+                    "href": reverse("planning:version_detail", args=[latest_version.pk]),
+                    "tone": "neutral",
+                }
+            )
+    return items[:4]
+
+
+def _build_run_primary_action(run, versions):
+    if run.status in {
+        PlanningRunStatus.DRAFT,
+        PlanningRunStatus.READY,
+        PlanningRunStatus.VALIDATION_FAILED,
+    }:
+        return {
+            "label": "Generer le planning",
+            "href": reverse("planning:run_solve", args=[run.pk]),
+            "method": "post",
+            "help": "Prepare les snapshots, lance le solveur et ouvre la version creee.",
+        }
+    if run.status == PlanningRunStatus.SOLVED and versions:
+        latest_version = versions[-1]
+        return {
+            "label": f"Ouvrir la version v{latest_version.number}",
+            "href": reverse("planning:version_detail", args=[latest_version.pk]),
+            "method": "get",
+            "help": "Reprendre le cockpit de la derniere version generee.",
+        }
+    return None
+
+
+def _build_version_priority_cards(version, dashboard):
+    unassigned_count = dashboard["stats"]["unassigned_count"]
+    draft_count = dashboard["communications"]["draft_count"]
+    manual_adjustment_count = dashboard["stats"]["manual_adjustment_count"]
+    artifact_count = dashboard["exports"]["artifact_count"]
+    return [
+        {
+            "label": "Non affectes",
+            "value": unassigned_count,
+            "help": "Expeditions encore hors planning pour cette version.",
+            "cta_label": "Traiter",
+            "url": "#planning-version-non-affectes",
+            "tone": "warning" if unassigned_count else "neutral",
+        },
+        {
+            "label": "Communications",
+            "value": draft_count,
+            "help": "Brouillons a verifier ou a generer.",
+            "cta_label": "Ouvrir",
+            "url": "#planning-version-communications",
+            "tone": "primary" if draft_count else "neutral",
+        },
+        {
+            "label": "Ajustements manuels",
+            "value": manual_adjustment_count,
+            "help": "Affectations corrigees hors solveur.",
+            "cta_label": "Revoir",
+            "url": "#planning-version-planning",
+            "tone": "warning" if manual_adjustment_count else "neutral",
+        },
+        {
+            "label": "Exports",
+            "value": artifact_count,
+            "help": "Artefacts disponibles pour cette version.",
+            "cta_label": "Exporter",
+            "url": "#planning-version-exports",
+            "tone": "neutral",
+        },
+    ]
+
+
+def _build_version_section_links():
+    return [
+        {"id": "planning-version-planning", "label": "Planning"},
+        {"id": "planning-version-non-affectes", "label": "Non affectes"},
+        {"id": "planning-version-communications", "label": "Communications"},
+        {"id": "planning-version-exports", "label": "Exports"},
+        {"id": "planning-version-history", "label": "Historique"},
+        {"id": "planning-version-week-view", "label": "Details"},
+    ]
 
 
 def _communication_attachment_download_url(version, attachment):
@@ -220,17 +345,20 @@ def _build_strict_packing_list_pdf_response(request, shipment_snapshot):
 @scan_staff_required
 @require_http_methods(["GET"])
 def planning_run_list(request):
-    runs = PlanningRun.objects.select_related(
-        "parameter_set", "flight_batch", "created_by"
-    ).prefetch_related(
-        "issues",
-        "versions",
+    runs = (
+        PlanningRun.objects.select_related("parameter_set", "flight_batch", "created_by")
+        .prefetch_related(
+            "issues",
+            "versions",
+        )
+        .order_by("-created_at", "-pk")
     )
     return render(
         request,
         TEMPLATE_RUN_LIST,
         {
             "active": ACTIVE_PLANNING_RUNS,
+            "attention_runs": _build_run_attention_items(runs),
             "runs": runs,
         },
     )
@@ -271,6 +399,7 @@ def planning_run_detail(request, run_id):
         ),
         pk=run_id,
     )
+    versions = list(run.versions.all())
     return render(
         request,
         TEMPLATE_RUN_DETAIL,
@@ -278,7 +407,8 @@ def planning_run_detail(request, run_id):
             "active": ACTIVE_PLANNING_RUNS,
             "run": run,
             "issues": run.issues.all(),
-            "versions": run.versions.all(),
+            "versions": versions,
+            "primary_action": _build_run_primary_action(run, versions),
             "solve_url": None if run.status != "ready" else request.build_absolute_uri(),
         },
     )
@@ -469,6 +599,8 @@ def planning_version_detail(request, version_id):
             "draft_formset": draft_formset,
             "artifacts": version.artifacts.all(),
             "dashboard": dashboard,
+            "priority_cards": _build_version_priority_cards(version, dashboard),
+            "section_links": _build_version_section_links(),
             "clone_form": PlanningVersionCloneForm(),
             "helper_install": _build_helper_install_context(request, version),
         },

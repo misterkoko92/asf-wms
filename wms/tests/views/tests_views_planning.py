@@ -335,6 +335,43 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "2026-03-09")
         self.assertEqual(response.context["active"], "planning_runs")
 
+    def test_planning_run_list_uses_scan_shell_navigation(self):
+        PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            created_by=self.staff_user,
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-sidebar-nav"')
+        self.assertContains(response, reverse("planning:run_list"))
+
+    def test_planning_run_list_exposes_attention_blocks(self):
+        PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.READY,
+            created_by=self.staff_user,
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_list"))
+
+        self.assertIn("attention_runs", response.context)
+        self.assertContains(response, 'id="planning-run-list-attention"')
+
+    def test_planning_run_list_renders_primary_new_run_action(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_list"))
+
+        self.assertContains(response, 'id="planning-run-list-new-run"')
+
     def test_run_create_page_keeps_primary_and_cancel_actions(self):
         self.client.force_login(self.staff_user)
 
@@ -397,6 +434,40 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Portal contact missing")
         self.assertContains(response, reverse("planning:run_solve", args=[run.pk]))
         self.assertContains(response, "Generer le planning")
+
+    def test_planning_run_detail_exposes_primary_cta_by_status(self):
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.READY,
+            created_by=self.staff_user,
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_detail", args=[run.pk]))
+
+        self.assertIn("primary_action", response.context)
+        self.assertContains(response, 'id="planning-run-detail-primary-action"')
+
+    def test_planning_run_detail_renders_versions_as_operator_list(self):
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.SOLVED,
+            created_by=self.staff_user,
+        )
+        PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.staff_user,
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_detail", args=[run.pk]))
+
+        self.assertContains(response, 'id="planning-run-detail-versions"')
 
     @mock.patch("wms.views_planning.solve_run")
     @mock.patch("wms.views_planning.prepare_run_inputs")
@@ -708,6 +779,41 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Historique des versions")
         self.assertContains(response, "AF 123")
         self.assertContains(response, "SHP-UNASSIGNED")
+
+    def test_planning_version_detail_exposes_scan_shell_and_planning_header(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="scan-shell')
+        self.assertContains(response, 'id="planning-page-header"')
+
+    def test_version_detail_exposes_priorities_and_section_navigation(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="planning-version-priorities"')
+        self.assertContains(response, 'id="planning-version-sections-nav"')
+        self.assertContains(response, 'href="#planning-version-planning"')
+        self.assertContains(response, 'href="#planning-version-non-affectes"')
+        self.assertContains(response, 'href="#planning-version-communications"')
+
+    def test_version_detail_renders_flight_groups_as_primary_planning_block(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="planning-version-planning"')
+        self.assertContains(response, 'data-planning-flight-group="1"')
+        self.assertContains(response, "Vol AF 908")
+        self.assertContains(response, "Alice")
 
     def test_version_detail_renders_operator_header_and_detailed_planning_row(self):
         run = PlanningRun.objects.create(

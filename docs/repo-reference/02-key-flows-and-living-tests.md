@@ -242,6 +242,12 @@ Historical note:
 - `docs/release_checklist.md`
 - planning-specific design and implementation notes under `docs/plans/`
 
+### Current cockpit contract
+
+- `templates/planning/run_list.html` is the action-oriented entry page with an attention block before history
+- `templates/planning/run_detail.html` exposes a single primary CTA and a short operator list of versions
+- `templates/planning/version_detail.html` is the operator cockpit and should stay ordered as `header -> priorities -> section nav -> planning by flight -> secondary details`
+
 ### Propagation warning
 
 If planning run lifecycle, publication, artifact export, or communication draft behavior changes, update both:
