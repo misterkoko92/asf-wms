@@ -11,8 +11,41 @@
           <h1 class="h3 mb-1">{% trans "Runs planning" %}</h1>
           <p class="text-muted mb-0">{% trans "Historique des generations et validations." %}</p>
         </div>
-        <a class="btn btn-primary" href="{% url 'planning:run_create' %}">{% trans "Creer un run" %}</a>
+        <a
+          id="planning-run-list-new-run"
+          class="btn btn-primary"
+          href="{% url 'planning:run_create' %}"
+        >
+          {% trans "Creer un run" %}
+        </a>
       </div>
+    </div>
+  </section>
+
+  <section id="planning-run-list-attention" class="scan-card portal-card card border-0 shadow-sm mt-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+        <div>
+          <h2 class="h5 mb-1">{% trans "A traiter" %}</h2>
+          <p class="text-muted mb-0">{% trans "Reperez les runs qui appellent une action immediate." %}</p>
+        </div>
+      </div>
+      {% if attention_runs %}
+        <div class="scan-kpi-grid">
+          {% for item in attention_runs %}
+            <a
+              href="{{ item.href }}"
+              class="scan-kpi-card{% if item.tone != 'neutral' %} is-{{ item.tone }}{% endif %}"
+            >
+              <span class="scan-kpi-label">{{ item.title }}</span>
+              <span class="scan-kpi-help">{{ item.help }}</span>
+              <span class="scan-kpi-help"><strong>{{ item.cta_label }}</strong></span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">{% trans "Aucun run prioritaire pour le moment." %}</p>
+      {% endif %}
     </div>
   </section>
 

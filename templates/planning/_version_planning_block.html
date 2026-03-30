@@ -1,141 +1,156 @@
 {% load i18n %}
 
-<section class="scan-card portal-card card border-0 shadow-sm mt-3">
+<section id="planning-version-planning" class="scan-card portal-card card border-0 shadow-sm mt-3">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
       <div>
         <h2 class="h5 mb-1">{% trans "Planning" %}</h2>
-        <p class="text-muted mb-0">{% trans "Lecture principale du planning par expedition affectee." %}</p>
+        <p class="text-muted mb-0">Lecture principale par vol, puis detail des affectations embarquees.</p>
       </div>
     </div>
 
-    <div class="scan-table-wrap table-responsive">
-      <table class="scan-table table table-sm table-hover align-middle mb-0">
-        <thead>
-          <tr>
-            <th>{% trans "Date_Vol" %}</th>
-            <th>{% trans "Heure_Vol" %}</th>
-            <th>{% trans "Numero_Vol" %}</th>
-            <th>{% trans "Destination" %}</th>
-            <th>{% trans "Routing" %}</th>
-            <th>{% trans "BE_Numero" %}</th>
-            <th>{% trans "BE_Nb_Colis" %}</th>
-            <th>{% trans "BE_Nb_Equiv" %}</th>
-            <th>{% trans "Benevole" %}</th>
-            <th>{% trans "BE_Type" %}</th>
-            <th>{% trans "BE_Expediteur" %}</th>
-            <th>{% trans "BE_Destinataire" %}</th>
-            <th>{% trans "Actions" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in dashboard.planning_rows %}
-            <tr>
-              <td>{{ row.flight_date_label|default:"-" }}</td>
-              <td>{{ row.flight_time_label|default:"-" }}</td>
-              <td>{{ row.flight_number_label|default:"-" }}</td>
-              <td>{{ row.destination_iata|default:"-" }}</td>
-              <td>{{ row.routing|default:"-" }}</td>
-              <td>{{ row.shipment_reference|default:"-" }}</td>
-              <td>{{ row.assigned_carton_count }}</td>
-              <td>{{ row.equivalent_units }}</td>
-              <td>{{ row.volunteer_label|default:"-" }}</td>
-              <td>{{ row.shipment_type|default:"-" }}</td>
-              <td>{{ row.shipper_name|default:"-" }}</td>
-              <td>{{ row.recipient_label|default:"-" }}</td>
-              <td class="text-nowrap">
-                {% if version.status == "draft" %}
-                  <div class="d-flex flex-column align-items-start gap-2">
-                    <form method="post" class="m-0">
-                      {% csrf_token %}
-                      <input type="hidden" name="assignment_action" value="delete">
-                      <input type="hidden" name="assignment_id" value="{{ row.assignment_id }}">
-                      <button type="submit" class="btn btn-sm btn-outline-danger">{% trans "Supprimer" %}</button>
-                    </form>
-                    {% if row.editor_options %}
-                      <details class="w-100">
-                        <summary class="btn btn-sm btn-outline-secondary">{% trans "Modifier" %}</summary>
-                        <form method="post" class="mt-2 vstack gap-2">
+    <div class="vstack gap-3">
+      {% for group in dashboard.flight_groups %}
+        <article class="border rounded-3 p-3" data-planning-flight-group="1">
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+            <div>
+              <h3 class="h6 mb-1">Vol {{ group.assignments.0.flight_number_label|default:group.flight_number }}</h3>
+              <p class="text-muted mb-0">
+                {{ group.assignments.0.flight_date_label|default:"-" }}
+                {% if group.assignments.0.flight_time_label %} · {{ group.assignments.0.flight_time_label }}{% endif %}
+                {% if group.destination_iata %} · {{ group.destination_iata }}{% endif %}
+                {% if group.assignments.0.routing %} · {{ group.assignments.0.routing }}{% endif %}
+              </p>
+            </div>
+            <div class="scan-kpi-grid flex-grow-1" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+              <div class="scan-kpi-card">
+                <span class="scan-kpi-label">Capacite equiv.</span>
+                <span class="scan-kpi-value">{{ group.used_equivalent_units }} / {{ group.capacity_units|default:"-" }}</span>
+                <span class="scan-kpi-help">Charge de vol</span>
+              </div>
+              <div class="scan-kpi-card">
+                <span class="scan-kpi-label">Colis</span>
+                <span class="scan-kpi-value">{{ group.used_cartons }}</span>
+                <span class="scan-kpi-help">Total affecte sur ce vol</span>
+              </div>
+              <div class="scan-kpi-card">
+                <span class="scan-kpi-label">Benevoles</span>
+                <span class="scan-kpi-value">{{ group.volunteer_labels|join:", "|default:"-" }}</span>
+                <span class="scan-kpi-help">Equipe mobilisee</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="list-group list-group-flush">
+            {% for row in group.assignments %}
+              <div class="list-group-item px-0">
+                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                  <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                      <strong>{{ row.shipment_reference|default:"-" }}</strong>
+                      <span class="badge text-bg-light">{{ row.assigned_carton_count }} colis</span>
+                      <span class="badge text-bg-light">{{ row.equivalent_units }} equiv</span>
+                    </div>
+                    <p class="mb-1">
+                      {{ row.volunteer_label|default:"-" }}
+                      {% if row.shipment_type %} · {{ row.shipment_type }}{% endif %}
+                      {% if row.shipper_name %} · {{ row.shipper_name }}{% endif %}
+                    </p>
+                    <p class="text-muted mb-0">{{ row.recipient_label|default:"-" }}</p>
+                  </div>
+                  <div class="text-nowrap">
+                    {% if version.status == "draft" %}
+                      <div class="d-flex flex-column align-items-start gap-2">
+                        <form method="post" class="m-0">
                           {% csrf_token %}
-                          <input type="hidden" name="assignment_action" value="update">
+                          <input type="hidden" name="assignment_action" value="delete">
                           <input type="hidden" name="assignment_id" value="{{ row.assignment_id }}">
-                          <div>
-                            <label class="form-label mb-1" for="assignment-date-{{ row.assignment_id }}">{% trans "Date du vol" %}</label>
-                            <select
-                              class="form-select form-select-sm"
-                              id="assignment-date-{{ row.assignment_id }}"
-                              data-flight-date-select
-                              data-target="assignment-flight-{{ row.assignment_id }}"
-                            >
-                              {% for option in row.editor_options.date_options %}
-                                <option
-                                  value="{{ option.value }}"
-                                  {% if option.selected %}selected{% endif %}
-                                  {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
-                                >
-                                  {{ option.label }}
-                                </option>
-                              {% endfor %}
-                            </select>
-                          </div>
-                          <div>
-                            <label class="form-label mb-1" for="assignment-flight-{{ row.assignment_id }}">{% trans "Vol" %}</label>
-                            <select
-                              class="form-select form-select-sm"
-                              id="assignment-flight-{{ row.assignment_id }}"
-                              name="flight_snapshot"
-                              data-flight-select
-                              data-volunteer-target="assignment-volunteer-{{ row.assignment_id }}"
-                            >
-                              {% for option in row.editor_options.flight_options %}
-                                <option
-                                  value="{{ option.value }}"
-                                  data-flight-date="{{ option.date_value }}"
-                                  {% if option.selected %}selected{% endif %}
-                                  {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
-                                >
-                                  {{ option.label }}
-                                </option>
-                              {% endfor %}
-                            </select>
-                          </div>
-                          <div>
-                            <label class="form-label mb-1" for="assignment-volunteer-{{ row.assignment_id }}">{% trans "Benevole" %}</label>
-                            <select
-                              class="form-select form-select-sm"
-                              id="assignment-volunteer-{{ row.assignment_id }}"
-                              name="volunteer_snapshot"
-                              data-volunteer-select
-                            >
-                              {% for option in row.editor_options.volunteer_options %}
-                                <option
-                                  value="{{ option.value }}"
-                                  {% if option.selected %}selected{% endif %}
-                                  {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
-                                  data-flight-tones="{% for flight_id, tone in option.tones_by_flight.items %}{% if not forloop.first %},{% endif %}{{ flight_id }}:{{ tone }}{% endfor %}"
-                                >
-                                  {{ option.label }}
-                                </option>
-                              {% endfor %}
-                            </select>
-                          </div>
-                          <button type="submit" class="btn btn-sm btn-primary align-self-start">{% trans "Valider" %}</button>
+                          <button type="submit" class="btn btn-sm btn-outline-danger">{% trans "Supprimer" %}</button>
                         </form>
-                      </details>
+                        {% if row.editor_options %}
+                          <details class="w-100">
+                            <summary class="btn btn-sm btn-outline-secondary">{% trans "Modifier" %}</summary>
+                            <form method="post" class="mt-2 vstack gap-2">
+                              {% csrf_token %}
+                              <input type="hidden" name="assignment_action" value="update">
+                              <input type="hidden" name="assignment_id" value="{{ row.assignment_id }}">
+                              <div>
+                                <label class="form-label mb-1" for="assignment-date-{{ row.assignment_id }}">{% trans "Date du vol" %}</label>
+                                <select
+                                  class="form-select form-select-sm"
+                                  id="assignment-date-{{ row.assignment_id }}"
+                                  data-flight-date-select
+                                  data-target="assignment-flight-{{ row.assignment_id }}"
+                                >
+                                  {% for option in row.editor_options.date_options %}
+                                    <option
+                                      value="{{ option.value }}"
+                                      {% if option.selected %}selected{% endif %}
+                                      {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                                    >
+                                      {{ option.label }}
+                                    </option>
+                                  {% endfor %}
+                                </select>
+                              </div>
+                              <div>
+                                <label class="form-label mb-1" for="assignment-flight-{{ row.assignment_id }}">{% trans "Vol" %}</label>
+                                <select
+                                  class="form-select form-select-sm"
+                                  id="assignment-flight-{{ row.assignment_id }}"
+                                  name="flight_snapshot"
+                                  data-flight-select
+                                  data-volunteer-target="assignment-volunteer-{{ row.assignment_id }}"
+                                >
+                                  {% for option in row.editor_options.flight_options %}
+                                    <option
+                                      value="{{ option.value }}"
+                                      data-flight-date="{{ option.date_value }}"
+                                      {% if option.selected %}selected{% endif %}
+                                      {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                                    >
+                                      {{ option.label }}
+                                    </option>
+                                  {% endfor %}
+                                </select>
+                              </div>
+                              <div>
+                                <label class="form-label mb-1" for="assignment-volunteer-{{ row.assignment_id }}">{% trans "Benevole" %}</label>
+                                <select
+                                  class="form-select form-select-sm"
+                                  id="assignment-volunteer-{{ row.assignment_id }}"
+                                  name="volunteer_snapshot"
+                                  data-volunteer-select
+                                >
+                                  {% for option in row.editor_options.volunteer_options %}
+                                    <option
+                                      value="{{ option.value }}"
+                                      {% if option.selected %}selected{% endif %}
+                                      {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                                      data-flight-tones="{% for flight_id, tone in option.tones_by_flight.items %}{% if not forloop.first %},{% endif %}{{ flight_id }}:{{ tone }}{% endfor %}"
+                                    >
+                                      {{ option.label }}
+                                    </option>
+                                  {% endfor %}
+                                </select>
+                              </div>
+                              <button type="submit" class="btn btn-sm btn-primary align-self-start">{% trans "Valider" %}</button>
+                            </form>
+                          </details>
+                        {% endif %}
+                      </div>
+                    {% else %}
+                      <span class="text-muted">-</span>
                     {% endif %}
                   </div>
-                {% else %}
-                  <span class="text-muted">-</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="13" class="text-muted">{% trans "Aucune affectation." %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </article>
+      {% empty %}
+        <p class="text-muted mb-0">{% trans "Aucune affectation." %}</p>
+      {% endfor %}
     </div>
   </div>
 </section>
