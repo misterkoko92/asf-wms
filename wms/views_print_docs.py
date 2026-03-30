@@ -20,6 +20,7 @@ from .models import Carton, Shipment
 from .prepare_kits_helpers import _parse_carton_ids, build_prepare_kits_picking_context
 from .print_context import (
     build_carton_contact_label_context,
+    build_carton_document_context,
     build_carton_picking_context,
     build_label_context,
     build_shipment_document_context,
@@ -55,6 +56,7 @@ TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT = "scan/shipment_print_bundle_lot.html"
 TEMPLATE_CARTON_PRINT_BUNDLE_LOT = "scan/carton_print_bundle_lot.html"
 TEMPLATE_SHIPMENT_BUNDLE_A4 = "print/shipment_bundle_a4.html"
 TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP = "print/shipment_bundle_a5_two_up.html"
+TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP = "print/shipment_carton_lists_a4_four_up.html"
 
 SHIPMENT_VIEW_DOCUMENT_CONFIG = {
     "shipment_note": {
@@ -189,6 +191,21 @@ def _render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, varian
 
 def _ordered_shipment_cartons(shipment):
     return list(shipment.carton_set.all().order_by("code"))
+
+
+def _chunked(items, chunk_size):
+    chunks = []
+    for index in range(0, len(items), chunk_size):
+        chunks.append(items[index : index + chunk_size])
+    return chunks
+
+
+def _build_shipment_carton_list_a4_pages(shipment):
+    carton_contexts = [
+        build_carton_document_context(shipment, carton)
+        for carton in _ordered_shipment_cartons(shipment)
+    ]
+    return _chunked(carton_contexts, 4)
 
 
 def _shipment_view_document_or_404(document_key):
@@ -431,6 +448,10 @@ def _shipment_view_bundle_context(request, shipment, bundle_key):
                         f"/scan/shipment/{shipment.id}/print-bundle/carton_lists/",
                     ),
                     _shipment_bundle_action(
+                        _("Lot A4 4 par page"),
+                        f"/scan/shipment/{shipment.id}/print-bundle/carton_lists_a4/",
+                    ),
+                    _shipment_bundle_action(
                         _("Lot étiquettes standard"),
                         f"/scan/shipment/{shipment.id}/print-bundle/standard_labels/",
                     ),
@@ -472,6 +493,16 @@ def _shipment_view_bundle_context(request, shipment, bundle_key):
                     }
                     for carton in ordered_cartons
                 ],
+            },
+        }
+    if bundle_key == "carton_lists_a4":
+        return {
+            "template_name": TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP,
+            "context": {
+                "shipment": shipment,
+                "bundle_title": _("Lot listes colisage A4"),
+                "carton_pages": _build_shipment_carton_list_a4_pages(shipment),
+                "hide_footer": True,
             },
         }
     if bundle_key == "standard_labels":

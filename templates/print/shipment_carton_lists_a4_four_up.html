@@ -1,0 +1,90 @@
+{% extends "print/base_document.html" %}
+
+{% block title %}{{ bundle_title }}{% endblock %}
+
+{% block extra_style %}
+  @page { size: A4 portrait; margin: 8.5mm 10mm; }
+  .print-header { display: none; }
+  .print-body { padding-bottom: 0; }
+  .packing-four-up-pages {
+    display: grid;
+    gap: 0;
+  }
+  .packing-four-up-page {
+    min-height: calc(297mm - 17mm);
+    display: grid;
+    grid-template-rows: repeat(4, 61mm);
+    align-content: space-between;
+    page-break-after: always;
+    break-after: page;
+  }
+  .packing-four-up-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .packing-four-up-item {
+    width: 190mm;
+    height: 61mm;
+    margin: 0 auto;
+    overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .packing-four-up-item .packing-sheet {
+    height: 100%;
+    display: grid;
+    gap: 1.5mm;
+  }
+  .packing-four-up-item .packing-sheet-header {
+    grid-template-columns: 12mm 1fr 12mm;
+    gap: 2mm;
+  }
+  .packing-four-up-item .packing-sheet-logo {
+    width: 12mm;
+    max-height: 12mm;
+  }
+  .packing-four-up-item .packing-sheet-title {
+    font-size: 11pt;
+    line-height: 1.1;
+  }
+  .packing-four-up-item .packing-sheet-subtitle {
+    font-size: 6.8pt;
+    line-height: 1.05;
+  }
+  .packing-four-up-item .packing-ref-row {
+    gap: 2mm;
+    font-size: 7.2pt;
+  }
+  .packing-four-up-item .packing-table {
+    margin-top: 0;
+    table-layout: fixed;
+  }
+  .packing-four-up-item .packing-col-quantity,
+  .packing-four-up-item .packing-col-expiry {
+    width: 30mm;
+  }
+  .packing-four-up-item .packing-table th,
+  .packing-four-up-item .packing-table td {
+    padding: 0.9mm 1.2mm;
+    font-size: 6.8pt;
+    line-height: 1.05;
+  }
+  .packing-four-up-item .packing-table th:nth-child(2),
+  .packing-four-up-item .packing-table th:nth-child(3) {
+    white-space: nowrap;
+  }
+{% endblock %}
+
+{% block body %}
+  <div id="shipment-carton-lists-a4-print-document" class="packing-four-up-pages">
+    {% for carton_page in carton_pages %}
+      <section class="packing-four-up-page">
+        {% for carton_context in carton_page %}
+          <article class="packing-four-up-item">
+            {% include "print/partials/packing_list_carton_body.html" with carton_code=carton_context.carton_code item_rows=carton_context.item_rows only %}
+          </article>
+        {% endfor %}
+      </section>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -148,6 +148,8 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         shipment.refresh_from_db()
         self.assertEqual(shipment.status, ShipmentStatus.PLANNED)
         self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 2)
+        self.assertEqual(shipment.dossier_last_activity_label, "Suivi mis à jour")
+        self.assertIsNotNone(shipment.dossier_last_activity_at)
 
     def test_set_disputed_blocks_tracking_progression(self):
         shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
@@ -159,6 +161,8 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         shipment.refresh_from_db()
         self.assertTrue(shipment.is_disputed)
         self.assertIsNotNone(shipment.disputed_at)
+        self.assertEqual(shipment.dossier_last_activity_label, "Expédition mise en litige")
+        self.assertIsNotNone(shipment.dossier_last_activity_at)
         log_mock.assert_called_once_with(
             shipment=shipment,
             action="set_disputed",
@@ -242,6 +246,8 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         self.assertFalse(shipment.is_disputed)
         self.assertEqual(shipment.status, ShipmentStatus.PACKED)
         self.assertEqual(carton.status, CartonStatus.LABELED)
+        self.assertEqual(shipment.dossier_last_activity_label, "Litige résolu")
+        self.assertIsNotNone(shipment.dossier_last_activity_at)
         log_mock.assert_called_once_with(
             shipment=shipment,
             action="resolve_dispute",

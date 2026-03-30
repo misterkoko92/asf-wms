@@ -52,6 +52,7 @@ from .scan_shipment_handlers import (
     handle_shipment_edit_post,
 )
 from .services import StockError
+from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_form_helpers import (
     build_carton_selection_data,
     build_shipment_edit_initial,
@@ -342,6 +343,8 @@ def _shipment_dossier_extra_context(
         "additional_document_count": documents.count(),
         "receipt_allocation_count": len(receipt_allocations),
         "carton_doc_count": len(carton_docs),
+        "dossier_last_activity_at": getattr(shipment, "dossier_last_activity_at", None),
+        "dossier_last_activity_label": getattr(shipment, "dossier_last_activity_label", ""),
     }
 
 
@@ -362,6 +365,10 @@ def _close_shipment_case(request, shipment):
     shipment.closed_at = timezone.now()
     shipment.closed_by = request.user if request.user.is_authenticated else None
     shipment.save(update_fields=["closed_at", "closed_by"])
+    record_shipment_dossier_activity(
+        shipment=shipment,
+        label="Dossier clôturé",
+    )
     log_shipment_case_closed(
         shipment=shipment,
         user=request.user if request.user.is_authenticated else None,

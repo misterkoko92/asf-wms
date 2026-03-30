@@ -31,59 +31,69 @@
         {% if shipment.ready_at %} · Disponible le {{ shipment.ready_at|date:"d/m/Y H\\hi" }}{% endif %}
         {% if shipment.requested_delivery_date %} · Livraison souhaitée le {{ shipment.requested_delivery_date|date:"d/m/Y" }}{% endif %}
       </div>
-    </div>
-    <div id="shipment-dossier-actions" class="ui-comp-actions d-flex flex-wrap justify-content-lg-end gap-2">
-      {% if can_edit %}
-        <a
-          class="scan-scan-btn btn btn-primary"
-          href="?mode=edit#shipment-dossier-edit-panel"
-        >
-          Modifier
-        </a>
+      {% if dossier_last_activity_at %}
+        <div class="scan-help">
+          Dernière MAJ : {{ dossier_last_activity_at|date:"d/m/Y H\\hi" }}
+          {% if dossier_last_activity_label %} · {{ dossier_last_activity_label }}{% endif %}
+        </div>
       {% endif %}
-      <a
-        class="scan-scan-btn btn btn-tertiary"
-        href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to={{ tracking_return_to }}"
-      >
-        Ouvrir suivi
-      </a>
-      {% if is_closed %}
-        <button
-          type="button"
-          class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-closed"
-          disabled
+    </div>
+    <div id="shipment-dossier-actions" class="d-flex flex-column align-items-stretch align-items-lg-end gap-2">
+      <div id="shipment-dossier-primary-actions" class="ui-comp-actions d-flex flex-wrap justify-content-lg-end gap-2">
+        <a
+          class="scan-scan-btn btn btn-tertiary"
+          href="{% url 'scan:scan_cartons_ready' %}?shipment_reference={{ shipment.reference|urlencode }}"
         >
-          Dossier clôturé
-        </button>
-      {% elif can_close %}
-        <form method="post" class="d-inline-flex">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="close_shipment_case">
+          Voir les colis
+        </a>
+        {% if can_edit %}
+          <a
+            class="scan-scan-btn btn btn-primary"
+            href="?mode=edit#shipment-dossier-edit-panel"
+          >
+            Modifier
+          </a>
+        {% endif %}
+        <a
+          class="scan-scan-btn btn btn-tertiary"
+          href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to={{ tracking_return_to }}"
+        >
+          Ouvrir suivi
+        </a>
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipments_ready' %}">
+          Retour aux dossiers
+        </a>
+      </div>
+      <div id="shipment-dossier-secondary-actions" class="ui-comp-actions d-flex flex-wrap justify-content-lg-end gap-2">
+        {% if is_closed %}
           <button
-            type="submit"
-            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"
+            type="button"
+            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-closed"
+            disabled
+          >
+            Dossier clôturé
+          </button>
+        {% elif can_close %}
+          <form method="post" class="d-inline-flex">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="close_shipment_case">
+            <button
+              type="submit"
+              class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"
+            >
+              Clore le dossier
+            </button>
+          </form>
+        {% else %}
+          <button
+            type="button"
+            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-blocked"
+            onclick="window.alert('{{ close_inactive_message }}'); return false;"
           >
             Clore le dossier
           </button>
-        </form>
-      {% else %}
-        <button
-          type="button"
-          class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-blocked"
-          onclick="window.alert('{{ close_inactive_message }}'); return false;"
-        >
-          Clore le dossier
-        </button>
-      {% endif %}
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipments_ready' %}">
-        Retour aux dossiers
-      </a>
-      <a
-        class="scan-scan-btn btn btn-tertiary"
-        href="{% url 'scan:scan_cartons_ready' %}?shipment_reference={{ shipment.reference|urlencode }}"
-      >
-        Voir les colis
-      </a>
+        {% endif %}
+      </div>
     </div>
   </div>
 </section>

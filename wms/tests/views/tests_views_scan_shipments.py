@@ -6,6 +6,7 @@ from django.contrib.auth.models import Group
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from contacts.models import Contact, ContactType
 from wms.helper_install import build_helper_install_context
@@ -841,6 +842,8 @@ class ScanShipmentsViewsTests(TestCase):
         shipment.refresh_from_db()
         self.assertIsNotNone(shipment.closed_at)
         self.assertEqual(shipment.closed_by, self.staff_user)
+        self.assertEqual(shipment.dossier_last_activity_label, "Dossier clôturé")
+        self.assertIsNotNone(shipment.dossier_last_activity_at)
         log_mock.assert_called_once_with(
             shipment=shipment,
             user=self.staff_user,
@@ -1136,6 +1139,14 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_shipment_edit_renders_dossier_sections_and_primary_actions(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        shipment.dossier_last_activity_at = timezone.now()
+        shipment.dossier_last_activity_label = "Document ajouté"
+        shipment.save(
+            update_fields=[
+                "dossier_last_activity_at",
+                "dossier_last_activity_label",
+            ]
+        )
         Carton.objects.create(code="C-DOS-1", shipment=shipment)
 
         response = self.client.get(
@@ -1155,16 +1166,34 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Exports PDF")
         self.assertContains(response, "Imprimer tous les documents")
         self.assertContains(response, "Imprimer dossier papier")
-        self.assertContains(response, "Imprimer toutes les listes colisage carton")
+        self.assertContains(
+            response, "Imprimer toutes les listes colisage carton (rouleau continu)"
+        )
+        self.assertContains(response, "Imprimer toutes les listes par carton")
         self.assertContains(response, "Imprimer toutes les étiquettes standard")
         self.assertContains(response, "Étiquette contact")
         self.assertContains(response, "Voir les colis")
+        self.assertContains(response, "Dernière MAJ :")
+        self.assertContains(response, "Document ajouté")
+        self.assertContains(response, 'id="shipment-dossier-primary-actions"')
+        self.assertContains(response, 'id="shipment-dossier-secondary-actions"')
         self.assertContains(
             response,
             f'{reverse("scan:scan_cartons_ready")}?shipment_reference={shipment.reference}',
         )
         self.assertNotContains(response, "Documents générés")
         self.assertNotContains(response, "Feuille contact")
+        content = response.content.decode()
+        header_start = content.index('id="shipment-dossier-header"')
+        header_end = content.index("</section>", header_start)
+        header_html = content[header_start:header_end]
+        self.assertLess(header_html.index("Voir les colis"), header_html.index("Modifier"))
+        self.assertLess(header_html.index("Modifier"), header_html.index("Ouvrir suivi"))
+        self.assertLess(header_html.index("Ouvrir suivi"), header_html.index("Retour aux dossiers"))
+        self.assertLess(
+            header_html.index('id="shipment-dossier-primary-actions"'),
+            header_html.index('id="shipment-dossier-secondary-actions"'),
+        )
 
     def test_scan_shipment_edit_get_renders_context(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)

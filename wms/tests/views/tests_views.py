@@ -1311,6 +1311,8 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         shipment.refresh_from_db()
         self.assertEqual(shipment.destination_id, new_destination.id)
+        self.assertEqual(shipment.dossier_last_activity_label, "Dossier modifié")
+        self.assertIsNotNone(shipment.dossier_last_activity_at)
 
     def test_scan_shipment_edit_marks_helper_generated_document_links_only(self):
         shipment, carton = self._create_shipment_with_carton()

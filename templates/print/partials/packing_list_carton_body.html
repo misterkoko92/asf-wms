@@ -1,0 +1,46 @@
+{% load static %}
+<div{% if sheet_id %} id="{{ sheet_id }}"{% endif %} class="packing-sheet">
+  <div{% if header_id %} id="{{ header_id }}"{% endif %} class="packing-sheet-header">
+    <img class="packing-sheet-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
+    <div class="packing-sheet-heading">
+      <div class="packing-sheet-title">LISTE DE COLISAGE</div>
+      <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus</div>
+      <div class="packing-sheet-subtitle">Produits non dangereux</div>
+    </div>
+    <div aria-hidden="true"></div>
+  </div>
+  <div class="packing-ref-row">
+    <span class="packing-ref-label">Référence du colis :</span>
+    <span>{{ carton_code }}</span>
+  </div>
+
+  <table{% if table_id %} id="{{ table_id }}"{% endif %} class="packing-table">
+    <colgroup>
+      <col class="packing-col-product">
+      <col class="packing-col-quantity">
+      <col class="packing-col-expiry">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>PRODUIT</th>
+        <th>QUANTITE</th>
+        <th>DATE LIMITE</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in item_rows %}
+        <tr>
+          <td>{{ row.product }}</td>
+          <td>{{ row.quantity }}</td>
+          <td>
+            {% if row.expires_on %}
+              {{ row.expires_on|date:"d/m/Y" }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

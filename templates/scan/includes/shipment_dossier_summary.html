@@ -1,25 +1,25 @@
 <div id="shipment-dossier-summary" class="row g-3">
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Expéditeur</div>
+      <div class="form-label fw-bold">Expéditeur</div>
       <div>{{ shipment.shipper_name|default:"-" }}</div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Destinataire</div>
+      <div class="form-label fw-bold">Destinataire</div>
       <div>{{ shipment.recipient_name|default:"-" }}</div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Correspondant</div>
+      <div class="form-label fw-bold">Correspondant</div>
       <div>{{ shipment.correspondent_name|default:"-" }}</div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Destination</div>
+      <div class="form-label fw-bold">Destination</div>
       <div>
         {% if shipment.destination %}
           {{ shipment.destination }}
@@ -31,31 +31,31 @@
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Pays destination</div>
+      <div class="form-label fw-bold">Pays destination</div>
       <div>{{ shipment.destination_country|default:"-" }}</div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Colis associés</div>
+      <div class="form-label fw-bold">Colis associés</div>
       <div>{{ carton_doc_count }}</div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Documents additionnels</div>
+      <div class="form-label fw-bold">Documents additionnels</div>
       <div>{{ additional_document_count }}</div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Réceptions liées</div>
+      <div class="form-label fw-bold">Réceptions liées</div>
       <div>{{ receipt_allocation_count }}</div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
-      <div class="form-label">Lien de suivi</div>
+      <div class="form-label fw-bold">Lien de suivi</div>
       <div>
         {% if tracking_url %}
           <a href="{{ tracking_url }}" target="_blank" rel="noopener">{{ tracking_url }}</a>

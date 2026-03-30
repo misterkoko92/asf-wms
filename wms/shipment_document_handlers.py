@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
 from .models import Document, DocumentType, Shipment
+from .shipment_dossier_activity import record_shipment_dossier_activity
 from .upload_utils import validate_upload
 
 
@@ -27,6 +28,10 @@ def handle_shipment_document_upload(request, *, shipment_id):
         scan_message="Scan antivirus en cours.",
     )
     queue_document_scan(document)
+    record_shipment_dossier_activity(
+        shipment=shipment,
+        label="Document ajouté",
+    )
     messages.success(request, "Document ajouté.")
     return redirect("scan:scan_shipment_edit", shipment_id=shipment.pk)
 
@@ -39,5 +44,9 @@ def handle_shipment_document_delete(request, *, shipment_id, document_id):
     if document.file:
         document.file.delete(save=False)
     document.delete()
+    record_shipment_dossier_activity(
+        shipment=shipment,
+        label="Document supprimé",
+    )
     messages.success(request, "Document supprime.")
     return redirect("scan:scan_shipment_edit", shipment_id=shipment.pk)

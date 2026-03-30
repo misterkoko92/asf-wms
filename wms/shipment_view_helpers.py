@@ -177,8 +177,12 @@ def build_shipment_dossier_print_actions(shipment):
             "url": _build_future_shipment_bundle_url(shipment, "paper"),
         },
         {
-            "label": _("Imprimer toutes les listes colisage carton"),
+            "label": _("Imprimer toutes les listes colisage carton (rouleau continu)"),
             "url": _build_future_shipment_bundle_url(shipment, "carton_lists"),
+        },
+        {
+            "label": _("Imprimer toutes les listes par carton"),
+            "url": _build_future_shipment_bundle_url(shipment, "carton_lists_a4"),
         },
         {
             "label": _("Imprimer toutes les étiquettes standard"),
