@@ -6,6 +6,7 @@
   <meta charset="utf-8">
   <title>{% block title %}{% trans "Planning" %}{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f5f4f">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,36 +19,87 @@
 </head>
 <body class="scan-bootstrap-enabled portal-bootstrap-enabled">
   <div class="scan-shell">
-    <header class="scan-card portal-card portal-header card border-0 ui-comp-panel">
-      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-        <div>
-          <strong class="ui-comp-title">ASF WMS</strong><br>
-          {% trans "Planning" %}
+    <header class="scan-header ui-comp-panel">
+      <div class="scan-header-top">
+        <div class="scan-header-brand">
+          <button
+            type="button"
+            id="scan-sidebar-toggle"
+            class="btn btn-tertiary btn-sm scan-sidebar-toggle d-lg-none"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#scan-sidebar-offcanvas"
+            aria-controls="scan-sidebar-offcanvas"
+            aria-label="{% trans "Afficher la navigation scan" %}"
+          >
+            Menu
+          </button>
+          <a href="{% url 'planning:run_list' %}" class="scan-brand-link" aria-label="ASF WMS Planning">
+            <span class="scan-brand-title">{% trans "Planning" %}</span>
+          </a>
         </div>
-        <div class="ms-auto">
+        <div class="scan-header-tools">
           {% include "includes/language_switch_short.html" %}
         </div>
       </div>
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
-        <nav class="portal-nav d-flex flex-wrap gap-2">
-          <a class="btn {% if request.resolver_match.url_name == 'run_list' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'planning:run_list' %}">{% trans "Runs" %}</a>
-          <a class="btn {% if request.resolver_match.url_name == 'run_create' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'planning:run_create' %}">{% trans "Nouveau run" %}</a>
-        </nav>
-        <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_dashboard' %}">{% trans "Retour scan" %}</a>
-      </div>
     </header>
 
-    <main class="scan-main">
-      {% if messages %}
-        <div class="scan-messages">
-          {% for message in messages %}
-            <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
-          {% endfor %}
+    <div class="scan-workspace">
+      <div
+        id="scan-sidebar-offcanvas"
+        class="offcanvas-lg offcanvas-start scan-sidebar-offcanvas"
+        tabindex="-1"
+        aria-labelledby="scan-sidebar-title"
+      >
+        <div class="offcanvas-header d-lg-none">
+          <h2 id="scan-sidebar-title" class="offcanvas-title">{% trans "Navigation planning" %}</h2>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="offcanvas"
+            data-bs-target="#scan-sidebar-offcanvas"
+            aria-label="{% trans "Fermer" %}"
+          ></button>
         </div>
-      {% endif %}
+        <div class="offcanvas-body">
+          {% include "scan/includes/scan_sidebar_navigation.html" %}
+        </div>
+      </div>
 
-      {% block content %}{% endblock %}
-    </main>
+      <div class="scan-body">
+        <main class="scan-main">
+          <header
+            id="planning-page-header"
+            class="scan-card portal-card portal-header card border-0 ui-comp-panel"
+          >
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+              <div>
+                <strong class="ui-comp-title">ASF WMS</strong><br>
+                {% trans "Planning" %}
+              </div>
+              <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_dashboard' %}">
+                {% trans "Retour scan" %}
+              </a>
+            </div>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+              <nav class="portal-nav d-flex flex-wrap gap-2">
+                <a class="btn {% if request.resolver_match.url_name == 'run_list' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'planning:run_list' %}">{% trans "Runs" %}</a>
+                <a class="btn {% if request.resolver_match.url_name == 'run_create' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'planning:run_create' %}">{% trans "Nouveau run" %}</a>
+              </nav>
+            </div>
+          </header>
+
+          {% if messages %}
+            <div class="scan-messages">
+              {% for message in messages %}
+                <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
