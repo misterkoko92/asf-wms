@@ -185,7 +185,7 @@ Current local contract:
 - delay fields are stable in this local phase: `delay_state`, `current_delay_hours`, `active_blockage_category`, `projected_at`
 - supported current segments are `creation_expedition`, `planned_to_boarding`, `boarding_to_correspondent`, `correspondent_to_delivery`, `delivery_to_close`, `closed`
 - supported delay states are `on_time`, `new`, `persistent`, `critical`
-- supported API filters in this local phase are `destination_id`, `shipment_status`, `current_segment`, `delay_state`, `has_open_dispute`, `is_closed`, `projected_since`
+- supported API filters in this local phase are `destination_id`, `shipment_status`, `current_segment`, `delay_state`, `has_open_dispute`, `active_blockage_category`, `is_closed`, `projected_since`
 - local refresh happens on shipment save and tracking-event creation, and the full rebuild path is `python manage.py rebuild_workflow_projections`
 
 Maintenance rule:
@@ -232,6 +232,35 @@ Reference tests:
 - `api/tests/tests_views_extra.py`
 - `api/tests/tests_ui_endpoints.py`
 - `wms/tests/views/tests_views_scan_dashboard.py`
+
+### Destination Week Workflow Aggregate Contract
+
+Primary runtime sources:
+
+- `wms/workflow_projection.py`
+- `api/v1/views.py` via `GET /api/v1/workflow-projections/destination-weeks/`
+- `api/v1/urls.py`
+
+Current local contract:
+
+- one row represents one `(destination, ISO week)` bucket aggregated from `ShipmentWorkflowProjection`
+- the bucket anchor is `planned_at`
+- rows with empty `planned_at` are excluded in this local phase
+- supported fields in this local phase are `bucket_key`, `iso_year`, `iso_week`, `bucket_label`, `bucket_start`, `bucket_end`, `destination_id`, `destination_label`, `shipment_count`, `open_shipment_count`, `open_dispute_count`, `delayed_shipment_count`, `critical_shipment_count`, `oldest_open_segment_age_hours`, `top_blockage_category`, `projected_at_max`
+- filters are applied on shipment projection rows before `(destination, ISO week)` grouping
+- supported filters in this local phase are `destination_id`, `shipment_status`, `current_segment`, `delay_state`, `has_open_dispute`, `active_blockage_category`, `is_closed`, `projected_since`, `iso_year`, `iso_week`
+- default ordering is operational and stable in this local phase: most recent ISO week first, then critical count desc, open dispute count desc, oldest open segment age desc, destination label asc
+- `top_blockage_category` is computed on open rows first and breaks count ties by severity
+
+Maintenance rule:
+
+- if the period anchor, row shape, or bucket sorting changes, update the aggregation helper, the API endpoint, the API tests, and the repo-reference in the same work
+- keep this period aggregate read-only in the local phase; do not introduce a second persisted projection until usage pressure is real
+
+Reference tests:
+
+- `api/tests/tests_views_extra.py`
+- `wms/tests/test_workflow_projection.py`
 
 ## 3. Shipment-Party And Portal Recipient Contract
 

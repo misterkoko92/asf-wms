@@ -79,6 +79,8 @@ class ApiViewsExtraTests(TestCase):
         segment_age_hours=0.0,
         lead_hours_total_to_delivery=None,
         lead_hours_delivery_to_close=None,
+        planned_at=None,
+        projected_at=None,
     ):
         shipment = Shipment.objects.create(
             reference=reference,
@@ -103,11 +105,13 @@ class ApiViewsExtraTests(TestCase):
             segment_started_at=started_at,
             segment_age_hours=segment_age_hours,
             is_closed=is_closed,
+            planned_at=planned_at,
             has_open_dispute=has_open_dispute,
             delay_state=delay_state,
             active_blockage_category=active_blockage_category,
             lead_hours_total_to_delivery=lead_hours_total_to_delivery,
             lead_hours_delivery_to_close=lead_hours_delivery_to_close,
+            projected_at=projected_at or timezone.now(),
         )
 
     def test_order_reserve_returns_400_on_stock_error(self):
@@ -546,6 +550,181 @@ class ApiViewsExtraTests(TestCase):
         self.assertEqual(data[0]["open_dispute_count"], 1)
         self.assertEqual(data[0]["delayed_shipment_count"], 1)
         self.assertEqual(data[0]["tracking_blockage_count"], 1)
+
+    def test_workflow_projections_destination_weeks_endpoint_returns_iso_week_rows(self):
+        critical_destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="Senegal",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        secondary_destination = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="Mali",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        current_week_planned_at = timezone.make_aware(datetime(2026, 3, 31, 10, 0))
+        previous_week_planned_at = timezone.make_aware(datetime(2026, 3, 24, 9, 0))
+
+        self._create_workflow_projection(
+            reference="EXP-WEEK-001",
+            destination=critical_destination,
+            shipment_status="shipped",
+            current_segment="boarding_to_correspondent",
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144.0,
+            planned_at=current_week_planned_at,
+            projected_at=timezone.make_aware(datetime(2026, 4, 1, 9, 0)),
+        )
+        self._create_workflow_projection(
+            reference="EXP-WEEK-002",
+            destination=critical_destination,
+            shipment_status="draft",
+            current_segment="creation_expedition",
+            delay_state="new",
+            active_blockage_category="creation_expedition",
+            segment_age_hours=80.0,
+            planned_at=current_week_planned_at + timedelta(hours=2),
+            projected_at=timezone.make_aware(datetime(2026, 4, 1, 10, 0)),
+        )
+        self._create_workflow_projection(
+            reference="EXP-WEEK-003",
+            destination=critical_destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            active_blockage_category="cloture",
+            segment_age_hours=96.0,
+            planned_at=previous_week_planned_at,
+            projected_at=timezone.make_aware(datetime(2026, 3, 25, 8, 0)),
+        )
+        self._create_workflow_projection(
+            reference="EXP-WEEK-004",
+            destination=secondary_destination,
+            shipment_status="planned",
+            current_segment="planned_to_boarding",
+            delay_state="persistent",
+            active_blockage_category="suivi",
+            segment_age_hours=72.0,
+            planned_at=current_week_planned_at,
+            projected_at=timezone.make_aware(datetime(2026, 4, 1, 8, 0)),
+        )
+        self._create_workflow_projection(
+            reference="EXP-WEEK-005",
+            destination=secondary_destination,
+            shipment_status="draft",
+            current_segment="creation_expedition",
+            delay_state="new",
+            active_blockage_category="creation_expedition",
+            segment_age_hours=24.0,
+        )
+
+        response = self.client.get("/api/v1/workflow-projections/destination-weeks/")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 3)
+
+        current_week = current_week_planned_at.isocalendar()
+        first_row = data[0]
+        self.assertEqual(first_row["destination_id"], critical_destination.id)
+        self.assertEqual(first_row["iso_year"], current_week.year)
+        self.assertEqual(first_row["iso_week"], current_week.week)
+        self.assertEqual(
+            first_row["bucket_key"],
+            f"{critical_destination.id}:{current_week.year}-W{current_week.week:02d}",
+        )
+        self.assertEqual(first_row["bucket_label"], f"{current_week.year}-W{current_week.week:02d}")
+        self.assertEqual(first_row["bucket_start"], "2026-03-30")
+        self.assertEqual(first_row["bucket_end"], "2026-04-05")
+        self.assertEqual(first_row["shipment_count"], 2)
+        self.assertEqual(first_row["open_shipment_count"], 2)
+        self.assertEqual(first_row["open_dispute_count"], 1)
+        self.assertEqual(first_row["delayed_shipment_count"], 2)
+        self.assertEqual(first_row["critical_shipment_count"], 1)
+        self.assertEqual(first_row["oldest_open_segment_age_hours"], 144.0)
+        self.assertEqual(first_row["top_blockage_category"], "suivi")
+        self.assertTrue(first_row["projected_at_max"])
+
+    def test_workflow_projections_destination_weeks_endpoint_applies_filters_before_grouping(self):
+        filtered_destination = Destination.objects.create(
+            city="Lome",
+            iata_code="LFW",
+            country="Togo",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        excluded_destination = Destination.objects.create(
+            city="Niamey",
+            iata_code="NIM",
+            country="Niger",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        included_planned_at = timezone.make_aware(datetime(2026, 3, 31, 9, 0))
+        excluded_week_planned_at = timezone.make_aware(datetime(2026, 3, 24, 9, 0))
+
+        self._create_workflow_projection(
+            reference="EXP-WEEK-FILTER-001",
+            destination=filtered_destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=90.0,
+            planned_at=included_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-WEEK-FILTER-002",
+            destination=filtered_destination,
+            shipment_status="planned",
+            current_segment="planned_to_boarding",
+            delay_state="persistent",
+            has_open_dispute=False,
+            active_blockage_category="suivi",
+            segment_age_hours=40.0,
+            planned_at=included_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-WEEK-FILTER-003",
+            destination=filtered_destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=110.0,
+            planned_at=excluded_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-WEEK-FILTER-004",
+            destination=excluded_destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="cloture",
+            segment_age_hours=120.0,
+            planned_at=included_planned_at,
+        )
+
+        response = self.client.get(
+            "/api/v1/workflow-projections/destination-weeks/?iso_year=2026&iso_week=14&delay_state=persistent&has_open_dispute=1&active_blockage_category=suivi&is_closed=0"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["destination_id"], filtered_destination.id)
+        self.assertEqual(data[0]["shipment_count"], 1)
+        self.assertEqual(data[0]["open_dispute_count"], 1)
+        self.assertEqual(data[0]["open_shipment_count"], 1)
 
     def test_integration_event_partial_update_rejects_outbound_email_queue_event(self):
         event = IntegrationEvent.objects.create(

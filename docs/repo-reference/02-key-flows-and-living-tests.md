@@ -65,6 +65,7 @@ Use it when you need to answer:
 - shipment tracking deep links filtered by `destination`
 - shipment workflow projection rebuild and reporting endpoint under `/api/v1/workflow-projections/shipments/`
 - destination workflow aggregates under `/api/v1/workflow-projections/destinations/`
+- destination workflow aggregates by ISO week of `planned_at` under `/api/v1/workflow-projections/destination-weeks/`
 - document upload and print/document endpoints
 - label generation
 - closure of a completed shipment

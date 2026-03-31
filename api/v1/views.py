@@ -21,7 +21,10 @@ from wms.models import (
     Shipment,
     ShipmentWorkflowProjection,
 )
-from wms.workflow_projection import build_destination_workflow_projection_rows
+from wms.workflow_projection import (
+    build_destination_week_workflow_projection_rows,
+    build_destination_workflow_projection_rows,
+)
 
 from .integration_filters import (
     apply_integration_destination_filters,
@@ -154,6 +157,16 @@ def _parse_datetime_query_param(raw_value):
     return parsed
 
 
+def _parse_int_query_param(raw_value):
+    value = (raw_value or "").strip()
+    if not value:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _apply_workflow_projection_filters(queryset, params):
     destination_id = _normalize_query_param(params, "destination_id")
     if destination_id:
@@ -167,6 +180,9 @@ def _apply_workflow_projection_filters(queryset, params):
     delay_state = _normalize_query_param(params, "delay_state")
     if delay_state:
         queryset = queryset.filter(delay_state=delay_state)
+    active_blockage_category = _normalize_query_param(params, "active_blockage_category")
+    if active_blockage_category:
+        queryset = queryset.filter(active_blockage_category=active_blockage_category)
     has_open_dispute = _parse_bool_query_param(params.get("has_open_dispute"))
     if has_open_dispute is not None:
         queryset = queryset.filter(has_open_dispute=has_open_dispute)
@@ -309,4 +325,19 @@ class WorkflowProjectionDestinationsView(APIView):
         queryset = ShipmentWorkflowProjection.objects.select_related("destination").all()
         queryset = _apply_workflow_projection_filters(queryset, request.query_params)
         rows = build_destination_workflow_projection_rows(queryset)
+        return Response(rows)
+
+
+class WorkflowProjectionDestinationWeeksView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = ShipmentWorkflowProjection.objects.select_related("destination").all()
+        queryset = _apply_workflow_projection_filters(queryset, request.query_params)
+        rows = build_destination_week_workflow_projection_rows(
+            queryset,
+            iso_year=_parse_int_query_param(request.query_params.get("iso_year")),
+            iso_week=_parse_int_query_param(request.query_params.get("iso_week")),
+            limit=_parse_int_query_param(request.query_params.get("limit")),
+        )
         return Response(rows)

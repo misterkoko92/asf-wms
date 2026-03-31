@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import date
 
 from django.db import transaction
 from django.db.utils import OperationalError, ProgrammingError
@@ -435,3 +436,112 @@ def build_destination_workflow_projection_rows(queryset):
         )
     )
     return destination_rows
+
+
+def build_destination_week_workflow_projection_rows(
+    queryset, *, iso_year=None, iso_week=None, limit=None
+):
+    projection_rows = list(
+        queryset.exclude(planned_at__isnull=True).values(
+            "destination_id",
+            "destination_label",
+            "planned_at",
+            "is_closed",
+            "has_open_dispute",
+            "delay_state",
+            "active_blockage_category",
+            "segment_age_hours",
+            "projected_at",
+        )
+    )
+    grouped_rows = {}
+    for row in projection_rows:
+        planned_at = row["planned_at"]
+        planned_iso = planned_at.isocalendar()
+        if iso_year is not None and planned_iso.year != iso_year:
+            continue
+        if iso_week is not None and planned_iso.week != iso_week:
+            continue
+        group_key = (
+            row["destination_id"],
+            row["destination_label"],
+            planned_iso.year,
+            planned_iso.week,
+        )
+        group = grouped_rows.setdefault(
+            group_key,
+            {
+                "destination_id": row["destination_id"],
+                "destination_label": row["destination_label"] or "",
+                "iso_year": planned_iso.year,
+                "iso_week": planned_iso.week,
+                "_rows": [],
+            },
+        )
+        group["_rows"].append(row)
+
+    destination_week_rows = []
+    for group in grouped_rows.values():
+        rows = group.pop("_rows")
+        open_rows = [row for row in rows if not row["is_closed"]]
+        top_rows = open_rows or rows
+        bucket_start = date.fromisocalendar(group["iso_year"], group["iso_week"], 1)
+        bucket_end = date.fromisocalendar(group["iso_year"], group["iso_week"], 7)
+        destination_week_rows.append(
+            {
+                "bucket_key": (
+                    f"{group['destination_id']}:{group['iso_year']}-W{group['iso_week']:02d}"
+                ),
+                "iso_year": group["iso_year"],
+                "iso_week": group["iso_week"],
+                "bucket_label": f"{group['iso_year']}-W{group['iso_week']:02d}",
+                "bucket_start": bucket_start,
+                "bucket_end": bucket_end,
+                "destination_id": group["destination_id"],
+                "destination_label": group["destination_label"],
+                "shipment_count": len(rows),
+                "open_shipment_count": len(open_rows),
+                "open_dispute_count": sum(1 for row in rows if row["has_open_dispute"]),
+                "delayed_shipment_count": sum(
+                    1
+                    for row in rows
+                    if row["delay_state"]
+                    in {
+                        DELAY_STATE_NEW,
+                        DELAY_STATE_PERSISTENT,
+                        DELAY_STATE_CRITICAL,
+                    }
+                ),
+                "critical_shipment_count": sum(
+                    1 for row in rows if row["delay_state"] == DELAY_STATE_CRITICAL
+                ),
+                "oldest_open_segment_age_hours": max(
+                    (row["segment_age_hours"] for row in open_rows),
+                    default=None,
+                ),
+                "top_blockage_category": _top_group_value(
+                    top_rows,
+                    field_name="active_blockage_category",
+                    severity_rank=_BLOCKAGE_CATEGORY_RANK,
+                    default_value="",
+                ),
+                "projected_at_max": max(
+                    (row["projected_at"] for row in rows if row["projected_at"] is not None),
+                    default=None,
+                ),
+            }
+        )
+
+    destination_week_rows.sort(
+        key=lambda row: (
+            -row["iso_year"],
+            -row["iso_week"],
+            -row["critical_shipment_count"],
+            -row["open_dispute_count"],
+            -(row["oldest_open_segment_age_hours"] or -1.0),
+            row["destination_label"],
+        )
+    )
+    if limit is not None:
+        return destination_week_rows[:limit]
+    return destination_week_rows

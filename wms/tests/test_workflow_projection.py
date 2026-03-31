@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -13,12 +13,14 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipmentWorkflowProjection,
     Warehouse,
 )
 from wms.workflow_projection import (
     CURRENT_SEGMENT_CLOSED,
     CURRENT_SEGMENT_DELIVERY_TO_CLOSE,
     CURRENT_SEGMENT_PLANNED_TO_BOARDING,
+    build_destination_week_workflow_projection_rows,
     build_shipment_workflow_projection_payload,
 )
 
@@ -224,3 +226,74 @@ class ShipmentWorkflowProjectionTests(TestCase):
             )
 
         schedule_mock.assert_called_once_with(shipment.id)
+
+    def test_build_destination_week_projection_rows_groups_by_planned_iso_week(self):
+        first_shipment = self._create_shipment(
+            reference="EXP-PROJ-WEEK-001",
+            status=ShipmentStatus.PLANNED,
+        )
+        second_shipment = self._create_shipment(
+            reference="EXP-PROJ-WEEK-002",
+            status=ShipmentStatus.DRAFT,
+        )
+        ignored_shipment = self._create_shipment(
+            reference="EXP-PROJ-WEEK-003",
+            status=ShipmentStatus.DRAFT,
+        )
+        planned_at = timezone.make_aware(datetime(2026, 3, 31, 10, 0))
+
+        ShipmentWorkflowProjection.objects.create(
+            shipment=first_shipment,
+            destination=self.destination,
+            reference=first_shipment.reference,
+            destination_label=str(self.destination),
+            shipment_status=first_shipment.status,
+            planned_at=planned_at,
+            current_segment="planned_to_boarding",
+            segment_started_at=planned_at,
+            segment_age_hours=72.0,
+            is_closed=False,
+            has_open_dispute=True,
+            delay_state="critical",
+            active_blockage_category="suivi",
+        )
+        ShipmentWorkflowProjection.objects.create(
+            shipment=second_shipment,
+            destination=self.destination,
+            reference=second_shipment.reference,
+            destination_label=str(self.destination),
+            shipment_status=second_shipment.status,
+            planned_at=planned_at + timedelta(hours=4),
+            current_segment="creation_expedition",
+            segment_started_at=planned_at,
+            segment_age_hours=36.0,
+            is_closed=False,
+            has_open_dispute=False,
+            delay_state="new",
+            active_blockage_category="creation_expedition",
+        )
+        ShipmentWorkflowProjection.objects.create(
+            shipment=ignored_shipment,
+            destination=self.destination,
+            reference=ignored_shipment.reference,
+            destination_label=str(self.destination),
+            shipment_status=ignored_shipment.status,
+            current_segment="creation_expedition",
+            segment_started_at=planned_at,
+            segment_age_hours=24.0,
+            is_closed=False,
+            has_open_dispute=False,
+            delay_state="new",
+            active_blockage_category="creation_expedition",
+        )
+
+        rows = build_destination_week_workflow_projection_rows(
+            ShipmentWorkflowProjection.objects.all()
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["bucket_label"], "2026-W14")
+        self.assertEqual(rows[0]["shipment_count"], 2)
+        self.assertEqual(rows[0]["open_dispute_count"], 1)
+        self.assertEqual(rows[0]["critical_shipment_count"], 1)
+        self.assertEqual(rows[0]["top_blockage_category"], "suivi")
