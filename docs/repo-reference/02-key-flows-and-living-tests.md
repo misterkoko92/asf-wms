@@ -49,6 +49,8 @@ Use it when you need to answer:
 - direct HTML print bundles for shipment `paper`, `standard_labels`, and `carton_lists_a4`
 - shipment `carton_lists` kept as a per-carton action page for continuous-roll printing
 - tracking events
+- structured shipment dispute intake, assignment, due date, and resolution
+- shipment tracking list filters for open, overdue, and unassigned disputes
 - document upload and print/document endpoints
 - label generation
 - closure of a completed shipment
@@ -58,6 +60,7 @@ Use it when you need to answer:
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_scan_workflow_stock_to_close_with_docs_labels_templates`
 - `wms/tests/core/tests_flow.py::FlowTests::test_import_to_order_prepare_flow`
 - `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_stock.py`
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`

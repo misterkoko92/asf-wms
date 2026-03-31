@@ -28,6 +28,30 @@ class ShipmentStatus(models.TextChoices):
 TEMP_SHIPMENT_REFERENCE_PREFIX = "EXP-TEMP-"
 
 
+class ShipmentDisputeReason(models.TextChoices):
+    DOCS_MISSING = "docs_missing", _("Documents manquants")
+    DATA_MISMATCH = "data_mismatch", _("Écart de données")
+    DAMAGE_LOSS = "damage_loss", _("Casse / perte")
+    TRANSPORT_BLOCKED = "transport_blocked", _("Blocage transport")
+    DELIVERY_ISSUE = "delivery_issue", _("Incident livraison")
+    OTHER = "other", _("Autre")
+
+
+class ShipmentDisputeOwner(models.TextChoices):
+    MAGASIN = "magasin", _("Magasin")
+    QUALITE = "qualite", _("Qualité")
+    ADMIN = "admin", _("Admin")
+    TRANSPORT = "transport", _("Transport")
+    PORTAL = "portal", _("Portail")
+
+
+class ShipmentDisputeStatus(models.TextChoices):
+    OPEN = "open", _("Ouvert")
+    IN_PROGRESS = "in_progress", _("En cours")
+    WAITING_EXTERNAL = "waiting_external", _("En attente externe")
+    RESOLVED = "resolved", _("Résolu")
+
+
 class Shipment(models.Model):
     reference = models.CharField(max_length=80, unique=True, blank=True)
     tracking_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -72,6 +96,28 @@ class Shipment(models.Model):
     requested_delivery_date = models.DateField(null=True, blank=True)
     is_disputed = models.BooleanField(default=False)
     disputed_at = models.DateTimeField(null=True, blank=True)
+    dispute_reason = models.CharField(
+        max_length=40,
+        choices=ShipmentDisputeReason.choices,
+        blank=True,
+        default="",
+    )
+    dispute_owner = models.CharField(
+        max_length=20,
+        choices=ShipmentDisputeOwner.choices,
+        blank=True,
+        default="",
+    )
+    dispute_status = models.CharField(
+        max_length=20,
+        choices=ShipmentDisputeStatus.choices,
+        blank=True,
+        default="",
+    )
+    dispute_due_at = models.DateTimeField(null=True, blank=True)
+    dispute_opened_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolved_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolution_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     ready_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)

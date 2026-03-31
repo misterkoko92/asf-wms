@@ -2,11 +2,15 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext_lazy as _
 
 from .carton_status_events import set_carton_status
 from .models import (
     CartonStatus,
+    ShipmentDisputeOwner,
+    ShipmentDisputeReason,
+    ShipmentDisputeStatus,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
@@ -41,6 +45,11 @@ READY_CARTON_STATUSES = {
 DEFAULT_RETURN_LIST_VIEW = "scan:scan_shipments_tracking"
 DEFAULT_RETURN_TO_KEY = "shipments_tracking"
 DISPUTE_STAFF_ONLY_MESSAGE = _("Action litige réservée aux utilisateurs staff.")
+ACTIVE_DISPUTE_STATUSES = {
+    ShipmentDisputeStatus.OPEN.value,
+    ShipmentDisputeStatus.IN_PROGRESS.value,
+    ShipmentDisputeStatus.WAITING_EXTERNAL.value,
+}
 
 
 def _redirect_to_tracking(
@@ -68,6 +77,55 @@ def _latest_tracking_status(shipment):
 def _can_manage_dispute(request) -> bool:
     user = getattr(request, "user", None)
     return bool(user and user.is_authenticated and user.is_staff)
+
+
+def _parse_dispute_due_at(raw_value):
+    cleaned = (raw_value or "").strip()
+    if not cleaned:
+        return None
+    parsed = parse_datetime(cleaned)
+    if parsed is None:
+        return None
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
+
+
+def _resolve_dispute_form_data(request, shipment):
+    reason = (request.POST.get("dispute_reason") or shipment.dispute_reason or "").strip()
+    owner = (request.POST.get("dispute_owner") or shipment.dispute_owner or "").strip()
+    status = (request.POST.get("dispute_status") or shipment.dispute_status or "").strip()
+    if not status:
+        status = ShipmentDisputeStatus.OPEN.value
+    due_raw = (request.POST.get("dispute_due_at") or "").strip()
+    resolution_notes = (request.POST.get("dispute_resolution_notes") or "").strip()
+    errors = []
+
+    if not reason:
+        errors.append(_("Sélectionnez un motif de litige."))
+    elif reason not in ShipmentDisputeReason.values:
+        errors.append(_("Motif de litige invalide."))
+
+    if owner and owner not in ShipmentDisputeOwner.values:
+        errors.append(_("Propriétaire de litige invalide."))
+
+    if status not in ACTIVE_DISPUTE_STATUSES:
+        errors.append(_("État de litige invalide."))
+
+    due_at = None
+    if due_raw:
+        due_at = _parse_dispute_due_at(due_raw)
+        if due_at is None:
+            errors.append(_("Échéance de litige invalide."))
+
+    return {
+        "reason": reason,
+        "owner": owner,
+        "status": status,
+        "due_at": due_at,
+        "resolution_notes": resolution_notes,
+        "errors": errors,
+    }
 
 
 def allowed_tracking_statuses_for_shipment(shipment):
@@ -140,15 +198,33 @@ def _handle_dispute_action(
             return_to_key=return_to_key,
         )
     if action == "set_disputed":
+        dispute_data = _resolve_dispute_form_data(request, shipment)
+        if dispute_data["errors"]:
+            for error in dispute_data["errors"]:
+                messages.error(request, error)
+            return False
+        was_disputed = bool(shipment.is_disputed)
         previous_status = shipment.status
-        if not shipment.is_disputed:
-            shipment.is_disputed = True
-            shipment.disputed_at = timezone.now()
-            shipment.save(update_fields=["is_disputed", "disputed_at"])
-            record_shipment_dossier_activity(
-                shipment=shipment,
-                label="Expédition mise en litige",
-            )
+        opened_at = shipment.dispute_opened_at or shipment.disputed_at or timezone.now()
+        updates = {
+            "is_disputed": True,
+            "dispute_reason": dispute_data["reason"],
+            "dispute_owner": dispute_data["owner"],
+            "dispute_status": dispute_data["status"],
+            "dispute_due_at": dispute_data["due_at"],
+            "dispute_opened_at": opened_at,
+            "dispute_resolution_notes": "",
+            "dispute_resolved_at": None,
+        }
+        if not was_disputed or shipment.disputed_at is None:
+            updates["disputed_at"] = opened_at
+        for field_name, field_value in updates.items():
+            setattr(shipment, field_name, field_value)
+        shipment.save(update_fields=list(updates.keys()))
+        record_shipment_dossier_activity(
+            shipment=shipment,
+            label="Litige mis à jour" if was_disputed else "Expédition mise en litige",
+        )
         log_shipment_dispute_action(
             shipment=shipment,
             action="set_disputed",
@@ -156,7 +232,10 @@ def _handle_dispute_action(
             previous_status=previous_status,
             new_status=shipment.status,
         )
-        messages.warning(request, _("Expédition marquée en litige."))
+        messages.warning(
+            request,
+            _("Litige enregistré.") if was_disputed else _("Expédition marquée en litige."),
+        )
         return _redirect_to_tracking(
             shipment,
             return_to_list=return_to_list,
@@ -167,11 +246,19 @@ def _handle_dispute_action(
     if action != "resolve_dispute":
         return None
 
+    resolution_notes = (request.POST.get("dispute_resolution_notes") or "").strip()
+    if not resolution_notes:
+        messages.error(request, _("Notes de résolution requises."))
+        return False
+
     updates = {}
     previous_status = shipment.status
     if shipment.is_disputed:
         updates["is_disputed"] = False
         updates["disputed_at"] = None
+    updates["dispute_status"] = ShipmentDisputeStatus.RESOLVED
+    updates["dispute_resolved_at"] = timezone.now()
+    updates["dispute_resolution_notes"] = resolution_notes
     if previous_status in DISPUTE_RESETTABLE_STATUSES:
         updates["status"] = ShipmentStatus.PACKED
         if shipment.ready_at is None:
@@ -232,7 +319,7 @@ def handle_shipment_tracking_post(
         return_to_view=return_to_view,
         return_to_key=return_to_key,
     )
-    if dispute_response:
+    if dispute_response is not None:
         return dispute_response
 
     if shipment.is_disputed:

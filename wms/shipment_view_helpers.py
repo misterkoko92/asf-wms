@@ -1,6 +1,7 @@
 from django.http import Http404
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from .contact_labels import build_contact_select_label
@@ -8,6 +9,7 @@ from .models import (
     CartonStatus,
     Document,
     DocumentType,
+    ShipmentDisputeStatus,
     ShipmentStatus,
     ShipmentTrackingStatus,
     ShipmentUnitEquivalenceRule,
@@ -575,6 +577,9 @@ def _tracking_last_step_payload(
 
 def _tracking_next_action_label(*, shipment, is_disputed, is_closed, can_close, dates):
     if is_disputed:
+        due_at = getattr(shipment, "dispute_due_at", None)
+        if due_at and due_at < timezone.now():
+            return _("Relancer le litige")
         return _("Traiter le litige")
     if is_closed:
         return _("Aucune action")
@@ -617,6 +622,21 @@ def build_shipments_tracking_rows(shipments_qs):
             delivered_at=delivered_at,
         )
         can_close = is_fully_completed and not is_disputed and not is_closed
+        dispute_due_at = getattr(shipment, "dispute_due_at", None)
+        is_dispute_overdue = bool(
+            is_disputed and dispute_due_at and dispute_due_at < timezone.now()
+        )
+        dispute_reason_display = (
+            shipment.get_dispute_reason_display() if getattr(shipment, "dispute_reason", "") else ""
+        )
+        dispute_owner_display = (
+            shipment.get_dispute_owner_display() if getattr(shipment, "dispute_owner", "") else ""
+        )
+        dispute_status_display = (
+            shipment.get_dispute_status_display()
+            if getattr(shipment, "dispute_status", "")
+            else (ShipmentDisputeStatus.OPEN.label if is_disputed else "")
+        )
         next_action_label = _tracking_next_action_label(
             shipment=shipment,
             is_disputed=is_disputed,
@@ -660,6 +680,11 @@ def build_shipments_tracking_rows(shipments_qs):
                 "is_closed": is_closed,
                 "closed_at": getattr(shipment, "closed_at", None),
                 "closed_by": getattr(shipment, "closed_by", None),
+                "dispute_reason_display": str(dispute_reason_display),
+                "dispute_owner_display": str(dispute_owner_display),
+                "dispute_status_display": str(dispute_status_display),
+                "dispute_due_at": dispute_due_at,
+                "is_dispute_overdue": is_dispute_overdue,
                 "can_close": can_close,
                 "status_value": shipment.status,
                 "status_display": present_shipment_status(shipment),

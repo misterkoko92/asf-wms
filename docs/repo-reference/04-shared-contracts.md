@@ -120,6 +120,37 @@ Reference tests:
 - `wms/tests/views/tests_views_portal.py`
 - `api/tests/tests_ui_endpoints.py`
 
+### Local Shipment Dispute Center Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/shipment.py`
+- `wms/shipment_tracking_handlers.py`
+- `wms/views_scan_shipments.py`
+- `wms/views_scan_shipments_support.py`
+- `wms/shipment_view_helpers.py`
+- `templates/scan/shipment_tracking.html`
+- `templates/scan/shipments_tracking.html`
+
+Current local contract:
+
+- `Shipment` keeps the structured dispute state directly via `dispute_reason`, `dispute_owner`, `dispute_status`, `dispute_due_at`, `dispute_opened_at`, `dispute_resolved_at`, and `dispute_resolution_notes`
+- `Shipment.is_disputed` remains the active lock signal for the tracking workflow
+- opening a dispute now requires a valid reason and stores owner, active status, and optional due date
+- resolving a dispute requires `dispute_resolution_notes` and keeps the last structured dispute visible on the detail screen
+- `scan/shipment_tracking` is the edit surface for dispute intake, update, and resolution
+- `scan/shipments_tracking` is the prioritization surface and must keep `dispute=open|overdue|unassigned` filters aligned with the row metadata
+
+Maintenance rule:
+
+- if dispute vocabularies or required fields change, update the handler validation, the tracking detail template, the list filters, and the dispute tests in the same work
+- keep the local phase explicit: this is a shipment-level dispute contract, not yet a general case-management model
+
+Reference tests:
+
+- `wms/tests/views/tests_views_tracking_dispute.py`
+- `wms/tests/views/tests_views_scan_shipments.py`
+
 ## 3. Shipment-Party And Portal Recipient Contract
 
 This is the most important cross-surface business contract in the repo.

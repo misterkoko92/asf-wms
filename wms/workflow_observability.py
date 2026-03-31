@@ -134,6 +134,10 @@ def log_shipment_dispute_action(
         action=action,
         previous_status=previous_status or "",
         new_status=new_status or "",
+        dispute_reason=getattr(shipment, "dispute_reason", "") or "",
+        dispute_owner=getattr(shipment, "dispute_owner", "") or "",
+        dispute_status=getattr(shipment, "dispute_status", "") or "",
+        dispute_due_at=getattr(shipment, "dispute_due_at", None),
     )
 
 

@@ -24,6 +24,10 @@ ARCHIVE_STALE_DRAFTS_ACTION = "archive_stale_drafts"
 CLOSE_SHIPMENT_ACTION = "close_shipment_case"
 CLOSED_FILTER_EXCLUDE = "exclude"
 CLOSED_FILTER_ALL = "all"
+DISPUTE_FILTER_ALL = "all"
+DISPUTE_FILTER_OPEN = "open"
+DISPUTE_FILTER_OVERDUE = "overdue"
+DISPUTE_FILTER_UNASSIGNED = "unassigned"
 PLANNED_WEEK_RE = re.compile(r"^(?P<year>\d{4})-(?:W)?(?P<week>\d{2})$")
 RETURN_TO_SHIPMENTS_READY = "shipments_ready"
 RETURN_TO_SHIPMENTS_DOSSIERS = "shipments_dossiers"
@@ -56,6 +60,17 @@ def _normalize_closed_filter(raw_value):
     if (raw_value or "").strip() == CLOSED_FILTER_ALL:
         return CLOSED_FILTER_ALL
     return CLOSED_FILTER_EXCLUDE
+
+
+def _normalize_dispute_filter(raw_value):
+    value = (raw_value or "").strip()
+    if value in {
+        DISPUTE_FILTER_OPEN,
+        DISPUTE_FILTER_OVERDUE,
+        DISPUTE_FILTER_UNASSIGNED,
+    }:
+        return value
+    return DISPUTE_FILTER_ALL
 
 
 def _parse_planned_week(raw_value):
@@ -135,12 +150,14 @@ def _build_shipments_tracking_queryset():
     )
 
 
-def _build_shipments_tracking_redirect_url(*, planned_week_value, closed_filter):
+def _build_shipments_tracking_redirect_url(*, planned_week_value, closed_filter, dispute_filter):
     query_items = {}
     if planned_week_value:
         query_items["planned_week"] = planned_week_value
     if closed_filter == CLOSED_FILTER_ALL:
         query_items["closed"] = CLOSED_FILTER_ALL
+    if dispute_filter != DISPUTE_FILTER_ALL:
+        query_items["dispute"] = dispute_filter
     base_url = reverse("scan:scan_shipments_tracking")
     if not query_items:
         return base_url
