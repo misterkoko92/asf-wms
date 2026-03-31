@@ -61,6 +61,7 @@ Use it when you need to answer:
 - structured shipment dispute intake, assignment, due date, and resolution
 - shipment tracking list filters for open, overdue, and unassigned disputes
 - shipment workflow projection rebuild and reporting endpoint under `/api/v1/workflow-projections/shipments/`
+- destination workflow aggregates under `/api/v1/workflow-projections/destinations/`
 - document upload and print/document endpoints
 - label generation
 - closure of a completed shipment

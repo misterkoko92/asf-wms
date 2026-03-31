@@ -65,6 +65,51 @@ class ApiViewsExtraTests(TestCase):
         OrderLine.objects.create(order=order, product=self.product, quantity=2)
         return order
 
+    def _create_workflow_projection(
+        self,
+        *,
+        reference,
+        destination,
+        shipment_status="planned",
+        current_segment="planned_to_boarding",
+        delay_state="on_time",
+        has_open_dispute=False,
+        is_closed=False,
+        active_blockage_category="",
+        segment_age_hours=0.0,
+        lead_hours_total_to_delivery=None,
+        lead_hours_delivery_to_close=None,
+    ):
+        shipment = Shipment.objects.create(
+            reference=reference,
+            status=shipment_status,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination=destination,
+            destination_address=f"{destination.city} Projection",
+            destination_country=destination.country,
+            created_by=self.user,
+        )
+        started_at = timezone.now() - timedelta(hours=segment_age_hours)
+        return ShipmentWorkflowProjection.objects.create(
+            shipment=shipment,
+            destination=destination,
+            reference=shipment.reference,
+            tracking_token=shipment.tracking_token,
+            destination_label=str(destination),
+            shipment_status=shipment_status,
+            current_segment=current_segment,
+            segment_started_at=started_at,
+            segment_age_hours=segment_age_hours,
+            is_closed=is_closed,
+            has_open_dispute=has_open_dispute,
+            delay_state=delay_state,
+            active_blockage_category=active_blockage_category,
+            lead_hours_total_to_delivery=lead_hours_total_to_delivery,
+            lead_hours_delivery_to_close=lead_hours_delivery_to_close,
+        )
+
     def test_order_reserve_returns_400_on_stock_error(self):
         order = self._create_order()
         with mock.patch(
@@ -358,6 +403,149 @@ class ApiViewsExtraTests(TestCase):
         data = response.json()
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["reference"], projection.reference)
+
+    def test_workflow_projections_destinations_endpoint_returns_aggregated_rows(self):
+        critical_destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="Senegal",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        secondary_destination = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="Mali",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+
+        self._create_workflow_projection(
+            reference="EXP-DEST-001",
+            destination=critical_destination,
+            shipment_status="shipped",
+            current_segment="boarding_to_correspondent",
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144.0,
+            lead_hours_total_to_delivery=120.0,
+        )
+        self._create_workflow_projection(
+            reference="EXP-DEST-002",
+            destination=critical_destination,
+            shipment_status="draft",
+            current_segment="creation_expedition",
+            delay_state="new",
+            active_blockage_category="creation_expedition",
+            segment_age_hours=80.0,
+        )
+        self._create_workflow_projection(
+            reference="EXP-DEST-003",
+            destination=critical_destination,
+            shipment_status="delivered",
+            current_segment="closed",
+            delay_state="on_time",
+            is_closed=True,
+            segment_age_hours=0.0,
+            lead_hours_total_to_delivery=48.0,
+            lead_hours_delivery_to_close=12.0,
+        )
+        self._create_workflow_projection(
+            reference="EXP-DEST-004",
+            destination=secondary_destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            active_blockage_category="cloture",
+            segment_age_hours=100.0,
+            lead_hours_total_to_delivery=72.0,
+        )
+
+        response = self.client.get("/api/v1/workflow-projections/destinations/")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 2)
+
+        first_row = data[0]
+        self.assertEqual(first_row["destination_id"], critical_destination.id)
+        self.assertEqual(first_row["shipment_count"], 3)
+        self.assertEqual(first_row["open_shipment_count"], 2)
+        self.assertEqual(first_row["closed_shipment_count"], 1)
+        self.assertEqual(first_row["open_dispute_count"], 1)
+        self.assertEqual(first_row["delayed_shipment_count"], 2)
+        self.assertEqual(first_row["critical_shipment_count"], 1)
+        self.assertEqual(first_row["creation_blockage_count"], 1)
+        self.assertEqual(first_row["tracking_blockage_count"], 1)
+        self.assertEqual(first_row["closure_blockage_count"], 0)
+        self.assertEqual(first_row["avg_total_to_delivery_hours"], 84.0)
+        self.assertEqual(first_row["avg_delivery_to_close_hours"], 12.0)
+        self.assertEqual(first_row["oldest_open_segment_age_hours"], 144.0)
+        self.assertEqual(first_row["top_delay_state"], "critical")
+        self.assertEqual(first_row["top_blockage_category"], "suivi")
+        self.assertTrue(first_row["projected_at_max"])
+
+    def test_workflow_projections_destinations_endpoint_applies_filters_before_grouping(self):
+        filtered_destination = Destination.objects.create(
+            city="Lome",
+            iata_code="LFW",
+            country="Togo",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        excluded_destination = Destination.objects.create(
+            city="Niamey",
+            iata_code="NIM",
+            country="Niger",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+
+        self._create_workflow_projection(
+            reference="EXP-FILTER-001",
+            destination=filtered_destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=90.0,
+        )
+        self._create_workflow_projection(
+            reference="EXP-FILTER-002",
+            destination=filtered_destination,
+            shipment_status="planned",
+            current_segment="planned_to_boarding",
+            delay_state="on_time",
+            has_open_dispute=False,
+            active_blockage_category="",
+            segment_age_hours=10.0,
+        )
+        self._create_workflow_projection(
+            reference="EXP-FILTER-003",
+            destination=excluded_destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            has_open_dispute=False,
+            active_blockage_category="cloture",
+            segment_age_hours=120.0,
+        )
+
+        response = self.client.get(
+            "/api/v1/workflow-projections/destinations/?delay_state=persistent&has_open_dispute=1&is_closed=0"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["destination_id"], filtered_destination.id)
+        self.assertEqual(data[0]["shipment_count"], 1)
+        self.assertEqual(data[0]["open_shipment_count"], 1)
+        self.assertEqual(data[0]["open_dispute_count"], 1)
+        self.assertEqual(data[0]["delayed_shipment_count"], 1)
+        self.assertEqual(data[0]["tracking_blockage_count"], 1)
 
     def test_integration_event_partial_update_rejects_outbound_email_queue_event(self):
         event = IntegrationEvent.objects.create(

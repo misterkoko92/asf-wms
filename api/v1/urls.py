@@ -36,6 +36,7 @@ from .views import (
     PackCartonView,
     ProductViewSet,
     ReceiveStockView,
+    WorkflowProjectionDestinationsView,
     WorkflowProjectionShipmentsView,
 )
 
@@ -59,6 +60,11 @@ urlpatterns = [
         "workflow-projections/shipments/",
         WorkflowProjectionShipmentsView.as_view(),
         name="workflow-projection-shipments",
+    ),
+    path(
+        "workflow-projections/destinations/",
+        WorkflowProjectionDestinationsView.as_view(),
+        name="workflow-projection-destinations",
     ),
     path("ui/dashboard/", UiDashboardView.as_view(), name="ui-dashboard"),
     path(

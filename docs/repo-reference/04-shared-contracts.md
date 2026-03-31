@@ -196,6 +196,32 @@ Reference tests:
 - `wms/tests/management/tests_management_rebuild_workflow_projections.py`
 - `api/tests/tests_views_extra.py`
 
+### Destination Workflow Aggregate Contract
+
+Primary runtime sources:
+
+- `wms/workflow_projection.py`
+- `api/v1/views.py` via `GET /api/v1/workflow-projections/destinations/`
+- `api/v1/urls.py`
+
+Current local contract:
+
+- one row represents one destination aggregated from `ShipmentWorkflowProjection`
+- supported fields in this local phase are `destination_id`, `destination_label`, `shipment_count`, `open_shipment_count`, `closed_shipment_count`, `open_dispute_count`, `delayed_shipment_count`, `critical_shipment_count`, `creation_blockage_count`, `tracking_blockage_count`, `closure_blockage_count`, `avg_total_to_delivery_hours`, `avg_delivery_to_close_hours`, `oldest_open_segment_age_hours`, `top_delay_state`, `top_blockage_category`, `projected_at_max`
+- filters are applied on shipment projection rows before destination grouping
+- supported filters in this local phase mirror the shipment projection read model where relevant: `delay_state`, `has_open_dispute`, `current_segment`, `active_blockage_category`, `is_closed`, `projected_since`, `destination_id`
+- default ordering is operational and stable in this local phase: critical count desc, open dispute count desc, oldest open segment age desc, destination label asc
+- `top_delay_state` and `top_blockage_category` are computed on open rows first and break count ties by severity
+
+Maintenance rule:
+
+- if destination-level pilotage fields or ranking rules change, update the aggregation helper, the API endpoint tests, and the repo-reference in the same work
+- keep this lot API-first until a legacy dashboard mirror is explicitly opened
+
+Reference tests:
+
+- `api/tests/tests_views_extra.py`
+
 ## 3. Shipment-Party And Portal Recipient Contract
 
 This is the most important cross-surface business contract in the repo.

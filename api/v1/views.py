@@ -21,6 +21,7 @@ from wms.models import (
     Shipment,
     ShipmentWorkflowProjection,
 )
+from wms.workflow_projection import build_destination_workflow_projection_rows
 
 from .integration_filters import (
     apply_integration_destination_filters,
@@ -298,4 +299,14 @@ class WorkflowProjectionShipmentsView(APIView):
                 "projected_at",
             )
         )
+        return Response(rows)
+
+
+class WorkflowProjectionDestinationsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = ShipmentWorkflowProjection.objects.select_related("destination").all()
+        queryset = _apply_workflow_projection_filters(queryset, request.query_params)
+        rows = build_destination_workflow_projection_rows(queryset)
         return Response(rows)

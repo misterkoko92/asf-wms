@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import Counter
+
 from django.db import transaction
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
@@ -23,6 +25,18 @@ _TRACKING_SEGMENTS = {
     CURRENT_SEGMENT_PLANNED_TO_BOARDING,
     CURRENT_SEGMENT_BOARDING_TO_CORRESPONDENT,
     CURRENT_SEGMENT_CORRESPONDENT_TO_DELIVERY,
+}
+_DELAY_STATE_RANK = {
+    DELAY_STATE_ON_TIME: 0,
+    DELAY_STATE_NEW: 1,
+    DELAY_STATE_PERSISTENT: 2,
+    DELAY_STATE_CRITICAL: 3,
+}
+_BLOCKAGE_CATEGORY_RANK = {
+    "": 0,
+    "creation_expedition": 1,
+    "cloture": 2,
+    "suivi": 3,
 }
 
 
@@ -296,3 +310,128 @@ def rebuild_shipment_workflow_projections():
         )
         projected_count += 1
     return projected_count
+
+
+def _average(values):
+    resolved_values = [value for value in values if value is not None]
+    if not resolved_values:
+        return None
+    return round(sum(resolved_values) / len(resolved_values), 1)
+
+
+def _top_group_value(rows, *, field_name, severity_rank, default_value):
+    if not rows:
+        return default_value
+    counts = Counter((row.get(field_name) or "").strip() for row in rows)
+    return max(
+        counts.items(),
+        key=lambda item: (
+            item[1],
+            severity_rank.get(item[0], -1),
+            item[0],
+        ),
+    )[0]
+
+
+def build_destination_workflow_projection_rows(queryset):
+    projection_rows = list(
+        queryset.values(
+            "destination_id",
+            "destination_label",
+            "is_closed",
+            "has_open_dispute",
+            "delay_state",
+            "active_blockage_category",
+            "lead_hours_total_to_delivery",
+            "lead_hours_delivery_to_close",
+            "segment_age_hours",
+            "projected_at",
+        )
+    )
+    grouped_rows = {}
+    for row in projection_rows:
+        group_key = (row["destination_id"], row["destination_label"])
+        group = grouped_rows.setdefault(
+            group_key,
+            {
+                "destination_id": row["destination_id"],
+                "destination_label": row["destination_label"] or "",
+                "_rows": [],
+            },
+        )
+        group["_rows"].append(row)
+
+    destination_rows = []
+    for group in grouped_rows.values():
+        rows = group.pop("_rows")
+        open_rows = [row for row in rows if not row["is_closed"]]
+        top_rows = open_rows or rows
+        oldest_open_segment_age_hours = max(
+            (row["segment_age_hours"] for row in open_rows),
+            default=None,
+        )
+        destination_rows.append(
+            {
+                "destination_id": group["destination_id"],
+                "destination_label": group["destination_label"],
+                "shipment_count": len(rows),
+                "open_shipment_count": len(open_rows),
+                "closed_shipment_count": sum(1 for row in rows if row["is_closed"]),
+                "open_dispute_count": sum(1 for row in rows if row["has_open_dispute"]),
+                "delayed_shipment_count": sum(
+                    1
+                    for row in rows
+                    if row["delay_state"]
+                    in {
+                        DELAY_STATE_NEW,
+                        DELAY_STATE_PERSISTENT,
+                        DELAY_STATE_CRITICAL,
+                    }
+                ),
+                "critical_shipment_count": sum(
+                    1 for row in rows if row["delay_state"] == DELAY_STATE_CRITICAL
+                ),
+                "creation_blockage_count": sum(
+                    1 for row in rows if row["active_blockage_category"] == "creation_expedition"
+                ),
+                "tracking_blockage_count": sum(
+                    1 for row in rows if row["active_blockage_category"] == "suivi"
+                ),
+                "closure_blockage_count": sum(
+                    1 for row in rows if row["active_blockage_category"] == "cloture"
+                ),
+                "avg_total_to_delivery_hours": _average(
+                    [row["lead_hours_total_to_delivery"] for row in rows]
+                ),
+                "avg_delivery_to_close_hours": _average(
+                    [row["lead_hours_delivery_to_close"] for row in rows]
+                ),
+                "oldest_open_segment_age_hours": oldest_open_segment_age_hours,
+                "top_delay_state": _top_group_value(
+                    top_rows,
+                    field_name="delay_state",
+                    severity_rank=_DELAY_STATE_RANK,
+                    default_value=DELAY_STATE_ON_TIME,
+                ),
+                "top_blockage_category": _top_group_value(
+                    top_rows,
+                    field_name="active_blockage_category",
+                    severity_rank=_BLOCKAGE_CATEGORY_RANK,
+                    default_value="",
+                ),
+                "projected_at_max": max(
+                    (row["projected_at"] for row in rows if row["projected_at"] is not None),
+                    default=None,
+                ),
+            }
+        )
+
+    destination_rows.sort(
+        key=lambda row: (
+            -row["critical_shipment_count"],
+            -row["open_dispute_count"],
+            -(row["oldest_open_segment_age_hours"] or -1.0),
+            row["destination_label"],
+        )
+    )
+    return destination_rows
