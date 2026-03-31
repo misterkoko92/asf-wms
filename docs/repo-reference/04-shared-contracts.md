@@ -86,6 +86,9 @@ Phase 1 local contract:
 - `workflow_blockage_summary_cards[]` exposes `Blocages ouverts`, `Sans prise en charge`, `Pris en charge`
 - `workflow_blockage_rows[]` exposes `blockage_key`, `category`, `category_label`, `label`, `reference`, `owner`, `priority`, `started_at`, `age_hours`, `url`, `is_claimed`, `claimed_by`, `claimed_at`, `claim_state`, `claim_state_label`
 - workflow blockage categories are stable during local V2: `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
+- `destination_risk_summary_cards[]` exposes `Destinations critiques`, `Destinations avec litiges`, `Plus ancien dossier ouvert`
+- `destination_risk_rows[]` exposes `destination_id`, `destination_label`, `delayed_shipment_count`, `critical_shipment_count`, `open_dispute_count`, `top_blockage_category`, `oldest_open_segment_age_hours`, `url`, `cta_label`
+- destination-risk rows open `scan/shipments_tracking` with the `destination` query parameter preserved end-to-end
 - `document_scan_cards[]` mirrors the queue-card shape already used by `technical_cards[]`
 - `sla_alert_summary_cards[]` exposes the short summary `Nouveaux retards`, `Retards persistants`, `Retards critiques`
 - `sla_alert_rows[]` exposes `reference`, `label`, `segment`, `owner`, `severity`, `freshness`, `delay_hours`, `age_hours`, `url`
@@ -95,7 +98,7 @@ Phase 1 local contract:
 
 Maintenance rule:
 
-- if dashboard action routing, workflow blockage categorization, SLA prioritization, or ownership vocabulary changes, update the legacy dashboard, `scan/settings`, the UI API tests, and the repo-reference in the same work
+- if dashboard action routing, workflow blockage categorization, SLA prioritization, destination-risk ranking, or ownership vocabulary changes, update the legacy dashboard, `scan/settings` if relevant, the shipment-tracking deep link, the UI API tests, and the repo-reference in the same work
 - keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
 
 Reference tests:
@@ -201,6 +204,10 @@ Reference tests:
 Primary runtime sources:
 
 - `wms/workflow_projection.py`
+- `wms/scan_dashboard_destination_risk.py`
+- `wms/views_scan_dashboard.py`
+- `templates/scan/dashboard.html`
+- `api/v1/ui_views.py` via `GET /api/v1/ui/dashboard/`
 - `api/v1/views.py` via `GET /api/v1/workflow-projections/destinations/`
 - `api/v1/urls.py`
 
@@ -212,15 +219,19 @@ Current local contract:
 - supported filters in this local phase mirror the shipment projection read model where relevant: `delay_state`, `has_open_dispute`, `current_segment`, `active_blockage_category`, `is_closed`, `projected_since`, `destination_id`
 - default ordering is operational and stable in this local phase: critical count desc, open dispute count desc, oldest open segment age desc, destination label asc
 - `top_delay_state` and `top_blockage_category` are computed on open rows first and break count ties by severity
+- the legacy dashboard and `GET /api/v1/ui/dashboard/` consume the same aggregate through the `Destinations à risque` block
+- dashboard consumer rows are intentionally limited to the top 5 destinations and keep a CTA toward `scan/shipments_tracking?destination=<id>`
 
 Maintenance rule:
 
-- if destination-level pilotage fields or ranking rules change, update the aggregation helper, the API endpoint tests, and the repo-reference in the same work
-- keep this lot API-first until a legacy dashboard mirror is explicitly opened
+- if destination-level pilotage fields, ranking rules, or dashboard row formatting change, update the aggregation helper, the dashboard adapter, both API surfaces, and the repo-reference in the same work
+- keep the aggregate read-only in this local phase; do not add independent dashboard-side computation that drifts from `ShipmentWorkflowProjection`
 
 Reference tests:
 
 - `api/tests/tests_views_extra.py`
+- `api/tests/tests_ui_endpoints.py`
+- `wms/tests/views/tests_views_scan_dashboard.py`
 
 ## 3. Shipment-Party And Portal Recipient Contract
 

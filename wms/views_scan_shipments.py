@@ -28,6 +28,7 @@ from .local_document_helper import LOCAL_DOCUMENT_HELPER_ORIGIN
 from .models import (
     Carton,
     CartonStatus,
+    Destination,
     Document,
     DocumentType,
     Shipment,
@@ -100,6 +101,7 @@ from .views_scan_shipments_support import (
     _build_shipments_tracking_queryset,
     _build_shipments_tracking_redirect_url,
     _normalize_closed_filter,
+    _normalize_destination_filter,
     _normalize_dispute_filter,
     _normalize_return_to,
     _parse_planned_week,
@@ -802,6 +804,10 @@ def scan_shipments_tracking(request):
     planned_week_value, week_start, week_end = _parse_planned_week(source.get("planned_week"))
     closed_filter = _normalize_closed_filter(source.get("closed"))
     dispute_filter = _normalize_dispute_filter(source.get("dispute"))
+    destination_filter_value = _normalize_destination_filter(source.get("destination"))
+    selected_destination = None
+    if destination_filter_value:
+        selected_destination = Destination.objects.filter(pk=destination_filter_value).first()
 
     if request.method == "POST":
         if (request.POST.get("action") or "").strip() == CLOSE_SHIPMENT_ACTION:
@@ -816,10 +822,17 @@ def scan_shipments_tracking(request):
                 planned_week_value=planned_week_value,
                 closed_filter=closed_filter,
                 dispute_filter=dispute_filter,
+                destination_value=(
+                    str(selected_destination.id)
+                    if selected_destination
+                    else destination_filter_value
+                ),
             )
         )
 
     shipments_qs = _build_shipments_tracking_queryset()
+    if selected_destination:
+        shipments_qs = shipments_qs.filter(destination=selected_destination)
     if closed_filter == CLOSED_FILTER_EXCLUDE:
         shipments_qs = shipments_qs.filter(closed_at__isnull=True)
     if dispute_filter == DISPUTE_FILTER_OPEN:
@@ -854,6 +867,10 @@ def scan_shipments_tracking(request):
             "planned_week_value": planned_week_value,
             "closed_filter": closed_filter,
             "dispute_filter": dispute_filter,
+            "destination_filter_value": str(selected_destination.id)
+            if selected_destination
+            else "",
+            "destination_filter_label": str(selected_destination) if selected_destination else "",
             "close_inactive_message": _("Il reste des étapes à valider, vérifier avant de clore"),
         },
     )

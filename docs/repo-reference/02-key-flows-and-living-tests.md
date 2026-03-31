@@ -27,6 +27,7 @@ Use it when you need to answer:
 - `wms/views_scan_shipments.py`
 - `wms/views_scan_shipments_support.py`
 - `wms/views_scan_dashboard.py`
+- `wms/scan_dashboard_destination_risk.py`
 - `wms/views_scan_settings.py`
 - `wms/scan_dashboard_sla.py`
 - `wms/scan_shipment_handlers.py`
@@ -49,6 +50,7 @@ Use it when you need to answer:
 - scan dashboard workflow blockage queue split by `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
 - scan dashboard local claim/release flow for workflow blockages
 - scan dashboard SLA alert queue for new, persistent, and critical tracking delays
+- scan dashboard destination-risk block driven by destination workflow aggregates
 - scan dashboard health cards for both email and document-scan queues
 - scan settings preset-based calibration, including local `incident_sla` preview
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
@@ -60,6 +62,7 @@ Use it when you need to answer:
 - tracking events
 - structured shipment dispute intake, assignment, due date, and resolution
 - shipment tracking list filters for open, overdue, and unassigned disputes
+- shipment tracking deep links filtered by `destination`
 - shipment workflow projection rebuild and reporting endpoint under `/api/v1/workflow-projections/shipments/`
 - destination workflow aggregates under `/api/v1/workflow-projections/destinations/`
 - document upload and print/document endpoints

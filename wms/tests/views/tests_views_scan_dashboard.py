@@ -31,6 +31,7 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipmentUnitEquivalenceRule,
+    ShipmentWorkflowProjection,
     Warehouse,
     WmsRuntimeSettings,
     WorkflowBlockageClaim,
@@ -153,6 +154,46 @@ class ScanDashboardViewTests(TestCase):
         )
         ShipmentTrackingEvent.objects.filter(pk=event.pk).update(
             created_at=timezone.now() - timedelta(hours=hours_ago)
+        )
+
+    def _create_workflow_projection(
+        self,
+        *,
+        reference,
+        destination,
+        shipment_status=ShipmentStatus.PLANNED,
+        current_segment="planned_to_boarding",
+        delay_state="on_time",
+        has_open_dispute=False,
+        is_closed=False,
+        active_blockage_category="",
+        segment_age_hours=0.0,
+        lead_hours_total_to_delivery=None,
+        lead_hours_delivery_to_close=None,
+    ):
+        shipment = self._create_shipment(
+            destination=destination,
+            status=shipment_status,
+            reference=reference,
+            is_disputed=has_open_dispute,
+        )
+        started_at = timezone.now() - timedelta(hours=segment_age_hours)
+        return ShipmentWorkflowProjection.objects.create(
+            shipment=shipment,
+            destination=destination,
+            reference=shipment.reference,
+            tracking_token=shipment.tracking_token,
+            destination_label=str(destination),
+            shipment_status=shipment_status,
+            current_segment=current_segment,
+            segment_started_at=started_at,
+            segment_age_hours=segment_age_hours,
+            is_closed=is_closed,
+            has_open_dispute=has_open_dispute,
+            delay_state=delay_state,
+            active_blockage_category=active_blockage_category,
+            lead_hours_total_to_delivery=lead_hours_total_to_delivery,
+            lead_hours_delivery_to_close=lead_hours_delivery_to_close,
         )
 
     def _create_shipment_data(self):
@@ -416,12 +457,33 @@ class ScanDashboardViewTests(TestCase):
         self.assertTrue(response.context["low_stock_rows"])
 
     def test_scan_dashboard_filters_by_destination(self):
+        self._create_workflow_projection(
+            reference="EXP-RISK-DEST-A",
+            destination=self.destination_a,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=72,
+        )
+        self._create_workflow_projection(
+            reference="EXP-RISK-DEST-B",
+            destination=self.destination_b,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=120,
+        )
         response = self.client.get(
             reverse("scan:scan_dashboard"),
             {"destination": str(self.destination_b.id), "period": "today"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["destination_id"], str(self.destination_b.id))
+        self.assertEqual(len(response.context["destination_risk_rows"]), 1)
+        self.assertEqual(
+            response.context["destination_risk_rows"][0]["destination_id"],
+            self.destination_b.id,
+        )
 
         shipment_cards = {
             card["label"]: card["value"] for card in response.context["shipment_cards"]
@@ -599,6 +661,7 @@ class ScanDashboardViewTests(TestCase):
             [
                 "scan-dashboard-priorities",
                 "scan-dashboard-action-queue",
+                "scan-dashboard-destination-risk",
                 "scan-dashboard-pilotage",
                 "scan-dashboard-flow",
                 "scan-dashboard-health",
@@ -743,6 +806,74 @@ class ScanDashboardViewTests(TestCase):
         self.assertEqual(action_rows[0]["priority"], "high")
         self.assertTrue(action_rows[0]["url"].endswith(str(critical.tracking_token) + "/"))
 
+    def test_scan_dashboard_exposes_destination_risk_summary_and_rows(self):
+        self._create_workflow_projection(
+            reference="EXP-RISK-ABJ-1",
+            destination=self.destination_a,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=64,
+        )
+        self._create_workflow_projection(
+            reference="EXP-RISK-ABJ-2",
+            destination=self.destination_a,
+            delay_state="new",
+            has_open_dispute=False,
+            active_blockage_category="",
+            segment_age_hours=22,
+        )
+        self._create_workflow_projection(
+            reference="EXP-RISK-BZV-1",
+            destination=self.destination_b,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=120,
+        )
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        summary_cards = {
+            card["label"]: card["value"]
+            for card in response.context["destination_risk_summary_cards"]
+        }
+        self.assertEqual(summary_cards["Destinations critiques"], 1)
+        self.assertEqual(summary_cards["Destinations avec litiges"], 2)
+        self.assertEqual(summary_cards["Plus ancien dossier ouvert"], "120.0h")
+
+        rows = response.context["destination_risk_rows"]
+        self.assertEqual(rows[0]["destination_label"], str(self.destination_b))
+        self.assertEqual(rows[0]["delayed_shipment_count"], 1)
+        self.assertEqual(rows[0]["critical_shipment_count"], 1)
+        self.assertEqual(rows[0]["open_dispute_count"], 1)
+        self.assertEqual(rows[0]["top_blockage_category"], "Suivi")
+        self.assertEqual(rows[0]["oldest_open_segment_age_hours"], 120)
+        self.assertEqual(
+            rows[0]["url"],
+            f"{reverse('scan:scan_shipments_tracking')}?destination={self.destination_b.id}",
+        )
+        self.assertEqual(rows[0]["cta_label"], "Ouvrir les dossiers")
+
+    def test_scan_dashboard_renders_destination_risk_panel(self):
+        self._create_workflow_projection(
+            reference="EXP-RISK-HTML-1",
+            destination=self.destination_b,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144,
+        )
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, 'id="scan-dashboard-destination-risk"')
+        self.assertContains(response, "Destinations à risque")
+        self.assertContains(response, str(self.destination_b))
+        self.assertContains(response, "Ouvrir les dossiers")
+
     def test_scan_dashboard_priority_cards_include_explicit_cta_labels(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
@@ -770,6 +901,14 @@ class ScanDashboardViewTests(TestCase):
         )
         self.assertLess(
             content.index('id="scan-dashboard-action-queue"'),
+            content.index('id="scan-dashboard-workflow-blockages"'),
+        )
+        self.assertLess(
+            content.index('id="scan-dashboard-workflow-blockages"'),
+            content.index('id="scan-dashboard-destination-risk"'),
+        )
+        self.assertLess(
+            content.index('id="scan-dashboard-destination-risk"'),
             content.index('id="scan-dashboard-pilotage"'),
         )
         self.assertLess(

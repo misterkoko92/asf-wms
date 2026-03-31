@@ -49,6 +49,7 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
+    ShipmentWorkflowProjection,
     Warehouse,
     WorkflowBlockageClaim,
 )
@@ -330,6 +331,55 @@ class UiApiEndpointsTests(TestCase):
         shipment.refresh_from_db()
         return shipment
 
+    def _create_workflow_projection(
+        self,
+        *,
+        reference,
+        destination,
+        shipment_status=ShipmentStatus.PLANNED,
+        current_segment="planned_to_boarding",
+        delay_state="on_time",
+        has_open_dispute=False,
+        is_closed=False,
+        active_blockage_category="",
+        segment_age_hours=0.0,
+        lead_hours_total_to_delivery=None,
+        lead_hours_delivery_to_close=None,
+    ):
+        shipment = Shipment.objects.create(
+            reference=reference,
+            status=shipment_status,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=destination,
+            destination_address=f"{destination.city} Projection",
+            destination_country=destination.country,
+            created_by=self.staff_user,
+            is_disputed=has_open_dispute,
+        )
+        started_at = timezone.now() - timedelta(hours=segment_age_hours)
+        return ShipmentWorkflowProjection.objects.create(
+            shipment=shipment,
+            destination=destination,
+            reference=shipment.reference,
+            tracking_token=shipment.tracking_token,
+            destination_label=str(destination),
+            shipment_status=shipment_status,
+            current_segment=current_segment,
+            segment_started_at=started_at,
+            segment_age_hours=segment_age_hours,
+            is_closed=is_closed,
+            has_open_dispute=has_open_dispute,
+            delay_state=delay_state,
+            active_blockage_category=active_blockage_category,
+            lead_hours_total_to_delivery=lead_hours_total_to_delivery,
+            lead_hours_delivery_to_close=lead_hours_delivery_to_close,
+        )
+
     def _ensure_shipment_shipper(self, shipper_contact, *, default_contact=None):
         if default_contact is None:
             default_contact = (
@@ -452,6 +502,22 @@ class UiApiEndpointsTests(TestCase):
             destination_country="Madagascar",
             created_by=self.staff_user,
         )
+        self._create_workflow_projection(
+            reference="EXP-UI-FILTER-RUN",
+            destination=self.destination,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=48,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-FILTER-TNR",
+            destination=secondary_destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=96,
+        )
 
         response = self.staff_client.get("/api/v1/ui/dashboard/")
         self.assertEqual(response.status_code, 200)
@@ -471,7 +537,12 @@ class UiApiEndpointsTests(TestCase):
             filtered_payload["filters"]["destination"],
             str(secondary_destination.id),
         )
-        self.assertEqual(filtered_payload["kpis"]["open_shipments"], 1)
+        self.assertEqual(filtered_payload["kpis"]["open_shipments"], 2)
+        self.assertEqual(len(filtered_payload["destination_risk_rows"]), 1)
+        self.assertEqual(
+            filtered_payload["destination_risk_rows"][0]["destination_id"],
+            secondary_destination.id,
+        )
 
     def test_ui_dashboard_period_filter_and_activity_cards(self):
         old_shipment = Shipment.objects.create(
@@ -1349,6 +1420,58 @@ class UiApiEndpointsTests(TestCase):
             sla_cards[f"Planifie -> OK mise a bord >{tracking_alert_hours}h"]["tone"],
             "danger",
         )
+
+    def test_ui_dashboard_exposes_destination_risk_rows(self):
+        secondary_destination = Destination.objects.create(
+            city="BZV",
+            iata_code="BZV-UI",
+            country="Congo",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-RUN-1",
+            destination=self.destination,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=72,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-BZV-1",
+            destination=secondary_destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("destination_risk_summary_cards", payload)
+        self.assertIn("destination_risk_rows", payload)
+        summary_cards = {
+            card["label"]: card["value"] for card in payload["destination_risk_summary_cards"]
+        }
+        self.assertEqual(summary_cards["Destinations critiques"], 1)
+        self.assertEqual(summary_cards["Destinations avec litiges"], 2)
+        self.assertEqual(summary_cards["Plus ancien dossier ouvert"], "144.0h")
+
+        rows = payload["destination_risk_rows"]
+        self.assertEqual(rows[0]["destination_id"], secondary_destination.id)
+        self.assertEqual(rows[0]["destination_label"], str(secondary_destination))
+        self.assertEqual(rows[0]["delayed_shipment_count"], 1)
+        self.assertEqual(rows[0]["critical_shipment_count"], 1)
+        self.assertEqual(rows[0]["open_dispute_count"], 1)
+        self.assertEqual(rows[0]["top_blockage_category"], "Suivi")
+        self.assertEqual(rows[0]["oldest_open_segment_age_hours"], 144)
+        self.assertEqual(
+            rows[0]["url"],
+            f"{reverse('scan:scan_shipments_tracking')}?destination={secondary_destination.id}",
+        )
+        self.assertEqual(rows[0]["cta_label"], "Ouvrir les dossiers")
 
     def test_ui_dashboard_exposes_workflow_blockage_rows_and_claim_state(self):
         stale_draft = Shipment.objects.create(

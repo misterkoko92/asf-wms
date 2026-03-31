@@ -11,6 +11,9 @@
     </h2>
 
     <form method="get" class="scan-filters row g-3 ui-comp-form">
+      {% if destination_filter_value %}
+        <input type="hidden" name="destination" value="{{ destination_filter_value }}">
+      {% endif %}
       <div class="scan-field col-12 col-md-6">
         <label class="form-label" for="id_planned_week">{% if LANGUAGE_CODE|slice:":2" == "en" %}Planned week{% else %}{% trans "Semaine planifiée" %}{% endif %}</label>
         <input
@@ -42,6 +45,9 @@
         <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Filtrer" %}</button>
         <a class="btn btn-tertiary" href="{% url 'scan:scan_shipments_tracking' %}">{% trans "Réinitialiser" %}</a>
       </div>
+      {% if destination_filter_label %}
+        <p class="scan-help col-12 mb-0">{% blocktrans with destination_label=destination_filter_label %}Filtre destination actif : {{ destination_label }}{% endblocktrans %}</p>
+      {% endif %}
     </form>
 
     <div id="scan-shipments-tracking-summary" class="scan-kpi-grid scan-shipments-tracking-summary mt-4 mb-4">
@@ -136,6 +142,7 @@
                         <input type="hidden" name="planned_week" value="{{ planned_week_value }}">
                         <input type="hidden" name="closed" value="{{ closed_filter }}">
                         <input type="hidden" name="dispute" value="{{ dispute_filter }}">
+                        <input type="hidden" name="destination" value="{{ destination_filter_value }}">
                         <button
                           type="submit"
                           class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"

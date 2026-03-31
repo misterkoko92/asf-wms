@@ -37,8 +37,10 @@ from .models import (
     ReceiptStatus,
     Shipment,
     ShipmentStatus,
+    ShipmentWorkflowProjection,
 )
 from .runtime_settings import get_runtime_config
+from .scan_dashboard_destination_risk import build_destination_risk_snapshot
 from .scan_dashboard_sla import (
     annotate_shipment_tracking_dates,
     build_sla_alert_rows,
@@ -916,6 +918,48 @@ def scan_dashboard(request):
         }
         for row in workflow_blockage_base_rows
     ]
+    destination_projection_scope = ShipmentWorkflowProjection.objects.select_related(
+        "destination"
+    ).all()
+    if selected_destination:
+        destination_projection_scope = destination_projection_scope.filter(
+            destination=selected_destination
+        )
+    destination_risk_snapshot = build_destination_risk_snapshot(
+        destination_projection_scope,
+        limit=5,
+    )
+    destination_risk_summary = destination_risk_snapshot["summary"]
+    destination_risk_summary_cards = [
+        _build_card(
+            label=_("Destinations critiques"),
+            value=destination_risk_summary["critical_destinations_count"],
+            help_text=_("Destinations avec au moins une expédition critique."),
+            url=f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+            tone=(
+                "danger" if destination_risk_summary["critical_destinations_count"] else "success"
+            ),
+        ),
+        _build_card(
+            label=_("Destinations avec litiges"),
+            value=destination_risk_summary["disputed_destinations_count"],
+            help_text=_("Destinations avec au moins un dossier en litige."),
+            url=f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+            tone=(
+                "danger" if destination_risk_summary["disputed_destinations_count"] else "success"
+            ),
+        ),
+        _build_card(
+            label=_("Plus ancien dossier ouvert"),
+            value=f"{destination_risk_summary['oldest_open_segment_age_hours']:.1f}h",
+            help_text=_("Ancienneté maximale des dossiers encore ouverts."),
+            url=f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+            tone=(
+                "warn" if destination_risk_summary["oldest_open_segment_age_hours"] else "success"
+            ),
+        ),
+    ]
+    destination_risk_rows = destination_risk_snapshot["rows"]
 
     sla_rows = build_sla_rows(
         shipments_with_tracking.filter(status__in=list(SHIPMENT_STATUS_ORDER)[3:]),
@@ -1018,6 +1062,7 @@ def scan_dashboard(request):
     dashboard_anchors = [
         {"id": "scan-dashboard-priorities", "label": _("Priorités")},
         {"id": "scan-dashboard-action-queue", "label": _("Actions")},
+        {"id": "scan-dashboard-destination-risk", "label": _("Destinations")},
         {"id": "scan-dashboard-pilotage", "label": _("Pilotage")},
         {"id": "scan-dashboard-flow", "label": _("Flux")},
         {"id": "scan-dashboard-health", "label": _("Santé")},
@@ -1198,6 +1243,8 @@ def scan_dashboard(request):
         "workflow_blockage_cards": workflow_blockage_cards,
         "workflow_blockage_summary_cards": workflow_blockage_summary_cards,
         "workflow_blockage_rows": workflow_blockage_rows,
+        "destination_risk_summary_cards": destination_risk_summary_cards,
+        "destination_risk_rows": destination_risk_rows,
         "sla_cards": sla_cards,
         "sla_alert_summary_cards": sla_alert_summary_cards,
         "sla_alert_rows": sla_alert_rows,

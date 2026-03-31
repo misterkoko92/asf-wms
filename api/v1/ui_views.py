@@ -49,6 +49,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipmentWorkflowProjection,
 )
 from wms.order_notifications import send_portal_order_notifications
 from wms.portal_dashboard_helpers import (
@@ -65,6 +66,7 @@ from wms.portal_order_handlers import create_portal_order
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from wms.runtime_settings import get_runtime_config
+from wms.scan_dashboard_destination_risk import build_destination_risk_snapshot
 from wms.scan_dashboard_sla import (
     annotate_shipment_tracking_dates,
     build_sla_alert_rows,
@@ -1390,6 +1392,54 @@ class UiDashboardView(APIView):
                 "tone": "warn" if workflow_blockage_summary["claimed_count"] else "neutral",
             },
         ]
+        destination_projection_scope = ShipmentWorkflowProjection.objects.select_related(
+            "destination"
+        ).all()
+        if destination_id:
+            destination_projection_scope = destination_projection_scope.filter(
+                destination_id=destination_id
+            )
+        destination_risk_snapshot = build_destination_risk_snapshot(
+            destination_projection_scope,
+            limit=5,
+        )
+        destination_risk_summary = destination_risk_snapshot["summary"]
+        destination_risk_summary_cards = [
+            {
+                "label": "Destinations critiques",
+                "value": destination_risk_summary["critical_destinations_count"],
+                "help": "Destinations avec au moins une expedition critique.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+                "tone": (
+                    "danger"
+                    if destination_risk_summary["critical_destinations_count"]
+                    else "success"
+                ),
+            },
+            {
+                "label": "Destinations avec litiges",
+                "value": destination_risk_summary["disputed_destinations_count"],
+                "help": "Destinations avec au moins un dossier en litige.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+                "tone": (
+                    "danger"
+                    if destination_risk_summary["disputed_destinations_count"]
+                    else "success"
+                ),
+            },
+            {
+                "label": "Plus ancien dossier ouvert",
+                "value": f"{destination_risk_summary['oldest_open_segment_age_hours']:.1f}h",
+                "help": "Anciennete maximale des dossiers encore ouverts.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+                "tone": (
+                    "warn"
+                    if destination_risk_summary["oldest_open_segment_age_hours"]
+                    else "success"
+                ),
+            },
+        ]
+        destination_risk_rows = destination_risk_snapshot["rows"]
         workflow_pending_actions = []
         for row in workflow_blockage_rows:
             if row["is_claimed"]:
@@ -1484,6 +1534,8 @@ class UiDashboardView(APIView):
                 "workflow_blockage_cards": workflow_blockage_cards,
                 "workflow_blockage_summary_cards": workflow_blockage_summary_cards,
                 "workflow_blockage_rows": workflow_blockage_rows,
+                "destination_risk_summary_cards": destination_risk_summary_cards,
+                "destination_risk_rows": destination_risk_rows,
                 "sla_cards": sla_cards,
                 "sla_alert_summary_cards": sla_alert_summary_cards,
                 "sla_alert_rows": sla_alert_rows,

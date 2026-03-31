@@ -198,6 +198,56 @@
     </div>
   </section>
 
+  <section id="scan-dashboard-destination-risk" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Destinations à risque" %}</h2>
+        <p class="scan-help mb-0">{% trans "Repérez les escales qui concentrent les retards et les litiges avant d'ouvrir la file dossier." %}</p>
+      </div>
+      <div class="scan-kpi-grid">
+        {% for card in destination_risk_summary_cards %}
+          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+            <span class="scan-kpi-label">{{ card.label }}</span>
+            <span class="scan-kpi-value">{{ card.value }}</span>
+            <span class="scan-kpi-help">{{ card.help }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      {% if destination_risk_rows %}
+        <div class="scan-table-wrap table-responsive mt-3">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Destination" %}</th>
+                <th>{% trans "Retards" %}</th>
+                <th>{% trans "Litiges ouverts" %}</th>
+                <th>{% trans "Blocage dominant" %}</th>
+                <th>{% trans "Plus ancien dossier ouvert" %}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in destination_risk_rows %}
+                <tr>
+                  <td>{{ row.destination_label }}</td>
+                  <td>{{ row.delayed_shipment_count }}</td>
+                  <td>{{ row.open_dispute_count }}</td>
+                  <td>{{ row.top_blockage_category }}</td>
+                  <td>{{ row.oldest_open_segment_age_hours|floatformat:1 }}h</td>
+                  <td class="text-end">
+                    <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">{% trans "Aucune destination à risque visible." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
   <section id="scan-dashboard-pilotage" class="scan-dashboard-section">
     <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
       <div class="scan-dashboard-section-header">

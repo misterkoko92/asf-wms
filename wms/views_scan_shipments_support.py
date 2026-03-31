@@ -73,6 +73,10 @@ def _normalize_dispute_filter(raw_value):
     return DISPUTE_FILTER_ALL
 
 
+def _normalize_destination_filter(raw_value):
+    return (raw_value or "").strip()
+
+
 def _parse_planned_week(raw_value):
     cleaned = (raw_value or "").strip()
     if not cleaned:
@@ -150,7 +154,13 @@ def _build_shipments_tracking_queryset():
     )
 
 
-def _build_shipments_tracking_redirect_url(*, planned_week_value, closed_filter, dispute_filter):
+def _build_shipments_tracking_redirect_url(
+    *,
+    planned_week_value,
+    closed_filter,
+    dispute_filter,
+    destination_value="",
+):
     query_items = {}
     if planned_week_value:
         query_items["planned_week"] = planned_week_value
@@ -158,6 +168,8 @@ def _build_shipments_tracking_redirect_url(*, planned_week_value, closed_filter,
         query_items["closed"] = CLOSED_FILTER_ALL
     if dispute_filter != DISPUTE_FILTER_ALL:
         query_items["dispute"] = dispute_filter
+    if destination_value:
+        query_items["destination"] = destination_value
     base_url = reverse("scan:scan_shipments_tracking")
     if not query_items:
         return base_url
