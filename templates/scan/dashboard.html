@@ -221,6 +221,9 @@
                 <th>{% trans "Destination" %}</th>
                 <th>{% trans "Retards" %}</th>
                 <th>{% trans "Litiges ouverts" %}</th>
+                <th>{% trans "Semaine" %}</th>
+                <th>{% trans "S-1" %}</th>
+                <th>{% trans "Tendance" %}</th>
                 <th>{% trans "Blocage dominant" %}</th>
                 <th>{% trans "Plus ancien dossier ouvert" %}</th>
                 <th></th>
@@ -232,6 +235,9 @@
                   <td>{{ row.destination_label }}</td>
                   <td>{{ row.delayed_shipment_count }}</td>
                   <td>{{ row.open_dispute_count }}</td>
+                  <td>{{ row.current_week_label }} · {{ row.current_week_score }}</td>
+                  <td>{{ row.previous_week_label }} · {{ row.previous_week_score }}</td>
+                  <td>{{ row.trend_label }}</td>
                   <td>{{ row.top_blockage_category }}</td>
                   <td>{{ row.oldest_open_segment_age_hours|floatformat:1 }}h</td>
                   <td class="text-end">

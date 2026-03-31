@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -345,6 +345,8 @@ class UiApiEndpointsTests(TestCase):
         segment_age_hours=0.0,
         lead_hours_total_to_delivery=None,
         lead_hours_delivery_to_close=None,
+        planned_at=None,
+        projected_at=None,
     ):
         shipment = Shipment.objects.create(
             reference=reference,
@@ -369,6 +371,7 @@ class UiApiEndpointsTests(TestCase):
             tracking_token=shipment.tracking_token,
             destination_label=str(destination),
             shipment_status=shipment_status,
+            planned_at=planned_at,
             current_segment=current_segment,
             segment_started_at=started_at,
             segment_age_hours=segment_age_hours,
@@ -378,6 +381,7 @@ class UiApiEndpointsTests(TestCase):
             active_blockage_category=active_blockage_category,
             lead_hours_total_to_delivery=lead_hours_total_to_delivery,
             lead_hours_delivery_to_close=lead_hours_delivery_to_close,
+            projected_at=projected_at or timezone.now(),
         )
 
     def _ensure_shipment_shipper(self, shipper_contact, *, default_contact=None):
@@ -1472,6 +1476,68 @@ class UiApiEndpointsTests(TestCase):
             f"{reverse('scan:scan_shipments_tracking')}?destination={secondary_destination.id}",
         )
         self.assertEqual(rows[0]["cta_label"], "Ouvrir les dossiers")
+
+    def test_ui_dashboard_exposes_destination_risk_week_trend(self):
+        secondary_destination = Destination.objects.create(
+            city="BZV",
+            iata_code="BZV-UI-TREND",
+            country="Congo",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        current_week_planned_at = timezone.make_aware(datetime(2026, 3, 31, 10, 0))
+        previous_week_planned_at = timezone.make_aware(datetime(2026, 3, 24, 10, 0))
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-TREND-1",
+            destination=self.destination,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=72,
+            planned_at=current_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-TREND-2",
+            destination=self.destination,
+            delay_state="new",
+            has_open_dispute=False,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=48,
+            planned_at=previous_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-TREND-3",
+            destination=secondary_destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144,
+            planned_at=current_week_planned_at,
+        )
+
+        with mock.patch(
+            "django.utils.timezone.localdate",
+            return_value=date(2026, 3, 31),
+        ):
+            response = self.staff_client.get("/api/v1/ui/dashboard/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        rows_by_destination = {
+            row["destination_id"]: row for row in payload["destination_risk_rows"]
+        }
+        trend_row = rows_by_destination[self.destination.id]
+        self.assertEqual(trend_row["current_week_label"], "2026-W14")
+        self.assertEqual(trend_row["current_week_score"], 2)
+        self.assertEqual(trend_row["previous_week_label"], "2026-W13")
+        self.assertEqual(trend_row["previous_week_score"], 1)
+        self.assertEqual(trend_row["trend_delta"], 1)
+        self.assertEqual(trend_row["trend_direction"], "up")
+        self.assertEqual(trend_row["trend_label"], "+1")
+
+        missing_previous_row = rows_by_destination[secondary_destination.id]
+        self.assertEqual(missing_previous_row["current_week_score"], 3)
+        self.assertEqual(missing_previous_row["previous_week_score"], 0)
 
     def test_ui_dashboard_exposes_workflow_blockage_rows_and_claim_state(self):
         stale_draft = Shipment.objects.create(

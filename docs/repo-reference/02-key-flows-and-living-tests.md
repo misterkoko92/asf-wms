@@ -51,6 +51,7 @@ Use it when you need to answer:
 - scan dashboard local claim/release flow for workflow blockages
 - scan dashboard SLA alert queue for new, persistent, and critical tracking delays
 - scan dashboard destination-risk block driven by destination workflow aggregates
+- scan dashboard destination-risk rows enriched with current ISO week vs previous ISO week trend
 - scan dashboard health cards for both email and document-scan queues
 - scan settings preset-based calibration, including local `incident_sla` preview
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`

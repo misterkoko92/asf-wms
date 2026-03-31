@@ -221,6 +221,9 @@ Current local contract:
 - `top_delay_state` and `top_blockage_category` are computed on open rows first and break count ties by severity
 - the legacy dashboard and `GET /api/v1/ui/dashboard/` consume the same aggregate through the `Destinations à risque` block
 - dashboard consumer rows are intentionally limited to the top 5 destinations and keep a CTA toward `scan/shipments_tracking?destination=<id>`
+- dashboard consumer rows are enriched from the destination-week aggregate with `current_week_label`, `current_week_score`, `previous_week_label`, `previous_week_score`, `trend_delta`, `trend_direction`, `trend_label`
+- the compact weekly score used in the dashboard and UI API mirror is explicit in this local phase: `delayed_shipment_count + open_dispute_count + critical_shipment_count`
+- week labels follow the destination-week aggregate notation `YYYY-Www`, and missing current/previous buckets fall back to score `0`
 
 Maintenance rule:
 

@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import date, datetime, timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -170,6 +171,8 @@ class ScanDashboardViewTests(TestCase):
         segment_age_hours=0.0,
         lead_hours_total_to_delivery=None,
         lead_hours_delivery_to_close=None,
+        planned_at=None,
+        projected_at=None,
     ):
         shipment = self._create_shipment(
             destination=destination,
@@ -185,6 +188,7 @@ class ScanDashboardViewTests(TestCase):
             tracking_token=shipment.tracking_token,
             destination_label=str(destination),
             shipment_status=shipment_status,
+            planned_at=planned_at,
             current_segment=current_segment,
             segment_started_at=started_at,
             segment_age_hours=segment_age_hours,
@@ -194,6 +198,7 @@ class ScanDashboardViewTests(TestCase):
             active_blockage_category=active_blockage_category,
             lead_hours_total_to_delivery=lead_hours_total_to_delivery,
             lead_hours_delivery_to_close=lead_hours_delivery_to_close,
+            projected_at=projected_at or timezone.now(),
         )
 
     def _create_shipment_data(self):
@@ -873,6 +878,96 @@ class ScanDashboardViewTests(TestCase):
         self.assertContains(response, "Destinations à risque")
         self.assertContains(response, str(self.destination_b))
         self.assertContains(response, "Ouvrir les dossiers")
+
+    def test_scan_dashboard_exposes_destination_risk_week_trend(self):
+        current_week_planned_at = timezone.make_aware(datetime(2026, 3, 31, 10, 0))
+        previous_week_planned_at = timezone.make_aware(datetime(2026, 3, 24, 10, 0))
+        self._create_workflow_projection(
+            reference="EXP-RISK-TREND-A-CUR",
+            destination=self.destination_a,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=72,
+            planned_at=current_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-RISK-TREND-A-PREV",
+            destination=self.destination_a,
+            delay_state="new",
+            has_open_dispute=False,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=36,
+            planned_at=previous_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-RISK-TREND-B-CUR",
+            destination=self.destination_b,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144,
+            planned_at=current_week_planned_at,
+        )
+
+        with mock.patch(
+            "django.utils.timezone.localdate",
+            return_value=date(2026, 3, 31),
+        ):
+            response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        rows_by_destination = {
+            row["destination_id"]: row for row in response.context["destination_risk_rows"]
+        }
+        trend_row = rows_by_destination[self.destination_a.id]
+        self.assertEqual(trend_row["current_week_label"], "2026-W14")
+        self.assertEqual(trend_row["current_week_score"], 2)
+        self.assertEqual(trend_row["previous_week_label"], "2026-W13")
+        self.assertEqual(trend_row["previous_week_score"], 1)
+        self.assertEqual(trend_row["trend_delta"], 1)
+        self.assertEqual(trend_row["trend_direction"], "up")
+        self.assertEqual(trend_row["trend_label"], "+1")
+
+        missing_previous_row = rows_by_destination[self.destination_b.id]
+        self.assertEqual(missing_previous_row["current_week_score"], 3)
+        self.assertEqual(missing_previous_row["previous_week_score"], 0)
+        self.assertEqual(missing_previous_row["trend_delta"], 3)
+
+    def test_scan_dashboard_renders_destination_risk_week_trend_columns(self):
+        current_week_planned_at = timezone.make_aware(datetime(2026, 3, 31, 10, 0))
+        previous_week_planned_at = timezone.make_aware(datetime(2026, 3, 24, 10, 0))
+        self._create_workflow_projection(
+            reference="EXP-RISK-TREND-HTML-CUR",
+            destination=self.destination_b,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144,
+            planned_at=current_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-RISK-TREND-HTML-PREV",
+            destination=self.destination_b,
+            delay_state="persistent",
+            has_open_dispute=False,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=48,
+            planned_at=previous_week_planned_at,
+        )
+
+        with mock.patch(
+            "django.utils.timezone.localdate",
+            return_value=date(2026, 3, 31),
+        ):
+            response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Semaine")
+        self.assertContains(response, "S-1")
+        self.assertContains(response, "Tendance")
+        self.assertContains(response, "2026-W14")
+        self.assertContains(response, "2026-W13")
 
     def test_scan_dashboard_priority_cards_include_explicit_cta_labels(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
