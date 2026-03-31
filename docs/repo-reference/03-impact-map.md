@@ -85,12 +85,16 @@ Always check:
 - `wms/shipment_party_rules.py`
 - `wms/view_permissions.py`
 - `wms/scan_admin_contacts_cockpit.py`
+- `wms/admin_contacts_merge_service.py` when recipient organizations can be merged or deduplicated
+- `wms/views_scan_admin.py` and `templates/scan/includes/admin_contacts_contact_form.html` when admin must review the same recipient data
 
 Ask yourself:
 
 - will scan shipment forms now show different shippers, recipients, or correspondents?
 - does a portal change also require an admin contacts cockpit change?
+- do structure compliance fields or uploaded recipient documents also need to appear on `scan/contacts`?
 - do linked/default authorizations still stay unique and active?
+- can admin merge flows preserve or deduplicate the same recipient compliance documents without losing them?
 - are existing portal tests still the right contract, or did the business rule itself change?
 
 Run or inspect first:
@@ -98,6 +102,8 @@ Run or inspect first:
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 - `wms/tests/views/tests_views_scan_admin_shipment_parties.py`
+- `wms/tests/views/tests_views_scan_admin.py`
+- `wms/tests/scan/tests_admin_contacts_merge_service.py`
 
 ## 5. Change To Email / Notification Logic
 

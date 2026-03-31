@@ -3211,6 +3211,8 @@
       }
       if (businessType === 'recipient') {
         required.add('allowed_shipper_ids');
+        required.add('legal_form');
+        required.add('beneficiary_count');
       }
       if (businessType === 'volunteer') {
         required.add('first_name');

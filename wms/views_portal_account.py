@@ -9,7 +9,10 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
+from contacts.models import RecipientLegalForm
+
 from .account_request_handlers import handle_account_request_form
+from .country_choices import DEFAULT_COUNTRY, build_country_choices, is_known_country
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
 from .document_uploads import validate_document_upload
@@ -24,6 +27,8 @@ from .models import (
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
 )
@@ -49,7 +54,6 @@ ACTION_UPLOAD_ACCOUNT_DOC = "upload_account_doc"
 ACTION_UPLOAD_ACCOUNT_DOCS = "upload_account_docs"
 ACTION_REQUEST_BILLING_PREFERENCES = "request_billing_preferences"
 
-DEFAULT_COUNTRY = "France"
 MAX_PORTAL_CONTACTS = 10
 MESSAGE_RECIPIENT_ADDED = _("Recipient added.")
 MESSAGE_RECIPIENT_UPDATED = _("Destinataire modifié.")
@@ -66,6 +70,13 @@ ERROR_RECIPIENT_DESTINATION_REQUIRED = _("Escale de livraison requise.")
 ERROR_RECIPIENT_STRUCTURE_REQUIRED = _("Nom de la structure requis.")
 ERROR_RECIPIENT_ADDRESS_REQUIRED = _("Adresse requise.")
 ERROR_RECIPIENT_TITLE_INVALID = _("Titre de contact invalide.")
+ERROR_RECIPIENT_LEGAL_FORM_REQUIRED = _("Forme juridique requise.")
+ERROR_RECIPIENT_LEGAL_FORM_INVALID = _("Forme juridique invalide.")
+ERROR_RECIPIENT_BENEFICIARY_COUNT_REQUIRED = _("Nombre de bénéficiaires requis.")
+ERROR_RECIPIENT_BENEFICIARY_COUNT_INVALID = _("Nombre de bénéficiaires invalide.")
+ERROR_RECIPIENT_COUNTRY_INVALID = _("Pays invalide.")
+ERROR_RECIPIENT_REGISTRATION_PROOF_REQUIRED = _("Preuve d'enregistrement requise.")
+ERROR_RECIPIENT_STATUTES_REQUIRED = _("Statut requis.")
 ERROR_RECIPIENT_EMAILS_INVALID = _("Emails invalides: %(values)s.")
 ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED = _(
     "Ajoutez au moins un email pour activer l'alerte de livraison."
@@ -80,6 +91,18 @@ ERROR_BILLING_PREFERENCES_INVALID = _(
 )
 RECIPIENT_STATUS_PENDING_LABEL = _("En attente validation")
 RECIPIENT_STATUS_VALIDATED_LABEL = _("Validé")
+RECIPIENT_STRUCTURE_DOCUMENT_FIELDS = (
+    (
+        RecipientStructureDocumentType.REGISTRATION_PROOF,
+        "doc_registration_proof",
+        ERROR_RECIPIENT_REGISTRATION_PROOF_REQUIRED,
+    ),
+    (
+        RecipientStructureDocumentType.STATUTES,
+        "doc_statutes",
+        ERROR_RECIPIENT_STATUTES_REQUIRED,
+    ),
+)
 
 
 def _split_multi_values(value):
@@ -91,6 +114,8 @@ def _build_default_recipient_form_data():
     return {
         "destination_id": "",
         "structure_name": "",
+        "legal_form": "",
+        "beneficiary_count": "",
         "reuse_existing_structure": True,
         "contact_title": "",
         "contact_last_name": "",
@@ -112,6 +137,8 @@ def _extract_recipient_form_data(post_data):
     return {
         "destination_id": (post_data.get("destination_id") or "").strip(),
         "structure_name": (post_data.get("structure_name") or "").strip(),
+        "legal_form": (post_data.get("legal_form") or "").strip(),
+        "beneficiary_count": (post_data.get("beneficiary_count") or "").strip(),
         "reuse_existing_structure": bool(post_data.get("reuse_existing_structure")),
         "contact_title": (post_data.get("contact_title") or "").strip(),
         "contact_last_name": (post_data.get("contact_last_name") or "").strip(),
@@ -133,6 +160,8 @@ def _build_recipient_form_data_from_instance(recipient):
     return {
         "destination_id": str(recipient.destination_id or ""),
         "structure_name": recipient.structure_name or "",
+        "legal_form": recipient.legal_form or "",
+        "beneficiary_count": str(recipient.beneficiary_count or ""),
         "reuse_existing_structure": True,
         "contact_title": recipient.contact_title or "",
         "contact_last_name": recipient.contact_last_name or "",
@@ -153,6 +182,7 @@ def _build_recipient_form_data_from_instance(recipient):
 def _validate_recipient_form_data(form_data, destinations_by_id):
     errors = []
     valid_titles = {choice for choice, _label in AssociationContactTitle.choices}
+    valid_legal_forms = {choice for choice, _label in RecipientLegalForm.choices}
     if form_data["contact_title"] and form_data["contact_title"] not in valid_titles:
         errors.append(ERROR_RECIPIENT_TITLE_INVALID)
 
@@ -168,8 +198,22 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
 
     if not form_data["structure_name"]:
         errors.append(ERROR_RECIPIENT_STRUCTURE_REQUIRED)
+    if not form_data["legal_form"]:
+        errors.append(ERROR_RECIPIENT_LEGAL_FORM_REQUIRED)
+    elif form_data["legal_form"] not in valid_legal_forms:
+        errors.append(ERROR_RECIPIENT_LEGAL_FORM_INVALID)
     if not form_data["address_line1"]:
         errors.append(ERROR_RECIPIENT_ADDRESS_REQUIRED)
+    if not form_data["beneficiary_count"]:
+        errors.append(ERROR_RECIPIENT_BENEFICIARY_COUNT_REQUIRED)
+    else:
+        beneficiary_count = parse_int(form_data["beneficiary_count"])
+        if beneficiary_count is None or beneficiary_count < 0:
+            errors.append(ERROR_RECIPIENT_BENEFICIARY_COUNT_INVALID)
+        else:
+            form_data["beneficiary_count_value"] = beneficiary_count
+    if not is_known_country(form_data["country"]):
+        errors.append(ERROR_RECIPIENT_COUNTRY_INVALID)
 
     email_values = _split_multi_values(form_data["emails"])
     invalid_emails = []
@@ -186,6 +230,19 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
 
     form_data["email_values"] = email_values
     form_data["phone_values"] = _split_multi_values(form_data["phones"])
+    return errors
+
+
+def _validate_recipient_creation_documents(request):
+    errors = []
+    for _doc_type, field_name, missing_error in RECIPIENT_STRUCTURE_DOCUMENT_FIELDS:
+        uploaded = request.FILES.get(field_name)
+        if not uploaded:
+            errors.append(missing_error)
+            continue
+        validation_error = validate_upload(uploaded)
+        if validation_error:
+            errors.append(validation_error)
     return errors
 
 
@@ -219,22 +276,56 @@ def _build_recipient_payload(form_data):
         "postal_code": form_data["postal_code"],
         "city": form_data["city"],
         "country": form_data["country"] or DEFAULT_COUNTRY,
+        "legal_form": form_data["legal_form"],
+        "beneficiary_count": form_data.get("beneficiary_count_value"),
         "notes": form_data["notes"],
         "notify_deliveries": form_data["notify_deliveries"],
         "is_delivery_contact": form_data["is_delivery_contact"],
     }
 
 
-def _create_recipient(profile, form_data):
+def _create_recipient_structure_documents(*, recipient, uploaded_by, files):
+    if recipient.synced_contact_id is None:
+        return
+
+    uploaded_user = uploaded_by if getattr(uploaded_by, "is_authenticated", False) else None
+    for doc_type, field_name, _missing_error in RECIPIENT_STRUCTURE_DOCUMENT_FIELDS:
+        uploaded = files.get(field_name)
+        if not uploaded:
+            continue
+        document, _created = RecipientStructureDocument.objects.update_or_create(
+            contact=recipient.synced_contact,
+            doc_type=doc_type,
+            defaults={
+                "status": DocumentReviewStatus.PENDING,
+                "file": uploaded,
+                "scan_status": DocumentScanStatus.PENDING,
+                "scan_message": "Scan antivirus en cours.",
+                "scan_updated_at": None,
+                "uploaded_by": uploaded_user,
+                "reviewed_by": None,
+                "reviewed_at": None,
+            },
+        )
+        queue_document_scan(document)
+
+
+def _create_recipient(profile, form_data, *, uploaded_by=None, files=None):
     payload = _build_recipient_payload(form_data)
-    recipient = AssociationRecipient.objects.create(
-        association_contact=profile.contact,
-        **payload,
-    )
-    sync_association_recipient_to_contact(
-        recipient,
-        prefer_existing_structure=form_data["reuse_existing_structure"],
-    )
+    with transaction.atomic():
+        recipient = AssociationRecipient.objects.create(
+            association_contact=profile.contact,
+            **payload,
+        )
+        sync_association_recipient_to_contact(
+            recipient,
+            prefer_existing_structure=form_data["reuse_existing_structure"],
+        )
+        _create_recipient_structure_documents(
+            recipient=recipient,
+            uploaded_by=uploaded_by,
+            files=files or {},
+        )
     return recipient
 
 
@@ -663,6 +754,7 @@ def portal_recipients(request):
     blocked_reason = (request.GET.get(BLOCKED_REASON_QUERY_PARAM) or "").strip()
     blocked_popup_message = ""
     duplicate_recipient_suggestions = []
+    legal_form_choices = list(RecipientLegalForm.choices)
     if blocked_reason in {BLOCKED_REASON_MISSING_DELIVERY_CONTACT}:
         blocked_popup_message = BLOCKED_MESSAGES.get(blocked_reason, "")
 
@@ -673,6 +765,8 @@ def portal_recipients(request):
         action = request.POST.get("action")
         form_data = _extract_recipient_form_data(request.POST)
         errors = _validate_recipient_form_data(form_data, destinations_by_id)
+        if action == ACTION_CREATE_RECIPIENT:
+            errors.extend(_validate_recipient_creation_documents(request))
         if action == ACTION_UPDATE_RECIPIENT:
             recipient_id = parse_int(request.POST.get("recipient_id"))
             editing_recipient = _get_recipient_for_profile(profile, recipient_id)
@@ -687,7 +781,12 @@ def portal_recipients(request):
                 _update_recipient(editing_recipient, form_data)
                 messages.success(request, MESSAGE_RECIPIENT_UPDATED)
             else:
-                _create_recipient(profile, form_data)
+                _create_recipient(
+                    profile,
+                    form_data,
+                    uploaded_by=request.user,
+                    files=request.FILES,
+                )
                 messages.success(request, MESSAGE_RECIPIENT_ADDED)
             return redirect("portal:portal_recipients")
 
@@ -713,6 +812,8 @@ def portal_recipients(request):
             "editing_recipient": editing_recipient,
             "destinations": destinations,
             "contact_title_choices": list(AssociationContactTitle.choices),
+            "legal_form_choices": legal_form_choices,
+            "country_choices": build_country_choices(form_data.get("country")),
             "blocked_popup_message": blocked_popup_message,
             "duplicate_recipient_suggestions": duplicate_recipient_suggestions,
         },

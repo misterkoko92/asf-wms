@@ -47,6 +47,8 @@ from wms.models import (
     ProductKitItem,
     ProductLot,
     ProductLotStatus,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
     Shipment,
     ShipmentRecipientOrganization,
     ShipmentShipper,
@@ -1750,6 +1752,42 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.account_request_url = reverse("portal:portal_account_request")
         self.destination = self._create_destination(city="Lyon", country="France")
 
+    def _build_recipient_payload(self, **overrides):
+        payload = {
+            "action": "create_recipient",
+            "destination_id": str(self.destination.id),
+            "structure_name": "Structure C",
+            "contact_title": "mrs",
+            "contact_last_name": "Martin",
+            "contact_first_name": "Claire",
+            "emails": "recipient@example.com; second@example.com",
+            "phones": "+33102030405; +33611121314",
+            "address_line1": "2 Rue C",
+            "address_line2": "",
+            "postal_code": "75002",
+            "city": "Paris",
+            "country": "France",
+            "legal_form": "",
+            "beneficiary_count": "",
+            "notes": "Notes",
+            "notify_deliveries": "1",
+            "is_delivery_contact": "1",
+        }
+        payload.update(overrides)
+        return payload
+
+    def _build_recipient_documents(self):
+        return {
+            "doc_registration_proof": SimpleUploadedFile(
+                "registration-proof.pdf",
+                b"%PDF-1.7 registration proof",
+            ),
+            "doc_statutes": SimpleUploadedFile(
+                "statutes.pdf",
+                b"%PDF-1.7 statutes",
+            ),
+        }
+
     def test_portal_recipients_get_lists_active_recipients(self):
         active = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
@@ -1837,28 +1875,78 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertIn("Adresse requise.", response.context["errors"])
         self.assertEqual(AssociationRecipient.objects.count(), 0)
 
-    def test_portal_recipients_post_creates_recipient(self):
+    def test_portal_recipients_post_requires_structure_compliance_and_documents_on_create(self):
         response = self.client.post(
             self.recipients_url,
-            {
-                "action": "create_recipient",
-                "destination_id": str(self.destination.id),
-                "structure_name": "Structure C",
-                "contact_title": "mrs",
-                "contact_last_name": "Martin",
-                "contact_first_name": "Claire",
-                "emails": "recipient@example.com; second@example.com",
-                "phones": "+33102030405; +33611121314",
-                "address_line1": "2 Rue C",
-                "address_line2": "",
-                "postal_code": "75002",
-                "city": "Paris",
-                "country": "France",
-                "notes": "Notes",
-                "notify_deliveries": "1",
-                "is_delivery_contact": "1",
-            },
+            self._build_recipient_payload(),
         )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Forme juridique requise.", response.context["errors"])
+        self.assertIn("Nombre de bénéficiaires requis.", response.context["errors"])
+        self.assertIn("Preuve d'enregistrement requise.", response.context["errors"])
+        self.assertIn("Statut requis.", response.context["errors"])
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+
+    def test_portal_recipients_post_rejects_invalid_country_choice_and_keeps_form_values(self):
+        payload = self._build_recipient_payload(
+            country="Atlantis",
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Pays invalide.", response.context["errors"])
+        self.assertEqual(response.context["form_data"]["country"], "Atlantis")
+        self.assertEqual(response.context["form_data"]["legal_form"], "association")
+        self.assertEqual(response.context["form_data"]["beneficiary_count"], "120")
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+
+    def test_portal_recipients_post_update_requires_structure_compliance_without_documents(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Before",
+            structure_name="Structure Before",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Before",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+
+        response = self.client.post(
+            self.recipients_url,
+            self._build_recipient_payload(
+                action="update_recipient",
+                recipient_id=str(recipient.id),
+                structure_name="Structure After",
+                contact_title="gen",
+                legal_form="",
+                beneficiary_count="",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Forme juridique requise.", response.context["errors"])
+        self.assertIn("Nombre de bénéficiaires requis.", response.context["errors"])
+        self.assertNotIn("Preuve d'enregistrement requise.", response.context["errors"])
+        self.assertNotIn("Statut requis.", response.context["errors"])
+
+    def test_portal_recipients_post_creates_recipient(self):
+        payload = self._build_recipient_payload(
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        response = self.client.post(self.recipients_url, payload)
+
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.recipients_url)
         self.assertEqual(AssociationRecipient.objects.count(), 1)
@@ -1867,6 +1955,8 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(recipient.contact_last_name, "Martin")
         self.assertEqual(recipient.email, "recipient@example.com")
         self.assertEqual(recipient.phone, "+33102030405")
+        self.assertEqual(recipient.legal_form, "association")
+        self.assertEqual(recipient.beneficiary_count, 120)
         self.assertTrue(recipient.notify_deliveries)
         self.assertTrue(recipient.is_delivery_contact)
 
@@ -1887,6 +1977,45 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             shipment_recipient.validation_status,
             "pending",
         )
+
+    def test_portal_recipients_post_creates_structure_documents_and_queues_scan(self):
+        payload = self._build_recipient_payload(
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        recipient = AssociationRecipient.objects.get()
+        self.assertIsNotNone(recipient.synced_contact_id)
+        documents = list(
+            RecipientStructureDocument.objects.filter(contact=recipient.synced_contact).order_by(
+                "doc_type"
+            )
+        )
+        self.assertEqual(len(documents), 2)
+        self.assertEqual(
+            {document.doc_type for document in documents},
+            {
+                RecipientStructureDocumentType.REGISTRATION_PROOF,
+                RecipientStructureDocumentType.STATUTES,
+            },
+        )
+        self.assertEqual(
+            {document.status for document in documents},
+            {DocumentReviewStatus.PENDING},
+        )
+        self.assertEqual(
+            {document.scan_status for document in documents},
+            {DocumentScanStatus.PENDING},
+        )
+        self.assertEqual(
+            {document.uploaded_by_id for document in documents},
+            {self.user.id},
+        )
+        self.assertEqual(IntegrationEvent.objects.count(), 2)
 
     def test_portal_recipients_get_with_edit_prefills_form(self):
         recipient = AssociationRecipient.objects.create(
@@ -1924,25 +2053,27 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         )
         response = self.client.post(
             self.recipients_url,
-            {
-                "action": "update_recipient",
-                "recipient_id": str(recipient.id),
-                "destination_id": str(self.destination.id),
-                "structure_name": "Structure After",
-                "contact_title": "gen",
-                "contact_last_name": "Martin",
-                "contact_first_name": "Claire",
-                "emails": "after@example.com",
-                "phones": "+33123456789",
-                "address_line1": "20 Rue After",
-                "address_line2": "",
-                "postal_code": "75003",
-                "city": "Paris",
-                "country": "France",
-                "notes": "",
-                "notify_deliveries": "1",
-                "is_delivery_contact": "1",
-            },
+            self._build_recipient_payload(
+                action="update_recipient",
+                recipient_id=str(recipient.id),
+                destination_id=str(self.destination.id),
+                structure_name="Structure After",
+                contact_title="gen",
+                contact_last_name="Martin",
+                contact_first_name="Claire",
+                emails="after@example.com",
+                phones="+33123456789",
+                address_line1="20 Rue After",
+                address_line2="",
+                postal_code="75003",
+                city="Paris",
+                country="France",
+                legal_form="public_sector",
+                beneficiary_count="250",
+                notes="",
+                notify_deliveries="1",
+                is_delivery_contact="1",
+            ),
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.recipients_url)
@@ -1952,6 +2083,8 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(recipient.contact_last_name, "Martin")
         self.assertEqual(recipient.email, "after@example.com")
         self.assertEqual(recipient.phone, "+33123456789")
+        self.assertEqual(recipient.legal_form, "public_sector")
+        self.assertEqual(recipient.beneficiary_count, 250)
         self.assertTrue(recipient.notify_deliveries)
         self.assertTrue(recipient.is_delivery_contact)
         self.assertIsNotNone(recipient.synced_contact_id)

@@ -8,6 +8,7 @@ from contacts.models import Contact, ContactAddress, ContactType
 
 from .models import (
     Destination,
+    RecipientStructureDocument,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
@@ -23,6 +24,13 @@ def _merge_scalar_fields(source: Contact, target: Contact):
         if not getattr(target, field_name) and getattr(source, field_name):
             setattr(target, field_name, getattr(source, field_name))
             updated_fields.append(field_name)
+    if source.contact_type == ContactType.ORGANIZATION:
+        if not target.legal_form and source.legal_form:
+            target.legal_form = source.legal_form
+            updated_fields.append("legal_form")
+        if target.beneficiary_count is None and source.beneficiary_count is not None:
+            target.beneficiary_count = source.beneficiary_count
+            updated_fields.append("beneficiary_count")
     if source.contact_type == ContactType.PERSON and not target.use_organization_address:
         if source.use_organization_address:
             target.use_organization_address = True
@@ -71,6 +79,19 @@ def _merge_addresses(source: Contact, target: Contact):
 def _merge_capabilities(source: Contact, target: Contact):
     for capability in source.capabilities.filter(is_active=True):
         ensure_contact_capability(target, capability.capability)
+
+
+def _merge_recipient_structure_documents(source: Contact, target: Contact):
+    for document in RecipientStructureDocument.objects.filter(contact=source).order_by("id"):
+        existing = RecipientStructureDocument.objects.filter(
+            contact=target,
+            doc_type=document.doc_type,
+        ).first()
+        if existing is None:
+            document.contact = target
+            document.save(update_fields=["contact"])
+            continue
+        document.delete()
 
 
 def _merge_authorized_contacts(
@@ -297,6 +318,7 @@ def merge_contacts(*, source_contact: Contact, target_contact: Contact):
 
         if source_contact.contact_type == ContactType.ORGANIZATION:
             source_contact.members.update(organization=target_contact)
+            _merge_recipient_structure_documents(source_contact, target_contact)
             _merge_shippers(source_contact, target_contact)
             _merge_recipient_organizations(source_contact, target_contact)
         else:

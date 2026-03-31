@@ -141,6 +141,26 @@ def _apply_contact_fields(contact, *, data, overwrite: bool):
     elif is_active and not contact.is_active:
         contact.is_active = True
         updated_fields.append("is_active")
+
+    if contact.contact_type == ContactType.ORGANIZATION:
+        legal_form = (data.get("legal_form") or "").strip()
+        if overwrite:
+            if contact.legal_form != legal_form:
+                contact.legal_form = legal_form
+                updated_fields.append("legal_form")
+        elif not contact.legal_form and legal_form:
+            contact.legal_form = legal_form
+            updated_fields.append("legal_form")
+
+        beneficiary_count = data.get("beneficiary_count")
+        if overwrite:
+            if contact.beneficiary_count != beneficiary_count:
+                contact.beneficiary_count = beneficiary_count
+                updated_fields.append("beneficiary_count")
+        elif contact.beneficiary_count is None and beneficiary_count is not None:
+            contact.beneficiary_count = beneficiary_count
+            updated_fields.append("beneficiary_count")
+
     if contact.pk is None:
         contact.save()
     elif updated_fields:
@@ -267,7 +287,7 @@ def save_contact_from_form(cleaned_data, *, editing_contact=None):
                 cleaned_data,
                 target=target_contact
                 if getattr(target_contact, "contact_type", None) == ContactType.ORGANIZATION
-                else None,
+                else getattr(target_contact, "organization", None),
                 overwrite=overwrite,
             )
             referent = _ensure_person(

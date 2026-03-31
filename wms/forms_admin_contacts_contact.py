@@ -3,8 +3,9 @@ from __future__ import annotations
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactType, RecipientLegalForm
 
+from .country_choices import DEFAULT_COUNTRY, build_country_choices
 from .forms_admin_contacts_destination import DUPLICATE_ACTION_CHOICES
 from .models import Destination, ShipmentShipper
 
@@ -33,6 +34,16 @@ class ContactCrudForm(forms.Form):
         label=_("Nature"),
     )
     organization_name = forms.CharField(max_length=200, required=False, label=_("Structure"))
+    legal_form = forms.ChoiceField(
+        choices=(("", _("Choisir...")),) + tuple(RecipientLegalForm.choices),
+        required=False,
+        label=_("Forme juridique"),
+    )
+    beneficiary_count = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label=_("Nombre de bénéficiaires"),
+    )
     title = forms.CharField(max_length=40, required=False, label=_("Titre"))
     first_name = forms.CharField(max_length=120, required=False, label=_("Prénom"))
     last_name = forms.CharField(max_length=120, required=False, label=_("Nom"))
@@ -54,7 +65,12 @@ class ContactCrudForm(forms.Form):
     postal_code = forms.CharField(max_length=20, required=False, label=_("Code postal"))
     city = forms.CharField(max_length=120, required=False, label=_("Ville"))
     region = forms.CharField(max_length=120, required=False, label=_("Région"))
-    country = forms.CharField(max_length=80, required=False, label=_("Pays"))
+    country = forms.ChoiceField(
+        choices=(),
+        required=False,
+        label=_("Pays"),
+        initial=DEFAULT_COUNTRY,
+    )
     notes = forms.CharField(required=False, widget=forms.Textarea, label=_("Notes"))
     destination_id = forms.ModelChoiceField(
         queryset=Destination.objects.none(),
@@ -86,6 +102,13 @@ class ContactCrudForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        current_country = self._current_country_value()
+        self.fields["country"].choices = build_country_choices(
+            current_country,
+            include_blank=True,
+        )
+        if not self.is_bound and not self.initial.get("country"):
+            self.initial["country"] = DEFAULT_COUNTRY
         self.fields["destination_id"].queryset = Destination.objects.filter(
             is_active=True
         ).order_by("city", "iata_code", "id")
@@ -113,6 +136,13 @@ class ContactCrudForm(forms.Form):
                 widget.attrs.setdefault("rows", "3")
             else:
                 widget.attrs.setdefault("class", "form-control")
+
+    def _current_country_value(self):
+        if self.is_bound:
+            return (self.data.get(self.add_prefix("country")) or "").strip()
+        return str(
+            self.initial.get("country") or self.fields["country"].initial or DEFAULT_COUNTRY
+        ).strip()
 
     def _require_fields(self, cleaned_data, *field_names):
         for field_name in field_names:
@@ -150,6 +180,8 @@ class ContactCrudForm(forms.Form):
             self._require_fields(cleaned_data, "destination_id")
         if business_type == "recipient" and not cleaned_data.get("allowed_shipper_ids"):
             self.add_error("allowed_shipper_ids", _("Choisissez au moins un expéditeur autorisé."))
+        if business_type == "recipient":
+            self._require_fields(cleaned_data, "legal_form", "beneficiary_count")
 
         if duplicate_candidates_count > 0 and not duplicate_action:
             self.add_error(

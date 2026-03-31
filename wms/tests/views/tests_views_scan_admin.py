@@ -1,16 +1,23 @@
 from pathlib import Path
 
+from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from contacts.models import Contact
+from wms.forms_admin_contacts_contact import ContactCrudForm
 from wms.models import (
     Destination,
+    DocumentReviewStatus,
+    DocumentScanStatus,
     Product,
     ProductKitItem,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
     WmsRuntimeSettings,
@@ -194,6 +201,70 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, 'id="scan-admin-create-destination" open')
         self.assertNotContains(response, 'id="scan-admin-create-contact" open')
         self.assertContains(response, 'data-required-marker="entity_type"')
+
+    def test_contact_crud_form_uses_country_choices(self):
+        form = ContactCrudForm()
+
+        country_field = form.fields["country"]
+
+        self.assertIsInstance(country_field, forms.ChoiceField)
+        choice_values = {value for value, _label in country_field.choices}
+        self.assertIn("France", choice_values)
+        self.assertIn("Bénin", choice_values)
+        self.assertIn("Togo", choice_values)
+        self.assertIn("Canada", choice_values)
+
+    def test_scan_admin_contacts_renders_country_as_select(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode("utf-8"),
+            r'<select[^>]+(?:id="id_country"[^>]+name="country"|name="country"[^>]+id="id_country")',
+        )
+
+    def test_scan_admin_contacts_edit_shows_structure_compliance_fields_and_documents(self):
+        self.client.force_login(self.superuser)
+        contact = Contact.objects.create(
+            name="Hopital Validation",
+            contact_type="organization",
+            legal_form="association",
+            beneficiary_count=240,
+            is_active=True,
+        )
+        RecipientStructureDocument.objects.create(
+            contact=contact,
+            doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("registration-proof.pdf", b"%PDF-1.4 registration proof"),
+            scan_status=DocumentScanStatus.PENDING,
+            scan_message="Scan antivirus en cours.",
+        )
+        clean_document = RecipientStructureDocument.objects.create(
+            contact=contact,
+            doc_type=RecipientStructureDocumentType.STATUTES,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("statutes.pdf", b"%PDF-1.4 statutes"),
+            scan_status=DocumentScanStatus.CLEAN,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_admin_contacts"),
+            {"edit": str(contact.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["contact_form"].initial["legal_form"], "association")
+        self.assertEqual(response.context["contact_form"].initial["beneficiary_count"], 240)
+        self.assertContains(response, 'name="legal_form"')
+        self.assertContains(response, 'name="beneficiary_count"')
+        self.assertContains(response, "Documents de structure")
+        self.assertContains(response, "Preuve d&#x27;enregistrement")
+        self.assertContains(response, "Statut")
+        self.assertContains(response, "Quarantaine (scan antivirus en cours).")
+        self.assertContains(response, clean_document.file.name)
 
     def test_scan_admin_contacts_explains_how_to_resolve_pending_recipient_alerts(self):
         self.client.force_login(self.superuser)

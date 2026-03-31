@@ -306,6 +306,18 @@ def scan_admin_contacts(request):
         filters=cockpit_filters,
         destination_id=destination_filter,
     )
+    editing_structure_contact = None
+    editing_structure_documents = []
+    editing_contact = crud_context.get("editing_contact")
+    if editing_contact is not None:
+        if editing_contact.contact_type == ContactType.PERSON and editing_contact.organization_id:
+            editing_structure_contact = editing_contact.organization
+        elif editing_contact.contact_type == ContactType.ORGANIZATION:
+            editing_structure_contact = editing_contact
+        if editing_structure_contact is not None:
+            editing_structure_documents = list(
+                editing_structure_contact.recipient_structure_documents.order_by("-uploaded_at")
+            )
 
     return render(
         request,
@@ -339,6 +351,8 @@ def scan_admin_contacts(request):
                 or crud_context["contact_form_mode"] == "edit"
                 or crud_context["contact_duplicate_candidates"]
             ),
+            "editing_structure_contact": editing_structure_contact,
+            "editing_structure_documents": editing_structure_documents,
             **crud_context,
             **cockpit_context,
         },
