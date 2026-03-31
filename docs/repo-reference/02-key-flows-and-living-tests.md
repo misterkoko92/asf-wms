@@ -43,6 +43,8 @@ Use it when you need to answer:
 
 - stock update and stock availability
 - scan dashboard action queue for low stock, disputes, and pending reviews
+- scan dashboard workflow blockage queue split by `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
+- scan dashboard local claim/release flow for workflow blockages
 - scan dashboard SLA alert queue for new, persistent, and critical tracking delays
 - scan dashboard health cards for both email and document-scan queues
 - scan settings preset-based calibration, including local `incident_sla` preview

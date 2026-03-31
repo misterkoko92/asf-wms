@@ -83,15 +83,19 @@ Phase 1 local contract:
 - `pending_actions[]` items expose `type`, `reference`, `label`, `priority`, `owner`, `url`, `age_hours`
 - allowed `owner` values are `magasin`, `qualite`, `admin`, `portal`
 - allowed `priority` values are `high`, `medium`, `low`
+- `workflow_blockage_summary_cards[]` exposes `Blocages ouverts`, `Sans prise en charge`, `Pris en charge`
+- `workflow_blockage_rows[]` exposes `blockage_key`, `category`, `category_label`, `label`, `reference`, `owner`, `priority`, `started_at`, `age_hours`, `url`, `is_claimed`, `claimed_by`, `claimed_at`, `claim_state`, `claim_state_label`
+- workflow blockage categories are stable during local V2: `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
 - `document_scan_cards[]` mirrors the queue-card shape already used by `technical_cards[]`
 - `sla_alert_summary_cards[]` exposes the short summary `Nouveaux retards`, `Retards persistants`, `Retards critiques`
 - `sla_alert_rows[]` exposes `reference`, `label`, `segment`, `owner`, `severity`, `freshness`, `delay_hours`, `age_hours`, `url`
 - the legacy dashboard surface and the UI API mirror the same open-SLA classification derived from `tracking_alert_hours`
+- local claim/release parity also exists through `POST /api/v1/ui/dashboard/workflow-blockages/claims/` with `action=claim|release` and `blockage_key`
 - the local runtime calibration loop also depends on `scan/settings` preset `incident_sla` and its preview counters for new/persistent/critical delays
 
 Maintenance rule:
 
-- if dashboard action routing, SLA prioritization, or ownership vocabulary changes, update the legacy dashboard, `scan/settings`, the UI API tests, and the repo-reference in the same work
+- if dashboard action routing, workflow blockage categorization, SLA prioritization, or ownership vocabulary changes, update the legacy dashboard, `scan/settings`, the UI API tests, and the repo-reference in the same work
 - keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
 
 Reference tests:

@@ -76,6 +76,32 @@ class IntegrationEvent(models.Model):
         return f"{self.source}:{self.event_type} ({self.direction})"
 
 
+class WorkflowBlockageClaim(models.Model):
+    blockage_key = models.CharField(max_length=160, unique=True)
+    category = models.CharField(max_length=32)
+    label = models.CharField(max_length=120, blank=True)
+    reference = models.CharField(max_length=120, blank=True)
+    owner = models.CharField(max_length=20, blank=True)
+    claimed_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workflow_blockage_claims",
+    )
+    claimed_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-claimed_at", "-id"]
+        indexes = [
+            models.Index(fields=["category", "claimed_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.blockage_key
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)

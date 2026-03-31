@@ -305,6 +305,10 @@ Operational cards added for phase 3:
 
 - Queue email: pending, processing, failed, stale-processing timeout.
 - Blocages workflow (>72h): expéditions anciennes non sorties du flux, commandes validées sans expédition, dossiers livrés non clos, litiges ouverts.
+- File `Blocages workflow`:
+  - catégories stables `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
+  - chaque ligne expose owner, priorité, âge, CTA dossier, et état `À prendre` / `Pris en charge`
+  - les cinq premiers blocages non pris en charge remontent dans `À traiter maintenant`
 - SLA suivi:
   - Planifié -> OK mise à bord
   - OK mise à bord -> Reçu escale
@@ -367,15 +371,16 @@ If your platform supports log filtering, filter by logger name `wms.workflow` an
 ### E) Workflow blockages increasing (>72h)
 
 1. Open `/scan/dashboard/` and review "Blocages workflow".
-2. Resolve oldest "Cmd validées sans expédition >72h" from `/scan/orders/`.
-3. Resolve stale shipment drafts/picking from `/scan/shipments-ready/`.
-4. Review delivered-but-open cases in `/scan/shipments-tracking/` and close valid dossiers.
+2. Start with unclaimed rows in the `Blocages workflow` table and use `Prendre` to avoid duplicate work locally.
+3. Resolve oldest "Cmd validées sans expédition >72h" from `/scan/orders/`.
+4. Resolve stale shipment drafts/picking from `/scan/shipments-ready/`.
+5. Review delivered-but-open cases in `/scan/shipments-tracking/` and close valid dossiers.
 
 ### F) SLA breaches rising
 
 1. Open `/scan/dashboard/` and review both "Suivi SLA" cards and the `Alertes SLA` table.
 2. Start with `Retards critiques`, then `Retards persistants`, then `Nouveaux retards`.
-3. Use `À traiter maintenant` to open the top dossiers directly from the dashboard.
+3. Use `À traiter maintenant` or the `Blocages workflow` table to open the top dossiers directly from the dashboard.
 4. If the signal is too noisy or too weak locally, switch to `/scan/settings/`, load preset `Incident SLA`, and compare preview counts before saving.
 5. Cross-check delayed shipments in `/scan/shipments-tracking/` and open litiges only when the SLA issue becomes a real exception case.
 

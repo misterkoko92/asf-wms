@@ -123,6 +123,81 @@
     </div>
   </section>
 
+  <section id="scan-dashboard-workflow-blockages" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Blocages workflow" %}</h2>
+        <p class="scan-help mb-0">{% trans "Prenez en charge les blocages majeurs puis ouvrez directement le bon dossier." %}</p>
+      </div>
+      <div class="scan-kpi-grid">
+        {% for card in workflow_blockage_summary_cards %}
+          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+            <span class="scan-kpi-label">{{ card.label }}</span>
+            <span class="scan-kpi-value">{{ card.value }}</span>
+            <span class="scan-kpi-help">{{ card.help }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      {% if workflow_blockage_rows %}
+        <div class="scan-table-wrap table-responsive mt-3">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Catégorie" %}</th>
+                <th>{% trans "Action" %}</th>
+                <th>{% trans "Référence" %}</th>
+                <th>Owner</th>
+                <th>{% trans "Priorité" %}</th>
+                <th>{% trans "Âge" %}</th>
+                <th>{% trans "Prise en charge" %}</th>
+                <th></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in workflow_blockage_rows %}
+                <tr>
+                  <td>{{ row.category_label }}</td>
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.owner }}</td>
+                  <td>{{ row.priority }}</td>
+                  <td>{{ row.age_hours|floatformat:1 }}h</td>
+                  <td>
+                    {{ row.claim_state_label }}
+                    {% if row.is_claimed and row.claimed_by %}
+                      <br><span class="scan-help">{{ row.claimed_by }}{% if row.claimed_at %} · {{ row.claimed_at|date:"d/m H:i" }}{% endif %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a>
+                  </td>
+                  <td class="text-end">
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="blockage_key" value="{{ row.blockage_key }}">
+                      {% if row.is_claimed %}
+                        <button type="submit" name="action" value="release_workflow_blockage" class="btn btn-outline-secondary btn-sm">
+                          {% trans "Libérer" %}
+                        </button>
+                      {% else %}
+                        <button type="submit" name="action" value="claim_workflow_blockage" class="btn btn-primary btn-sm">
+                          {% trans "Prendre" %}
+                        </button>
+                      {% endif %}
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">{% trans "Aucun blocage workflow actif." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
   <section id="scan-dashboard-pilotage" class="scan-dashboard-section">
     <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
       <div class="scan-dashboard-section-header">

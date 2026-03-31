@@ -43,6 +43,7 @@ from .models_domain.integration import (
     WmsChange,
     WmsRuntimeSettings,
     WmsRuntimeSettingsAudit,
+    WorkflowBlockageClaim,
 )
 from .models_domain.inventory import (
     CartonSequence,
@@ -301,6 +302,7 @@ __all__ = [
     "IntegrationDirection",
     "IntegrationStatus",
     "IntegrationEvent",
+    "WorkflowBlockageClaim",
     "VolunteerAccountRequest",
     "VolunteerAccountRequestStatus",
     "VolunteerAvailability",

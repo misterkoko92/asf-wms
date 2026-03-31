@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .ui_views import (
     UiCartonsView,
     UiDashboardView,
+    UiDashboardWorkflowBlockageClaimView,
     UiPortalAccountView,
     UiPortalDashboardView,
     UiPortalOrdersView,
@@ -54,6 +55,11 @@ urlpatterns = [
     path("stock/receive/", ReceiveStockView.as_view(), name="stock-receive"),
     path("pack/", PackCartonView.as_view(), name="pack"),
     path("ui/dashboard/", UiDashboardView.as_view(), name="ui-dashboard"),
+    path(
+        "ui/dashboard/workflow-blockages/claims/",
+        UiDashboardWorkflowBlockageClaimView.as_view(),
+        name="ui-dashboard-workflow-blockage-claims",
+    ),
     path("ui/cartons/", UiCartonsView.as_view(), name="ui-cartons"),
     path("ui/stock/", UiStockView.as_view(), name="ui-stock"),
     path("ui/stock/update/", UiStockUpdateView.as_view(), name="ui-stock-update"),

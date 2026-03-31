@@ -110,6 +110,14 @@ from wms.views_scan_shipments_support import (
     _stale_drafts_age_days,
     _stale_drafts_queryset,
 )
+from wms.workflow_blockage_queue import (
+    WORKFLOW_BLOCKAGE_CLAIM_CLAIMED,
+    build_workflow_blockage_rows,
+    claim_workflow_blockage,
+    release_workflow_blockage,
+    summarize_workflow_blockage_rows,
+    workflow_blockage_row_by_key,
+)
 from wms.workflow_observability import log_shipment_case_closed, log_workflow_event
 
 from .permissions import IsAssociationProfileUser, IsStaffUser
@@ -230,6 +238,39 @@ DASHBOARD_SLA_ACTION_LABELS = {
     "planned_to_boarding": "Relancer mise a bord",
     "boarding_to_correspondent": "Relancer recu escale",
     "correspondent_to_delivery": "Relancer livraison",
+}
+DASHBOARD_WORKFLOW_BLOCKAGE_CATEGORY_LABELS = {
+    "creation_expedition": "Creation expedition",
+    "commande": "Commande",
+    "suivi": "Suivi",
+    "cloture": "Cloture",
+    "queue": "Queue",
+}
+DASHBOARD_WORKFLOW_BLOCKAGE_KIND_LABELS = {
+    "shipment_creation": "Debloquer creation expedition",
+    "order_without_shipment": "Creer expedition",
+    "shipment_dispute": "Resoudre litige",
+    "shipment_sla_alert": "Traiter retard de suivi",
+    "shipment_closure": "Clore dossier livre",
+    "email_queue_failed": "Investiguer queue email en echec",
+    "email_queue_stale": "Debloquer queue email",
+    "document_scan_failed": "Investiguer queue scan doc en echec",
+    "document_scan_stale": "Debloquer queue scan doc",
+}
+DASHBOARD_WORKFLOW_BLOCKAGE_CLAIM_STATE_LABELS = {
+    "open": "A prendre",
+    WORKFLOW_BLOCKAGE_CLAIM_CLAIMED: "Pris en charge",
+}
+DASHBOARD_WORKFLOW_PENDING_ACTION_TYPES = {
+    "shipment_creation": "shipment_creation_blockage",
+    "order_without_shipment": "order_without_shipment",
+    "shipment_dispute": "shipment_dispute",
+    "shipment_sla_alert": "shipment_sla_alert",
+    "shipment_closure": "shipment_closure",
+    "email_queue_failed": "workflow_queue_issue",
+    "email_queue_stale": "workflow_queue_issue",
+    "document_scan_failed": "workflow_queue_issue",
+    "document_scan_stale": "workflow_queue_issue",
 }
 
 
@@ -408,6 +449,39 @@ def _dashboard_workflow_blockage_snapshot(
             closed_at__isnull=True,
         ).count(),
     }
+
+
+def _dashboard_workflow_blockage_rows(
+    *,
+    destination_id: str,
+    workflow_blockage_hours: int,
+    tracking_alert_hours: int,
+    queue_processing_timeout_seconds: int,
+    document_scan_timeout_seconds: int,
+):
+    shipments_qs = Shipment.objects.filter(archived_at__isnull=True)
+    if destination_id:
+        shipments_qs = shipments_qs.filter(destination_id=destination_id)
+    shipments_with_tracking = annotate_shipment_tracking_dates(shipments_qs)
+    base_rows = build_workflow_blockage_rows(
+        shipments_scope=shipments_qs,
+        shipments_with_tracking=shipments_with_tracking,
+        workflow_blockage_hours=workflow_blockage_hours,
+        tracking_alert_hours=tracking_alert_hours,
+        email_queue_processing_timeout_seconds=queue_processing_timeout_seconds,
+        document_scan_processing_timeout_seconds=document_scan_timeout_seconds,
+    )
+    rows = [
+        {
+            **row,
+            "category_label": DASHBOARD_WORKFLOW_BLOCKAGE_CATEGORY_LABELS[row["category"]],
+            "label": DASHBOARD_WORKFLOW_BLOCKAGE_KIND_LABELS.get(row["kind"], row["label"]),
+            "claim_state_label": DASHBOARD_WORKFLOW_BLOCKAGE_CLAIM_STATE_LABELS[row["claim_state"]],
+            "cta_label": "Ouvrir",
+        }
+        for row in base_rows
+    ]
+    return base_rows, rows
 
 
 def _shipment_payload(shipment):
@@ -1167,6 +1241,13 @@ class UiDashboardView(APIView):
         document_scan_snapshot = _dashboard_document_scan_queue_snapshot(
             processing_timeout_seconds=document_scan_timeout_seconds
         )
+        workflow_blockage_base_rows, workflow_blockage_rows = _dashboard_workflow_blockage_rows(
+            destination_id=destination_id,
+            workflow_blockage_hours=workflow_blockage_hours,
+            tracking_alert_hours=tracking_alert_hours,
+            queue_processing_timeout_seconds=queue_processing_timeout_seconds,
+            document_scan_timeout_seconds=document_scan_timeout_seconds,
+        )
         technical_cards = [
             {
                 "label": "Queue email en attente",
@@ -1285,6 +1366,55 @@ class UiDashboardView(APIView):
                 ),
             },
         ]
+        workflow_blockage_summary = summarize_workflow_blockage_rows(workflow_blockage_base_rows)
+        workflow_blockage_summary_cards = [
+            {
+                "label": "Blocages ouverts",
+                "value": workflow_blockage_summary["open_count"],
+                "help": "Total des blocages visibles dans la file.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+                "tone": "danger" if workflow_blockage_summary["open_count"] else "success",
+            },
+            {
+                "label": "Sans prise en charge",
+                "value": workflow_blockage_summary["unclaimed_count"],
+                "help": "Blocages encore sans operateur.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+                "tone": "danger" if workflow_blockage_summary["unclaimed_count"] else "success",
+            },
+            {
+                "label": "Pris en charge",
+                "value": workflow_blockage_summary["claimed_count"],
+                "help": "Blocages deja pris par un operateur.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+                "tone": "warn" if workflow_blockage_summary["claimed_count"] else "neutral",
+            },
+        ]
+        workflow_pending_actions = []
+        for row in workflow_blockage_rows:
+            if row["is_claimed"]:
+                continue
+            workflow_pending_actions.append(
+                _build_dashboard_action(
+                    action_type=DASHBOARD_WORKFLOW_PENDING_ACTION_TYPES.get(
+                        row["kind"],
+                        "workflow_blockage",
+                    ),
+                    reference=row["reference"],
+                    label=row["label"],
+                    priority=row["priority"],
+                    owner=row["owner"],
+                    url=row["url"],
+                    started_at=row["started_at"],
+                    context={
+                        "blockage_key": row["blockage_key"],
+                        "category": row["category"],
+                    },
+                )
+            )
+            if len(workflow_pending_actions) >= 5:
+                break
+        pending_actions = workflow_pending_actions + pending_actions
         sla_rows = build_sla_rows(
             shipments_with_tracking.filter(status__in=list(DASHBOARD_SHIPMENT_STATUS_ORDER)[3:]),
             tracking_alert_hours=tracking_alert_hours,
@@ -1352,6 +1482,8 @@ class UiDashboardView(APIView):
                 "document_scan_cards": document_scan_cards,
                 "workflow_blockage_hours": workflow_blockage_hours,
                 "workflow_blockage_cards": workflow_blockage_cards,
+                "workflow_blockage_summary_cards": workflow_blockage_summary_cards,
+                "workflow_blockage_rows": workflow_blockage_rows,
                 "sla_cards": sla_cards,
                 "sla_alert_summary_cards": sla_alert_summary_cards,
                 "sla_alert_rows": sla_alert_rows,
@@ -1372,6 +1504,50 @@ class UiDashboardView(APIView):
                 "low_stock_threshold": low_stock_threshold,
                 "low_stock_rows": low_stock_rows,
                 "updated_at": timezone.now().isoformat(),
+            }
+        )
+
+
+class UiDashboardWorkflowBlockageClaimView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        action = str(request.data.get("action") or "").strip().lower()
+        blockage_key = str(request.data.get("blockage_key") or "").strip()
+        destination_id = str(request.data.get("destination") or "").strip()
+        if not blockage_key:
+            return api_error("missing_blockage_key", "blockage_key is required.", status=400)
+        if action not in {"claim", "release"}:
+            return api_error("invalid_action", "action must be claim or release.", status=400)
+
+        if action == "release":
+            release_workflow_blockage(blockage_key=blockage_key)
+            return Response(
+                {
+                    "ok": True,
+                    "blockage_key": blockage_key,
+                    "claim_state": "released",
+                }
+            )
+
+        runtime = get_runtime_config()
+        document_scan_timeout_seconds = _dashboard_document_scan_timeout_seconds()
+        base_rows, _rows = _dashboard_workflow_blockage_rows(
+            destination_id=destination_id,
+            workflow_blockage_hours=runtime.workflow_blockage_hours,
+            tracking_alert_hours=runtime.tracking_alert_hours,
+            queue_processing_timeout_seconds=runtime.email_queue_processing_timeout_seconds,
+            document_scan_timeout_seconds=document_scan_timeout_seconds,
+        )
+        row = workflow_blockage_row_by_key(base_rows, blockage_key)
+        if row is None:
+            return api_error("unknown_blockage", "Workflow blockage not found.", status=404)
+        claim_workflow_blockage(row=row, user=request.user)
+        return Response(
+            {
+                "ok": True,
+                "blockage_key": blockage_key,
+                "claim_state": "claimed",
             }
         )
 

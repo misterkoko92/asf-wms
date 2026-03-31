@@ -33,6 +33,7 @@ from wms.models import (
     ShipmentUnitEquivalenceRule,
     Warehouse,
     WmsRuntimeSettings,
+    WorkflowBlockageClaim,
 )
 
 
@@ -797,3 +798,94 @@ class ScanDashboardViewTests(TestCase):
         pilotage_start = content.index('id="scan-dashboard-pilotage"')
         self.assertIn('id="scan-dashboard-kpi-panel"', content[pilotage_start:])
         self.assertNotIn('id="scan-dashboard-chart-panel"', content[pilotage_start:])
+
+    def test_scan_dashboard_exposes_workflow_blockage_rows_by_category(self):
+        critical_sla = self._create_shipment(
+            destination=self.destination_a,
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-BLOCKAGE-SLA",
+        )
+        self._create_tracking_event(
+            shipment=critical_sla,
+            status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=240,
+        )
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        rows = response.context["workflow_blockage_rows"]
+        self.assertTrue(rows)
+        self.assertEqual(
+            {row["category"] for row in rows},
+            {
+                "creation_expedition",
+                "commande",
+                "suivi",
+                "cloture",
+                "queue",
+            },
+        )
+        self.assertIn("workflow_blockage_summary_cards", response.context)
+        self.assertTrue(
+            any(row["category"] == "queue" and row["reference"] == "wms.email" for row in rows)
+        )
+        self.assertTrue(
+            any(
+                row["category"] == "suivi"
+                and row["reference"] == critical_sla.reference
+                and row["owner"] == "magasin"
+                for row in rows
+            )
+        )
+
+    def test_scan_dashboard_can_claim_and_release_workflow_blockage(self):
+        initial_response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(initial_response.status_code, 200)
+        blockage_row = next(
+            row
+            for row in initial_response.context["workflow_blockage_rows"]
+            if row["category"] == "commande"
+        )
+
+        claim_response = self.client.post(
+            reverse("scan:scan_dashboard"),
+            {
+                "action": "claim_workflow_blockage",
+                "blockage_key": blockage_row["blockage_key"],
+            },
+            follow=True,
+        )
+        self.assertEqual(claim_response.status_code, 200)
+        self.assertTrue(
+            WorkflowBlockageClaim.objects.filter(
+                blockage_key=blockage_row["blockage_key"],
+                claimed_by=self.staff_user,
+            ).exists()
+        )
+        claimed_row = next(
+            row
+            for row in claim_response.context["workflow_blockage_rows"]
+            if row["blockage_key"] == blockage_row["blockage_key"]
+        )
+        self.assertTrue(claimed_row["is_claimed"])
+        self.assertEqual(claimed_row["claimed_by"], self.staff_user.get_username())
+
+        release_response = self.client.post(
+            reverse("scan:scan_dashboard"),
+            {
+                "action": "release_workflow_blockage",
+                "blockage_key": blockage_row["blockage_key"],
+            },
+            follow=True,
+        )
+        self.assertEqual(release_response.status_code, 200)
+        self.assertFalse(
+            WorkflowBlockageClaim.objects.filter(blockage_key=blockage_row["blockage_key"]).exists()
+        )
+        released_row = next(
+            row
+            for row in release_response.context["workflow_blockage_rows"]
+            if row["blockage_key"] == blockage_row["blockage_key"]
+        )
+        self.assertFalse(released_row["is_claimed"])

@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 
 from django.conf import settings
+from django.contrib import messages
 from django.db.models import Count, F, IntegerField, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
@@ -46,6 +47,14 @@ from .scan_dashboard_sla import (
 )
 from .scan_permissions import user_is_preparateur
 from .view_permissions import scan_staff_required
+from .workflow_blockage_queue import (
+    WORKFLOW_BLOCKAGE_CLAIM_CLAIMED,
+    build_workflow_blockage_rows,
+    claim_workflow_blockage,
+    release_workflow_blockage,
+    summarize_workflow_blockage_rows,
+    workflow_blockage_row_by_key,
+)
 
 TEMPLATE_DASHBOARD = "scan/dashboard.html"
 ACTIVE_DASHBOARD = "dashboard"
@@ -91,6 +100,28 @@ SLA_ALERT_FRESHNESS_LABELS = {
 SLA_ALERT_SEVERITY_LABELS = {
     "high": _("Élevée"),
     "critical": _("Critique"),
+}
+WORKFLOW_BLOCKAGE_CATEGORY_LABELS = {
+    "creation_expedition": _("Création expédition"),
+    "commande": _("Commande"),
+    "suivi": _("Suivi"),
+    "cloture": _("Clôture"),
+    "queue": _("Queue"),
+}
+WORKFLOW_BLOCKAGE_KIND_LABELS = {
+    "shipment_creation": _("Débloquer création expédition"),
+    "order_without_shipment": _("Créer expédition"),
+    "shipment_dispute": _("Résoudre litige"),
+    "shipment_sla_alert": _("Traiter retard de suivi"),
+    "shipment_closure": _("Clore dossier livré"),
+    "email_queue_failed": _("Investiguer queue email en échec"),
+    "email_queue_stale": _("Débloquer queue email"),
+    "document_scan_failed": _("Investiguer queue scan doc en échec"),
+    "document_scan_stale": _("Débloquer queue scan doc"),
+}
+WORKFLOW_BLOCKAGE_CLAIM_STATE_LABELS = {
+    "open": _("À prendre"),
+    WORKFLOW_BLOCKAGE_CLAIM_CLAIMED: _("Pris en charge"),
 }
 
 
@@ -355,7 +386,7 @@ def _workflow_blockage_snapshot(shipments_scope, *, workflow_blockage_hours):
 
 
 @scan_staff_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def scan_dashboard(request):
     runtime_config = get_runtime_config()
     low_stock_threshold = runtime_config.low_stock_threshold
@@ -381,6 +412,31 @@ def scan_dashboard(request):
         shipments_scope = shipments_scope.filter(destination=selected_destination)
 
     shipments_with_tracking = annotate_shipment_tracking_dates(shipments_scope)
+    document_scan_timeout_seconds = _document_scan_timeout_seconds()
+    workflow_blockage_base_rows = build_workflow_blockage_rows(
+        shipments_scope=shipments_scope,
+        shipments_with_tracking=shipments_with_tracking,
+        workflow_blockage_hours=workflow_blockage_hours,
+        tracking_alert_hours=tracking_alert_hours,
+        email_queue_processing_timeout_seconds=queue_processing_timeout_seconds,
+        document_scan_processing_timeout_seconds=document_scan_timeout_seconds,
+    )
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        blockage_key = (request.POST.get("blockage_key") or "").strip()
+        blockage_row = workflow_blockage_row_by_key(workflow_blockage_base_rows, blockage_key)
+        if action == "claim_workflow_blockage":
+            if blockage_row is None:
+                messages.error(request, _("Blocage introuvable ou déjà résolu."))
+            else:
+                claim_workflow_blockage(row=blockage_row, user=request.user)
+                messages.success(request, _("Blocage pris en charge."))
+        elif action == "release_workflow_blockage":
+            release_workflow_blockage(blockage_key=blockage_key)
+            messages.success(request, _("Prise en charge libérée."))
+        else:
+            messages.error(request, _("Action dashboard inconnue."))
+        return redirect(request.get_full_path())
     status_map = _status_count_map(shipments_scope)
 
     week_start, week_end = _current_week_bounds()
@@ -742,7 +798,6 @@ def scan_dashboard(request):
             tone="danger" if email_queue_snapshot["stale_processing_count"] else "success",
         ),
     ]
-    document_scan_timeout_seconds = _document_scan_timeout_seconds()
     document_scan_snapshot = _document_scan_queue_snapshot(
         processing_timeout_seconds=document_scan_timeout_seconds
     )
@@ -826,6 +881,40 @@ def scan_dashboard(request):
                 "danger" if workflow_blockage_snapshot["open_disputed_cases_count"] else "success"
             ),
         ),
+    ]
+    workflow_blockage_summary = summarize_workflow_blockage_rows(workflow_blockage_base_rows)
+    workflow_blockage_summary_cards = [
+        _build_card(
+            label=_("Blocages ouverts"),
+            value=workflow_blockage_summary["open_count"],
+            help_text=_("Total des blocages visibles dans la file."),
+            url=f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+            tone="danger" if workflow_blockage_summary["open_count"] else "success",
+        ),
+        _build_card(
+            label=_("Sans prise en charge"),
+            value=workflow_blockage_summary["unclaimed_count"],
+            help_text=_("Blocages encore sans opérateur."),
+            url=f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+            tone="danger" if workflow_blockage_summary["unclaimed_count"] else "success",
+        ),
+        _build_card(
+            label=_("Pris en charge"),
+            value=workflow_blockage_summary["claimed_count"],
+            help_text=_("Blocages déjà pris par un opérateur."),
+            url=f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+            tone="warn" if workflow_blockage_summary["claimed_count"] else "neutral",
+        ),
+    ]
+    workflow_blockage_rows = [
+        {
+            **row,
+            "category_label": WORKFLOW_BLOCKAGE_CATEGORY_LABELS[row["category"]],
+            "label": WORKFLOW_BLOCKAGE_KIND_LABELS.get(row["kind"], row["label"]),
+            "claim_state_label": WORKFLOW_BLOCKAGE_CLAIM_STATE_LABELS[row["claim_state"]],
+            "cta_label": _("Ouvrir"),
+        }
+        for row in workflow_blockage_base_rows
     ]
 
     sla_rows = build_sla_rows(
@@ -934,7 +1023,9 @@ def scan_dashboard(request):
         {"id": "scan-dashboard-health", "label": _("Santé")},
     ]
     action_queue_rows = []
-    for row in sla_alert_rows[:3]:
+    for row in workflow_blockage_rows:
+        if row["is_claimed"]:
+            continue
         action_queue_rows.append(
             _build_action_queue_row(
                 label=row["label"],
@@ -946,19 +1037,8 @@ def scan_dashboard(request):
                 cta_label=_("Ouvrir le dossier"),
             )
         )
-    for shipment in shipments_scope.filter(is_disputed=True, closed_at__isnull=True).order_by(
-        "-created_at"
-    )[:3]:
-        action_queue_rows.append(
-            _build_action_queue_row(
-                label=_("Résoudre litige"),
-                reference=shipment.reference or f"EXP-{shipment.pk}",
-                owner="qualite",
-                priority="high",
-                url=reverse("scan:scan_shipments_tracking"),
-                started_at=shipment.disputed_at or shipment.created_at,
-            )
-        )
+        if len(action_queue_rows) >= 5:
+            break
     for row in stock_snapshot["low_stock_rows"][:3]:
         action_queue_rows.append(
             _build_action_queue_row(
@@ -995,7 +1075,7 @@ def scan_dashboard(request):
             label=_("Blocages workflow"),
             value=sum(workflow_blockage_snapshot.values()),
             help_text=_("Commandes et dossiers bloqués à traiter."),
-            url=reverse("scan:scan_shipments_ready"),
+            url=f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
             tone="danger" if sum(workflow_blockage_snapshot.values()) else "success",
         ),
         _build_card(
@@ -1116,6 +1196,8 @@ def scan_dashboard(request):
         "technical_cards": technical_cards,
         "document_scan_cards": document_scan_cards,
         "workflow_blockage_cards": workflow_blockage_cards,
+        "workflow_blockage_summary_cards": workflow_blockage_summary_cards,
+        "workflow_blockage_rows": workflow_blockage_rows,
         "sla_cards": sla_cards,
         "sla_alert_summary_cards": sla_alert_summary_cards,
         "sla_alert_rows": sla_alert_rows,

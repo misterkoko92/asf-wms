@@ -50,6 +50,7 @@ from wms.models import (
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
     Warehouse,
+    WorkflowBlockageClaim,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
@@ -1347,6 +1348,195 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(
             sla_cards[f"Planifie -> OK mise a bord >{tracking_alert_hours}h"]["tone"],
             "danger",
+        )
+
+    def test_ui_dashboard_exposes_workflow_blockage_rows_and_claim_state(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}84",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="44 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        approved_order = Order.objects.create(
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="45 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Order.objects.filter(pk=approved_order.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        dispute = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-API-DISPUTE",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="46 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+        Shipment.objects.filter(pk=dispute.pk).update(
+            disputed_at=timezone.now() - timedelta(hours=96)
+        )
+
+        delivered = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            reference="EXP-API-CLOSE",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="47 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        delivered_event = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            comments="delivered",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.filter(pk=delivered_event.pk).update(
+            created_at=timezone.now() - timedelta(hours=48)
+        )
+
+        email_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            target="smtp",
+            event_type="send_email",
+            payload={"subject": "Processing"},
+            status=IntegrationStatus.PROCESSING,
+        )
+        IntegrationEvent.objects.filter(pk=email_processing.pk).update(
+            processed_at=timezone.now() - timedelta(minutes=30)
+        )
+
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={"document_id": 99},
+            status=IntegrationStatus.FAILED,
+            error_message="ClamAV error",
+        )
+
+        claimed_key = f"commande:order:{approved_order.pk}"
+        WorkflowBlockageClaim.objects.create(
+            blockage_key=claimed_key,
+            category="commande",
+            label="Creer expedition",
+            reference=approved_order.reference or f"CMD-{approved_order.pk}",
+            owner="admin",
+            claimed_by=self.staff_user,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("workflow_blockage_rows", payload)
+        self.assertIn("workflow_blockage_summary_cards", payload)
+        rows = payload["workflow_blockage_rows"]
+        self.assertEqual(
+            {row["category"] for row in rows},
+            {
+                "creation_expedition",
+                "commande",
+                "suivi",
+                "cloture",
+                "queue",
+            },
+        )
+        claimed_row = next(row for row in rows if row["blockage_key"] == claimed_key)
+        self.assertTrue(claimed_row["is_claimed"])
+        self.assertEqual(claimed_row["claimed_by"], self.staff_user.get_username())
+        self.assertTrue(
+            any(
+                row["category"] == "queue" and row["reference"] == "wms.document_scan"
+                for row in rows
+            )
+        )
+        self.assertTrue(any(row["category"] == "cloture" for row in rows))
+
+    def test_ui_dashboard_workflow_blockage_claim_endpoint(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}99",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="48 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        dashboard_response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(dashboard_response.status_code, 200)
+        blockage_row = next(
+            row
+            for row in dashboard_response.json()["workflow_blockage_rows"]
+            if row["reference"] == stale_draft.reference
+        )
+
+        claim_response = self.staff_client.post(
+            "/api/v1/ui/dashboard/workflow-blockages/claims/",
+            {"action": "claim", "blockage_key": blockage_row["blockage_key"]},
+            format="json",
+        )
+        self.assertEqual(claim_response.status_code, 200)
+        self.assertEqual(claim_response.json()["claim_state"], "claimed")
+        self.assertTrue(
+            WorkflowBlockageClaim.objects.filter(
+                blockage_key=blockage_row["blockage_key"],
+                claimed_by=self.staff_user,
+            ).exists()
+        )
+
+        release_response = self.staff_client.post(
+            "/api/v1/ui/dashboard/workflow-blockages/claims/",
+            {"action": "release", "blockage_key": blockage_row["blockage_key"]},
+            format="json",
+        )
+        self.assertEqual(release_response.status_code, 200)
+        self.assertEqual(release_response.json()["claim_state"], "released")
+        self.assertFalse(
+            WorkflowBlockageClaim.objects.filter(blockage_key=blockage_row["blockage_key"]).exists()
         )
 
     def test_ui_stock_returns_products_and_filters(self):
