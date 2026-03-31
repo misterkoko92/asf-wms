@@ -612,7 +612,10 @@ class ScanDashboardViewTests(TestCase):
             reverse("scan:scan_shipment_create"),
         )
         self.assertEqual(len(response.context["priority_cards"]), 6)
-        self.assertEqual(response.context["action_queue_rows"][0]["owner"], "qualite")
+        self.assertIn(
+            response.context["action_queue_rows"][0]["owner"],
+            {"magasin", "qualite", "admin", "portal"},
+        )
         self.assertEqual(response.context["flow_sections"][0]["id"], "scan-dashboard-stock")
         self.assertEqual(
             response.context["system_health_sections"][0]["id"],
@@ -644,14 +647,100 @@ class ScanDashboardViewTests(TestCase):
 
         action_rows = response.context["action_queue_rows"]
         self.assertGreaterEqual(len(action_rows), 3)
-        self.assertEqual({row["owner"] for row in action_rows[:3]}, {"admin", "magasin", "qualite"})
+        self.assertTrue(
+            {"admin", "magasin", "qualite"}.issubset({row["owner"] for row in action_rows})
+        )
         self.assertIn(action_rows[0]["priority"], {"high", "medium", "low"})
         self.assertIn("age_hours", action_rows[0])
         self.assertIn("url", action_rows[0])
-        self.assertEqual(action_rows[0]["cta_label"], "Voir le détail")
+        self.assertIn(action_rows[0]["cta_label"], {"Voir le détail", "Ouvrir le dossier"})
         self.assertContains(response, "magasin")
         self.assertContains(response, "qualite")
-        self.assertContains(response, "Voir le détail")
+        self.assertTrue(any(row["cta_label"] for row in action_rows))
+
+    def test_scan_dashboard_exposes_sla_alert_summary_cards_and_rows(self):
+        persistent = self._create_shipment(
+            destination=self.destination_a,
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-SLA-PERSISTENT",
+        )
+        self._create_tracking_event(
+            shipment=persistent,
+            status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=170,
+        )
+        critical = self._create_shipment(
+            destination=self.destination_a,
+            status=ShipmentStatus.SHIPPED,
+            reference="EXP-SLA-CRITICAL",
+        )
+        self._create_tracking_event(
+            shipment=critical,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            hours_ago=250,
+        )
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        summary_cards = {
+            card["label"]: card["value"] for card in response.context["sla_alert_summary_cards"]
+        }
+        self.assertEqual(summary_cards["Nouveaux retards"], 3)
+        self.assertEqual(summary_cards["Retards persistants"], 1)
+        self.assertEqual(summary_cards["Retards critiques"], 1)
+
+        rows_by_reference = {row["reference"]: row for row in response.context["sla_alert_rows"]}
+        self.assertEqual(
+            rows_by_reference["EXP-SLA-PERSISTENT"]["segment"],
+            "Planifié -> OK mise à bord",
+        )
+        self.assertEqual(rows_by_reference["EXP-SLA-PERSISTENT"]["owner"], "magasin")
+        self.assertEqual(rows_by_reference["EXP-SLA-PERSISTENT"]["freshness"], "persistent")
+        self.assertEqual(rows_by_reference["EXP-SLA-PERSISTENT"]["severity"], "high")
+        self.assertGreater(rows_by_reference["EXP-SLA-PERSISTENT"]["delay_hours"], 95)
+
+        self.assertEqual(
+            rows_by_reference["EXP-SLA-CRITICAL"]["segment"],
+            "OK mise à bord -> Reçu escale",
+        )
+        self.assertEqual(rows_by_reference["EXP-SLA-CRITICAL"]["owner"], "qualite")
+        self.assertEqual(rows_by_reference["EXP-SLA-CRITICAL"]["freshness"], "persistent")
+        self.assertEqual(rows_by_reference["EXP-SLA-CRITICAL"]["severity"], "critical")
+        self.assertGreater(rows_by_reference["EXP-SLA-CRITICAL"]["delay_hours"], 175)
+        self.assertGreater(
+            rows_by_reference["EXP-SLA-CRITICAL"]["age_hours"],
+            rows_by_reference["EXP-SLA-CRITICAL"]["delay_hours"],
+        )
+        self.assertEqual(
+            rows_by_reference["EXP-SLA-CRITICAL"]["url"],
+            reverse("scan:scan_shipment_track", args=[critical.tracking_token]),
+        )
+
+        self.assertContains(response, "Alertes SLA")
+        self.assertContains(response, "EXP-SLA-CRITICAL")
+
+    def test_scan_dashboard_promotes_sla_alerts_into_action_queue(self):
+        critical = self._create_shipment(
+            destination=self.destination_a,
+            status=ShipmentStatus.RECEIVED_CORRESPONDENT,
+            reference="EXP-SLA-ACTION",
+        )
+        self._create_tracking_event(
+            shipment=critical,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            hours_ago=260,
+        )
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        action_rows = response.context["action_queue_rows"]
+        self.assertGreaterEqual(len(action_rows), 1)
+        self.assertEqual(action_rows[0]["reference"], "EXP-SLA-ACTION")
+        self.assertEqual(action_rows[0]["owner"], "portal")
+        self.assertEqual(action_rows[0]["priority"], "high")
+        self.assertTrue(action_rows[0]["url"].endswith(str(critical.tracking_token) + "/"))
 
     def test_scan_dashboard_priority_cards_include_explicit_cta_labels(self):
         response = self.client.get(reverse("scan:scan_dashboard"))

@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
 from django.test import Client, TestCase
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -291,6 +292,42 @@ class UiApiEndpointsTests(TestCase):
             is_active=True,
         )
         return contact
+
+    def _create_delayed_dashboard_shipment(
+        self,
+        *,
+        reference,
+        shipment_status,
+        tracking_status,
+        hours_ago,
+    ):
+        shipment = Shipment.objects.create(
+            reference=reference,
+            status=shipment_status,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="99 Rue SLA",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        event = ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=tracking_status,
+            comments="delayed",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.filter(pk=event.pk).update(
+            created_at=timezone.now() - timedelta(hours=hours_ago)
+        )
+        shipment.refresh_from_db()
+        return shipment
 
     def _ensure_shipment_shipper(self, shipper_contact, *, default_contact=None):
         if default_contact is None:
@@ -1056,6 +1093,63 @@ class UiApiEndpointsTests(TestCase):
         for item in payload["pending_actions"]:
             self.assertIn(item["owner"], allowed_owners)
             self.assertIn(item["priority"], allowed_priorities)
+
+    def test_ui_dashboard_exposes_sla_alert_summary_cards_and_rows(self):
+        self._create_delayed_dashboard_shipment(
+            reference="API-SLA-NEW",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=80,
+        )
+        persistent = self._create_delayed_dashboard_shipment(
+            reference="API-SLA-PERSISTENT",
+            shipment_status=ShipmentStatus.SHIPPED,
+            tracking_status=ShipmentTrackingStatus.BOARDING_OK,
+            hours_ago=170,
+        )
+        critical = self._create_delayed_dashboard_shipment(
+            reference="API-SLA-CRITICAL",
+            shipment_status=ShipmentStatus.RECEIVED_CORRESPONDENT,
+            tracking_status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            hours_ago=250,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("sla_alert_summary_cards", payload)
+        self.assertIn("sla_alert_rows", payload)
+
+        summary_cards = {
+            card["label"]: card["value"] for card in payload["sla_alert_summary_cards"]
+        }
+        self.assertEqual(summary_cards["Nouveaux retards"], 1)
+        self.assertEqual(summary_cards["Retards persistants"], 1)
+        self.assertEqual(summary_cards["Retards critiques"], 1)
+
+        rows_by_reference = {row["reference"]: row for row in payload["sla_alert_rows"]}
+        self.assertEqual(
+            rows_by_reference["API-SLA-PERSISTENT"]["segment"], "OK mise a bord -> Recu escale"
+        )
+        self.assertEqual(rows_by_reference["API-SLA-PERSISTENT"]["owner"], "qualite")
+        self.assertEqual(rows_by_reference["API-SLA-PERSISTENT"]["freshness"], "persistent")
+        self.assertEqual(rows_by_reference["API-SLA-PERSISTENT"]["severity"], "high")
+        self.assertGreater(rows_by_reference["API-SLA-PERSISTENT"]["delay_hours"], 95)
+
+        self.assertEqual(
+            rows_by_reference["API-SLA-CRITICAL"]["segment"],
+            "Recu escale -> Livre",
+        )
+        self.assertEqual(rows_by_reference["API-SLA-CRITICAL"]["owner"], "portal")
+        self.assertEqual(rows_by_reference["API-SLA-CRITICAL"]["freshness"], "persistent")
+        self.assertEqual(rows_by_reference["API-SLA-CRITICAL"]["severity"], "critical")
+        self.assertGreater(rows_by_reference["API-SLA-CRITICAL"]["delay_hours"], 175)
+        self.assertEqual(
+            rows_by_reference["API-SLA-CRITICAL"]["url"],
+            reverse("scan:scan_shipment_track", args=[critical.tracking_token]),
+        )
+        self.assertEqual(payload["sla_alert_rows"][0]["reference"], critical.reference)
 
     def test_ui_dashboard_exposes_stock_cards(self):
         ProductLot.objects.create(

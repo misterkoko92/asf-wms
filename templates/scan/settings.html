@@ -162,6 +162,9 @@
       <ul class="scan-help">
         <li>{% blocktrans with days=preview.stale_drafts_age_days count=preview.stale_draft_count %}Brouillons temporaires stale (&lt; {{ days }}j): {{ count }}{% endblocktrans %}</li>
         <li>{% blocktrans with seconds=preview.queue_processing_timeout_seconds count=preview.queue_stale_processing_count %}Queue email bloquee (timeout {{ seconds }}s): {{ count }}{% endblocktrans %}</li>
+        <li>{% trans "Nouveaux retards SLA:" %} {{ preview.sla_new_delay_count }}</li>
+        <li>{% trans "Retards SLA persistants:" %} {{ preview.sla_persistent_delay_count }}</li>
+        <li>{% trans "Retards SLA critiques:" %} {{ preview.sla_critical_delay_count }}</li>
         <li>{% trans "Route legacy effective:" %} {% if preview.legacy_effective_enabled %}{% trans "active" %}{% else %}{% trans "inactive" %}{% endif %}</li>
       </ul>
     </div>

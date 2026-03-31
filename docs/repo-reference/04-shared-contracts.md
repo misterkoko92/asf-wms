@@ -84,15 +84,21 @@ Phase 1 local contract:
 - allowed `owner` values are `magasin`, `qualite`, `admin`, `portal`
 - allowed `priority` values are `high`, `medium`, `low`
 - `document_scan_cards[]` mirrors the queue-card shape already used by `technical_cards[]`
+- `sla_alert_summary_cards[]` exposes the short summary `Nouveaux retards`, `Retards persistants`, `Retards critiques`
+- `sla_alert_rows[]` exposes `reference`, `label`, `segment`, `owner`, `severity`, `freshness`, `delay_hours`, `age_hours`, `url`
+- the legacy dashboard surface and the UI API mirror the same open-SLA classification derived from `tracking_alert_hours`
+- the local runtime calibration loop also depends on `scan/settings` preset `incident_sla` and its preview counters for new/persistent/critical delays
 
 Maintenance rule:
 
-- if dashboard action routing or ownership vocabulary changes, update both the API tests and the legacy dashboard surface in the same work
+- if dashboard action routing, SLA prioritization, or ownership vocabulary changes, update the legacy dashboard, `scan/settings`, the UI API tests, and the repo-reference in the same work
 - keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
 
 Reference tests:
 
 - `api/tests/tests_ui_endpoints.py`
+- `wms/tests/views/tests_views_scan_dashboard.py`
+- `wms/tests/views/tests_views_scan_settings.py`
 
 ### Portal Dashboard Cockpit Contract
 

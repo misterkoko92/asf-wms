@@ -65,6 +65,12 @@ from wms.portal_order_handlers import create_portal_order
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from wms.runtime_settings import get_runtime_config
+from wms.scan_dashboard_sla import (
+    annotate_shipment_tracking_dates,
+    build_sla_alert_rows,
+    build_sla_rows,
+    summarize_sla_alert_rows,
+)
 from wms.scan_product_helpers import resolve_product
 from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
@@ -214,6 +220,17 @@ DASHBOARD_SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 )
+DASHBOARD_SLA_SEGMENT_LABELS = {
+    "planned_to_boarding": "Planifie -> OK mise a bord",
+    "boarding_to_correspondent": "OK mise a bord -> Recu escale",
+    "correspondent_to_delivery": "Recu escale -> Livre",
+    "planned_to_delivery": "Planifie -> Livre",
+}
+DASHBOARD_SLA_ACTION_LABELS = {
+    "planned_to_boarding": "Relancer mise a bord",
+    "boarding_to_correspondent": "Relancer recu escale",
+    "correspondent_to_delivery": "Relancer livraison",
+}
 
 
 def _dashboard_period_start(period_key):
@@ -391,80 +408,6 @@ def _dashboard_workflow_blockage_snapshot(
             closed_at__isnull=True,
         ).count(),
     }
-
-
-def _dashboard_hours_between(start_at, end_at):
-    if start_at is None or end_at is None:
-        return None
-    if end_at < start_at:
-        return 0.0
-    return (end_at - start_at).total_seconds() / 3600
-
-
-def _build_dashboard_sla_rows(
-    shipments_with_tracking,
-    *,
-    tracking_alert_hours: int,
-):
-    stage_definitions = (
-        {
-            "label": "Planifie -> OK mise a bord",
-            "start": "planned_at",
-            "end": "boarding_ok_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": "OK mise a bord -> Recu escale",
-            "start": "boarding_ok_at",
-            "end": "received_correspondent_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": "Recu escale -> Livre",
-            "start": "received_correspondent_at",
-            "end": "received_recipient_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": "Planifie -> Livre",
-            "start": "planned_at",
-            "end": "received_recipient_at",
-            "target_hours": tracking_alert_hours * 3,
-        },
-    )
-    rows = list(
-        shipments_with_tracking.values(
-            "planned_at",
-            "boarding_ok_at",
-            "received_correspondent_at",
-            "received_recipient_at",
-        )
-    )
-    sla_rows = []
-    for stage in stage_definitions:
-        durations = []
-        for row in rows:
-            duration_hours = _dashboard_hours_between(row[stage["start"]], row[stage["end"]])
-            if duration_hours is None:
-                continue
-            durations.append(duration_hours)
-        completed_count = len(durations)
-        breach_count = sum(
-            1 for duration_hours in durations if duration_hours > stage["target_hours"]
-        )
-        average_hours = round(sum(durations) / completed_count, 1) if durations else None
-        max_hours = round(max(durations), 1) if durations else None
-        sla_rows.append(
-            {
-                "label": stage["label"],
-                "target_hours": stage["target_hours"],
-                "completed_count": completed_count,
-                "breach_count": breach_count,
-                "average_hours": average_hours,
-                "max_hours": max_hours,
-            }
-        )
-    return sla_rows
 
 
 def _shipment_payload(shipment):
@@ -840,24 +783,7 @@ class UiDashboardView(APIView):
         shipment_chart_rows, shipments_total = _build_dashboard_shipment_chart_rows(
             status_count_map
         )
-        shipments_with_tracking = shipments_qs.annotate(
-            planned_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.PLANNED),
-            ),
-            boarding_ok_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
-            ),
-            received_correspondent_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT),
-            ),
-            received_recipient_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT),
-            ),
-        )
+        shipments_with_tracking = annotate_shipment_tracking_dates(shipments_qs)
         week_start = timezone.localdate() - timedelta(days=timezone.localdate().isoweekday() - 1)
         week_end = week_start + timedelta(days=7)
         in_transit_count = (
@@ -900,8 +826,43 @@ class UiDashboardView(APIView):
             }
             for event in timeline_events
         ]
+        sla_alert_base_rows = build_sla_alert_rows(
+            shipments_with_tracking,
+            tracking_alert_hours=tracking_alert_hours,
+        )
+        sla_alert_summary = summarize_sla_alert_rows(sla_alert_base_rows)
+        sla_alert_rows = [
+            {
+                "reference": row["reference"],
+                "label": DASHBOARD_SLA_ACTION_LABELS[row["segment_key"]],
+                "segment": DASHBOARD_SLA_SEGMENT_LABELS[row["segment_key"]],
+                "owner": row["owner"],
+                "severity": row["severity"],
+                "freshness": row["freshness"],
+                "delay_hours": row["delay_hours"],
+                "age_hours": row["age_hours"],
+                "url": reverse("scan:scan_shipment_track", args=[row["tracking_token"]]),
+            }
+            for row in sla_alert_base_rows
+        ]
 
         pending_actions = []
+        for row in sla_alert_base_rows[:3]:
+            pending_actions.append(
+                _build_dashboard_action(
+                    action_type="shipment_sla_alert",
+                    reference=row["reference"],
+                    label=DASHBOARD_SLA_ACTION_LABELS[row["segment_key"]],
+                    priority=row["priority"],
+                    owner=row["owner"],
+                    url=reverse("scan:scan_shipment_track", args=[row["tracking_token"]]),
+                    started_at=row["started_at"],
+                    context={
+                        "shipment_id": row["shipment_id"],
+                        "segment": row["segment_key"],
+                    },
+                )
+            )
         for row in low_stock_rows[:3]:
             pending_actions.append(
                 _build_dashboard_action(
@@ -1324,13 +1285,15 @@ class UiDashboardView(APIView):
                 ),
             },
         ]
-        sla_rows = _build_dashboard_sla_rows(
+        sla_rows = build_sla_rows(
             shipments_with_tracking.filter(status__in=list(DASHBOARD_SHIPMENT_STATUS_ORDER)[3:]),
             tracking_alert_hours=tracking_alert_hours,
         )
         sla_cards = [
             {
-                "label": f"{row['label']} >{row['target_hours']}h",
+                "label": (
+                    f"{DASHBOARD_SLA_SEGMENT_LABELS[row['segment_key']]} >{row['target_hours']}h"
+                ),
                 "value": f"{row['breach_count']} / {row['completed_count']}",
                 "help": (
                     "Aucune expedition completee sur ce segment."
@@ -1345,6 +1308,29 @@ class UiDashboardView(APIView):
                 ),
             }
             for row in sla_rows
+        ]
+        sla_alert_summary_cards = [
+            {
+                "label": "Nouveaux retards",
+                "value": sla_alert_summary["new_count"],
+                "help": "Retards entre 1x et 2x le seuil de suivi.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "warn" if sla_alert_summary["new_count"] else "success",
+            },
+            {
+                "label": "Retards persistants",
+                "value": sla_alert_summary["persistent_count"],
+                "help": "Retards entre 2x et 3x le seuil de suivi.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger" if sla_alert_summary["persistent_count"] else "success",
+            },
+            {
+                "label": "Retards critiques",
+                "value": sla_alert_summary["critical_count"],
+                "help": "Retards au dela de 3x le seuil de suivi.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger" if sla_alert_summary["critical_count"] else "success",
+            },
         ]
 
         return Response(
@@ -1367,6 +1353,8 @@ class UiDashboardView(APIView):
                 "workflow_blockage_hours": workflow_blockage_hours,
                 "workflow_blockage_cards": workflow_blockage_cards,
                 "sla_cards": sla_cards,
+                "sla_alert_summary_cards": sla_alert_summary_cards,
+                "sla_alert_rows": sla_alert_rows,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {

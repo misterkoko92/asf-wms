@@ -311,6 +311,17 @@ Operational cards added for phase 3:
   - Reçu escale -> Livré
   - Planifié -> Livré
   - each card displays `breaches / completed segments`.
+- Alertes SLA:
+  - `Nouveaux retards`, `Retards persistants`, `Retards critiques`
+  - detailed rows expose owner, segment, delay, age, and direct dossier access
+  - the top three SLA rows are promoted into `À traiter maintenant`
+
+Local calibration loop:
+
+- open `/scan/settings/`
+- use preset `Incident SLA` to tighten `tracking_alert_hours` and `workflow_blockage_hours`
+- inspect preview counters for `Nouveaux retards SLA`, `Retards SLA persistants`, `Retards SLA critiques`
+- validate the effect immediately on `/scan/dashboard/`
 
 ## 8) Structured workflow logs
 
@@ -362,10 +373,11 @@ If your platform supports log filtering, filter by logger name `wms.workflow` an
 
 ### F) SLA breaches rising
 
-1. Open `/scan/dashboard/` and review "Suivi SLA" cards.
-2. Cross-check delayed shipments in `/scan/shipments-tracking/` (planned/shipped/received statuses).
-3. Prioritize shipments with no progression and open litiges.
-4. Export weekly ops review with breach counts by segment.
+1. Open `/scan/dashboard/` and review both "Suivi SLA" cards and the `Alertes SLA` table.
+2. Start with `Retards critiques`, then `Retards persistants`, then `Nouveaux retards`.
+3. Use `À traiter maintenant` to open the top dossiers directly from the dashboard.
+4. If the signal is too noisy or too weak locally, switch to `/scan/settings/`, load preset `Incident SLA`, and compare preview counts before saving.
+5. Cross-check delayed shipments in `/scan/shipments-tracking/` and open litiges only when the SLA issue becomes a real exception case.
 
 ## 10) Backup and restore basics
 

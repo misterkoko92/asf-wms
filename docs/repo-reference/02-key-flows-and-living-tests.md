@@ -27,6 +27,8 @@ Use it when you need to answer:
 - `wms/views_scan_shipments.py`
 - `wms/views_scan_shipments_support.py`
 - `wms/views_scan_dashboard.py`
+- `wms/views_scan_settings.py`
+- `wms/scan_dashboard_sla.py`
 - `wms/scan_shipment_handlers.py`
 - `wms/shipment_tracking_handlers.py`
 - `wms/shipment_document_handlers.py`
@@ -41,7 +43,9 @@ Use it when you need to answer:
 
 - stock update and stock availability
 - scan dashboard action queue for low stock, disputes, and pending reviews
+- scan dashboard SLA alert queue for new, persistent, and critical tracking delays
 - scan dashboard health cards for both email and document-scan queues
+- scan settings preset-based calibration, including local `incident_sla` preview
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - shipment creation or draft/edit
 - carton status progression
@@ -189,6 +193,7 @@ If order creation or status transitions change, inspect:
 - `wms/models_domain/integration.py`
 - `wms/management/commands/process_email_queue.py`
 - `wms/runtime_settings.py`
+- `wms/views_scan_settings.py`
 - `wms/account_request_handlers.py`
 - `wms/admin_account_request_approval.py`
 - `wms/public_order_handlers.py`
@@ -222,6 +227,13 @@ Historical note:
 - older docs still reference `wms.tests.emailing.tests_email_flows_e2e`
 - do not trust that historical path blindly
 - verify the real `wms/tests/emailing/` tree before updating smoke documentation
+
+Also check whether the dashboard/runtime calibration loop changed:
+
+- `/scan/dashboard/`
+- `/scan/settings/`
+- `api/v1/ui/dashboard/`
+- `docs/operations.md`
 
 ## 5. Planning: Seed -> Solve -> Publish -> Communications -> Cockpit
 

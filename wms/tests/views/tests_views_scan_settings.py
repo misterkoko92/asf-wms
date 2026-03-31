@@ -11,6 +11,8 @@ from wms.models import (
     IntegrationStatus,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
     WmsRuntimeSettings,
     WmsRuntimeSettingsAudit,
 )
@@ -45,6 +47,31 @@ class ScanSettingsViewTests(TestCase):
         }
         data.update(overrides)
         return data
+
+    def _create_tracking_alert_shipment(
+        self, *, reference, shipment_status, tracking_status, hours_ago
+    ):
+        shipment = Shipment.objects.create(
+            reference=reference,
+            status=shipment_status,
+            shipper_name="Shipper SLA",
+            recipient_name="Recipient SLA",
+            destination_address="1 Rue SLA",
+            destination_country="France",
+            created_by=self.superuser,
+        )
+        event = ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=tracking_status,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="",
+            created_by=self.superuser,
+        )
+        ShipmentTrackingEvent.objects.filter(pk=event.pk).update(
+            created_at=timezone.now() - timedelta(hours=hours_ago)
+        )
+        return shipment
 
     def test_scan_settings_requires_superuser(self):
         self.client.force_login(self.staff_user)
@@ -206,6 +233,41 @@ class ScanSettingsViewTests(TestCase):
             response.context["form"].initial["email_queue_processing_timeout_seconds"],
             120,
         )
+
+    def test_scan_settings_apply_incident_sla_preset_prefills_thresholds_and_preview_counts(self):
+        self._create_tracking_alert_shipment(
+            reference="EXP-SLA-NEW",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=80,
+        )
+        self._create_tracking_alert_shipment(
+            reference="EXP-SLA-PERSISTENT",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=120,
+        )
+        self._create_tracking_alert_shipment(
+            reference="EXP-SLA-CRITICAL",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=180,
+        )
+
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            {"action": "apply_preset", "preset": "incident_sla"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_preset"], "incident_sla")
+        self.assertEqual(response.context["preview"]["preset_label"], "Incident SLA")
+        self.assertEqual(response.context["form"].initial["tracking_alert_hours"], 48)
+        self.assertEqual(response.context["form"].initial["workflow_blockage_hours"], 48)
+        self.assertEqual(response.context["preview"]["sla_new_delay_count"], 1)
+        self.assertEqual(response.context["preview"]["sla_persistent_delay_count"], 1)
+        self.assertEqual(response.context["preview"]["sla_critical_delay_count"], 1)
 
     def test_scan_settings_save_creates_runtime_audit_entry(self):
         self.client.force_login(self.superuser)

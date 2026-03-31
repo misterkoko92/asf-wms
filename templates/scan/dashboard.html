@@ -230,6 +230,59 @@
                 </a>
               {% endfor %}
             </div>
+            {% if section.id == "scan-dashboard-sla" %}
+              <div class="scan-dashboard-subsection-header mt-4">
+                <h4 class="h6 ui-comp-title mb-1">{% trans "Alertes SLA" %}</h4>
+                <p class="scan-help mb-0">{% trans "Passez des retards agrégés aux dossiers concrets à relancer." %}</p>
+              </div>
+              <div class="scan-kpi-grid mt-3">
+                {% for card in sla_alert_summary_cards %}
+                  <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+                    <span class="scan-kpi-label">{{ card.label }}</span>
+                    <span class="scan-kpi-value">{{ card.value }}</span>
+                    <span class="scan-kpi-help">{{ card.help }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+              {% if sla_alert_rows %}
+                <div class="scan-table-wrap table-responsive mt-3">
+                  <table class="scan-table table table-sm table-hover">
+                    <thead>
+                      <tr>
+                        <th>{% trans "Action" %}</th>
+                        <th>{% trans "Référence" %}</th>
+                        <th>{% trans "Segment" %}</th>
+                        <th>Owner</th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Criticité" %}</th>
+                        <th>{% trans "Retard" %}</th>
+                        <th>{% trans "Âge" %}</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in sla_alert_rows %}
+                        <tr>
+                          <td>{{ row.label }}</td>
+                          <td>{{ row.reference }}</td>
+                          <td>{{ row.segment }}</td>
+                          <td>{{ row.owner }}</td>
+                          <td>{{ row.freshness_label }}</td>
+                          <td>{{ row.severity_label }}</td>
+                          <td>{{ row.delay_hours|floatformat:1 }}h</td>
+                          <td>{{ row.age_hours|floatformat:1 }}h</td>
+                          <td class="text-end">
+                            <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{% trans "Ouvrir le dossier" %}</a>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="scan-help mt-3 mb-0">{% trans "Aucune alerte SLA ouverte au-dessus du seuil courant." %}</p>
+              {% endif %}
+            {% endif %}
           </div>
         {% endfor %}
       </div>

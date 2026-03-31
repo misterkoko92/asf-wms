@@ -1,7 +1,7 @@
 from datetime import date, datetime, time, timedelta
 
 from django.conf import settings
-from django.db.models import Count, F, IntegerField, Max, Q, Sum, Value
+from django.db.models import Count, F, IntegerField, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
@@ -36,9 +36,14 @@ from .models import (
     ReceiptStatus,
     Shipment,
     ShipmentStatus,
-    ShipmentTrackingStatus,
 )
 from .runtime_settings import get_runtime_config
+from .scan_dashboard_sla import (
+    annotate_shipment_tracking_dates,
+    build_sla_alert_rows,
+    build_sla_rows,
+    summarize_sla_alert_rows,
+)
 from .scan_permissions import user_is_preparateur
 from .view_permissions import scan_staff_required
 
@@ -68,6 +73,25 @@ SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 )
+SLA_SEGMENT_LABELS = {
+    "planned_to_boarding": _("Planifié -> OK mise à bord"),
+    "boarding_to_correspondent": _("OK mise à bord -> Reçu escale"),
+    "correspondent_to_delivery": _("Reçu escale -> Livré"),
+    "planned_to_delivery": _("Planifié -> Livré"),
+}
+SLA_ALERT_ACTION_LABELS = {
+    "planned_to_boarding": _("Relancer mise à bord"),
+    "boarding_to_correspondent": _("Relancer reçu escale"),
+    "correspondent_to_delivery": _("Relancer livraison"),
+}
+SLA_ALERT_FRESHNESS_LABELS = {
+    "new": _("Nouveau retard"),
+    "persistent": _("Retard persistant"),
+}
+SLA_ALERT_SEVERITY_LABELS = {
+    "high": _("Élevée"),
+    "critical": _("Critique"),
+}
 
 
 @scan_staff_required
@@ -197,27 +221,6 @@ def _build_action_queue_row(
         "age_hours": _age_hours(started_at),
         "cta_label": cta_label or _("Voir le détail"),
     }
-
-
-def _annotate_tracking_dates(queryset):
-    return queryset.annotate(
-        planned_at=Max(
-            "tracking_events__created_at",
-            filter=Q(tracking_events__status=ShipmentTrackingStatus.PLANNED),
-        ),
-        boarding_ok_at=Max(
-            "tracking_events__created_at",
-            filter=Q(tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
-        ),
-        received_correspondent_at=Max(
-            "tracking_events__created_at",
-            filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT),
-        ),
-        received_recipient_at=Max(
-            "tracking_events__created_at",
-            filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT),
-        ),
-    )
 
 
 def _status_count_map(shipments_qs):
@@ -351,76 +354,6 @@ def _workflow_blockage_snapshot(shipments_scope, *, workflow_blockage_hours):
     }
 
 
-def _hours_between(start_at, end_at):
-    if start_at is None or end_at is None:
-        return None
-    if end_at < start_at:
-        return 0.0
-    return (end_at - start_at).total_seconds() / 3600
-
-
-def _build_sla_rows(shipments_with_tracking, *, tracking_alert_hours):
-    stage_definitions = (
-        {
-            "label": _("Planifié -> OK mise à bord"),
-            "start": "planned_at",
-            "end": "boarding_ok_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": _("OK mise à bord -> Reçu escale"),
-            "start": "boarding_ok_at",
-            "end": "received_correspondent_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": _("Reçu escale -> Livré"),
-            "start": "received_correspondent_at",
-            "end": "received_recipient_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": _("Planifié -> Livré"),
-            "start": "planned_at",
-            "end": "received_recipient_at",
-            "target_hours": tracking_alert_hours * 3,
-        },
-    )
-    rows = list(
-        shipments_with_tracking.values(
-            "planned_at",
-            "boarding_ok_at",
-            "received_correspondent_at",
-            "received_recipient_at",
-        )
-    )
-    sla_rows = []
-    for stage in stage_definitions:
-        durations = []
-        for row in rows:
-            duration_hours = _hours_between(row[stage["start"]], row[stage["end"]])
-            if duration_hours is None:
-                continue
-            durations.append(duration_hours)
-        completed_count = len(durations)
-        breach_count = sum(
-            1 for duration_hours in durations if duration_hours > stage["target_hours"]
-        )
-        average_hours = round(sum(durations) / completed_count, 1) if durations else None
-        max_hours = round(max(durations), 1) if durations else None
-        sla_rows.append(
-            {
-                "label": stage["label"],
-                "target_hours": stage["target_hours"],
-                "completed_count": completed_count,
-                "breach_count": breach_count,
-                "average_hours": average_hours,
-                "max_hours": max_hours,
-            }
-        )
-    return sla_rows
-
-
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_dashboard(request):
@@ -447,7 +380,7 @@ def scan_dashboard(request):
     if selected_destination:
         shipments_scope = shipments_scope.filter(destination=selected_destination)
 
-    shipments_with_tracking = _annotate_tracking_dates(shipments_scope)
+    shipments_with_tracking = annotate_shipment_tracking_dates(shipments_scope)
     status_map = _status_count_map(shipments_scope)
 
     week_start, week_end = _current_week_bounds()
@@ -895,14 +828,17 @@ def scan_dashboard(request):
         ),
     ]
 
-    sla_rows = _build_sla_rows(
+    sla_rows = build_sla_rows(
         shipments_with_tracking.filter(status__in=list(SHIPMENT_STATUS_ORDER)[3:]),
         tracking_alert_hours=tracking_alert_hours,
     )
     sla_cards = [
         _build_card(
             label=_("%(label)s >%(hours)sh")
-            % {"label": row["label"], "hours": row["target_hours"]},
+            % {
+                "label": SLA_SEGMENT_LABELS[row["segment_key"]],
+                "hours": row["target_hours"],
+            },
             value=f"{row['breach_count']} / {row['completed_count']}",
             help_text=(
                 _("Aucune expédition complétée sur ce segment.")
@@ -920,6 +856,52 @@ def scan_dashboard(request):
             ),
         )
         for row in sla_rows
+    ]
+    sla_alert_base_rows = build_sla_alert_rows(
+        shipments_with_tracking,
+        tracking_alert_hours=tracking_alert_hours,
+    )
+    sla_alert_summary = summarize_sla_alert_rows(sla_alert_base_rows)
+    sla_alert_summary_cards = [
+        _build_card(
+            label=_("Nouveaux retards"),
+            value=sla_alert_summary["new_count"],
+            help_text=_("Retards entre 1x et 2x le seuil de suivi."),
+            url=reverse("scan:scan_shipments_tracking"),
+            tone="warn" if sla_alert_summary["new_count"] else "success",
+        ),
+        _build_card(
+            label=_("Retards persistants"),
+            value=sla_alert_summary["persistent_count"],
+            help_text=_("Retards entre 2x et 3x le seuil de suivi."),
+            url=reverse("scan:scan_shipments_tracking"),
+            tone="danger" if sla_alert_summary["persistent_count"] else "success",
+        ),
+        _build_card(
+            label=_("Retards critiques"),
+            value=sla_alert_summary["critical_count"],
+            help_text=_("Retards au-delà de 3x le seuil de suivi."),
+            url=reverse("scan:scan_shipments_tracking"),
+            tone="danger" if sla_alert_summary["critical_count"] else "success",
+        ),
+    ]
+    sla_alert_rows = [
+        {
+            "label": SLA_ALERT_ACTION_LABELS[row["segment_key"]],
+            "reference": row["reference"],
+            "segment": SLA_SEGMENT_LABELS[row["segment_key"]],
+            "owner": row["owner"],
+            "freshness": row["freshness"],
+            "freshness_label": SLA_ALERT_FRESHNESS_LABELS[row["freshness"]],
+            "severity": row["severity"],
+            "severity_label": SLA_ALERT_SEVERITY_LABELS[row["severity"]],
+            "delay_hours": row["delay_hours"],
+            "age_hours": row["age_hours"],
+            "priority": row["priority"],
+            "started_at": row["started_at"],
+            "url": reverse("scan:scan_shipment_track", args=[row["tracking_token"]]),
+        }
+        for row in sla_alert_base_rows
     ]
 
     page_actions = [
@@ -952,6 +934,18 @@ def scan_dashboard(request):
         {"id": "scan-dashboard-health", "label": _("Santé")},
     ]
     action_queue_rows = []
+    for row in sla_alert_rows[:3]:
+        action_queue_rows.append(
+            _build_action_queue_row(
+                label=row["label"],
+                reference=row["reference"],
+                owner=row["owner"],
+                priority=row["priority"],
+                url=row["url"],
+                started_at=row["started_at"],
+                cta_label=_("Ouvrir le dossier"),
+            )
+        )
     for shipment in shipments_scope.filter(is_disputed=True, closed_at__isnull=True).order_by(
         "-created_at"
     )[:3]:
@@ -1123,6 +1117,8 @@ def scan_dashboard(request):
         "document_scan_cards": document_scan_cards,
         "workflow_blockage_cards": workflow_blockage_cards,
         "sla_cards": sla_cards,
+        "sla_alert_summary_cards": sla_alert_summary_cards,
+        "sla_alert_rows": sla_alert_rows,
         "page_actions": page_actions,
         "dashboard_anchors": dashboard_anchors,
         "action_queue_rows": action_queue_rows,

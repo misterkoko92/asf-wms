@@ -19,6 +19,11 @@ from .models import (
     WmsRuntimeSettingsAudit,
 )
 from .runtime_settings import get_runtime_settings_instance, is_shipment_track_legacy_enabled
+from .scan_dashboard_sla import (
+    annotate_shipment_tracking_dates,
+    build_sla_alert_rows,
+    summarize_sla_alert_rows,
+)
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
 
@@ -53,6 +58,14 @@ SETTINGS_PRESETS = {
             "email_queue_retry_base_seconds": 30,
             "email_queue_retry_max_seconds": 300,
             "email_queue_processing_timeout_seconds": 120,
+        },
+    },
+    "incident_sla": {
+        "label": _("Incident SLA"),
+        "description": _("Resserre la detection des retards de suivi et des blocages."),
+        "values": {
+            "tracking_alert_hours": 48,
+            "workflow_blockage_hours": 48,
         },
     },
 }
@@ -95,6 +108,14 @@ def _build_impact_preview(values):
 
     env_flag = bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True))
     runtime_flag = bool(values["enable_shipment_track_legacy"])
+    shipments_with_tracking = annotate_shipment_tracking_dates(
+        Shipment.objects.filter(archived_at__isnull=True)
+    )
+    sla_alert_rows = build_sla_alert_rows(
+        shipments_with_tracking,
+        tracking_alert_hours=max(1, int(values["tracking_alert_hours"])),
+    )
+    sla_alert_summary = summarize_sla_alert_rows(sla_alert_rows)
 
     return {
         "stale_drafts_age_days": stale_days,
@@ -102,6 +123,9 @@ def _build_impact_preview(values):
         "queue_processing_timeout_seconds": queue_timeout_seconds,
         "queue_stale_processing_count": stale_processing_count,
         "legacy_effective_enabled": env_flag and runtime_flag,
+        "sla_new_delay_count": sla_alert_summary["new_count"],
+        "sla_persistent_delay_count": sla_alert_summary["persistent_count"],
+        "sla_critical_delay_count": sla_alert_summary["critical_count"],
     }
 
 
