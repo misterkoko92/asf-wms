@@ -45,6 +45,7 @@ from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
 )
+from .workflow_projection import schedule_shipment_workflow_projection_refresh
 
 SHIPMENT_STATUS_UPDATE_GROUP_DEFAULT = "Shipment_Status_Update"
 SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT = "Shipment_Status_Update_Correspondant"
@@ -455,6 +456,20 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
         )
 
 
+def _refresh_workflow_projection_on_shipment_save(sender, instance, **kwargs) -> None:
+    shipment_id = getattr(instance, "pk", None)
+    if shipment_id:
+        schedule_shipment_workflow_projection_refresh(shipment_id)
+
+
+def _refresh_workflow_projection_on_tracking_event(sender, instance, created, **kwargs) -> None:
+    if not created:
+        return
+    shipment_id = getattr(instance, "shipment_id", None)
+    if shipment_id:
+        schedule_shipment_workflow_projection_refresh(shipment_id)
+
+
 def _capture_order_state(sender, instance, **kwargs) -> None:
     if not instance.pk:
         instance._previous_order_status = None
@@ -677,9 +692,19 @@ def register_change_signals() -> None:
         dispatch_uid="wms_shipment_status_post_save",
     )
     post_save.connect(
+        _refresh_workflow_projection_on_shipment_save,
+        sender=Shipment,
+        dispatch_uid="wms_workflow_projection_shipment_post_save",
+    )
+    post_save.connect(
         _notify_tracking_event,
         sender=ShipmentTrackingEvent,
         dispatch_uid="wms_shipment_tracking_post_save",
+    )
+    post_save.connect(
+        _refresh_workflow_projection_on_tracking_event,
+        sender=ShipmentTrackingEvent,
+        dispatch_uid="wms_workflow_projection_tracking_post_save",
     )
     post_save.connect(
         _notify_order_status_change,

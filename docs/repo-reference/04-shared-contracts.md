@@ -161,6 +161,41 @@ Reference tests:
 - `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_shipments.py`
 
+### Shipment Workflow Projection Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/integration.py`
+- `wms/workflow_projection.py`
+- `wms/signals.py`
+- `wms/management/commands/rebuild_workflow_projections.py`
+- `api/v1/views.py` via `GET /api/v1/workflow-projections/shipments/`
+
+Current local contract:
+
+- `ShipmentWorkflowProjection` is a derived read model with one row per shipment dossier
+- the projection is recomputed from `Shipment`, `ShipmentTrackingEvent`, structured dispute fields, and `closed_at`
+- timeline markers are stable in this local phase: `shipment_created_at`, `planned_at`, `boarding_ok_at`, `received_correspondent_at`, `delivered_at`, `closed_at`
+- current-state markers are stable in this local phase: `current_segment`, `segment_started_at`, `segment_age_hours`, `is_closed`
+- lead-time fields are stable in this local phase: `lead_hours_planned_to_boarding`, `lead_hours_boarding_to_correspondent`, `lead_hours_correspondent_to_delivery`, `lead_hours_delivery_to_close`, `lead_hours_total_to_delivery`
+- dispute fields are stable in this local phase: `has_open_dispute`, `dispute_reason`, `dispute_owner`, `dispute_opened_at`, `dispute_resolved_at`, `dispute_resolution_hours`
+- delay fields are stable in this local phase: `delay_state`, `current_delay_hours`, `active_blockage_category`, `projected_at`
+- supported current segments are `creation_expedition`, `planned_to_boarding`, `boarding_to_correspondent`, `correspondent_to_delivery`, `delivery_to_close`, `closed`
+- supported delay states are `on_time`, `new`, `persistent`, `critical`
+- supported API filters in this local phase are `destination_id`, `shipment_status`, `current_segment`, `delay_state`, `has_open_dispute`, `is_closed`, `projected_since`
+- local refresh happens on shipment save and tracking-event creation, and the full rebuild path is `python manage.py rebuild_workflow_projections`
+
+Maintenance rule:
+
+- if shipment workflow timing, segment vocabulary, dispute projection, or delay classification changes, update the read-model helper, the API endpoint, the rebuild command, and the repo-reference in the same work
+- keep this phase shipment-centric; do not mix order-only or queue-only blockers into this contract before the aggregate wave is explicitly opened
+
+Reference tests:
+
+- `wms/tests/test_workflow_projection.py`
+- `wms/tests/management/tests_management_rebuild_workflow_projections.py`
+- `api/tests/tests_views_extra.py`
+
 ## 3. Shipment-Party And Portal Recipient Contract
 
 This is the most important cross-surface business contract in the repo.

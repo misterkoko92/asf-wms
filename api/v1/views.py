@@ -19,6 +19,7 @@ from wms.models import (
     Order,
     Product,
     Shipment,
+    ShipmentWorkflowProjection,
 )
 
 from .integration_filters import (
@@ -126,6 +127,57 @@ class IntegrationPermission(IntegrationKeyOrStaff):
     pass
 
 
+def _normalize_query_param(params, key):
+    return (params.get(key) or "").strip()
+
+
+def _parse_bool_query_param(raw_value):
+    value = (raw_value or "").strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def _parse_datetime_query_param(raw_value):
+    value = (raw_value or "").strip()
+    if not value:
+        return None
+    try:
+        parsed = timezone.datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed)
+    return parsed
+
+
+def _apply_workflow_projection_filters(queryset, params):
+    destination_id = _normalize_query_param(params, "destination_id")
+    if destination_id:
+        queryset = queryset.filter(destination_id=destination_id)
+    shipment_status = _normalize_query_param(params, "shipment_status")
+    if shipment_status:
+        queryset = queryset.filter(shipment_status=shipment_status)
+    current_segment = _normalize_query_param(params, "current_segment")
+    if current_segment:
+        queryset = queryset.filter(current_segment=current_segment)
+    delay_state = _normalize_query_param(params, "delay_state")
+    if delay_state:
+        queryset = queryset.filter(delay_state=delay_state)
+    has_open_dispute = _parse_bool_query_param(params.get("has_open_dispute"))
+    if has_open_dispute is not None:
+        queryset = queryset.filter(has_open_dispute=has_open_dispute)
+    is_closed = _parse_bool_query_param(params.get("is_closed"))
+    if is_closed is not None:
+        queryset = queryset.filter(is_closed=is_closed)
+    projected_since = _parse_datetime_query_param(params.get("projected_since"))
+    if projected_since is not None:
+        queryset = queryset.filter(projected_at__gte=projected_since)
+    return queryset
+
+
 class IntegrationShipmentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IntegrationShipmentSerializer
     permission_classes = [IntegrationPermission]
@@ -201,3 +253,49 @@ class IntegrationEventViewSet(
             serializer.save(processed_at=timezone.now())
         else:
             serializer.save()
+
+
+class WorkflowProjectionShipmentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = ShipmentWorkflowProjection.objects.select_related(
+            "shipment", "destination"
+        ).all()
+        queryset = _apply_workflow_projection_filters(queryset, request.query_params)
+        rows = list(
+            queryset.order_by("reference", "shipment_id").values(
+                "shipment_id",
+                "reference",
+                "tracking_token",
+                "destination_id",
+                "destination_label",
+                "shipment_status",
+                "shipment_created_at",
+                "planned_at",
+                "boarding_ok_at",
+                "received_correspondent_at",
+                "delivered_at",
+                "closed_at",
+                "current_segment",
+                "segment_started_at",
+                "segment_age_hours",
+                "is_closed",
+                "lead_hours_planned_to_boarding",
+                "lead_hours_boarding_to_correspondent",
+                "lead_hours_correspondent_to_delivery",
+                "lead_hours_delivery_to_close",
+                "lead_hours_total_to_delivery",
+                "has_open_dispute",
+                "dispute_reason",
+                "dispute_owner",
+                "dispute_opened_at",
+                "dispute_resolved_at",
+                "dispute_resolution_hours",
+                "delay_state",
+                "current_delay_hours",
+                "active_blockage_category",
+                "projected_at",
+            )
+        )
+        return Response(rows)

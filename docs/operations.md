@@ -156,6 +156,19 @@ Run the document scan worker regularly (cron/systemd timer):
 python manage.py process_document_scan_queue --limit=200
 ```
 
+Rebuild the shipment workflow projection read model after local calibration, fixture reseed, or when
+validating reporting payloads:
+
+```bash
+python manage.py rebuild_workflow_projections
+```
+
+Notes:
+
+- this command is safe to rerun
+- it recomputes from `Shipment` and `ShipmentTrackingEvent`, it does not parse workflow logs
+- use it in local V2 when you want `/api/v1/workflow-projections/shipments/` to reflect the current dataset immediately
+
 ### 3.0) Tooling rollback
 
 If the standardized Python tooling blocks a release or hotfix:

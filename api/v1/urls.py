@@ -36,6 +36,7 @@ from .views import (
     PackCartonView,
     ProductViewSet,
     ReceiveStockView,
+    WorkflowProjectionShipmentsView,
 )
 
 router = DefaultRouter()
@@ -54,6 +55,11 @@ router.register("integrations/events", IntegrationEventViewSet, basename="integr
 urlpatterns = [
     path("stock/receive/", ReceiveStockView.as_view(), name="stock-receive"),
     path("pack/", PackCartonView.as_view(), name="pack"),
+    path(
+        "workflow-projections/shipments/",
+        WorkflowProjectionShipmentsView.as_view(),
+        name="workflow-projection-shipments",
+    ),
     path("ui/dashboard/", UiDashboardView.as_view(), name="ui-dashboard"),
     path(
         "ui/dashboard/workflow-blockages/claims/",

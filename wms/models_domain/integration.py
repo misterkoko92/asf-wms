@@ -102,6 +102,70 @@ class WorkflowBlockageClaim(models.Model):
         return self.blockage_key
 
 
+class ShipmentWorkflowProjection(models.Model):
+    shipment = models.OneToOneField(
+        "wms.Shipment",
+        on_delete=models.CASCADE,
+        related_name="workflow_projection",
+    )
+    destination = models.ForeignKey(
+        "wms.Destination",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipment_workflow_projections",
+    )
+    reference = models.CharField(max_length=80, blank=True, default="")
+    tracking_token = models.UUIDField(null=True, blank=True)
+    destination_label = models.CharField(max_length=200, blank=True, default="")
+    shipment_status = models.CharField(max_length=40, blank=True, default="")
+    shipment_created_at = models.DateTimeField(null=True, blank=True)
+    planned_at = models.DateTimeField(null=True, blank=True)
+    boarding_ok_at = models.DateTimeField(null=True, blank=True)
+    received_correspondent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    current_segment = models.CharField(max_length=40, blank=True, default="")
+    segment_started_at = models.DateTimeField(null=True, blank=True)
+    segment_age_hours = models.FloatField(default=0.0)
+    is_closed = models.BooleanField(default=False)
+    lead_hours_planned_to_boarding = models.FloatField(null=True, blank=True)
+    lead_hours_boarding_to_correspondent = models.FloatField(null=True, blank=True)
+    lead_hours_correspondent_to_delivery = models.FloatField(null=True, blank=True)
+    lead_hours_delivery_to_close = models.FloatField(null=True, blank=True)
+    lead_hours_total_to_delivery = models.FloatField(null=True, blank=True)
+    has_open_dispute = models.BooleanField(default=False)
+    dispute_reason = models.CharField(max_length=40, blank=True, default="")
+    dispute_owner = models.CharField(max_length=20, blank=True, default="")
+    dispute_opened_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolved_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolution_hours = models.FloatField(null=True, blank=True)
+    delay_state = models.CharField(max_length=20, blank=True, default="on_time")
+    current_delay_hours = models.FloatField(default=0.0)
+    active_blockage_category = models.CharField(max_length=32, blank=True, default="")
+    projected_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["reference", "shipment_id"]
+        indexes = [
+            models.Index(
+                fields=["shipment_status", "current_segment"],
+                name="wms_shipwf_status_seg_idx",
+            ),
+            models.Index(
+                fields=["delay_state", "is_closed"],
+                name="wms_shipwf_delay_closed_idx",
+            ),
+            models.Index(
+                fields=["has_open_dispute", "projected_at"],
+                name="wms_shipwf_dispute_proj_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.reference or f"workflow-projection:{self.shipment_id}"
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)

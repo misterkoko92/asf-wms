@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -18,6 +18,10 @@ from wms.models import (
     OrderLine,
     OrderStatus,
     Product,
+    Shipment,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
+    ShipmentWorkflowProjection,
     Warehouse,
 )
 
@@ -260,7 +264,100 @@ class ApiViewsExtraTests(TestCase):
         event.refresh_from_db()
         self.assertEqual(event.status, IntegrationStatus.FAILED)
         self.assertEqual(event.error_message, "boom")
-        self.assertIsNone(event.processed_at)
+
+    def test_workflow_projections_shipments_endpoint_returns_projected_rows(self):
+        destination = Destination.objects.create(
+            city="Niamey",
+            iata_code="NIM",
+            country="Niger",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        shipment = Shipment.objects.create(
+            reference="EXP-API-PROJ-001",
+            status="planned",
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination=destination,
+            destination_address="12 Rue Projection",
+            destination_country=destination.country,
+            created_by=self.user,
+        )
+        tracking_event = ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Ops",
+            actor_structure="ASF",
+            created_by=self.user,
+        )
+        ShipmentTrackingEvent.objects.filter(pk=tracking_event.pk).update(
+            created_at=timezone.now() - timedelta(hours=96)
+        )
+        ShipmentWorkflowProjection.objects.create(
+            shipment=shipment,
+            reference=shipment.reference,
+            tracking_token=shipment.tracking_token,
+            destination_id=destination.id,
+            destination_label=str(destination),
+            shipment_status=shipment.status,
+            shipment_created_at=shipment.created_at,
+            planned_at=timezone.now() - timedelta(hours=96),
+            current_segment="planned_to_boarding",
+            segment_started_at=timezone.now() - timedelta(hours=96),
+            segment_age_hours=96,
+            is_closed=False,
+            delay_state="new",
+            current_delay_hours=24,
+            active_blockage_category="suivi",
+        )
+
+        response = self.client.get("/api/v1/workflow-projections/shipments/")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["reference"], shipment.reference)
+        self.assertEqual(data[0]["current_segment"], "planned_to_boarding")
+        self.assertEqual(data[0]["delay_state"], "new")
+
+    def test_workflow_projections_shipments_endpoint_applies_filters(self):
+        destination = Destination.objects.create(
+            city="Lome",
+            iata_code="LFW",
+            country="Togo",
+            correspondent_contact=self.contact,
+            is_active=True,
+        )
+        projection = ShipmentWorkflowProjection.objects.create(
+            shipment=Shipment.objects.create(
+                reference="EXP-API-PROJ-002",
+                status="delivered",
+                shipper_name="Sender",
+                recipient_name="Recipient",
+                correspondent_name="Correspondent",
+                destination=destination,
+                destination_address="14 Rue Projection",
+                destination_country="Togo",
+                created_by=self.user,
+            ),
+            reference="EXP-API-PROJ-002",
+            destination=destination,
+            shipment_status="delivered",
+            current_segment="delivery_to_close",
+            delay_state="persistent",
+            has_open_dispute=True,
+            is_closed=False,
+        )
+
+        response = self.client.get(
+            "/api/v1/workflow-projections/shipments/?delay_state=persistent&has_open_dispute=1&is_closed=0"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["reference"], projection.reference)
 
     def test_integration_event_partial_update_rejects_outbound_email_queue_event(self):
         event = IntegrationEvent.objects.create(

@@ -32,12 +32,15 @@ Use it when you need to answer:
 - `wms/scan_shipment_handlers.py`
 - `wms/shipment_tracking_handlers.py`
 - `wms/shipment_document_handlers.py`
+- `wms/workflow_projection.py`
+- `wms/management/commands/rebuild_workflow_projections.py`
 - `wms/carton_handlers.py`
 - `wms/services.py`
 - `templates/scan/`
 - `templates/print/`
 - `wms/static/scan/`
 - `api/v1/ui_views.py`
+- `api/v1/views.py`
 
 ### What the flow covers
 
@@ -57,6 +60,7 @@ Use it when you need to answer:
 - tracking events
 - structured shipment dispute intake, assignment, due date, and resolution
 - shipment tracking list filters for open, overdue, and unassigned disputes
+- shipment workflow projection rebuild and reporting endpoint under `/api/v1/workflow-projections/shipments/`
 - document upload and print/document endpoints
 - label generation
 - closure of a completed shipment
@@ -71,6 +75,9 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`
+- `wms/tests/test_workflow_projection.py`
+- `wms/tests/management/tests_management_rebuild_workflow_projections.py`
+- `api/tests/tests_views_extra.py`
 
 ### Docs that must stay aligned
 
