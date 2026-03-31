@@ -941,6 +941,122 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(cards["Queue email en echec"]["tone"], "danger")
         self.assertEqual(cards["Queue email bloquee (timeout)"]["tone"], "danger")
 
+    def test_ui_dashboard_exposes_pending_actions_with_age_owner_priority_and_url(self):
+        disputed = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="44 Rue Action",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+        Shipment.objects.filter(pk=disputed.pk).update(
+            created_at=timezone.now() - timedelta(hours=12)
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("pending_actions", payload)
+        self.assertGreaterEqual(len(payload["pending_actions"]), 1)
+
+        for item in payload["pending_actions"]:
+            self.assertIn("type", item)
+            self.assertIn("reference", item)
+            self.assertIn("label", item)
+            self.assertIn("priority", item)
+            self.assertIn("owner", item)
+            self.assertIn("url", item)
+            self.assertIn("age_hours", item)
+
+        dispute_item = next(
+            item for item in payload["pending_actions"] if item["reference"] == disputed.reference
+        )
+        self.assertEqual(dispute_item["type"], "shipment_dispute")
+        self.assertEqual(dispute_item["priority"], "high")
+        self.assertEqual(dispute_item["owner"], "qualite")
+        self.assertGreaterEqual(dispute_item["age_hours"], 12)
+        self.assertTrue(dispute_item["url"])
+
+    def test_ui_dashboard_exposes_document_scan_cards_alongside_email_cards(self):
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.PENDING,
+        )
+        fresh_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now(),
+        )
+        stale_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now() - timedelta(hours=24),
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.FAILED,
+            error_message="ClamAV down",
+        )
+        IntegrationEvent.objects.filter(pk__in=[fresh_processing.pk, stale_processing.pk]).update(
+            status=IntegrationStatus.PROCESSING
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("document_scan_cards", payload)
+
+        cards = {card["label"]: card for card in payload["document_scan_cards"]}
+        self.assertEqual(cards["Queue scan doc en attente"]["value"], 1)
+        self.assertEqual(cards["Queue scan doc en traitement"]["value"], 2)
+        self.assertEqual(cards["Queue scan doc en echec"]["value"], 1)
+        self.assertEqual(cards["Queue scan doc bloquee (timeout)"]["value"], 1)
+        self.assertEqual(cards["Queue scan doc en attente"]["tone"], "warn")
+        self.assertEqual(cards["Queue scan doc en echec"]["tone"], "danger")
+        self.assertEqual(cards["Queue scan doc bloquee (timeout)"]["tone"], "danger")
+
+    def test_ui_dashboard_pending_actions_use_stable_owner_and_priority_vocab(self):
+        Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="45 Rue Action",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        allowed_owners = {"magasin", "qualite", "admin", "portal"}
+        allowed_priorities = {"high", "medium", "low"}
+        self.assertGreaterEqual(len(payload["pending_actions"]), 1)
+        for item in payload["pending_actions"]:
+            self.assertIn(item["owner"], allowed_owners)
+            self.assertIn(item["priority"], allowed_priorities)
+
     def test_ui_dashboard_exposes_stock_cards(self):
         ProductLot.objects.create(
             product=self.product,
@@ -1444,6 +1560,60 @@ class UiApiEndpointsTests(TestCase):
         self.assertIn("kpis", payload)
         self.assertIn("orders", payload)
         self.assertEqual(payload["orders"][0]["id"], self.portal_order.id)
+
+    def test_ui_portal_dashboard_exposes_step_guidance_and_summary_counts(self):
+        portal_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name="ASF Hub",
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name="Recipient",
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name="M. Dupont",
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="30 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        changes_requested = Order.objects.create(
+            association_contact=self.association_contact,
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination_address="21 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        shipped_order = Order.objects.create(
+            association_contact=self.association_contact,
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination_address="22 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+            shipment=portal_shipment,
+        )
+
+        response = self.portal_client.get("/api/v1/ui/portal/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("kpis", payload)
+        self.assertEqual(payload["kpis"]["orders_total"], 3)
+        self.assertEqual(payload["kpis"]["orders_pending_review"], 1)
+        self.assertEqual(payload["kpis"]["orders_changes_requested"], 1)
+        self.assertEqual(payload["kpis"]["orders_with_shipment"], 1)
+
+        rows = {row["id"]: row for row in payload["orders"]}
+        self.assertEqual(
+            rows[self.portal_order.id]["next_step_label"], "Attendre la validation ASF"
+        )
+        self.assertEqual(rows[self.portal_order.id]["next_step_tone"], "info")
+        self.assertEqual(rows[changes_requested.id]["next_step_label"], "Corriger la commande")
+        self.assertEqual(rows[shipped_order.id]["next_step_label"], "Suivre l'expédition")
 
     def test_ui_stock_update_post_creates_new_lot(self):
         previous_lot_count = ProductLot.objects.count()

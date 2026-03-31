@@ -31,6 +31,11 @@ from .order_helpers import (
     split_ready_rows_into_kits,
 )
 from .order_notifications import send_portal_order_notifications
+from .portal_dashboard_helpers import (
+    build_portal_dashboard_kpis,
+    portal_order_next_step_label,
+    portal_order_next_step_tone,
+)
 from .portal_helpers import (
     build_destination_address,
     get_contact_address,
@@ -83,6 +88,8 @@ def _decorate_order_status_displays(order):
     order.order_status_display = present_order_status(order)
     order.review_status_display = present_order_review_status(order)
     order.shipment_status_display = present_order_shipment_status(order)
+    order.next_step_label = portal_order_next_step_label(order)
+    order.next_step_tone = portal_order_next_step_tone(order)
     return order
 
 
@@ -556,7 +563,14 @@ def _build_order_detail_context(order):
 def portal_dashboard(request):
     profile = request.association_profile
     orders = [_decorate_order_status_displays(order) for order in _get_dashboard_orders(profile)]
-    return render(request, TEMPLATE_PORTAL_DASHBOARD, {"orders": orders})
+    return render(
+        request,
+        TEMPLATE_PORTAL_DASHBOARD,
+        {
+            "orders": orders,
+            "dashboard_kpis": build_portal_dashboard_kpis(orders),
+        },
+    )
 
 
 @login_required(login_url="portal:portal_login")

@@ -82,6 +82,47 @@
     </div>
   </section>
 
+  <section id="scan-dashboard-action-queue" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "À traiter maintenant" %}</h2>
+        <p class="scan-help mb-0">{% trans "Passez des signaux agrégés aux dossiers concrets à débloquer." %}</p>
+      </div>
+      {% if action_queue_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Action" %}</th>
+                <th>{% trans "Référence" %}</th>
+                <th>Owner</th>
+                <th>{% trans "Priorité" %}</th>
+                <th>{% trans "Âge" %}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in action_queue_rows %}
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.owner }}</td>
+                  <td>{{ row.priority }}</td>
+                  <td>{{ row.age_hours|floatformat:1 }}h</td>
+                  <td class="text-end">
+                    <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">{% trans "Aucune action transverse immédiate." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
   <section id="scan-dashboard-pilotage" class="scan-dashboard-section">
     <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
       <div class="scan-dashboard-section-header">
@@ -169,7 +210,7 @@
     <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
       <div class="scan-dashboard-section-header">
         <h2 class="ui-comp-title mb-1">{% trans "Santé système" %}</h2>
-        <p class="scan-help mb-0">{% trans "Surveillez la queue email et les délais de suivi sans prendre le dessus sur l’opérationnel." %}</p>
+        <p class="scan-help mb-0">{% trans "Surveillez les queues email et scan documentaire sans prendre le dessus sur l’opérationnel." %}</p>
       </div>
       <div class="scan-dashboard-health-grid">
         {% for section in system_health_sections %}

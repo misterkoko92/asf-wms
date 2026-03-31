@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import EmailValidator
 from django.db import connection, transaction
@@ -15,6 +16,11 @@ from rest_framework.views import APIView
 
 from wms.carton_status_events import set_carton_status
 from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
+from wms.document_scan_queue import (
+    DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
+    DOCUMENT_SCAN_QUEUE_SOURCE,
+)
 from wms.forms import ScanOutForm, ScanShipmentForm, ScanStockUpdateForm, ShipmentTrackingForm
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
@@ -45,6 +51,11 @@ from wms.models import (
     ShipmentTrackingStatus,
 )
 from wms.order_notifications import send_portal_order_notifications
+from wms.portal_dashboard_helpers import (
+    build_portal_dashboard_kpis,
+    portal_order_next_step_label,
+    portal_order_next_step_tone,
+)
 from wms.portal_helpers import (
     build_destination_address,
     get_association_profile,
@@ -192,6 +203,8 @@ DASHBOARD_PERIOD_CHOICES = (
     (DASHBOARD_PERIOD_30D, "30 jours"),
     (DASHBOARD_PERIOD_WEEK, "Semaine en cours"),
 )
+DASHBOARD_ACTION_OWNERS = ("magasin", "qualite", "admin", "portal")
+DASHBOARD_ACTION_PRIORITIES = ("high", "medium", "low")
 DASHBOARD_SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.DRAFT,
     ShipmentStatus.PICKING,
@@ -251,11 +264,89 @@ def _build_dashboard_shipment_chart_rows(status_count_map):
     return rows, shipments_total
 
 
+def _dashboard_positive_int(value, *, default: int) -> int:
+    try:
+        int_value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, int_value)
+
+
+def _dashboard_age_hours(started_at):
+    if started_at is None:
+        return 0.0
+    delta = timezone.now() - started_at
+    return max(round(delta.total_seconds() / 3600, 1), 0.0)
+
+
+def _build_dashboard_action(
+    *,
+    action_type: str,
+    reference: str,
+    label: str,
+    priority: str,
+    owner: str,
+    url: str,
+    started_at=None,
+    context=None,
+):
+    if owner not in DASHBOARD_ACTION_OWNERS:
+        raise ValueError(f"Unsupported dashboard action owner: {owner}")
+    if priority not in DASHBOARD_ACTION_PRIORITIES:
+        raise ValueError(f"Unsupported dashboard action priority: {priority}")
+    item = {
+        "type": action_type,
+        "reference": reference,
+        "label": label,
+        "priority": priority,
+        "owner": owner,
+        "url": url,
+        "age_hours": _dashboard_age_hours(started_at),
+    }
+    if context:
+        item["context"] = context
+    return item
+
+
 def _dashboard_email_queue_snapshot(*, processing_timeout_seconds: int):
     queue_qs = IntegrationEvent.objects.filter(
         direction=IntegrationDirection.OUTBOUND,
         source="wms.email",
         event_type="send_email",
+    )
+    status_counts = {
+        item["status"]: item["total"]
+        for item in queue_qs.values("status").annotate(total=Count("id"))
+    }
+    stale_cutoff = timezone.now() - timedelta(seconds=processing_timeout_seconds)
+    stale_processing_count = queue_qs.filter(
+        status=IntegrationStatus.PROCESSING,
+        processed_at__lte=stale_cutoff,
+    ).count()
+    return {
+        "pending_count": status_counts.get(IntegrationStatus.PENDING, 0),
+        "processing_count": status_counts.get(IntegrationStatus.PROCESSING, 0),
+        "failed_count": status_counts.get(IntegrationStatus.FAILED, 0),
+        "stale_processing_count": stale_processing_count,
+    }
+
+
+def _dashboard_document_scan_timeout_seconds():
+    return _dashboard_positive_int(
+        getattr(
+            settings,
+            "DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS",
+            DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+        ),
+        default=DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    )
+
+
+def _dashboard_document_scan_queue_snapshot(*, processing_timeout_seconds: int):
+    queue_qs = IntegrationEvent.objects.filter(
+        direction=IntegrationDirection.OUTBOUND,
+        source=DOCUMENT_SCAN_QUEUE_SOURCE,
+        event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
     )
     status_counts = {
         item["status"]: item["total"]
@@ -813,35 +904,46 @@ class UiDashboardView(APIView):
         pending_actions = []
         for row in low_stock_rows[:3]:
             pending_actions.append(
-                {
-                    "type": "stock_replenish",
-                    "reference": row["sku"],
-                    "label": f"Reappro {row['name']}",
-                    "priority": "high",
-                    "owner": "magasin",
-                }
+                _build_dashboard_action(
+                    action_type="stock_replenish",
+                    reference=row["sku"],
+                    label=f"Reappro {row['name']}",
+                    priority="high",
+                    owner="magasin",
+                    url=reverse("scan:scan_stock"),
+                    context={"product_id": row["id"]},
+                )
             )
         for shipment in disputed_qs.order_by("-created_at")[:3]:
             pending_actions.append(
-                {
-                    "type": "shipment_dispute",
-                    "reference": shipment.reference or f"EXP-{shipment.id}",
-                    "label": "Resoudre litige",
-                    "priority": "high",
-                    "owner": "qualite",
-                }
+                _build_dashboard_action(
+                    action_type="shipment_dispute",
+                    reference=shipment.reference or f"EXP-{shipment.id}",
+                    label="Resoudre litige",
+                    priority="high",
+                    owner="qualite",
+                    url=reverse("scan:scan_shipments_tracking"),
+                    started_at=shipment.disputed_at or shipment.created_at,
+                    context={
+                        "shipment_id": shipment.id,
+                        "destination_id": shipment.destination_id,
+                    },
+                )
             )
         for order in Order.objects.filter(review_status=OrderReviewStatus.PENDING).order_by(
             "-created_at"
         )[:3]:
             pending_actions.append(
-                {
-                    "type": "order_review",
-                    "reference": order.reference or f"CMD-{order.id}",
-                    "label": "Valider commande",
-                    "priority": "medium",
-                    "owner": "admin",
-                }
+                _build_dashboard_action(
+                    action_type="order_review",
+                    reference=order.reference or f"CMD-{order.id}",
+                    label="Valider commande",
+                    priority="medium",
+                    owner="admin",
+                    url=reverse("scan:scan_orders_view"),
+                    started_at=order.created_at,
+                    context={"order_id": order.id},
+                )
             )
 
         period_shipments_qs = shipments_qs.filter(created_at__gte=period_start)
@@ -1100,6 +1202,10 @@ class UiDashboardView(APIView):
         technical_snapshot = _dashboard_email_queue_snapshot(
             processing_timeout_seconds=queue_processing_timeout_seconds
         )
+        document_scan_timeout_seconds = _dashboard_document_scan_timeout_seconds()
+        document_scan_snapshot = _dashboard_document_scan_queue_snapshot(
+            processing_timeout_seconds=document_scan_timeout_seconds
+        )
         technical_cards = [
             {
                 "label": "Queue email en attente",
@@ -1131,6 +1237,41 @@ class UiDashboardView(APIView):
                 ),
                 "url": reverse("scan:scan_dashboard"),
                 "tone": ("danger" if technical_snapshot["stale_processing_count"] else "success"),
+            },
+        ]
+        document_scan_cards = [
+            {
+                "label": "Queue scan doc en attente",
+                "value": document_scan_snapshot["pending_count"],
+                "help": "Scans document en file d attente.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "warn" if document_scan_snapshot["pending_count"] else "success",
+            },
+            {
+                "label": "Queue scan doc en traitement",
+                "value": document_scan_snapshot["processing_count"],
+                "help": "Scans document claims en cours.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Queue scan doc en echec",
+                "value": document_scan_snapshot["failed_count"],
+                "help": "Scans document a investiguer ou rejouer.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "danger" if document_scan_snapshot["failed_count"] else "success",
+            },
+            {
+                "label": "Queue scan doc bloquee (timeout)",
+                "value": document_scan_snapshot["stale_processing_count"],
+                "help": (
+                    "Scans document processing au dela du timeout "
+                    f"({document_scan_timeout_seconds}s)."
+                ),
+                "url": reverse("scan:scan_dashboard"),
+                "tone": (
+                    "danger" if document_scan_snapshot["stale_processing_count"] else "success"
+                ),
             },
         ]
         workflow_blockage_snapshot = _dashboard_workflow_blockage_snapshot(
@@ -1221,6 +1362,8 @@ class UiDashboardView(APIView):
                 "tracking_cards": tracking_cards,
                 "queue_processing_timeout_seconds": queue_processing_timeout_seconds,
                 "technical_cards": technical_cards,
+                "document_scan_processing_timeout_seconds": document_scan_timeout_seconds,
+                "document_scan_cards": document_scan_cards,
                 "workflow_blockage_hours": workflow_blockage_hours,
                 "workflow_blockage_cards": workflow_blockage_cards,
                 "sla_cards": sla_cards,
@@ -2817,21 +2960,12 @@ class UiPortalDashboardView(APIView):
 
     def get(self, request):
         profile = get_association_profile(request.user)
-        orders_qs = (
+        orders = list(
             Order.objects.filter(association_contact=profile.contact)
             .select_related("shipment")
             .order_by("-created_at")
         )
-        kpis = {
-            "orders_total": orders_qs.count(),
-            "orders_pending_review": orders_qs.filter(
-                review_status=OrderReviewStatus.PENDING
-            ).count(),
-            "orders_changes_requested": orders_qs.filter(
-                review_status=OrderReviewStatus.CHANGES_REQUESTED
-            ).count(),
-            "orders_with_shipment": orders_qs.filter(shipment__isnull=False).count(),
-        }
+        kpis = build_portal_dashboard_kpis(orders)
         rows = [
             {
                 "id": order.id,
@@ -2840,6 +2974,8 @@ class UiPortalDashboardView(APIView):
                 "review_status_label": order.get_review_status_display(),
                 "shipment_id": order.shipment_id,
                 "shipment_reference": (order.shipment.reference if order.shipment_id else ""),
+                "next_step_label": portal_order_next_step_label(order),
+                "next_step_tone": portal_order_next_step_tone(order),
                 "requested_delivery_date": (
                     order.requested_delivery_date.isoformat()
                     if order.requested_delivery_date
@@ -2847,6 +2983,6 @@ class UiPortalDashboardView(APIView):
                 ),
                 "created_at": order.created_at.isoformat(),
             }
-            for order in orders_qs[:12]
+            for order in orders[:12]
         ]
         return Response({"kpis": kpis, "orders": rows})

@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
+from django.conf import settings
 from django.db.models import Count, F, IntegerField, Max, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
@@ -11,6 +12,11 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from django.views.decorators.http import require_http_methods
 
+from .document_scan_queue import (
+    DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
+    DOCUMENT_SCAN_QUEUE_SOURCE,
+)
 from .models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     Carton,
@@ -50,6 +56,8 @@ PERIOD_CHOICES = (
     (PERIOD_30D, _lazy("30 jours")),
     (PERIOD_WEEK, _lazy("Semaine en cours")),
 )
+ACTION_QUEUE_OWNERS = ("magasin", "qualite", "admin", "portal")
+ACTION_QUEUE_PRIORITIES = ("high", "medium", "low")
 
 SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.DRAFT,
@@ -151,6 +159,46 @@ def _build_dashboard_section(*, section_id, title, cards, description=""):
     }
 
 
+def _positive_int(value, *, default):
+    try:
+        int_value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, int_value)
+
+
+def _age_hours(started_at):
+    if started_at is None:
+        return 0.0
+    delta = timezone.now() - started_at
+    return max(round(delta.total_seconds() / 3600, 1), 0.0)
+
+
+def _build_action_queue_row(
+    *,
+    label,
+    reference,
+    owner,
+    priority,
+    url,
+    started_at=None,
+    cta_label=None,
+):
+    if owner not in ACTION_QUEUE_OWNERS:
+        raise ValueError(f"Unsupported action queue owner: {owner}")
+    if priority not in ACTION_QUEUE_PRIORITIES:
+        raise ValueError(f"Unsupported action queue priority: {priority}")
+    return {
+        "label": label,
+        "reference": reference,
+        "owner": owner,
+        "priority": priority,
+        "url": url,
+        "age_hours": _age_hours(started_at),
+        "cta_label": cta_label or _("Voir le détail"),
+    }
+
+
 def _annotate_tracking_dates(queryset):
     return queryset.annotate(
         planned_at=Max(
@@ -240,6 +288,41 @@ def _email_queue_snapshot(*, processing_timeout_seconds):
         "processing_count": status_counts.get(IntegrationStatus.PROCESSING, 0),
         "failed_count": status_counts.get(IntegrationStatus.FAILED, 0),
         "processed_count": status_counts.get(IntegrationStatus.PROCESSED, 0),
+        "stale_processing_count": stale_processing_count,
+    }
+
+
+def _document_scan_timeout_seconds():
+    return _positive_int(
+        getattr(
+            settings,
+            "DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS",
+            DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+        ),
+        default=DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    )
+
+
+def _document_scan_queue_snapshot(*, processing_timeout_seconds):
+    queue_qs = IntegrationEvent.objects.filter(
+        direction=IntegrationDirection.OUTBOUND,
+        source=DOCUMENT_SCAN_QUEUE_SOURCE,
+        event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
+    )
+    status_counts = {
+        item["status"]: item["total"]
+        for item in queue_qs.values("status").annotate(total=Count("id"))
+    }
+    stale_cutoff = timezone.now() - timedelta(seconds=processing_timeout_seconds)
+    stale_processing_count = queue_qs.filter(
+        status=IntegrationStatus.PROCESSING,
+        processed_at__lte=stale_cutoff,
+    ).count()
+
+    return {
+        "pending_count": status_counts.get(IntegrationStatus.PENDING, 0),
+        "processing_count": status_counts.get(IntegrationStatus.PROCESSING, 0),
+        "failed_count": status_counts.get(IntegrationStatus.FAILED, 0),
         "stale_processing_count": stale_processing_count,
     }
 
@@ -726,6 +809,42 @@ def scan_dashboard(request):
             tone="danger" if email_queue_snapshot["stale_processing_count"] else "success",
         ),
     ]
+    document_scan_timeout_seconds = _document_scan_timeout_seconds()
+    document_scan_snapshot = _document_scan_queue_snapshot(
+        processing_timeout_seconds=document_scan_timeout_seconds
+    )
+    document_scan_cards = [
+        _build_card(
+            label=_("Queue scan doc en attente"),
+            value=document_scan_snapshot["pending_count"],
+            help_text=_("Scans document en file d'attente."),
+            url=reverse("scan:scan_dashboard"),
+            tone="warn" if document_scan_snapshot["pending_count"] else "success",
+        ),
+        _build_card(
+            label=_("Queue scan doc en traitement"),
+            value=document_scan_snapshot["processing_count"],
+            help_text=_("Scans document claimés en cours."),
+            url=reverse("scan:scan_dashboard"),
+        ),
+        _build_card(
+            label=_("Queue scan doc en échec"),
+            value=document_scan_snapshot["failed_count"],
+            help_text=_("Scans document à investiguer ou rejouer."),
+            url=reverse("scan:scan_dashboard"),
+            tone="danger" if document_scan_snapshot["failed_count"] else "success",
+        ),
+        _build_card(
+            label=_("Queue scan doc bloquée (timeout)"),
+            value=document_scan_snapshot["stale_processing_count"],
+            help_text=(
+                _("Scans document processing au-delà du timeout (%(seconds)ss).")
+                % {"seconds": document_scan_timeout_seconds}
+            ),
+            url=reverse("scan:scan_dashboard"),
+            tone="danger" if document_scan_snapshot["stale_processing_count"] else "success",
+        ),
+    ]
 
     workflow_blockage_snapshot = _workflow_blockage_snapshot(
         shipments_scope,
@@ -827,10 +946,49 @@ def scan_dashboard(request):
     ]
     dashboard_anchors = [
         {"id": "scan-dashboard-priorities", "label": _("Priorités")},
+        {"id": "scan-dashboard-action-queue", "label": _("Actions")},
         {"id": "scan-dashboard-pilotage", "label": _("Pilotage")},
         {"id": "scan-dashboard-flow", "label": _("Flux")},
         {"id": "scan-dashboard-health", "label": _("Santé")},
     ]
+    action_queue_rows = []
+    for shipment in shipments_scope.filter(is_disputed=True, closed_at__isnull=True).order_by(
+        "-created_at"
+    )[:3]:
+        action_queue_rows.append(
+            _build_action_queue_row(
+                label=_("Résoudre litige"),
+                reference=shipment.reference or f"EXP-{shipment.pk}",
+                owner="qualite",
+                priority="high",
+                url=reverse("scan:scan_shipments_tracking"),
+                started_at=shipment.disputed_at or shipment.created_at,
+            )
+        )
+    for row in stock_snapshot["low_stock_rows"][:3]:
+        action_queue_rows.append(
+            _build_action_queue_row(
+                label=_("Réappro %(name)s") % {"name": row["name"]},
+                reference=row["sku"],
+                owner="magasin",
+                priority="high",
+                url=reverse("scan:scan_stock"),
+            )
+        )
+    for order in Order.objects.filter(review_status=OrderReviewStatus.PENDING).order_by(
+        "-created_at"
+    )[:3]:
+        action_queue_rows.append(
+            _build_action_queue_row(
+                label=_("Valider commande"),
+                reference=order.reference or f"CMD-{order.pk}",
+                owner="admin",
+                priority="medium",
+                url=reverse("scan:scan_orders_view"),
+                started_at=order.created_at,
+            )
+        )
+    action_queue_rows = action_queue_rows[:10]
     priority_cards = [
         _build_card(
             label=_("Expéditions prêtes"),
@@ -930,6 +1088,12 @@ def scan_dashboard(request):
             cards=technical_cards,
         ),
         _build_dashboard_section(
+            section_id="scan-dashboard-document-scan",
+            title=_("Technique / Scan documentaire"),
+            description=_("État de la file antivirus et du traitement."),
+            cards=document_scan_cards,
+        ),
+        _build_dashboard_section(
             section_id="scan-dashboard-sla",
             title=_("Suivi SLA"),
             description=_("Temps de passage entre étapes de suivi."),
@@ -956,10 +1120,12 @@ def scan_dashboard(request):
         "flow_cards": flow_cards,
         "tracking_cards": tracking_cards,
         "technical_cards": technical_cards,
+        "document_scan_cards": document_scan_cards,
         "workflow_blockage_cards": workflow_blockage_cards,
         "sla_cards": sla_cards,
         "page_actions": page_actions,
         "dashboard_anchors": dashboard_anchors,
+        "action_queue_rows": action_queue_rows,
         "priority_cards": priority_cards,
         "flow_sections": flow_sections,
         "system_health_sections": system_health_sections,

@@ -72,6 +72,54 @@ Reference tests:
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 
+### Local Dashboard V2 API Contract
+
+Primary runtime source:
+
+- `api/v1/ui_views.py` via `GET /api/v1/ui/dashboard/`
+
+Phase 1 local contract:
+
+- `pending_actions[]` items expose `type`, `reference`, `label`, `priority`, `owner`, `url`, `age_hours`
+- allowed `owner` values are `magasin`, `qualite`, `admin`, `portal`
+- allowed `priority` values are `high`, `medium`, `low`
+- `document_scan_cards[]` mirrors the queue-card shape already used by `technical_cards[]`
+
+Maintenance rule:
+
+- if dashboard action routing or ownership vocabulary changes, update both the API tests and the legacy dashboard surface in the same work
+- keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
+
+Reference tests:
+
+- `api/tests/tests_ui_endpoints.py`
+
+### Portal Dashboard Cockpit Contract
+
+Primary runtime sources:
+
+- `wms/views_portal_orders.py`
+- `wms/portal_dashboard_helpers.py`
+- `templates/portal/dashboard.html`
+- `api/v1/ui_views.py` via `GET /api/v1/ui/portal/dashboard/`
+
+Current contract:
+
+- `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
+- portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
+- the HTML table and the UI API must stay aligned on the meaning of "next step" for pending review, correction, preparation, and tracked shipment states
+
+Maintenance rule:
+
+- if the association-facing dossier guidance changes, update the helper logic, the portal template, and the portal UI API in the same work
+- keep KPI naming stable while phase 1 stays local, so seed data and operator feedback can be compared across runs
+
+Reference tests:
+
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_portal.py`
+- `api/tests/tests_ui_endpoints.py`
+
 ## 3. Shipment-Party And Portal Recipient Contract
 
 This is the most important cross-surface business contract in the repo.

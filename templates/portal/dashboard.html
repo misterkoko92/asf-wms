@@ -6,7 +6,30 @@
 {% block content %}
   <div class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
     <h2 class="ui-comp-title">{% trans "Mes commandes" %}</h2>
-    <p class="scan-help">{% trans "Historique des commandes associées à votre compte." %}</p>
+    <p class="scan-help">{% trans "Suivez les dossiers en attente, les corrections demandées et la prochaine étape utile." %}</p>
+  </div>
+
+  <div class="scan-kpi-grid mb-3">
+    <div class="scan-kpi-card">
+      <span class="scan-kpi-label">{% trans "Commandes suivies" %}</span>
+      <span class="scan-kpi-value">{{ dashboard_kpis.orders_total }}</span>
+      <span class="scan-kpi-help">{% trans "Toutes les commandes liées à votre compte." %}</span>
+    </div>
+    <div class="scan-kpi-card{% if dashboard_kpis.orders_pending_review %} is-warn{% endif %}">
+      <span class="scan-kpi-label">{% trans "Commandes en attente" %}</span>
+      <span class="scan-kpi-value">{{ dashboard_kpis.orders_pending_review }}</span>
+      <span class="scan-kpi-help">{% trans "Dossiers en attente de validation ASF." %}</span>
+    </div>
+    <div class="scan-kpi-card{% if dashboard_kpis.orders_changes_requested %} is-warn{% endif %}">
+      <span class="scan-kpi-label">{% trans "Corrections demandées" %}</span>
+      <span class="scan-kpi-value">{{ dashboard_kpis.orders_changes_requested }}</span>
+      <span class="scan-kpi-help">{% trans "Commandes à corriger côté association." %}</span>
+    </div>
+    <div class="scan-kpi-card{% if dashboard_kpis.orders_shipments_in_progress %} is-info{% endif %}">
+      <span class="scan-kpi-label">{% trans "Expéditions en cours" %}</span>
+      <span class="scan-kpi-value">{{ dashboard_kpis.orders_shipments_in_progress }}</span>
+      <span class="scan-kpi-help">{% trans "Dossiers déjà partis ou en cours de suivi." %}</span>
+    </div>
   </div>
 
   <div class="scan-card portal-card card border-0 ui-comp-card">
@@ -25,6 +48,7 @@
               <th>{% trans "Date d'expédition" %}</th>
               <th>{% trans "Date de réception à l'escale" %}</th>
               <th>{% trans "Date de réception destinataire" %}</th>
+              <th>{% trans "Étape suivante" %}</th>
               <th>{% trans "Actions" %}</th>
             </tr>
           </thead>
@@ -59,6 +83,9 @@
                 <td>{{ order.shipped_at|date:"d/m/Y"|default:"-" }}</td>
                 <td>{{ order.received_correspondent_at|date:"d/m/Y"|default:"-" }}</td>
                 <td>{{ order.received_recipient_at|date:"d/m/Y"|default:"-" }}</td>
+                <td>
+                  <span class="portal-badge is-{{ order.next_step_tone }}">{{ order.next_step_label }}</span>
+                </td>
                 <td>
                   <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_detail' order.id %}">
                     {% trans "Voir" %}

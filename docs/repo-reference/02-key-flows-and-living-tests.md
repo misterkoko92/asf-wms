@@ -40,6 +40,8 @@ Use it when you need to answer:
 ### What the flow covers
 
 - stock update and stock availability
+- scan dashboard action queue for low stock, disputes, and pending reviews
+- scan dashboard health cards for both email and document-scan queues
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - shipment creation or draft/edit
 - carton status progression
@@ -110,6 +112,7 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 ### What the flow covers
 
 - association authentication and account maintenance
+- portal dashboard cockpit KPIs and per-order next-step guidance
 - recipient creation/update
 - synchronization from `AssociationRecipient` to operational contact structures
 - shipper/recipient authorization chain
@@ -124,6 +127,8 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_portal.py`
+- `api/tests/tests_ui_endpoints.py`
 
 ### Docs that must stay aligned
 

@@ -318,6 +318,45 @@ class ScanDashboardViewTests(TestCase):
             payload={"subject": "Processed"},
             status=IntegrationStatus.PROCESSED,
         )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={"document_id": 1},
+            status=IntegrationStatus.PENDING,
+        )
+        scan_processing_fresh = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={"document_id": 2},
+            status=IntegrationStatus.PROCESSING,
+        )
+        scan_processing_stale = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={"document_id": 3},
+            status=IntegrationStatus.PROCESSING,
+        )
+        IntegrationEvent.objects.filter(pk=scan_processing_fresh.pk).update(
+            processed_at=timezone.now() - timedelta(minutes=5)
+        )
+        IntegrationEvent.objects.filter(pk=scan_processing_stale.pk).update(
+            processed_at=timezone.now() - timedelta(minutes=20)
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={"document_id": 4},
+            status=IntegrationStatus.FAILED,
+            error_message="ClamAV error",
+        )
 
     def test_scan_dashboard_renders_expected_metrics(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
@@ -350,6 +389,14 @@ class ScanDashboardViewTests(TestCase):
         self.assertEqual(technical_cards["Queue email en traitement"], 1)
         self.assertEqual(technical_cards["Queue email en échec"], 1)
         self.assertEqual(technical_cards["Queue email bloquée (timeout)"], 1)
+
+        document_scan_cards = {
+            card["label"]: card["value"] for card in response.context["document_scan_cards"]
+        }
+        self.assertEqual(document_scan_cards["Queue scan doc en attente"], 1)
+        self.assertEqual(document_scan_cards["Queue scan doc en traitement"], 2)
+        self.assertEqual(document_scan_cards["Queue scan doc en échec"], 1)
+        self.assertEqual(document_scan_cards["Queue scan doc bloquée (timeout)"], 1)
 
         workflow_cards = {
             card["label"]: card["value"] for card in response.context["workflow_blockage_cards"]
@@ -550,6 +597,7 @@ class ScanDashboardViewTests(TestCase):
             [item["id"] for item in response.context["dashboard_anchors"]],
             [
                 "scan-dashboard-priorities",
+                "scan-dashboard-action-queue",
                 "scan-dashboard-pilotage",
                 "scan-dashboard-flow",
                 "scan-dashboard-health",
@@ -564,11 +612,46 @@ class ScanDashboardViewTests(TestCase):
             reverse("scan:scan_shipment_create"),
         )
         self.assertEqual(len(response.context["priority_cards"]), 6)
+        self.assertEqual(response.context["action_queue_rows"][0]["owner"], "qualite")
         self.assertEqual(response.context["flow_sections"][0]["id"], "scan-dashboard-stock")
         self.assertEqual(
             response.context["system_health_sections"][0]["id"],
             "scan-dashboard-technical",
         )
+        self.assertEqual(
+            response.context["system_health_sections"][1]["id"],
+            "scan-dashboard-document-scan",
+        )
+
+    def test_scan_dashboard_renders_action_queue_panel(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, 'id="scan-dashboard-action-queue"')
+        self.assertContains(response, "À traiter maintenant")
+
+    def test_scan_dashboard_renders_document_scan_health_cards(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, "Queue scan doc en attente")
+        self.assertContains(response, "Queue scan doc en échec")
+        self.assertContains(response, "Technique / Scan documentaire")
+
+    def test_scan_dashboard_action_queue_rows_expose_owner_priority_age_and_cta(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        action_rows = response.context["action_queue_rows"]
+        self.assertGreaterEqual(len(action_rows), 3)
+        self.assertEqual({row["owner"] for row in action_rows[:3]}, {"admin", "magasin", "qualite"})
+        self.assertIn(action_rows[0]["priority"], {"high", "medium", "low"})
+        self.assertIn("age_hours", action_rows[0])
+        self.assertIn("url", action_rows[0])
+        self.assertEqual(action_rows[0]["cta_label"], "Voir le détail")
+        self.assertContains(response, "magasin")
+        self.assertContains(response, "qualite")
+        self.assertContains(response, "Voir le détail")
 
     def test_scan_dashboard_priority_cards_include_explicit_cta_labels(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
@@ -593,6 +676,10 @@ class ScanDashboardViewTests(TestCase):
         content = response.content.decode()
         self.assertLess(
             content.index('id="scan-dashboard-priorities"'),
+            content.index('id="scan-dashboard-action-queue"'),
+        )
+        self.assertLess(
+            content.index('id="scan-dashboard-action-queue"'),
             content.index('id="scan-dashboard-pilotage"'),
         )
         self.assertLess(
