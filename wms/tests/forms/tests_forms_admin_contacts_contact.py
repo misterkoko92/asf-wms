@@ -101,6 +101,8 @@ class ContactCrudFormTests(TestCase):
             data={
                 "business_type": "recipient",
                 "organization_name": "Hopital Abidjan",
+                "legal_form": "association",
+                "beneficiary_count": "120",
                 "first_name": "Alice",
                 "last_name": "Martin",
                 "destination_id": str(self.destination.id),

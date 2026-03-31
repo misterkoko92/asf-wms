@@ -99,6 +99,7 @@ DELETE_BATCHES = (
         "portal_billing_and_volunteer_runtime",
         (
             "wms.AccountDocument",
+            "wms.RecipientStructureDocument",
             "wms.PublicAccountRequest",
             "wms.VolunteerAccountRequest",
             "wms.AssociationPortalContact",
