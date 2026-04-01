@@ -240,6 +240,47 @@ Validate:
   - if `planning` changed, validate run-list attention cards, version cockpit access on an existing run, strict `Planning.pdf` / `Planning.xlsx` artifact regeneration, and download when relevant
   - if `billing` changed, validate one nominal billing preview/export or payment/correction flow
 
+### Planning export artifact health
+
+For the local planning loop, the version cockpit now exposes the last workbook/PDF generation state directly inside the `Exports` block.
+
+Operational checks:
+
+- open `/planning/versions/<id>/`
+- inspect `Statut XLSX` and `Statut PDF`
+- confirm backend name, last attempt timestamp, and any visible error message
+- treat `Statut PDF = Echec` as a local pilotage signal even if the workbook still generated correctly
+
+Key interpretation rules:
+
+- `openpyxl` is the stable workbook backend
+- `excel_desktop` is the current PDF backend
+- a ready PDF remains the preferred attachment for internal planning email actions
+- if PDF generation fails, the workbook may still be usable for manual recovery and calibration
+
+Local remediation loop:
+
+```bash
+python manage.py shell -c "from wms.models import PlanningCommunicationArtifact; print(list(PlanningCommunicationArtifact.objects.order_by('-generated_at').values('planning_version_id','output_type','status','backend','file_name','error_message')[:20]))"
+```
+
+When the PDF backend fails locally:
+
+1. Regenerate from the version `Exports` block.
+2. Confirm that a fresh `planning_workbook` attempt is `ready`.
+3. If `planning_pdf` remains `failed`, inspect the local desktop Excel/runtime context.
+4. Re-run the pilotage loop so the cockpit and escalations use the latest artifact state:
+
+```bash
+python manage.py capture_ops_pilotage_snapshot
+python manage.py evaluate_ops_escalations
+```
+
+Phase 2 pilotage impact:
+
+- `planning_pdf_missing` still represents the planning communication risk to watch
+- the planning version cockpit is now the first place to diagnose whether the issue is backend-related or simply a missing export attempt
+
 ## 5) Email queue operations
 
 If `EMAIL_DELIVERY_MODE=direct_only`, the email queue is bypassed for application sends and these operations are only useful for historical backlog cleanup or non-production environments.

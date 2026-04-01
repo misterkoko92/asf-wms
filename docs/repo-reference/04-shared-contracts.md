@@ -430,6 +430,7 @@ Primary runtime sources:
 
 - `wms/planning/stats.py`
 - `wms/planning/version_dashboard.py`
+- `wms/planning/artifact_health.py`
 - `templates/planning/_version_stats_block.html`
 - `templates/planning/_version_planning_block.html`
 - `templates/planning/version_detail.html`
@@ -447,12 +448,16 @@ Current local contract:
 - `templates/planning/_version_planning_block.html` owns the compact `Charge vols` table and must keep it before the detailed assignment groups
 - `wms/planning/exports.py` owns the strict planning export contract and now vendors the workbook template from `data/planning_templates/Planning-maquette.xlsx`
 - stable planning artifact types in this local phase are `planning_workbook` and `planning_pdf`
-- `templates/planning/_version_exports_block.html` owns the regenerate/download affordances for these artifacts
+- `PlanningCommunicationArtifact` is the health/event layer for workbook and PDF generation attempts; it keeps `output_type`, `status`, `backend`, `file_name`, `generated_at`, `error_message`, `payload`
+- `templates/planning/_version_exports_block.html` owns the regenerate/download affordances plus the last-known workbook/PDF health summary
+- `build_version_dashboard(version)` now exposes `exports.artifact_health` for `planning_workbook` and `planning_pdf`
+- stable local artifact-health statuses in this phase are `ready`, `failed`, and implicit UI fallback `missing`
 - internal planning email helper payloads now use `planning_pdf` and resolve through `planning:version_communication_pdf`
+- internal planning email helper payloads prefer the latest `planning_pdf` health row in `ready` status when available
 
 Maintenance rule:
 
-- if flight-capacity thresholds, row fields, cockpit ordering, or planning export artifacts change, update the stats/export helpers, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
+- if flight-capacity thresholds, row fields, cockpit ordering, planning export artifacts, or artifact-health semantics change, update the stats/export helpers, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
 - keep this lot read-only during the local phase; do not smuggle mutation or validation rules into the capacity cockpit
 
 Reference tests:

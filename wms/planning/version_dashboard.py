@@ -850,9 +850,38 @@ def _build_exports(version: PlanningVersion) -> dict[str, object]:
         }
         for artifact in version.artifacts.all().order_by("artifact_type", "id")
     ]
+    latest_health_by_type = {}
+    for health in version.communication_artifacts.all().order_by(
+        "output_type", "-generated_at", "-id"
+    ):
+        latest_health_by_type.setdefault(health.output_type, health)
+    artifact_health = {}
+    for output_type in ("planning_workbook", "planning_pdf"):
+        health = latest_health_by_type.get(output_type)
+        if health is None:
+            artifact_health[output_type] = {
+                "output_type": output_type,
+                "status": "missing",
+                "status_label": "Aucune tentative",
+                "backend": "",
+                "file_name": "",
+                "generated_at": "",
+                "error_message": "",
+            }
+            continue
+        artifact_health[output_type] = {
+            "output_type": output_type,
+            "status": health.status,
+            "status_label": "Pret" if health.status == "ready" else "Echec",
+            "backend": health.backend,
+            "file_name": health.file_name,
+            "generated_at": _display_datetime(health.generated_at),
+            "error_message": health.error_message,
+        }
     return {
         "artifact_count": len(artifacts),
         "artifacts": artifacts,
+        "artifact_health": artifact_health,
     }
 
 

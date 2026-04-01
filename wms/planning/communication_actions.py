@@ -5,6 +5,10 @@ from urllib.parse import quote
 from django.core.exceptions import ValidationError
 
 from wms.models import CommunicationChannel, CommunicationDraft, PlanningVersion
+from wms.planning.artifact_health import (
+    latest_planning_artifact_health,
+    latest_ready_planning_artifact_health,
+)
 from wms.planning.communication_plan import build_version_communication_plan
 
 EXCEL_WORKBOOK_ATTACHMENT = "excel_workbook"
@@ -48,14 +52,27 @@ def _assignments_for_draft(draft: CommunicationDraft):
 
 
 def _planning_pdf_attachments(version: PlanningVersion) -> list[dict[str, object]]:
-    return [
-        {
-            "attachment_type": PLANNING_PDF_ATTACHMENT,
-            "version_id": version.pk,
-            "filename": f"planning-v{version.number}.pdf",
-            "optional": False,
-        }
-    ]
+    attachment = {
+        "attachment_type": PLANNING_PDF_ATTACHMENT,
+        "version_id": version.pk,
+        "filename": f"planning-v{version.number}.pdf",
+        "optional": False,
+    }
+    latest_ready = latest_ready_planning_artifact_health(
+        version=version,
+        output_type=PLANNING_PDF_ATTACHMENT,
+    )
+    latest_any = latest_planning_artifact_health(
+        version=version,
+        output_type=PLANNING_PDF_ATTACHMENT,
+    )
+    health = latest_ready or latest_any
+    if health is not None:
+        attachment["artifact_status"] = health.status
+        attachment["backend"] = health.backend
+        if health.file_name:
+            attachment["filename"] = health.file_name
+    return [attachment]
 
 
 def _packing_list_attachments(draft: CommunicationDraft) -> list[dict[str, object]]:

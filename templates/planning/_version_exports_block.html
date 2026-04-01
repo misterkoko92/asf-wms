@@ -24,6 +24,42 @@
     </div>
 
     <ul class="list-group list-group-flush mt-3">
+      <li class="list-group-item px-0">
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="border rounded p-3 h-100">
+              <div class="fw-semibold mb-1">Statut XLSX</div>
+              <div>{{ dashboard.exports.artifact_health.planning_workbook.status_label }}</div>
+              {% if dashboard.exports.artifact_health.planning_workbook.backend %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_workbook.backend }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_workbook.generated_at %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_workbook.generated_at }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_workbook.error_message %}
+                <small class="text-danger d-block">{{ dashboard.exports.artifact_health.planning_workbook.error_message }}</small>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="border rounded p-3 h-100">
+              <div class="fw-semibold mb-1">Statut PDF</div>
+              <div>{{ dashboard.exports.artifact_health.planning_pdf.status_label }}</div>
+              {% if dashboard.exports.artifact_health.planning_pdf.backend %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_pdf.backend }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_pdf.generated_at %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_pdf.generated_at }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_pdf.error_message %}
+                <small class="text-danger d-block">{{ dashboard.exports.artifact_health.planning_pdf.error_message }}</small>
+              {% else %}
+                <small class="text-muted d-block">Le PDF reste la sortie prioritaire pour la diffusion mail.</small>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </li>
       {% for artifact in dashboard.exports.artifacts %}
         <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
           <div>

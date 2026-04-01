@@ -467,6 +467,7 @@ def planning_version_detail(request, version_id):
             "assignments__volunteer_snapshot",
             "assignments__flight_snapshot",
             "communication_drafts__template",
+            "communication_artifacts",
             "artifacts",
         ),
         pk=version_id,

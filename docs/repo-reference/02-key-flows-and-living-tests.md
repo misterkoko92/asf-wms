@@ -300,6 +300,7 @@ Also check whether the dashboard/runtime calibration loop changed:
 - the main planning block now starts with a compact `Charge vols` table ordered by load urgency before the detailed assignment groups
 - the exports block now regenerates a strict planning workbook plus a derived planning PDF from the vendored `Planning-maquette.xlsx`
 - the planning PDF is the primary operator artifact; the workbook remains available for calibration and download
+- the exports block also exposes the latest workbook/PDF artifact health with backend, last attempt, and the last PDF error when present
 - internal planning communication drafts now expose `planning_pdf` attachments instead of the workbook
 - flight-capacity indicators are read-only in this local phase and must not silently change assignment or publication rules
 

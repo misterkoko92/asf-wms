@@ -5,6 +5,7 @@ from wms.models import (
     CommunicationDraft,
     PlanningAssignment,
     PlanningAssignmentSource,
+    PlanningCommunicationArtifact,
     PlanningFlightSnapshot,
     PlanningParameterSet,
     PlanningRun,
@@ -162,6 +163,34 @@ class PlanningCommunicationActionTests(TestCase):
                         }
                     ],
                 )
+
+    def test_planning_mail_prefers_latest_ready_pdf_artifact(self):
+        version = self.make_version()
+        self.add_assignment(version)
+        generate_version_drafts(version)
+        PlanningCommunicationArtifact.objects.create(
+            planning_version=version,
+            output_type="planning_pdf",
+            status="failed",
+            backend="excel_desktop",
+            file_name="planning-v1.pdf",
+            error_message="Excel indisponible",
+        )
+        PlanningCommunicationArtifact.objects.create(
+            planning_version=version,
+            output_type="planning_pdf",
+            status="ready",
+            backend="excel_desktop",
+            file_name="planning-v1.pdf",
+        )
+
+        payload = build_draft_helper_action_payload(
+            self.draft_for_family(version, CommunicationFamily.EMAIL_ASF)
+        )
+
+        self.assertEqual(payload["attachments"][0]["attachment_type"], "planning_pdf")
+        self.assertEqual(payload["attachments"][0]["artifact_status"], "ready")
+        self.assertEqual(payload["attachments"][0]["backend"], "excel_desktop")
 
     def test_build_draft_helper_action_payload_for_partner_emails_uses_current_shipments(self):
         version = self.make_version()

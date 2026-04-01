@@ -13,6 +13,7 @@ from wms.models import (
     PlanningArtifact,
     PlanningAssignment,
     PlanningAssignmentSource,
+    PlanningCommunicationArtifact,
     PlanningFlightSnapshot,
     PlanningRun,
     PlanningShipmentSnapshot,
@@ -238,6 +239,28 @@ class PlanningOutputTests(TestCase):
         self.assertEqual(artifact.artifact_type, "planning_pdf")
         self.assertTrue(artifact.file_path.endswith(".pdf"))
         self.assertTrue(Path(artifact.file_path).exists())
+
+    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    def test_planning_export_records_pdf_artifact_health(self, convert_workbook_to_pdf_mock):
+        version = self.make_published_version()
+
+        def _fake_convert(workbook_path, pdf_path=None, *, strict=True):
+            pdf_output = Path(pdf_path or Path(workbook_path).with_suffix(".pdf"))
+            pdf_output.write_bytes(b"%PDF-1.4\n%")
+            return pdf_output
+
+        convert_workbook_to_pdf_mock.side_effect = _fake_convert
+
+        artifact = export_version_pdf(version)
+
+        self.assertEqual(artifact.artifact_type, "planning_pdf")
+        health = PlanningCommunicationArtifact.objects.filter(
+            planning_version=version,
+            output_type="planning_pdf",
+        ).latest("generated_at")
+        self.assertEqual(health.status, "ready")
+        self.assertEqual(health.output_type, "planning_pdf")
+        self.assertTrue(health.file_name.endswith(".pdf"))
 
     def test_generate_drafts_aggregates_multiple_assignments_for_same_recipient(self):
         second_shipment = PlanningShipmentSnapshot.objects.create(

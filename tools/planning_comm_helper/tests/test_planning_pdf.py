@@ -12,6 +12,9 @@ from tools.planning_comm_helper.planning_pdf import (
 
 
 class PlanningCommunicationHelperPlanningPdfTests(TestCase):
+    def test_pdf_backend_name_is_stable_for_pilotage(self):
+        self.assertEqual(excel_pdf.pdf_backend_name(), "excel_desktop")
+
     @mock.patch("tools.planning_comm_helper.planning_pdf.platform.system", return_value="Windows")
     @mock.patch("tools.planning_comm_helper.planning_pdf._convert_with_windows_excel")
     def test_convert_workbook_to_pdf_uses_windows_excel(

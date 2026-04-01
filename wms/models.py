@@ -42,6 +42,7 @@ from .models_domain.integration import (
     IntegrationStatus,
     OpsEscalation,
     OpsPilotageSnapshot,
+    PlanningCommunicationArtifact,
     ShipmentWorkflowProjection,
     WmsChange,
     WmsRuntimeSettings,

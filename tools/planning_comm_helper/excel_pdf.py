@@ -6,9 +6,15 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+EXCEL_PDF_BACKEND = "excel_desktop"
+
 
 class ExcelPdfConversionError(RuntimeError):
     """Raised when Excel automation cannot generate a PDF."""
+
+
+def pdf_backend_name() -> str:
+    return EXCEL_PDF_BACKEND
 
 
 def convert_workbook_to_pdf(

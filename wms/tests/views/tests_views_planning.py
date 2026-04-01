@@ -12,6 +12,7 @@ from wms.helper_install import build_helper_install_context
 from wms.models import (
     PlanningAssignment,
     PlanningAssignmentSource,
+    PlanningCommunicationArtifact,
     PlanningFlightSnapshot,
     PlanningIssue,
     PlanningParameterSet,
@@ -829,6 +830,32 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Charge vols")
         self.assertContains(response, "AF 908")
         self.assertContains(response, "AF 910")
+
+    def test_version_detail_renders_planning_artifact_health(self):
+        data = self.make_operator_version()
+        PlanningCommunicationArtifact.objects.create(
+            planning_version=data["version"],
+            output_type="planning_workbook",
+            status="ready",
+            backend="openpyxl",
+            file_name="planning-v1.xlsx",
+        )
+        PlanningCommunicationArtifact.objects.create(
+            planning_version=data["version"],
+            output_type="planning_pdf",
+            status="failed",
+            backend="excel_desktop",
+            file_name="planning-v1.pdf",
+            error_message="Excel indisponible",
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Statut PDF")
+        self.assertContains(response, "excel_desktop")
+        self.assertContains(response, "Excel indisponible")
 
     def test_version_detail_renders_operator_header_and_detailed_planning_row(self):
         run = PlanningRun.objects.create(

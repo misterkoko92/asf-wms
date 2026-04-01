@@ -229,6 +229,37 @@ class OpsEscalation(models.Model):
         return self.escalation_key
 
 
+class PlanningCommunicationArtifact(models.Model):
+    planning_version = models.ForeignKey(
+        "wms.PlanningVersion",
+        on_delete=models.CASCADE,
+        related_name="communication_artifacts",
+    )
+    output_type = models.CharField(max_length=40)
+    status = models.CharField(max_length=20)
+    backend = models.CharField(max_length=40, blank=True, default="")
+    file_name = models.CharField(max_length=255, blank=True, default="")
+    generated_at = models.DateTimeField(default=timezone.now)
+    error_message = models.TextField(blank=True, default="")
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["planning_version_id", "output_type", "-generated_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["planning_version", "output_type", "-generated_at"],
+                name="wms_plan_comm_lookup_idx",
+            ),
+            models.Index(
+                fields=["output_type", "status"],
+                name="wms_plan_comm_status_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.planning_version_id}:{self.output_type}:{self.status}"
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)
