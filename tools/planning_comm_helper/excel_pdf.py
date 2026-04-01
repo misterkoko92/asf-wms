@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import platform
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -87,32 +89,59 @@ def _prepare_windows_workbook_for_export(excel, workbook) -> None:
 
 
 def _convert_with_macos_excel(workbook_path: Path, pdf_path: Path, *, strict: bool = True) -> Path:
-    script = _build_macos_excel_script(
-        workbook_path=workbook_path,
-        pdf_path=pdf_path,
-        strict=strict,
-    )
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise ExcelPdfConversionError("Excel automation failed to generate the PDF on macOS.")
-    if not pdf_path.exists():
-        raise ExcelPdfConversionError("Excel did not generate the PDF.")
-    return pdf_path
+    temp_copy = Path(tempfile.gettempdir()) / f"{workbook_path.stem}_pdf_tmp.xlsx"
+    shutil.copy2(workbook_path, temp_copy)
+    try:
+        script = _build_macos_excel_script(
+            workbook_path=temp_copy,
+            pdf_path=pdf_path,
+            strict=strict,
+        )
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise ExcelPdfConversionError(
+                "Excel automation failed to generate the PDF on macOS."
+                if not detail
+                else f"Excel automation failed to generate the PDF on macOS. {detail}"
+            )
+        if not pdf_path.exists():
+            raise ExcelPdfConversionError("Excel did not generate the PDF.")
+        return pdf_path
+    finally:
+        try:
+            if temp_copy.exists():
+                temp_copy.unlink()
+        except (FileNotFoundError, OSError, PermissionError):
+            pass
 
 
 def _build_macos_excel_script(*, workbook_path: Path, pdf_path: Path, strict: bool) -> str:
+    strict_lines = ""
+    if strict:
+        strict_lines = '''
+            set valA to value of range "A1" of worksheet 1 of wb
+            set value of range "A1" of worksheet 1 of wb to valA
+            set valK to value of range "K1" of worksheet 1 of wb
+            set value of range "K1" of worksheet 1 of wb to valK
+            repeat while (count of worksheets of wb) > 1
+                delete worksheet 2 of wb
+            end repeat
+        '''
     return f'''
         set workbookFile to POSIX file "{_applescript_escape(str(workbook_path))}"
         set pdfFile to POSIX file "{_applescript_escape(str(pdf_path))}"
+        set hfsPath to (workbookFile as alias as string)
         tell application "Microsoft Excel"
             activate
             set display alerts to false
-            set wb to open workbook workbook file name workbookFile
+            set wb to open workbook workbook file name hfsPath
+{strict_lines}
             save wb in pdfFile as PDF file format
             close wb saving no
             set display alerts to true

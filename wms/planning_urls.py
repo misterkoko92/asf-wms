@@ -45,6 +45,11 @@ urlpatterns = [
         name="version_communication_workbook",
     ),
     path(
+        "versions/<int:version_id>/communications/planning.pdf",
+        views_planning.planning_version_communication_pdf,
+        name="version_communication_pdf",
+    ),
+    path(
         "versions/<int:version_id>/communications/shipments/<int:shipment_snapshot_id>/packing-list.pdf",
         views_planning.planning_version_communication_packing_list_pdf,
         name="version_communication_packing_list_pdf",

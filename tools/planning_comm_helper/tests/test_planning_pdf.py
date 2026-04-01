@@ -33,7 +33,7 @@ class PlanningCommunicationHelperPlanningPdfTests(TestCase):
 
         self.assertIn("Workbook not found", str(error.exception))
 
-    def test_build_macos_excel_script_uses_file_reference_without_alias_prompt(self):
+    def test_build_macos_excel_script_uses_hfs_alias_and_strict_first_sheet_export(self):
         script = excel_pdf._build_macos_excel_script(
             workbook_path=Path("/tmp/example.xlsx"),
             pdf_path=Path("/tmp/example.pdf"),
@@ -41,8 +41,10 @@ class PlanningCommunicationHelperPlanningPdfTests(TestCase):
         )
 
         self.assertIn('set workbookFile to POSIX file "/tmp/example.xlsx"', script)
-        self.assertIn("open workbook workbook file name workbookFile", script)
-        self.assertNotIn("as alias", script)
+        self.assertIn("set hfsPath to (workbookFile as alias as string)", script)
+        self.assertIn("open workbook workbook file name hfsPath", script)
+        self.assertIn('set valA to value of range "A1" of worksheet 1 of wb', script)
+        self.assertIn("repeat while (count of worksheets of wb) > 1", script)
 
     @mock.patch("tools.planning_comm_helper.planning_pdf.platform.system", return_value="Linux")
     def test_convert_workbook_to_pdf_rejects_unsupported_platform_without_libreoffice_message(

@@ -18,7 +18,7 @@
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="artifact_action" value="export">
-          <button type="submit" class="btn btn-tertiary">{% trans "Exporter Planning.xlsx" %}</button>
+          <button type="submit" class="btn btn-tertiary">{% trans "Regenerer Planning.pdf + Planning.xlsx" %}</button>
         </form>
       </div>
     </div>
@@ -26,8 +26,17 @@
     <ul class="list-group list-group-flush mt-3">
       {% for artifact in dashboard.exports.artifacts %}
         <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-          <span>{{ artifact.label }}</span>
-          <small class="text-muted">{{ artifact.generated_at|default:artifact.file_path }}</small>
+          <div>
+            <span>{{ artifact.label }}</span>
+            <small class="text-muted d-block">{{ artifact.generated_at|default:artifact.file_path }}</small>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            {% if artifact.artifact_type == "planning_pdf" %}
+              <a href="{% url 'planning:version_communication_pdf' version.pk %}" class="btn btn-sm btn-outline-secondary">{% trans "Telecharger PDF" %}</a>
+            {% elif artifact.artifact_type == "planning_workbook" %}
+              <a href="{% url 'planning:version_communication_workbook' version.pk %}" class="btn btn-sm btn-outline-secondary">{% trans "Telecharger XLSX" %}</a>
+            {% endif %}
+          </div>
         </li>
       {% empty %}
         <li class="list-group-item px-0 text-muted">{% trans "Aucun export genere." %}</li>

@@ -10,6 +10,7 @@ from wms.planning.communication_plan import build_version_communication_plan
 EXCEL_WORKBOOK_ATTACHMENT = "excel_workbook"
 PLANNING_WORKBOOK_ATTACHMENT = EXCEL_WORKBOOK_ATTACHMENT
 LEGACY_PLANNING_WORKBOOK_ATTACHMENT = "planning_workbook"
+PLANNING_PDF_ATTACHMENT = "planning_pdf"
 PACKING_LIST_ATTACHMENT = "packing_list_pdf"
 
 
@@ -46,12 +47,12 @@ def _assignments_for_draft(draft: CommunicationDraft):
     return plan_item.current_assignments or plan_item.previous_assignments
 
 
-def _planning_workbook_attachments(version: PlanningVersion) -> list[dict[str, object]]:
+def _planning_pdf_attachments(version: PlanningVersion) -> list[dict[str, object]]:
     return [
         {
-            "attachment_type": EXCEL_WORKBOOK_ATTACHMENT,
+            "attachment_type": PLANNING_PDF_ATTACHMENT,
             "version_id": version.pk,
-            "filename": f"planning-v{version.number}.xlsx",
+            "filename": f"planning-v{version.number}.pdf",
             "optional": False,
         }
     ]
@@ -80,7 +81,7 @@ def _packing_list_attachments(draft: CommunicationDraft) -> list[dict[str, objec
 
 def _attachments_for_draft(draft: CommunicationDraft) -> list[dict[str, object]]:
     if draft.family in {"email_asf", "email_airfrance"}:
-        return _planning_workbook_attachments(draft.version)
+        return _planning_pdf_attachments(draft.version)
     if draft.family in {"email_correspondant", "email_expediteur", "email_destinataire"}:
         return _packing_list_attachments(draft)
     return []

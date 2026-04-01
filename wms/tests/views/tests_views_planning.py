@@ -1125,13 +1125,22 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "WhatsApp bénévoles")
 
     @mock.patch("wms.views_planning._build_strict_packing_list_pdf_response")
-    def test_version_detail_communication_helper_endpoints(self, packing_list_pdf_response_mock):
+    @mock.patch("wms.views_planning._build_planning_pdf_file_response")
+    def test_version_detail_communication_helper_endpoints(
+        self,
+        planning_pdf_response_mock,
+        packing_list_pdf_response_mock,
+    ):
         data = self.make_published_version_with_communication_drafts()
         version = data["version"]
         shipment_snapshot = data["shipment_snapshot"]
         whatsapp_draft = version.communication_drafts.get(family="whatsapp_benevole")
         email_draft = version.communication_drafts.get(family="email_asf")
         expediteur_family = "email_expediteur"
+        planning_pdf_response_mock.return_value = FileResponse(
+            BytesIO(b"%PDF-1.4\n%"),
+            content_type="application/pdf",
+        )
         packing_list_pdf_response_mock.return_value = FileResponse(
             BytesIO(b"%PDF-1.4\n%"),
             content_type="application/pdf",
@@ -1158,9 +1167,18 @@ class PlanningViewTests(TestCase):
         self.assertEqual(email_response.json()["action"], "email")
         self.assertEqual(
             email_response.json()["attachments"][0]["download_url"],
-            reverse("planning:version_communication_workbook", args=[version.pk]),
+            reverse("planning:version_communication_pdf", args=[version.pk]),
         )
         self.assertFalse(email_response.json()["attachments"][0]["optional"])
+
+        planning_pdf_response = self.client.get(
+            reverse("planning:version_communication_pdf", args=[version.pk])
+        )
+        try:
+            self.assertEqual(planning_pdf_response.status_code, 200)
+            self.assertEqual(planning_pdf_response["Content-Type"], "application/pdf")
+        finally:
+            planning_pdf_response.close()
 
         family_response = self.client.get(
             reverse(

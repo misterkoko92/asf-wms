@@ -155,9 +155,9 @@ class PlanningCommunicationActionTests(TestCase):
                     payload["attachments"],
                     [
                         {
-                            "attachment_type": "excel_workbook",
+                            "attachment_type": "planning_pdf",
                             "version_id": version.pk,
-                            "filename": f"planning-v{version.number}.xlsx",
+                            "filename": f"planning-v{version.number}.pdf",
                             "optional": False,
                         }
                     ],

@@ -349,10 +349,14 @@ Current local contract:
 - `build_version_dashboard(version)` also exposes `flight_capacity_rows[]` for template consumption, with formatted labels layered on top of the stats rows
 - `templates/planning/_version_stats_block.html` owns the four capacity summary cards
 - `templates/planning/_version_planning_block.html` owns the compact `Charge vols` table and must keep it before the detailed assignment groups
+- `wms/planning/exports.py` owns the strict planning export contract and now vendors the workbook template from `data/planning_templates/Planning-maquette.xlsx`
+- stable planning artifact types in this local phase are `planning_workbook` and `planning_pdf`
+- `templates/planning/_version_exports_block.html` owns the regenerate/download affordances for these artifacts
+- internal planning email helper payloads now use `planning_pdf` and resolve through `planning:version_communication_pdf`
 
 Maintenance rule:
 
-- if flight-capacity thresholds, row fields, or cockpit ordering change, update the stats helper, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
+- if flight-capacity thresholds, row fields, cockpit ordering, or planning export artifacts change, update the stats/export helpers, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
 - keep this lot read-only during the local phase; do not smuggle mutation or validation rules into the capacity cockpit
 
 Reference tests:
