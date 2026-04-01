@@ -42,6 +42,9 @@ Practical rule:
 
 - when routing or tests import `wms.views`, do not assume the logic is there
 - `wms/views.py` is mostly a re-export layer
+- V3 introduces `wms/application/` and `wms/policies/` as the preferred structural target
+  for shared query composition and business rule classification, while legacy views and
+  API endpoints remain the active delivery adapters during the migration
 
 ## 4. Main Runtime Clusters
 
