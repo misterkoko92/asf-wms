@@ -219,6 +219,22 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         self.assertIsNotNone(getattr(shipment, "dispute_opened_at", None))
         self.assertEqual(getattr(shipment, "dispute_resolution_notes", ""), "")
 
+    def test_set_disputed_defaults_structured_status_to_open(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {
+                "action": "set_disputed",
+                "dispute_reason": "docs_missing",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertTrue(shipment.is_disputed)
+        self.assertEqual(getattr(shipment, "dispute_status", ""), "open")
+
     def test_anonymous_user_cannot_set_disputed(self):
         shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
         self.client.logout()

@@ -46,9 +46,9 @@ DEFAULT_RETURN_LIST_VIEW = "scan:scan_shipments_tracking"
 DEFAULT_RETURN_TO_KEY = "shipments_tracking"
 DISPUTE_STAFF_ONLY_MESSAGE = _("Action litige réservée aux utilisateurs staff.")
 ACTIVE_DISPUTE_STATUSES = {
-    ShipmentDisputeStatus.OPEN.value,
-    ShipmentDisputeStatus.IN_PROGRESS.value,
-    ShipmentDisputeStatus.WAITING_EXTERNAL.value,
+    ShipmentDisputeStatus.OPEN,
+    ShipmentDisputeStatus.IN_PROGRESS,
+    ShipmentDisputeStatus.WAITING_EXTERNAL,
 }
 
 
@@ -96,7 +96,7 @@ def _resolve_dispute_form_data(request, shipment):
     owner = (request.POST.get("dispute_owner") or shipment.dispute_owner or "").strip()
     status = (request.POST.get("dispute_status") or shipment.dispute_status or "").strip()
     if not status:
-        status = ShipmentDisputeStatus.OPEN.value
+        status = ShipmentDisputeStatus.OPEN
     due_raw = (request.POST.get("dispute_due_at") or "").strip()
     resolution_notes = (request.POST.get("dispute_resolution_notes") or "").strip()
     errors = []
