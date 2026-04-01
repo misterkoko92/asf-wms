@@ -199,6 +199,38 @@ Reference tests:
 - `wms/tests/management/tests_management_rebuild_workflow_projections.py`
 - `api/tests/tests_views_extra.py`
 
+### Ops Pilotage Snapshot Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/integration.py`
+- `wms/ops_pilotage_snapshots.py`
+- `wms/management/commands/capture_ops_pilotage_snapshot.py`
+
+Current local contract:
+
+- `OpsPilotageSnapshot` is a derived daily metric store used for transverse pilotage only
+- one row is unique on `(snapshot_date, scope_type, scope_key, metric_key)`
+- supported `scope_type` values in this local phase are `global`, `destination`, `flight`, `queue`, `planning_export`
+- `scope_key` stays explicit and stable per scope in this local phase:
+  - `global` uses `all`
+  - `destination` uses the destination id when available
+  - `flight` uses `<planning_version_id>:<flight_snapshot_id>`
+  - `queue` uses the producer source such as `wms.document_scan`
+  - `planning_export` uses the planning version id
+- metric capture remains rebuildable and local-first through `python manage.py capture_ops_pilotage_snapshot`
+- snapshot rows must be derived from existing read models or artifacts, not from dashboard-only formatting
+
+Maintenance rule:
+
+- if pilotage scope vocabularies, daily metric keys, or capture semantics change, update the helper, the command, the local tests, and this repo-reference section in the same work
+- keep the phase intentionally read-only: this table is a historical signal layer, not a workflow queue
+
+Reference tests:
+
+- `wms/tests/test_ops_pilotage_snapshots.py`
+- `wms/tests/management/tests_management_capture_ops_pilotage_snapshot.py`
+
 ### Destination Workflow Aggregate Contract
 
 Primary runtime sources:

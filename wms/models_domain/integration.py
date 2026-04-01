@@ -166,6 +166,44 @@ class ShipmentWorkflowProjection(models.Model):
         return self.reference or f"workflow-projection:{self.shipment_id}"
 
 
+class OpsPilotageSnapshot(models.Model):
+    snapshot_date = models.DateField()
+    scope_type = models.CharField(max_length=40)
+    scope_key = models.CharField(max_length=120)
+    metric_key = models.CharField(max_length=80)
+    metric_value = models.FloatField(default=0.0)
+    payload = models.JSONField(default=dict, blank=True)
+    captured_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = [
+            "-snapshot_date",
+            "scope_type",
+            "scope_key",
+            "metric_key",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["snapshot_date", "scope_type", "scope_key", "metric_key"],
+                name="wms_ops_snapshot_unique_metric",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["snapshot_date", "scope_type"],
+                name="wms_ops_snap_date_scope_idx",
+            ),
+            models.Index(
+                fields=["scope_type", "metric_key"],
+                name="wms_ops_snap_scope_metric_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.snapshot_date}:{self.scope_type}:{self.scope_key}:{self.metric_key}"
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)
