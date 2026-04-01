@@ -437,6 +437,43 @@ def _workflow_blockage_snapshot(shipments_scope, *, workflow_blockage_hours):
     }
 
 
+def _dashboard_kpis(*, shipments_scope, low_stock_rows):
+    open_shipments_qs = shipments_scope.filter(closed_at__isnull=True)
+    delayed_qs = open_shipments_qs.filter(
+        status__in=[
+            ShipmentStatus.PICKING,
+            ShipmentStatus.PACKED,
+            ShipmentStatus.PLANNED,
+            ShipmentStatus.SHIPPED,
+            ShipmentStatus.RECEIVED_CORRESPONDENT,
+        ]
+    )
+    return {
+        "open_shipments": open_shipments_qs.count(),
+        "stock_alerts": len(low_stock_rows),
+        "open_disputes": open_shipments_qs.filter(is_disputed=True).count(),
+        "pending_orders": Order.objects.filter(review_status=OrderReviewStatus.PENDING).count(),
+        "shipments_delayed": delayed_qs.count(),
+    }
+
+
+def _dashboard_timeline(*, limit: int = 8):
+    timeline_events = ShipmentTrackingEvent.objects.select_related("shipment").order_by(
+        "-created_at"
+    )[:limit]
+    return [
+        {
+            "id": event.id,
+            "shipment_id": event.shipment_id,
+            "reference": event.shipment.reference or f"EXP-{event.shipment_id}",
+            "status": event.get_status_display(),
+            "timestamp": event.created_at.isoformat(),
+            "comments": event.comments or "",
+        }
+        for event in timeline_events
+    ]
+
+
 def build_scan_dashboard_payload(*, user=None, params=None):
     runtime_config = get_runtime_config()
     low_stock_threshold = runtime_config.low_stock_threshold
@@ -1295,12 +1332,19 @@ def build_scan_dashboard_payload(*, user=None, params=None):
             url=reverse("scan:scan_shipments_ready"),
         ),
     ]
+    kpis = _dashboard_kpis(
+        shipments_scope=shipments_scope,
+        low_stock_rows=stock_snapshot["low_stock_rows"],
+    )
+    timeline = _dashboard_timeline()
 
     return {
         "active": ACTIVE_DASHBOARD,
         "period": period,
         "period_choices": PERIOD_CHOICES,
         "period_label": dict(PERIOD_CHOICES).get(period, ""),
+        "kpis": kpis,
+        "timeline": timeline,
         "destination_id": str(selected_destination.id) if selected_destination else "",
         "destinations": destinations,
         "selected_destination": selected_destination,

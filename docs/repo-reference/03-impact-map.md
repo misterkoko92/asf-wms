@@ -15,6 +15,7 @@ Always check:
 - `wms/scan_urls.py`
 - `wms/views.py`
 - the matching `wms/views_scan_*.py` module
+- the matching shared query or use-case module under `wms/application/scan/` when the page is mirrored elsewhere
 - the nearest `*_handlers.py` module
 - the matching template in `templates/scan/`
 - scan static assets in `wms/static/scan/` if behavior is JS/CSS driven
@@ -23,6 +24,7 @@ Always check:
 Ask yourself:
 
 - does the same rule exist in the UI API under `api/v1/ui/`?
+- if the HTML page and UI API mirror the same cockpit, should both adapters read the same `wms/application/*` payload instead of recomposing the data separately?
 - if this is a carton-list change, does `scan_carton_edit` still carry the operational actions and lock states?
 - does the same operation appear in print/document endpoints?
 - if bulk carton actions or grouped documents change, do `scan_carton_picking`, `scan_cartons_picking`, `scan_carton_document`, and grouped bundle routes still match?
@@ -187,6 +189,7 @@ Always check:
 
 - `api/v1/urls.py`
 - `api/v1/ui_views.py`
+- the mirrored shared query or use-case module under `wms/application/`
 - any matching HTML surface under `wms/views_scan_*` or `wms/views_portal_*`
 - `api/tests/`
 
@@ -194,6 +197,7 @@ Ask yourself:
 
 - is the API mirroring an existing legacy page or becoming the de facto contract?
 - do HTML and API still agree on validation, permissions, and sequencing?
+- does the shared application payload need to change first so both adapters stay aligned?
 - does the release smoke subset still name the right test?
 
 Run or inspect first:

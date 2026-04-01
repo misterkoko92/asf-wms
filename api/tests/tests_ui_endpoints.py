@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from contacts.capabilities import ContactCapabilityType
 from contacts.models import Contact, ContactType
+from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     AssociationContactTitle,
@@ -59,6 +60,20 @@ from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
 class UiApiEndpointsTests(TestCase):
+    DASHBOARD_QUERY_ONLY_KEYS = {
+        "workflow_blockage_base_rows",
+        "shipments_scope",
+        "shipments_with_tracking",
+        "status_map",
+        "stock_snapshot",
+        "email_queue_snapshot",
+        "document_scan_snapshot",
+        "workflow_blockage_snapshot",
+        "period_start",
+        "week_start",
+        "week_end",
+    }
+
     def setUp(self):
         user_model = get_user_model()
         self.staff_user = user_model.objects.create_user(
@@ -1098,6 +1113,43 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(dispute_item["owner"], "qualite")
         self.assertGreaterEqual(dispute_item["age_hours"], 12)
         self.assertTrue(dispute_item["url"])
+
+    def test_ui_dashboard_uses_public_query_payload_only(self):
+        full_payload = build_scan_dashboard_payload(user=self.staff_user, params={})
+        public_payload = {
+            key: value
+            for key, value in full_payload.items()
+            if key not in self.DASHBOARD_QUERY_ONLY_KEYS
+        }
+        public_payload["kpis"] = {
+            "open_shipments": 7,
+            "stock_alerts": 2,
+            "open_disputes": 1,
+            "pending_orders": 3,
+            "shipments_delayed": 4,
+        }
+        public_payload["timeline"] = [
+            {
+                "id": 1,
+                "shipment_id": 99,
+                "reference": "EXP-99",
+                "status": "Planifié",
+                "timestamp": timezone.now().isoformat(),
+                "comments": "",
+            }
+        ]
+
+        with mock.patch(
+            "api.v1.ui_views.build_scan_dashboard_payload",
+            return_value=public_payload,
+        ) as mocked_builder:
+            response = self.staff_client.get("/api/v1/ui/dashboard/")
+
+        self.assertEqual(response.status_code, 200)
+        mocked_builder.assert_called_once()
+        payload = response.json()
+        self.assertEqual(payload["kpis"], public_payload["kpis"])
+        self.assertEqual(payload["timeline"], public_payload["timeline"])
 
     def test_ui_dashboard_exposes_document_scan_cards_alongside_email_cards(self):
         IntegrationEvent.objects.create(

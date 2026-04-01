@@ -107,6 +107,8 @@ Primary runtime sources:
 
 Phase 1 local contract:
 
+- `wms/application/scan/dashboard_queries.py` is the shared composition layer for both the legacy dashboard HTML and `GET /api/v1/ui/dashboard/`
+- shared dashboard payload keys now include `kpis` and `timeline` in addition to the existing card and row contracts
 - `pending_actions[]` items expose `type`, `reference`, `label`, `priority`, `owner`, `url`, `age_hours`
 - allowed `owner` values are `magasin`, `qualite`, `admin`, `portal`
 - allowed `priority` values are `high`, `medium`, `low`
@@ -127,6 +129,7 @@ Maintenance rule:
 
 - if dashboard action routing, workflow blockage categorization, SLA prioritization, destination-risk ranking, or ownership vocabulary changes, update the legacy dashboard, `scan/settings` if relevant, the shipment-tracking deep link, the UI API tests, and the repo-reference in the same work
 - `wms/views_scan_dashboard.py` and `api/v1/ui_views.py` should remain thin adapters over `wms/application/scan/dashboard_queries.py`; do not duplicate the full dashboard composition in both surfaces again during V3.1
+- GET rendering in both adapters must rely only on the public shared payload; query-internal fields such as `shipments_scope`, `shipments_with_tracking`, `workflow_blockage_base_rows`, `status_map`, and raw snapshot objects stay private to the query layer or POST-only adapter needs
 - shared SLA alert semantics should continue to resolve through `wms/policies/sla.py`, with `wms/scan_dashboard_sla.py` acting as the data adapter rather than the rule owner
 - keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
 
