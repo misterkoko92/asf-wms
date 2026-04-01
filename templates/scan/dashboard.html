@@ -261,6 +261,25 @@
         <p class="scan-help mb-0">{% trans "Lisez les volumes de la période puis descendez dans le détail." %}</p>
       </div>
       <div class="scan-dashboard-pilotage-grid">
+        <div class="ui-comp-panel">
+          <div class="scan-dashboard-subsection-header">
+            <h3 class="h5 ui-comp-title mb-1">{% trans "Seuils actifs" %}</h3>
+            <p class="scan-help mb-0">{% blocktrans with preset=pilotage_threshold_context.active_preset_label %}Preset actif: {{ preset }}.{% endblocktrans %}</p>
+          </div>
+          <div class="scan-kpi-grid">
+            {% for row in pilotage_threshold_context.threshold_rows %}
+              <div class="scan-kpi-card">
+                <span class="scan-kpi-label">{{ row.label }}</span>
+                <span class="scan-kpi-value">{{ row.value }}</span>
+              </div>
+            {% endfor %}
+          </div>
+          <ul class="scan-help mt-3 mb-0">
+            {% for row in pilotage_threshold_context.impact_rows %}
+              <li>{{ row.label }}: {{ row.value }}</li>
+            {% endfor %}
+          </ul>
+        </div>
         <div id="scan-dashboard-kpi-panel" class="ui-comp-panel">
           <h2>{% trans "KPI" %}</h2>
           <div class="scan-kpi-grid">

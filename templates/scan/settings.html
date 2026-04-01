@@ -102,6 +102,21 @@
         </div>
       </div>
 
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.pilotage_planning_tension_pct.label_tag }}
+          {{ form.pilotage_planning_tension_pct }}
+          {% if form.pilotage_planning_tension_pct.errors %}<div class="scan-help">{{ form.pilotage_planning_tension_pct.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_planning_tension_pct.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.pilotage_planning_critical_pct.label_tag }}
+          {{ form.pilotage_planning_critical_pct }}
+          {% if form.pilotage_planning_critical_pct.errors %}<div class="scan-help">{{ form.pilotage_planning_critical_pct.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_planning_critical_pct.help_text }}</div>
+        </div>
+      </div>
+
       <div class="scan-divider"></div>
 
       <h3>{% trans "Queue email" %}</h3>
@@ -191,8 +206,30 @@
         <li>{% trans "Retards SLA critiques:" %} {{ preview.sla_critical_delay_count }}</li>
         <li>{% trans "Route legacy effective:" %} {% if preview.legacy_effective_enabled %}{% trans "active" %}{% else %}{% trans "inactive" %}{% endif %}</li>
       </ul>
+      <h4>{% trans "Seuils actifs" %}</h4>
+      <p class="scan-help">{% trans "Preset actif:" %} {{ preview.pilotage_threshold_context.active_preset_label }}</p>
+      <ul class="scan-help">
+        {% for row in preview.pilotage_threshold_context.threshold_rows %}
+          <li>{{ row.label }}: {{ row.value }}</li>
+        {% endfor %}
+      </ul>
+      <ul class="scan-help">
+        {% for row in preview.pilotage_threshold_context.impact_rows %}
+          <li>{{ row.label }}: {{ row.value }}</li>
+        {% endfor %}
+      </ul>
     </div>
   {% endif %}
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3>{% trans "Seuils actifs" %}</h3>
+    <p class="scan-help">{% trans "Preset actif:" %} {{ active_pilotage_threshold_context.active_preset_label }}</p>
+    <ul class="scan-help">
+      {% for row in active_pilotage_threshold_context.threshold_rows %}
+        <li>{{ row.label }}: {{ row.value }}</li>
+      {% endfor %}
+    </ul>
+  </div>
 
   <div class="scan-card card border-0 ui-comp-card">
     <h3>{% trans "Escalades pilotage" %}</h3>

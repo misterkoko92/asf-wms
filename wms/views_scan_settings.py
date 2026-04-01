@@ -19,6 +19,7 @@ from .models import (
     WmsRuntimeSettingsAudit,
 )
 from .ops_escalations import evaluate_ops_escalations
+from .pilotage_runtime import SCAN_SETTINGS_PRESETS, build_pilotage_threshold_context
 from .runtime_settings import get_runtime_settings_instance, is_shipment_track_legacy_enabled
 from .scan_dashboard_sla import (
     annotate_shipment_tracking_dates,
@@ -34,48 +35,6 @@ ACTION_SAVE = "save"
 ACTION_PREVIEW = "preview"
 ACTION_APPLY_PRESET = "apply_preset"
 DEFAULT_ACTION = ACTION_SAVE
-
-SETTINGS_PRESETS = {
-    "standard": {
-        "label": _("Standard"),
-        "description": _("Valeurs operationnelles recommandees."),
-        "values": {
-            "low_stock_threshold": 20,
-            "tracking_alert_hours": 72,
-            "workflow_blockage_hours": 72,
-            "stale_drafts_age_days": 30,
-            "pilotage_dispute_unassigned_hours": 12,
-            "pilotage_workflow_blockage_unclaimed_hours": 12,
-            "pilotage_queue_backlog_threshold": 3,
-            "email_queue_max_attempts": 5,
-            "email_queue_retry_base_seconds": 60,
-            "email_queue_retry_max_seconds": 3600,
-            "email_queue_processing_timeout_seconds": 900,
-            "enable_shipment_track_legacy": True,
-        },
-    },
-    "incident_email_queue": {
-        "label": _("Incident queue email"),
-        "description": _("Accroit l'agressivite de reprise et baisse le timeout."),
-        "values": {
-            "pilotage_queue_backlog_threshold": 1,
-            "email_queue_max_attempts": 8,
-            "email_queue_retry_base_seconds": 30,
-            "email_queue_retry_max_seconds": 300,
-            "email_queue_processing_timeout_seconds": 120,
-        },
-    },
-    "incident_sla": {
-        "label": _("Incident SLA"),
-        "description": _("Resserre la detection des retards de suivi et des blocages."),
-        "values": {
-            "tracking_alert_hours": 48,
-            "workflow_blockage_hours": 48,
-            "pilotage_dispute_unassigned_hours": 8,
-            "pilotage_workflow_blockage_unclaimed_hours": 8,
-        },
-    },
-}
 
 
 def _runtime_values_dict(runtime_settings):
@@ -136,6 +95,7 @@ def _build_impact_preview(values):
         "sla_critical_delay_count": sla_alert_summary["critical_count"],
         "ops_escalation_count": ops_escalation_preview["total_count"],
         "ops_escalation_category_counts": ops_escalation_preview["category_counts"],
+        "pilotage_threshold_context": build_pilotage_threshold_context(values),
     }
 
 
@@ -158,7 +118,7 @@ def _preset_options():
             "label": preset["label"],
             "description": preset["description"],
         }
-        for key, preset in SETTINGS_PRESETS.items()
+        for key, preset in SCAN_SETTINGS_PRESETS.items()
     ]
 
 
@@ -171,12 +131,13 @@ def scan_settings(request):
     preview = None
     selected_preset = ""
     ops_escalation_preview = _build_ops_escalation_preview(runtime_values)
+    active_pilotage_threshold_context = build_pilotage_threshold_context(runtime_values)
 
     if request.method == "POST":
         action = (request.POST.get("action") or DEFAULT_ACTION).strip()
         selected_preset = (request.POST.get("preset") or "").strip()
         if action == ACTION_APPLY_PRESET:
-            preset = SETTINGS_PRESETS.get(selected_preset)
+            preset = SCAN_SETTINGS_PRESETS.get(selected_preset)
             if preset is None:
                 form = ScanRuntimeSettingsForm(instance=runtime_settings)
                 messages.error(request, _("Preset introuvable."))
@@ -257,6 +218,7 @@ def scan_settings(request):
             "selected_preset": selected_preset,
             "preview": preview,
             "ops_escalation_preview": ops_escalation_preview,
+            "active_pilotage_threshold_context": active_pilotage_threshold_context,
             "recent_audits": recent_audits,
             "legacy_env_disabled": not bool(
                 getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)

@@ -39,6 +39,7 @@ from .models import (
     ShipmentStatus,
     ShipmentWorkflowProjection,
 )
+from .pilotage_runtime import build_pilotage_threshold_context
 from .runtime_settings import get_runtime_config
 from .scan_dashboard_destination_risk import build_destination_risk_snapshot
 from .scan_dashboard_sla import (
@@ -394,6 +395,18 @@ def scan_dashboard(request):
     low_stock_threshold = runtime_config.low_stock_threshold
     tracking_alert_hours = runtime_config.tracking_alert_hours
     workflow_blockage_hours = runtime_config.workflow_blockage_hours
+    pilotage_threshold_context = build_pilotage_threshold_context(
+        {
+            "tracking_alert_hours": tracking_alert_hours,
+            "workflow_blockage_hours": workflow_blockage_hours,
+            "pilotage_dispute_unassigned_hours": runtime_config.pilotage_dispute_unassigned_hours,
+            "pilotage_workflow_blockage_unclaimed_hours": runtime_config.pilotage_workflow_blockage_unclaimed_hours,
+            "pilotage_queue_backlog_threshold": runtime_config.pilotage_queue_backlog_threshold,
+            "pilotage_planning_tension_pct": runtime_config.pilotage_planning_tension_pct,
+            "pilotage_planning_critical_pct": runtime_config.pilotage_planning_critical_pct,
+            "email_queue_processing_timeout_seconds": runtime_config.email_queue_processing_timeout_seconds,
+        }
+    )
     queue_processing_timeout_seconds = runtime_config.email_queue_processing_timeout_seconds
 
     period = _normalize_period(request.GET.get("period"))
@@ -1258,5 +1271,6 @@ def scan_dashboard(request):
         "low_stock_threshold": low_stock_threshold,
         "tracking_alert_hours": tracking_alert_hours,
         "workflow_blockage_hours": workflow_blockage_hours,
+        "pilotage_threshold_context": pilotage_threshold_context,
     }
     return render(request, TEMPLATE_DASHBOARD, context)

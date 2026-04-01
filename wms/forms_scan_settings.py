@@ -14,6 +14,8 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "pilotage_dispute_unassigned_hours",
         "pilotage_workflow_blockage_unclaimed_hours",
         "pilotage_queue_backlog_threshold",
+        "pilotage_planning_tension_pct",
+        "pilotage_planning_critical_pct",
         "email_queue_max_attempts",
         "email_queue_retry_base_seconds",
         "email_queue_retry_max_seconds",
@@ -28,6 +30,8 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "pilotage_dispute_unassigned_hours",
         "pilotage_workflow_blockage_unclaimed_hours",
         "pilotage_queue_backlog_threshold",
+        "pilotage_planning_tension_pct",
+        "pilotage_planning_critical_pct",
         "email_queue_max_attempts",
         "email_queue_retry_base_seconds",
         "email_queue_retry_max_seconds",
@@ -51,6 +55,8 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "pilotage_dispute_unassigned_hours",
             "pilotage_workflow_blockage_unclaimed_hours",
             "pilotage_queue_backlog_threshold",
+            "pilotage_planning_tension_pct",
+            "pilotage_planning_critical_pct",
             "email_queue_max_attempts",
             "email_queue_retry_base_seconds",
             "email_queue_retry_max_seconds",
@@ -65,6 +71,8 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "pilotage_dispute_unassigned_hours": _("Litige sans owner (heures)"),
             "pilotage_workflow_blockage_unclaimed_hours": _("Blocage non pris en charge (heures)"),
             "pilotage_queue_backlog_threshold": _("Queue backlog pilotage (items)"),
+            "pilotage_planning_tension_pct": _("Vol planning en tension (%)"),
+            "pilotage_planning_critical_pct": _("Vol planning critique (%)"),
             "email_queue_max_attempts": _("Queue email: tentatives max"),
             "email_queue_retry_base_seconds": _("Queue email: retry base (secondes)"),
             "email_queue_retry_max_seconds": _("Queue email: retry max (secondes)"),
@@ -87,6 +95,12 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "pilotage_queue_backlog_threshold": _(
                 "Nombre d'items queue à partir duquel le backlog devient une escalade."
             ),
+            "pilotage_planning_tension_pct": _(
+                "Seuil de remplissage à partir duquel un vol passe en tension dans le pilotage."
+            ),
+            "pilotage_planning_critical_pct": _(
+                "Seuil de remplissage à partir duquel un vol passe en critique dans le pilotage."
+            ),
             "email_queue_max_attempts": _("Nombre maximal de retries avant échec définitif."),
             "email_queue_retry_base_seconds": _("Délai de base du backoff exponentiel."),
             "email_queue_retry_max_seconds": _("Délai maximal du backoff exponentiel."),
@@ -105,6 +119,8 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
                 attrs={"min": 1, "step": 1}
             ),
             "pilotage_queue_backlog_threshold": forms.NumberInput(attrs={"min": 1, "step": 1}),
+            "pilotage_planning_tension_pct": forms.NumberInput(attrs={"min": 1, "step": 1}),
+            "pilotage_planning_critical_pct": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_max_attempts": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_retry_base_seconds": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_retry_max_seconds": forms.NumberInput(attrs={"min": 1, "step": 1}),
@@ -135,6 +151,17 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             self.add_error(
                 "email_queue_retry_max_seconds",
                 _("Le retry max doit être supérieur ou égal au retry base."),
+            )
+        planning_tension = cleaned_data.get("pilotage_planning_tension_pct")
+        planning_critical = cleaned_data.get("pilotage_planning_critical_pct")
+        if (
+            planning_tension is not None
+            and planning_critical is not None
+            and planning_critical < planning_tension
+        ):
+            self.add_error(
+                "pilotage_planning_critical_pct",
+                _("Le seuil critique doit être supérieur ou égal au seuil tension."),
             )
         if getattr(self.instance, "pk", None):
             action = (self.data.get("action") or "").strip().lower()

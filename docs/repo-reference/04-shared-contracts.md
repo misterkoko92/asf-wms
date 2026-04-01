@@ -238,6 +238,7 @@ Primary runtime sources:
 - `wms/models_domain/integration.py`
 - `wms/ops_escalations.py`
 - `wms/management/commands/evaluate_ops_escalations.py`
+- `wms/pilotage_runtime.py`
 - `wms/views_scan_settings.py`
 - `templates/scan/settings.html`
 
@@ -252,11 +253,18 @@ Current local contract:
   - `pilotage_dispute_unassigned_hours`
   - `pilotage_workflow_blockage_unclaimed_hours`
   - `pilotage_queue_backlog_threshold`
+  - `pilotage_planning_tension_pct`
+  - `pilotage_planning_critical_pct`
+- preset vocabulary for this phase is `standard`, `incident_email_queue`, `incident_sla`, `pilotage_tendu`, plus implicit `Personnalise` when saved values no longer match a preset exactly
 - the settings page always exposes a lightweight `Escalades pilotage` preview for the current thresholds
+- the settings page and cockpit surfaces expose `Seuils actifs` with:
+  - active preset label
+  - visible threshold rows
+  - projected impact counters for escalations and planning flight load states
 
 Maintenance rule:
 
-- if escalation categories, statuses, or threshold semantics change, update the evaluator, the settings preview, the command, and this repo-reference section in the same work
+- if escalation categories, statuses, preset vocabulary, or threshold semantics change, update the evaluator, the settings preview, `wms/pilotage_runtime.py`, the command, and this repo-reference section in the same work
 - keep this phase local and operator-facing: escalations are a pilotage layer, not customer-visible workflow statuses
 
 Reference tests:
@@ -281,7 +289,7 @@ Current local contract:
   - active `OpsEscalation` rows for `priority_rows[]` and `escalation_rows[]`
   - destination trend rows from the existing destination-risk aggregate
   - live portal backlog rows from pending or changes-requested orders without a shipment
-- `GET /api/v1/ui/pilotage/` exposes at least `summary_cards`, `priority_rows`, `escalation_rows`, `destination_trend_rows`, `planning_export_rows`, `portal_backlog_rows`
+- `GET /api/v1/ui/pilotage/` exposes at least `summary_cards`, `priority_rows`, `escalation_rows`, `destination_trend_rows`, `planning_export_rows`, `portal_backlog_rows`, `pilotage_threshold_context`
 - `surface_links` keeps the stable cross-surface navigation targets toward `scan/dashboard`, `portal/dashboard`, and `planning/`
 - planning export rows remain snapshot-driven in this phase; do not add cockpit-only recomputation of workbook or PDF state
 

@@ -37,6 +37,28 @@
     </div>
   </section>
 
+  <section id="scan-pilotage-thresholds" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Seuils actifs</h2>
+        <p class="scan-help mb-0">Preset actif: {{ pilotage_threshold_context.active_preset_label }}.</p>
+      </div>
+      <div class="scan-kpi-grid scan-dashboard-priority-grid">
+        {% for row in pilotage_threshold_context.threshold_rows %}
+          <div class="scan-kpi-card">
+            <span class="scan-kpi-label">{{ row.label }}</span>
+            <span class="scan-kpi-value">{{ row.value }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <ul class="scan-help mt-3 mb-0">
+        {% for row in pilotage_threshold_context.impact_rows %}
+          <li>{{ row.label }}: {{ row.value }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+
   <section id="scan-pilotage-priorities" class="scan-dashboard-section">
     <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
       <div class="scan-dashboard-section-header">

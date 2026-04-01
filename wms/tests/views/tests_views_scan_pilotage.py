@@ -15,6 +15,7 @@ from wms.models import (
     Shipment,
     ShipmentStatus,
     ShipmentWorkflowProjection,
+    WmsRuntimeSettings,
 )
 
 
@@ -136,3 +137,32 @@ class ScanPilotageViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_pilotage"))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_scan_pilotage_uses_runtime_thresholds_for_summary(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.tracking_alert_hours = 24
+        runtime.workflow_blockage_hours = 48
+        runtime.pilotage_dispute_unassigned_hours = 8
+        runtime.pilotage_workflow_blockage_unclaimed_hours = 8
+        runtime.pilotage_queue_backlog_threshold = 3
+        runtime.pilotage_planning_tension_pct = 75
+        runtime.pilotage_planning_critical_pct = 90
+        runtime.save(
+            update_fields=[
+                "tracking_alert_hours",
+                "workflow_blockage_hours",
+                "pilotage_dispute_unassigned_hours",
+                "pilotage_workflow_blockage_unclaimed_hours",
+                "pilotage_queue_backlog_threshold",
+                "pilotage_planning_tension_pct",
+                "pilotage_planning_critical_pct",
+            ]
+        )
+
+        response = self.client.get(reverse("scan:scan_pilotage"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Seuils actifs")
+        self.assertContains(response, "Pilotage tendu")
+        self.assertContains(response, "75%")
+        self.assertContains(response, "90%")

@@ -52,6 +52,7 @@ Notes:
 - [ ] Always-on smoke: validate draft flow so "Enregistrer en brouillon" creates `EXP-TEMP-XX` and the draft is visible in Vue Expéditions.
 - [ ] Always-on smoke: validate one shipment tracking or close action on an existing shipment.
 - [ ] Conditional smoke: if dashboard scope changed, validate one `Blocages workflow` row opens the expected dossier and claim/release works once.
+- [ ] Conditional smoke: if pilotage/settings scope changed, validate `/scan/settings/`, `/scan/dashboard/`, and `/scan/pilotage/` all expose `Seuils actifs`, the expected active preset label, and coherent planning thresholds.
 - [ ] Conditional smoke: if portal scope changed, validate portal login plus one nominal order or recipient update flow.
 - [ ] Conditional smoke: if planning scope changed, validate run-list attention cards, cockpit access on an existing run/version, and strict `Planning.pdf` / `Planning.xlsx` artifact visibility, regeneration, or download if applicable.
 - [ ] Conditional smoke: if billing scope changed, validate one nominal billing preview/export or payment/correction flow.

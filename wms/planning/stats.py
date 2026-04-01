@@ -21,7 +21,13 @@ FLIGHT_LOAD_STATE_LABELS = {
 }
 
 
-def _build_flight_load_metrics(capacity_units, equivalent_total: int) -> dict[str, object]:
+def _build_flight_load_metrics(
+    capacity_units,
+    equivalent_total: int,
+    *,
+    tension_pct: int = 80,
+    critical_pct: int = 95,
+) -> dict[str, object]:
     if not capacity_units:
         return {
             "remaining_units": None,
@@ -31,11 +37,13 @@ def _build_flight_load_metrics(capacity_units, equivalent_total: int) -> dict[st
         }
     utilization_pct = round((equivalent_total / capacity_units) * 100)
     remaining_units = capacity_units - equivalent_total
+    resolved_tension_pct = max(int(tension_pct or 0), 1)
+    resolved_critical_pct = max(int(critical_pct or 0), resolved_tension_pct)
     if utilization_pct > 100:
         load_state = "overload"
-    elif utilization_pct >= 95:
+    elif utilization_pct >= resolved_critical_pct:
         load_state = "critical"
-    elif utilization_pct >= 80:
+    elif utilization_pct >= resolved_tension_pct:
         load_state = "tension"
     else:
         load_state = "ok"
@@ -47,7 +55,12 @@ def _build_flight_load_metrics(capacity_units, equivalent_total: int) -> dict[st
     }
 
 
-def build_version_stats(version: PlanningVersion) -> dict[str, int]:
+def build_version_stats(
+    version: PlanningVersion,
+    *,
+    tension_pct: int = 80,
+    critical_pct: int = 95,
+) -> dict[str, int]:
     assignments = list(
         version.assignments.select_related(
             "volunteer_snapshot",
@@ -144,7 +157,14 @@ def build_version_stats(version: PlanningVersion) -> dict[str, int]:
         key=lambda item: (-item["carton_total"], item["volunteer_label"]),
     )
     for item in flight_load.values():
-        item.update(_build_flight_load_metrics(item["capacity_units"], item["equivalent_total"]))
+        item.update(
+            _build_flight_load_metrics(
+                item["capacity_units"],
+                item["equivalent_total"],
+                tension_pct=tension_pct,
+                critical_pct=critical_pct,
+            )
+        )
     flight_load_breakdown = sorted(
         flight_load.values(),
         key=lambda item: (

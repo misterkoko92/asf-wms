@@ -1033,6 +1033,35 @@ class ScanDashboardViewTests(TestCase):
         self.assertIn('id="scan-dashboard-kpi-panel"', content[pilotage_start:])
         self.assertNotIn('id="scan-dashboard-chart-panel"', content[pilotage_start:])
 
+    def test_scan_dashboard_exposes_active_pilotage_threshold_context(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.tracking_alert_hours = 24
+        runtime.workflow_blockage_hours = 48
+        runtime.pilotage_dispute_unassigned_hours = 8
+        runtime.pilotage_workflow_blockage_unclaimed_hours = 8
+        runtime.pilotage_queue_backlog_threshold = 3
+        runtime.pilotage_planning_tension_pct = 75
+        runtime.pilotage_planning_critical_pct = 90
+        runtime.save(
+            update_fields=[
+                "tracking_alert_hours",
+                "workflow_blockage_hours",
+                "pilotage_dispute_unassigned_hours",
+                "pilotage_workflow_blockage_unclaimed_hours",
+                "pilotage_queue_backlog_threshold",
+                "pilotage_planning_tension_pct",
+                "pilotage_planning_critical_pct",
+            ]
+        )
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Seuils actifs")
+        self.assertContains(response, "Pilotage tendu")
+        self.assertContains(response, "75%")
+        self.assertContains(response, "90%")
+
     def test_scan_dashboard_exposes_workflow_blockage_rows_by_category(self):
         critical_sla = self._create_shipment(
             destination=self.destination_a,

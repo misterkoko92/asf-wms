@@ -277,6 +277,8 @@ class WmsRuntimeSettings(models.Model):
     pilotage_dispute_unassigned_hours = models.PositiveIntegerField(default=12)
     pilotage_workflow_blockage_unclaimed_hours = models.PositiveIntegerField(default=12)
     pilotage_queue_backlog_threshold = models.PositiveIntegerField(default=3)
+    pilotage_planning_tension_pct = models.PositiveIntegerField(default=80)
+    pilotage_planning_critical_pct = models.PositiveIntegerField(default=95)
     email_queue_max_attempts = models.PositiveIntegerField(default=5)
     email_queue_retry_base_seconds = models.PositiveIntegerField(default=60)
     email_queue_retry_max_seconds = models.PositiveIntegerField(default=3600)
@@ -336,6 +338,8 @@ class WmsRuntimeSettings(models.Model):
             "pilotage_dispute_unassigned_hours": 12,
             "pilotage_workflow_blockage_unclaimed_hours": 12,
             "pilotage_queue_backlog_threshold": 3,
+            "pilotage_planning_tension_pct": 80,
+            "pilotage_planning_critical_pct": 95,
             "email_queue_max_attempts": _safe_int(
                 getattr(django_settings, "EMAIL_QUEUE_MAX_ATTEMPTS", 5),
                 default=5,

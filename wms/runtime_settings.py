@@ -20,6 +20,11 @@ class RuntimeConfig:
     tracking_alert_hours: int
     workflow_blockage_hours: int
     stale_drafts_age_days: int
+    pilotage_dispute_unassigned_hours: int
+    pilotage_workflow_blockage_unclaimed_hours: int
+    pilotage_queue_backlog_threshold: int
+    pilotage_planning_tension_pct: int
+    pilotage_planning_critical_pct: int
     email_queue_max_attempts: int
     email_queue_retry_base_seconds: int
     email_queue_retry_max_seconds: int
@@ -54,6 +59,11 @@ def _fallback_runtime_config() -> RuntimeConfig:
         tracking_alert_hours=72,
         workflow_blockage_hours=72,
         stale_drafts_age_days=30,
+        pilotage_dispute_unassigned_hours=12,
+        pilotage_workflow_blockage_unclaimed_hours=12,
+        pilotage_queue_backlog_threshold=3,
+        pilotage_planning_tension_pct=80,
+        pilotage_planning_critical_pct=95,
         email_queue_max_attempts=_safe_int(
             getattr(settings, "EMAIL_QUEUE_MAX_ATTEMPTS", 5),
             default=5,
@@ -110,6 +120,38 @@ def get_runtime_config() -> RuntimeConfig:
             runtime.stale_drafts_age_days,
             default=fallback.stale_drafts_age_days,
             minimum=1,
+        ),
+        pilotage_dispute_unassigned_hours=_safe_int(
+            runtime.pilotage_dispute_unassigned_hours,
+            default=fallback.pilotage_dispute_unassigned_hours,
+            minimum=1,
+        ),
+        pilotage_workflow_blockage_unclaimed_hours=_safe_int(
+            runtime.pilotage_workflow_blockage_unclaimed_hours,
+            default=fallback.pilotage_workflow_blockage_unclaimed_hours,
+            minimum=1,
+        ),
+        pilotage_queue_backlog_threshold=_safe_int(
+            runtime.pilotage_queue_backlog_threshold,
+            default=fallback.pilotage_queue_backlog_threshold,
+            minimum=1,
+        ),
+        pilotage_planning_tension_pct=_safe_int(
+            runtime.pilotage_planning_tension_pct,
+            default=fallback.pilotage_planning_tension_pct,
+            minimum=1,
+        ),
+        pilotage_planning_critical_pct=max(
+            _safe_int(
+                runtime.pilotage_planning_tension_pct,
+                default=fallback.pilotage_planning_tension_pct,
+                minimum=1,
+            ),
+            _safe_int(
+                runtime.pilotage_planning_critical_pct,
+                default=fallback.pilotage_planning_critical_pct,
+                minimum=1,
+            ),
         ),
         email_queue_max_attempts=_safe_int(
             runtime.email_queue_max_attempts,

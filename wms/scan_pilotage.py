@@ -11,6 +11,8 @@ from .models import (
     ShipmentWorkflowProjection,
 )
 from .ops_escalations import OPS_ESCALATION_STATUS_ACKNOWLEDGED, OPS_ESCALATION_STATUS_OPEN
+from .pilotage_runtime import build_pilotage_threshold_context
+from .runtime_settings import get_runtime_config
 from .scan_dashboard_destination_risk import build_destination_risk_snapshot
 
 PILOTAGE_ESCALATION_CATEGORY_LABELS = {
@@ -295,6 +297,17 @@ def _priority_rows(escalation_rows, *, portal_backlog_rows):
 
 
 def build_scan_pilotage_payload(*, snapshot_date=None):
+    runtime = get_runtime_config()
+    runtime_values = {
+        "tracking_alert_hours": runtime.tracking_alert_hours,
+        "workflow_blockage_hours": runtime.workflow_blockage_hours,
+        "pilotage_dispute_unassigned_hours": runtime.pilotage_dispute_unassigned_hours,
+        "pilotage_workflow_blockage_unclaimed_hours": runtime.pilotage_workflow_blockage_unclaimed_hours,
+        "pilotage_queue_backlog_threshold": runtime.pilotage_queue_backlog_threshold,
+        "pilotage_planning_tension_pct": runtime.pilotage_planning_tension_pct,
+        "pilotage_planning_critical_pct": runtime.pilotage_planning_critical_pct,
+        "email_queue_processing_timeout_seconds": runtime.email_queue_processing_timeout_seconds,
+    }
     latest_snapshot_date = _latest_snapshot_date(snapshot_date=snapshot_date)
     snapshot_label = _snapshot_label(latest_snapshot_date)
     global_metrics = _global_metric_map(latest_snapshot_date)
@@ -330,6 +343,7 @@ def build_scan_pilotage_payload(*, snapshot_date=None):
             "portal_dashboard_url": reverse("portal:portal_dashboard"),
             "planning_run_list_url": reverse("planning:run_list"),
         },
+        "pilotage_threshold_context": build_pilotage_threshold_context(runtime_values),
         "summary_cards": _summary_cards(
             snapshot_label=snapshot_label,
             global_metrics=global_metrics,
