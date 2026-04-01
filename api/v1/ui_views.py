@@ -1,3 +1,4 @@
+import unicodedata
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from wms.application.pilotage.pilotage_queries import build_scan_pilotage_payload
+from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.carton_status_events import set_carton_status
 from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
 from wms.document_scan_queue import (
@@ -73,7 +76,6 @@ from wms.scan_dashboard_sla import (
     build_sla_rows,
     summarize_sla_alert_rows,
 )
-from wms.scan_pilotage import build_scan_pilotage_payload
 from wms.scan_product_helpers import resolve_product
 from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
@@ -135,6 +137,18 @@ from .serializers import (
     UiStockUpdateSerializer,
 )
 from .ui_api_errors import api_error, form_error_payload, serializer_field_errors
+
+
+def _asciiize_dashboard_value(value):
+    if isinstance(value, str):
+        return unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    if isinstance(value, list):
+        return [_asciiize_dashboard_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_asciiize_dashboard_value(item) for item in value)
+    if isinstance(value, dict):
+        return {key: _asciiize_dashboard_value(item) for key, item in value.items()}
+    return value
 
 
 def _stock_state(quantity: int, low_stock_threshold: int) -> str:
@@ -833,6 +847,107 @@ class UiDashboardView(APIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request):
+        dashboard_payload = build_scan_dashboard_payload(user=request.user, params=request.GET)
+        shipments_qs = dashboard_payload["shipments_scope"]
+        low_stock_rows = dashboard_payload["low_stock_rows"]
+
+        open_shipments_qs = shipments_qs.filter(closed_at__isnull=True)
+        disputed_qs = open_shipments_qs.filter(is_disputed=True)
+        delayed_qs = open_shipments_qs.filter(
+            status__in=[
+                ShipmentStatus.PICKING,
+                ShipmentStatus.PACKED,
+                ShipmentStatus.PLANNED,
+                ShipmentStatus.SHIPPED,
+                ShipmentStatus.RECEIVED_CORRESPONDENT,
+            ]
+        )
+        kpis = {
+            "open_shipments": open_shipments_qs.count(),
+            "stock_alerts": len(low_stock_rows),
+            "open_disputes": disputed_qs.count(),
+            "pending_orders": Order.objects.filter(review_status=OrderReviewStatus.PENDING).count(),
+            "shipments_delayed": delayed_qs.count(),
+        }
+        timeline_events = ShipmentTrackingEvent.objects.select_related("shipment").order_by(
+            "-created_at"
+        )[:8]
+        timeline = [
+            {
+                "id": event.id,
+                "shipment_id": event.shipment_id,
+                "reference": event.shipment.reference or f"EXP-{event.shipment_id}",
+                "status": event.get_status_display(),
+                "timestamp": event.created_at.isoformat(),
+                "comments": event.comments or "",
+            }
+            for event in timeline_events
+        ]
+        return Response(
+            {
+                "kpis": kpis,
+                "timeline": timeline,
+                "pending_actions": _asciiize_dashboard_value(dashboard_payload["pending_actions"]),
+                "period_label": _asciiize_dashboard_value(dashboard_payload["period_label"]),
+                "activity_cards": _asciiize_dashboard_value(dashboard_payload["activity_cards"]),
+                "shipment_cards": _asciiize_dashboard_value(dashboard_payload["shipment_cards"]),
+                "carton_cards": _asciiize_dashboard_value(dashboard_payload["carton_cards"]),
+                "stock_cards": _asciiize_dashboard_value(dashboard_payload["stock_cards"]),
+                "flow_cards": _asciiize_dashboard_value(dashboard_payload["flow_cards"]),
+                "tracking_alert_hours": dashboard_payload["tracking_alert_hours"],
+                "tracking_cards": _asciiize_dashboard_value(dashboard_payload["tracking_cards"]),
+                "queue_processing_timeout_seconds": dashboard_payload[
+                    "queue_processing_timeout_seconds"
+                ],
+                "technical_cards": _asciiize_dashboard_value(dashboard_payload["technical_cards"]),
+                "document_scan_processing_timeout_seconds": dashboard_payload[
+                    "document_scan_processing_timeout_seconds"
+                ],
+                "document_scan_cards": _asciiize_dashboard_value(
+                    dashboard_payload["document_scan_cards"]
+                ),
+                "workflow_blockage_hours": dashboard_payload["workflow_blockage_hours"],
+                "workflow_blockage_cards": _asciiize_dashboard_value(
+                    dashboard_payload["workflow_blockage_cards"]
+                ),
+                "workflow_blockage_summary_cards": _asciiize_dashboard_value(
+                    dashboard_payload["workflow_blockage_summary_cards"]
+                ),
+                "workflow_blockage_rows": _asciiize_dashboard_value(
+                    dashboard_payload["workflow_blockage_rows"]
+                ),
+                "destination_risk_summary_cards": _asciiize_dashboard_value(
+                    dashboard_payload["destination_risk_summary_cards"]
+                ),
+                "destination_risk_rows": _asciiize_dashboard_value(
+                    dashboard_payload["destination_risk_rows"]
+                ),
+                "sla_cards": _asciiize_dashboard_value(dashboard_payload["sla_cards"]),
+                "sla_alert_summary_cards": _asciiize_dashboard_value(
+                    dashboard_payload["sla_alert_summary_cards"]
+                ),
+                "sla_alert_rows": _asciiize_dashboard_value(dashboard_payload["sla_alert_rows"]),
+                "shipments_total": dashboard_payload["shipments_total"],
+                "shipment_chart_rows": _asciiize_dashboard_value(
+                    dashboard_payload["shipment_chart_rows"]
+                ),
+                "filters": {
+                    "period": dashboard_payload["period"],
+                    "period_choices": [
+                        {"value": value, "label": _asciiize_dashboard_value(str(label))}
+                        for value, label in dashboard_payload["period_choices"]
+                    ],
+                    "destination": dashboard_payload["destination_id"],
+                    "destinations": [
+                        {"id": destination.id, "label": str(destination)}
+                        for destination in dashboard_payload["destinations"]
+                    ],
+                },
+                "low_stock_threshold": dashboard_payload["low_stock_threshold"],
+                "low_stock_rows": dashboard_payload["low_stock_rows"],
+                "updated_at": timezone.now().isoformat(),
+            }
+        )
         runtime = get_runtime_config()
         low_stock_threshold = runtime.low_stock_threshold
         tracking_alert_hours = runtime.tracking_alert_hours

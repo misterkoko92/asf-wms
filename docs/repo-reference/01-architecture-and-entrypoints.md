@@ -82,6 +82,9 @@ Practical rule:
 - URL roots: `api/urls.py`, `api/v1/urls.py`
 - UI API layer: `api/v1/ui_views.py`
 - Integration/business API layer: `api/v1/views.py`, serializers and routers
+- Current V3.1 extracted query sources:
+  - `wms/application/scan/dashboard_queries.py` is the shared composition source for the legacy scan dashboard and `GET /api/v1/ui/dashboard/`
+  - `wms/application/pilotage/pilotage_queries.py` is the shared composition source for the legacy pilotage cockpit and `GET /api/v1/ui/pilotage/`
 
 ### Shared contracts
 

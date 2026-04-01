@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 
-from .scan_pilotage import build_scan_pilotage_payload
+from .application.pilotage.pilotage_queries import build_scan_pilotage_payload
 from .view_permissions import scan_staff_required
 
 ACTIVE_DASHBOARD = "pilotage"

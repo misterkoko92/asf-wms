@@ -1,25 +1,23 @@
+from __future__ import annotations
+
 from datetime import date, datetime, time, timedelta
 
 from django.conf import settings
-from django.contrib import messages
 from django.db.models import Count, F, IntegerField, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
-from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
-from django.views.decorators.http import require_http_methods
 
-from .application.scan.dashboard_queries import build_scan_dashboard_payload
-from .document_scan_queue import (
+from wms.document_scan_queue import (
     DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
     DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
     DOCUMENT_SCAN_QUEUE_SOURCE,
 )
-from .models import (
+from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     Carton,
     CartonStatus,
@@ -38,29 +36,24 @@ from .models import (
     ReceiptStatus,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingEvent,
     ShipmentWorkflowProjection,
 )
-from .pilotage_runtime import build_pilotage_threshold_context
-from .runtime_settings import get_runtime_config
-from .scan_dashboard_destination_risk import build_destination_risk_snapshot
-from .scan_dashboard_sla import (
+from wms.pilotage_runtime import build_pilotage_threshold_context
+from wms.runtime_settings import get_runtime_config
+from wms.scan_dashboard_destination_risk import build_destination_risk_snapshot
+from wms.scan_dashboard_sla import (
     annotate_shipment_tracking_dates,
     build_sla_alert_rows,
     build_sla_rows,
     summarize_sla_alert_rows,
 )
-from .scan_permissions import user_is_preparateur
-from .view_permissions import scan_staff_required
-from .workflow_blockage_queue import (
+from wms.workflow_blockage_queue import (
     WORKFLOW_BLOCKAGE_CLAIM_CLAIMED,
     build_workflow_blockage_rows,
-    claim_workflow_blockage,
-    release_workflow_blockage,
     summarize_workflow_blockage_rows,
-    workflow_blockage_row_by_key,
 )
 
-TEMPLATE_DASHBOARD = "scan/dashboard.html"
 ACTIVE_DASHBOARD = "dashboard"
 
 PERIOD_TODAY = "today"
@@ -76,7 +69,6 @@ PERIOD_CHOICES = (
 )
 ACTION_QUEUE_OWNERS = ("magasin", "qualite", "admin", "portal")
 ACTION_QUEUE_PRIORITIES = ("high", "medium", "low")
-
 SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.DRAFT,
     ShipmentStatus.PICKING,
@@ -127,24 +119,33 @@ WORKFLOW_BLOCKAGE_CLAIM_STATE_LABELS = {
     "open": _("À prendre"),
     WORKFLOW_BLOCKAGE_CLAIM_CLAIMED: _("Pris en charge"),
 }
+WORKFLOW_PENDING_ACTION_TYPES = {
+    "shipment_creation": "shipment_creation_blockage",
+    "order_without_shipment": "order_without_shipment",
+    "shipment_dispute": "shipment_dispute",
+    "shipment_sla_alert": "shipment_sla_alert",
+    "shipment_closure": "shipment_closure",
+    "email_queue_failed": "workflow_queue_issue",
+    "email_queue_stale": "workflow_queue_issue",
+    "document_scan_failed": "workflow_queue_issue",
+    "document_scan_stale": "workflow_queue_issue",
+}
 
 
-@scan_staff_required
-@require_http_methods(["GET"])
-def scan_root(request):
-    if user_is_preparateur(request.user):
-        return redirect("scan:scan_pack")
-    return redirect("scan:scan_dashboard")
+def _param_value(params, key: str) -> str:
+    if params is None:
+        return ""
+    getter = getattr(params, "get", None)
+    if callable(getter):
+        return getter(key)
+    return params[key] if key in params else ""
 
 
 def _period_start(period_key):
     now = timezone.now()
     tz = timezone.get_current_timezone()
     if period_key == PERIOD_TODAY:
-        return timezone.make_aware(
-            datetime.combine(timezone.localdate(), time.min),
-            tz,
-        )
+        return timezone.make_aware(datetime.combine(timezone.localdate(), time.min), tz)
     if period_key == PERIOD_7D:
         return now - timedelta(days=7)
     if period_key == PERIOD_30D:
@@ -258,12 +259,59 @@ def _build_action_queue_row(
     }
 
 
+def _build_pending_action(
+    *,
+    action_type,
+    reference,
+    label,
+    priority,
+    owner,
+    url,
+    started_at=None,
+    context=None,
+):
+    if owner not in ACTION_QUEUE_OWNERS:
+        raise ValueError(f"Unsupported dashboard action owner: {owner}")
+    if priority not in ACTION_QUEUE_PRIORITIES:
+        raise ValueError(f"Unsupported dashboard action priority: {priority}")
+    item = {
+        "type": action_type,
+        "reference": reference,
+        "label": label,
+        "priority": priority,
+        "owner": owner,
+        "url": url,
+        "age_hours": _age_hours(started_at),
+    }
+    if context:
+        item["context"] = context
+    return item
+
+
 def _status_count_map(shipments_qs):
     status_counts = {
         item["status"]: item["total"]
         for item in shipments_qs.values("status").annotate(total=Count("id"))
     }
     return {status: status_counts.get(status, 0) for status in SHIPMENT_STATUS_ORDER}
+
+
+def _build_shipment_chart_rows(status_count_map):
+    shipments_total = sum(status_count_map.get(status, 0) for status in SHIPMENT_STATUS_ORDER)
+    label_map = dict(ShipmentStatus.choices)
+    rows = []
+    for status in SHIPMENT_STATUS_ORDER:
+        count = status_count_map.get(status, 0)
+        percent = round((count / shipments_total) * 100, 1) if shipments_total else 0
+        rows.append(
+            {
+                "status": status,
+                "label": label_map.get(status, status),
+                "count": count,
+                "percent": percent,
+            }
+        )
+    return rows, shipments_total
 
 
 def _stock_snapshot(*, low_stock_threshold):
@@ -301,7 +349,7 @@ def _stock_snapshot(*, low_stock_threshold):
         "available_lots_count": available_lots.count(),
         "total_available_qty": total_available_qty,
         "low_stock_count": low_stock_qs.count(),
-        "low_stock_rows": list(low_stock_qs.values("name", "sku", "available_qty")[:10]),
+        "low_stock_rows": list(low_stock_qs.values("id", "name", "sku", "available_qty")[:10]),
     }
 
 
@@ -389,77 +437,67 @@ def _workflow_blockage_snapshot(shipments_scope, *, workflow_blockage_hours):
     }
 
 
-@scan_staff_required
-@require_http_methods(["GET", "POST"])
-def scan_dashboard(request):
-    dashboard_payload = build_scan_dashboard_payload(user=request.user, params=request.GET)
-    workflow_blockage_base_rows = dashboard_payload["workflow_blockage_base_rows"]
-    period = dashboard_payload["period"]
-    destinations = dashboard_payload["destinations"]
-    selected_destination = dashboard_payload["selected_destination"]
-    low_stock_threshold = dashboard_payload["low_stock_threshold"]
-    tracking_alert_hours = dashboard_payload["tracking_alert_hours"]
-    workflow_blockage_hours = dashboard_payload["workflow_blockage_hours"]
-    pilotage_threshold_context = dashboard_payload["pilotage_threshold_context"]
-    queue_processing_timeout_seconds = dashboard_payload["queue_processing_timeout_seconds"]
-    document_scan_timeout_seconds = dashboard_payload["document_scan_processing_timeout_seconds"]
-    period_start = dashboard_payload["period_start"]
-    shipments_scope = dashboard_payload["shipments_scope"]
-    shipments_with_tracking = dashboard_payload["shipments_with_tracking"]
-    status_map = dashboard_payload["status_map"]
-    stock_snapshot = dashboard_payload["stock_snapshot"]
-    email_queue_snapshot = dashboard_payload["email_queue_snapshot"]
-    document_scan_snapshot = dashboard_payload["document_scan_snapshot"]
-    workflow_blockage_snapshot = dashboard_payload["workflow_blockage_snapshot"]
-    week_start = dashboard_payload["week_start"]
-    week_end = dashboard_payload["week_end"]
-    kpi_start_date = parse_date(dashboard_payload["kpi_start"])
-    kpi_end_date = parse_date(dashboard_payload["kpi_end"])
-    if kpi_start_date is None or kpi_end_date is None:
-        kpi_start_date, kpi_end_date = _current_week_date_bounds()
-    timezone_value = timezone.get_current_timezone()
-    kpi_start_at = timezone.make_aware(datetime.combine(kpi_start_date, time.min), timezone_value)
-    kpi_end_exclusive = timezone.make_aware(
-        datetime.combine(kpi_end_date + timedelta(days=1), time.min),
-        timezone_value,
+def build_scan_dashboard_payload(*, user=None, params=None):
+    runtime_config = get_runtime_config()
+    low_stock_threshold = runtime_config.low_stock_threshold
+    tracking_alert_hours = runtime_config.tracking_alert_hours
+    workflow_blockage_hours = runtime_config.workflow_blockage_hours
+    queue_processing_timeout_seconds = runtime_config.email_queue_processing_timeout_seconds
+    pilotage_threshold_context = build_pilotage_threshold_context(
+        {
+            "tracking_alert_hours": tracking_alert_hours,
+            "workflow_blockage_hours": workflow_blockage_hours,
+            "pilotage_dispute_unassigned_hours": runtime_config.pilotage_dispute_unassigned_hours,
+            "pilotage_workflow_blockage_unclaimed_hours": runtime_config.pilotage_workflow_blockage_unclaimed_hours,
+            "pilotage_queue_backlog_threshold": runtime_config.pilotage_queue_backlog_threshold,
+            "pilotage_planning_tension_pct": runtime_config.pilotage_planning_tension_pct,
+            "pilotage_planning_critical_pct": runtime_config.pilotage_planning_critical_pct,
+            "email_queue_processing_timeout_seconds": queue_processing_timeout_seconds,
+        }
     )
-    if request.method == "POST":
-        action = (request.POST.get("action") or "").strip()
-        blockage_key = (request.POST.get("blockage_key") or "").strip()
-        blockage_row = workflow_blockage_row_by_key(workflow_blockage_base_rows, blockage_key)
-        if action == "claim_workflow_blockage":
-            if blockage_row is None:
-                messages.error(request, _("Blocage introuvable ou déjà résolu."))
-            else:
-                claim_workflow_blockage(row=blockage_row, user=request.user)
-                messages.success(request, _("Blocage pris en charge."))
-        elif action == "release_workflow_blockage":
-            release_workflow_blockage(blockage_key=blockage_key)
-            messages.success(request, _("Prise en charge libérée."))
-        else:
-            messages.error(request, _("Action dashboard inconnue."))
-        return redirect(request.get_full_path())
-    for key in (
-        "workflow_blockage_base_rows",
-        "shipments_scope",
-        "shipments_with_tracking",
-        "status_map",
-        "stock_snapshot",
-        "email_queue_snapshot",
-        "document_scan_snapshot",
-        "workflow_blockage_snapshot",
-        "period_start",
-        "week_start",
-        "week_end",
-        "pending_actions",
-        "queue_processing_timeout_seconds",
-        "document_scan_processing_timeout_seconds",
-        "shipment_chart_rows",
-        "shipments_total",
-    ):
-        dashboard_payload.pop(key, None)
-    return render(request, TEMPLATE_DASHBOARD, dashboard_payload)
+
+    period = _normalize_period(_param_value(params, "period"))
+    period_start = _period_start(period)
+    kpi_start_date, kpi_end_date, kpi_start_at, kpi_end_exclusive = _parse_date_window(
+        _param_value(params, "kpi_start"),
+        _param_value(params, "kpi_end"),
+    )
+
+    destinations = Destination.objects.filter(is_active=True).order_by("city")
+    destination_raw = (_param_value(params, "destination") or "").strip()
+    selected_destination = None
+    if destination_raw:
+        selected_destination = destinations.filter(pk=destination_raw).first()
+
+    shipments_scope = Shipment.objects.filter(archived_at__isnull=True)
+    if selected_destination:
+        shipments_scope = shipments_scope.filter(destination=selected_destination)
+
+    shipments_with_tracking = annotate_shipment_tracking_dates(shipments_scope)
     status_map = _status_count_map(shipments_scope)
+    shipment_chart_rows, shipments_total = _build_shipment_chart_rows(status_map)
+
+    stock_snapshot = _stock_snapshot(low_stock_threshold=low_stock_threshold)
+    email_queue_snapshot = _email_queue_snapshot(
+        processing_timeout_seconds=queue_processing_timeout_seconds
+    )
+    document_scan_timeout_seconds = _document_scan_timeout_seconds()
+    document_scan_snapshot = _document_scan_queue_snapshot(
+        processing_timeout_seconds=document_scan_timeout_seconds
+    )
+    workflow_blockage_base_rows = build_workflow_blockage_rows(
+        shipments_scope=shipments_scope,
+        shipments_with_tracking=shipments_with_tracking,
+        workflow_blockage_hours=workflow_blockage_hours,
+        tracking_alert_hours=tracking_alert_hours,
+        email_queue_processing_timeout_seconds=queue_processing_timeout_seconds,
+        document_scan_processing_timeout_seconds=document_scan_timeout_seconds,
+    )
+    workflow_blockage_snapshot = _workflow_blockage_snapshot(
+        shipments_scope,
+        workflow_blockage_hours=workflow_blockage_hours,
+    )
+    workflow_blockage_summary = summarize_workflow_blockage_rows(workflow_blockage_base_rows)
 
     week_start, week_end = _current_week_bounds()
     in_transit_count = (
@@ -467,7 +505,6 @@ def scan_dashboard(request):
         + status_map.get(ShipmentStatus.SHIPPED, 0)
         + status_map.get(ShipmentStatus.RECEIVED_CORRESPONDENT, 0)
     )
-
     alert_cutoff = timezone.now() - timedelta(hours=tracking_alert_hours)
     planned_alert_count = shipments_with_tracking.filter(
         closed_at__isnull=True,
@@ -496,6 +533,7 @@ def scan_dashboard(request):
         received_correspondent_at__isnull=False,
         received_recipient_at__isnull=False,
     ).count()
+    disputed_qs = shipments_scope.filter(is_disputed=True, closed_at__isnull=True)
 
     period_shipments_qs = shipments_scope.filter(created_at__gte=period_start)
     activity_cards = [
@@ -524,73 +562,6 @@ def scan_dashboard(request):
             url=reverse("scan:scan_orders_view"),
         ),
     ]
-
-    kpi_cards = [
-        _build_card(
-            label=_("Nb Commandes reçues"),
-            value=Order.objects.filter(
-                created_at__gte=kpi_start_at,
-                created_at__lt=kpi_end_exclusive,
-            ).count(),
-            help_text=_("Commandes créées sur la période."),
-            url=reverse("scan:scan_orders_view"),
-        ),
-        _build_card(
-            label=_("Nb commandes en traitement"),
-            value=Order.objects.filter(
-                created_at__gte=kpi_start_at,
-                created_at__lt=kpi_end_exclusive,
-                status__in=[OrderStatus.RESERVED, OrderStatus.PREPARING],
-            ).count(),
-            help_text=_("Commandes réservées ou en préparation sur la période."),
-            url=reverse("scan:scan_orders_view"),
-        ),
-        _build_card(
-            label=_("Nb commandes à valider / corriger"),
-            value=Order.objects.filter(
-                created_at__gte=kpi_start_at,
-                created_at__lt=kpi_end_exclusive,
-                review_status__in=[
-                    OrderReviewStatus.PENDING,
-                    OrderReviewStatus.CHANGES_REQUESTED,
-                ],
-            ).count(),
-            help_text=_("Commandes en attente de revue ASF ou à corriger."),
-            url=reverse("scan:scan_orders_view"),
-        ),
-        _build_card(
-            label=_("Nb Colis créés"),
-            value=Carton.objects.filter(
-                created_at__gte=kpi_start_at,
-                created_at__lt=kpi_end_exclusive,
-            ).count(),
-            help_text=_("Colis créés sur la période."),
-            url=reverse("scan:scan_cartons_ready"),
-        ),
-        _build_card(
-            label=_("Nb Colis affectés"),
-            value=CartonStatusEvent.objects.filter(
-                created_at__gte=kpi_start_at,
-                created_at__lt=kpi_end_exclusive,
-                new_status=CartonStatus.ASSIGNED,
-            )
-            .values("carton_id")
-            .distinct()
-            .count(),
-            help_text=_("Transitions vers le statut Affecté sur la période."),
-            url=reverse("scan:scan_cartons_ready"),
-        ),
-        _build_card(
-            label=_("Nb Expéditions prêtes"),
-            value=Shipment.objects.filter(
-                ready_at__gte=kpi_start_at,
-                ready_at__lt=kpi_end_exclusive,
-            ).count(),
-            help_text=_("Expéditions passées à l'état prêt à planifier."),
-            url=reverse("scan:scan_shipments_ready"),
-        ),
-    ]
-
     shipment_cards = [
         _build_card(
             label=_("Brouillons"),
@@ -633,16 +604,12 @@ def scan_dashboard(request):
         ),
         _build_card(
             label=_("Litiges ouverts"),
-            value=shipments_scope.filter(
-                is_disputed=True,
-                closed_at__isnull=True,
-            ).count(),
+            value=disputed_qs.count(),
             help_text=_("Expéditions bloquées à traiter."),
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger",
         ),
     ]
-
     cartons_scope = Carton.objects.all()
     assigned_scope = cartons_scope.filter(status=CartonStatus.ASSIGNED)
     labeled_scope = cartons_scope.filter(status=CartonStatus.LABELED)
@@ -651,7 +618,6 @@ def scan_dashboard(request):
         assigned_scope = assigned_scope.filter(shipment__destination=selected_destination)
         labeled_scope = labeled_scope.filter(shipment__destination=selected_destination)
         shipped_scope = shipped_scope.filter(shipment__destination=selected_destination)
-
     carton_cards = [
         _build_card(
             label=_("En préparation"),
@@ -661,10 +627,7 @@ def scan_dashboard(request):
         ),
         _build_card(
             label=_("Prêts non affectés"),
-            value=cartons_scope.filter(
-                status=CartonStatus.PACKED,
-                shipment__isnull=True,
-            ).count(),
+            value=cartons_scope.filter(status=CartonStatus.PACKED, shipment__isnull=True).count(),
             help_text=_("Disponibles pour expédition."),
             url=reverse("scan:scan_cartons_ready"),
             tone="warn",
@@ -689,8 +652,6 @@ def scan_dashboard(request):
             url=reverse("scan:scan_cartons_ready"),
         ),
     ]
-
-    stock_snapshot = _stock_snapshot(low_stock_threshold=low_stock_threshold)
     stock_cards = [
         _build_card(
             label=_("Produits actifs"),
@@ -715,10 +676,9 @@ def scan_dashboard(request):
             value=stock_snapshot["low_stock_count"],
             help_text=_("Produits sous le seuil global."),
             url=reverse("scan:scan_stock"),
-            tone="danger",
+            tone="danger" if stock_snapshot["low_stock_count"] else "success",
         ),
     ]
-
     flow_cards = [
         _build_card(
             label=_("Réceptions en attente"),
@@ -750,7 +710,6 @@ def scan_dashboard(request):
             url=reverse("scan:scan_orders_view"),
         ),
     ]
-
     tracking_cards = [
         _build_card(
             label=_("Planifiées sans mise à bord >%(hours)sh") % {"hours": tracking_alert_hours},
@@ -784,10 +743,6 @@ def scan_dashboard(request):
             tone="success" if closable_count else "neutral",
         ),
     ]
-
-    email_queue_snapshot = _email_queue_snapshot(
-        processing_timeout_seconds=queue_processing_timeout_seconds
-    )
     technical_cards = [
         _build_card(
             label=_("Queue email en attente"),
@@ -799,7 +754,7 @@ def scan_dashboard(request):
         _build_card(
             label=_("Queue email en traitement"),
             value=email_queue_snapshot["processing_count"],
-            help_text=_("Événements claimés en cours d'envoi."),
+            help_text=_("Événements claims en cours d'envoi."),
             url=reverse("scan:scan_dashboard"),
         ),
         _build_card(
@@ -812,17 +767,12 @@ def scan_dashboard(request):
         _build_card(
             label=_("Queue email bloquée (timeout)"),
             value=email_queue_snapshot["stale_processing_count"],
-            help_text=(
-                _("Événements processing au-delà du timeout (%(seconds)ss).")
-                % {"seconds": queue_processing_timeout_seconds}
-            ),
+            help_text=_("Événements processing au-delà du timeout (%(seconds)ss).")
+            % {"seconds": queue_processing_timeout_seconds},
             url=reverse("scan:scan_dashboard"),
             tone="danger" if email_queue_snapshot["stale_processing_count"] else "success",
         ),
     ]
-    document_scan_snapshot = _document_scan_queue_snapshot(
-        processing_timeout_seconds=document_scan_timeout_seconds
-    )
     document_scan_cards = [
         _build_card(
             label=_("Queue scan doc en attente"),
@@ -834,7 +784,7 @@ def scan_dashboard(request):
         _build_card(
             label=_("Queue scan doc en traitement"),
             value=document_scan_snapshot["processing_count"],
-            help_text=_("Scans document claimés en cours."),
+            help_text=_("Scans document claims en cours."),
             url=reverse("scan:scan_dashboard"),
         ),
         _build_card(
@@ -847,19 +797,12 @@ def scan_dashboard(request):
         _build_card(
             label=_("Queue scan doc bloquée (timeout)"),
             value=document_scan_snapshot["stale_processing_count"],
-            help_text=(
-                _("Scans document processing au-delà du timeout (%(seconds)ss).")
-                % {"seconds": document_scan_timeout_seconds}
-            ),
+            help_text=_("Scans document processing au-delà du timeout (%(seconds)ss).")
+            % {"seconds": document_scan_timeout_seconds},
             url=reverse("scan:scan_dashboard"),
             tone="danger" if document_scan_snapshot["stale_processing_count"] else "success",
         ),
     ]
-
-    workflow_blockage_snapshot = _workflow_blockage_snapshot(
-        shipments_scope,
-        workflow_blockage_hours=workflow_blockage_hours,
-    )
     workflow_blockage_cards = [
         _build_card(
             label=_("Expéditions Création/En cours >%(hours)sh")
@@ -890,21 +833,16 @@ def scan_dashboard(request):
             value=workflow_blockage_snapshot["open_delivered_cases_count"],
             help_text=_("Livrés mais non clôturés."),
             url=reverse("scan:scan_shipments_tracking"),
-            tone=(
-                "warn" if workflow_blockage_snapshot["open_delivered_cases_count"] else "success"
-            ),
+            tone="warn" if workflow_blockage_snapshot["open_delivered_cases_count"] else "success",
         ),
         _build_card(
             label=_("Dossiers en litige ouverts"),
             value=workflow_blockage_snapshot["open_disputed_cases_count"],
             help_text=_("Blocages opérationnels à traiter."),
             url=reverse("scan:scan_shipments_tracking"),
-            tone=(
-                "danger" if workflow_blockage_snapshot["open_disputed_cases_count"] else "success"
-            ),
+            tone="danger" if workflow_blockage_snapshot["open_disputed_cases_count"] else "success",
         ),
     ]
-    workflow_blockage_summary = summarize_workflow_blockage_rows(workflow_blockage_base_rows)
     workflow_blockage_summary_cards = [
         _build_card(
             label=_("Blocages ouverts"),
@@ -980,7 +918,6 @@ def scan_dashboard(request):
         ),
     ]
     destination_risk_rows = destination_risk_snapshot["rows"]
-
     sla_rows = build_sla_rows(
         shipments_with_tracking.filter(status__in=list(SHIPMENT_STATUS_ORDER)[3:]),
         tracking_alert_hours=tracking_alert_hours,
@@ -1040,8 +977,8 @@ def scan_dashboard(request):
     ]
     sla_alert_rows = [
         {
-            "label": SLA_ALERT_ACTION_LABELS[row["segment_key"]],
             "reference": row["reference"],
+            "label": SLA_ALERT_ACTION_LABELS[row["segment_key"]],
             "segment": SLA_SEGMENT_LABELS[row["segment_key"]],
             "owner": row["owner"],
             "freshness": row["freshness"],
@@ -1053,16 +990,14 @@ def scan_dashboard(request):
             "priority": row["priority"],
             "started_at": row["started_at"],
             "url": reverse("scan:scan_shipment_track", args=[row["tracking_token"]]),
+            "tracking_token": row["tracking_token"],
+            "segment_key": row["segment_key"],
+            "shipment_id": row["shipment_id"],
         }
         for row in sla_alert_base_rows
     ]
-
     page_actions = [
-        {
-            "label": _("Nouveau colis"),
-            "url": reverse("scan:scan_pack"),
-            "tone": "tertiary",
-        },
+        {"label": _("Nouveau colis"), "url": reverse("scan:scan_pack"), "tone": "tertiary"},
         {
             "label": _("Nouvelle expédition"),
             "url": reverse("scan:scan_shipment_create"),
@@ -1073,11 +1008,7 @@ def scan_dashboard(request):
             "url": reverse("scan:scan_shipments_tracking"),
             "tone": "tertiary",
         },
-        {
-            "label": _("Vue stock"),
-            "url": reverse("scan:scan_stock"),
-            "tone": "tertiary",
-        },
+        {"label": _("Vue stock"), "url": reverse("scan:scan_stock"), "tone": "tertiary"},
     ]
     dashboard_anchors = [
         {"id": "scan-dashboard-priorities", "label": _("Priorités")},
@@ -1088,6 +1019,7 @@ def scan_dashboard(request):
         {"id": "scan-dashboard-health", "label": _("Santé")},
     ]
     action_queue_rows = []
+    pending_actions = []
     for row in workflow_blockage_rows:
         if row["is_claimed"]:
             continue
@@ -1102,8 +1034,33 @@ def scan_dashboard(request):
                 cta_label=_("Ouvrir le dossier"),
             )
         )
+        pending_actions.append(
+            _build_pending_action(
+                action_type=WORKFLOW_PENDING_ACTION_TYPES.get(row["kind"], "workflow_blockage"),
+                reference=row["reference"],
+                label=row["label"],
+                priority=row["priority"],
+                owner=row["owner"],
+                url=row["url"],
+                started_at=row["started_at"],
+                context={"blockage_key": row["blockage_key"], "category": row["category"]},
+            )
+        )
         if len(action_queue_rows) >= 5:
             break
+    for row in sla_alert_rows[:3]:
+        pending_actions.append(
+            _build_pending_action(
+                action_type="shipment_sla_alert",
+                reference=row["reference"],
+                label=row["label"],
+                priority=row["priority"],
+                owner=row["owner"],
+                url=row["url"],
+                started_at=row["started_at"],
+                context={"shipment_id": row["shipment_id"], "segment": row["segment_key"]},
+            )
+        )
     for row in stock_snapshot["low_stock_rows"][:3]:
         action_queue_rows.append(
             _build_action_queue_row(
@@ -1112,6 +1069,30 @@ def scan_dashboard(request):
                 owner="magasin",
                 priority="high",
                 url=reverse("scan:scan_stock"),
+            )
+        )
+        pending_actions.append(
+            _build_pending_action(
+                action_type="stock_replenish",
+                reference=row["sku"],
+                label=_("Réappro %(name)s") % {"name": row["name"]},
+                priority="high",
+                owner="magasin",
+                url=reverse("scan:scan_stock"),
+                context={"product_id": row["id"]},
+            )
+        )
+    for shipment in disputed_qs.order_by("-created_at")[:3]:
+        pending_actions.append(
+            _build_pending_action(
+                action_type="shipment_dispute",
+                reference=shipment.reference or f"EXP-{shipment.id}",
+                label=_("Résoudre litige"),
+                priority="high",
+                owner="qualite",
+                url=reverse("scan:scan_shipments_tracking"),
+                started_at=shipment.disputed_at or shipment.created_at,
+                context={"shipment_id": shipment.id, "destination_id": shipment.destination_id},
             )
         )
     for order in Order.objects.filter(review_status=OrderReviewStatus.PENDING).order_by(
@@ -1127,7 +1108,20 @@ def scan_dashboard(request):
                 started_at=order.created_at,
             )
         )
+        pending_actions.append(
+            _build_pending_action(
+                action_type="order_review",
+                reference=order.reference or f"CMD-{order.pk}",
+                label=_("Valider commande"),
+                priority="medium",
+                owner="admin",
+                url=reverse("scan:scan_orders_view"),
+                started_at=order.created_at,
+                context={"order_id": order.id},
+            )
+        )
     action_queue_rows = action_queue_rows[:10]
+    pending_actions = pending_actions[:10]
     priority_cards = [
         _build_card(
             label=_("Expéditions prêtes"),
@@ -1156,10 +1150,7 @@ def scan_dashboard(request):
         ),
         _build_card(
             label=_("Litiges ouverts"),
-            value=shipments_scope.filter(
-                is_disputed=True,
-                closed_at__isnull=True,
-            ).count(),
+            value=disputed_qs.count(),
             help_text=_("Expéditions bloquées à traiter."),
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger",
@@ -1239,13 +1230,77 @@ def scan_dashboard(request):
             cards=sla_cards,
         ),
     ]
+    kpi_cards = [
+        _build_card(
+            label=_("Nb Commandes reçues"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Commandes créées sur la période."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb commandes en traitement"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                status__in=[OrderStatus.RESERVED, OrderStatus.PREPARING],
+            ).count(),
+            help_text=_("Commandes réservées ou en préparation sur la période."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb commandes à valider / corriger"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                review_status__in=[
+                    OrderReviewStatus.PENDING,
+                    OrderReviewStatus.CHANGES_REQUESTED,
+                ],
+            ).count(),
+            help_text=_("Commandes en attente de revue ASF ou à corriger."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb Colis créés"),
+            value=Carton.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Colis créés sur la période."),
+            url=reverse("scan:scan_cartons_ready"),
+        ),
+        _build_card(
+            label=_("Nb Colis affectés"),
+            value=CartonStatusEvent.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                new_status=CartonStatus.ASSIGNED,
+            )
+            .values("carton_id")
+            .distinct()
+            .count(),
+            help_text=_("Transitions vers le statut Affecté sur la période."),
+            url=reverse("scan:scan_cartons_ready"),
+        ),
+        _build_card(
+            label=_("Nb Expéditions prêtes"),
+            value=Shipment.objects.filter(
+                ready_at__gte=kpi_start_at,
+                ready_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Expéditions passées à l'état prêt à planifier."),
+            url=reverse("scan:scan_shipments_ready"),
+        ),
+    ]
 
-    period_label_map = dict(PERIOD_CHOICES)
-    context = {
+    return {
         "active": ACTIVE_DASHBOARD,
         "period": period,
         "period_choices": PERIOD_CHOICES,
-        "period_label": period_label_map.get(period, ""),
+        "period_label": dict(PERIOD_CHOICES).get(period, ""),
         "destination_id": str(selected_destination.id) if selected_destination else "",
         "destinations": destinations,
         "selected_destination": selected_destination,
@@ -1279,5 +1334,20 @@ def scan_dashboard(request):
         "tracking_alert_hours": tracking_alert_hours,
         "workflow_blockage_hours": workflow_blockage_hours,
         "pilotage_threshold_context": pilotage_threshold_context,
+        "pending_actions": pending_actions,
+        "queue_processing_timeout_seconds": queue_processing_timeout_seconds,
+        "document_scan_processing_timeout_seconds": document_scan_timeout_seconds,
+        "workflow_blockage_base_rows": workflow_blockage_base_rows,
+        "shipments_scope": shipments_scope,
+        "shipments_with_tracking": shipments_with_tracking,
+        "status_map": status_map,
+        "stock_snapshot": stock_snapshot,
+        "email_queue_snapshot": email_queue_snapshot,
+        "document_scan_snapshot": document_scan_snapshot,
+        "workflow_blockage_snapshot": workflow_blockage_snapshot,
+        "period_start": period_start,
+        "week_start": week_start,
+        "week_end": week_end,
+        "shipment_chart_rows": shipment_chart_rows,
+        "shipments_total": shipments_total,
     }
-    return render(request, TEMPLATE_DASHBOARD, context)

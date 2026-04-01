@@ -74,9 +74,10 @@ Reference tests:
 
 ### Local Dashboard V2 API Contract
 
-Primary runtime source:
+Primary runtime sources:
 
 - `api/v1/ui_views.py` via `GET /api/v1/ui/dashboard/`
+- `wms/application/scan/dashboard_queries.py`
 
 Phase 1 local contract:
 
@@ -99,6 +100,7 @@ Phase 1 local contract:
 Maintenance rule:
 
 - if dashboard action routing, workflow blockage categorization, SLA prioritization, destination-risk ranking, or ownership vocabulary changes, update the legacy dashboard, `scan/settings` if relevant, the shipment-tracking deep link, the UI API tests, and the repo-reference in the same work
+- `wms/views_scan_dashboard.py` and `api/v1/ui_views.py` should remain thin adapters over `wms/application/scan/dashboard_queries.py`; do not duplicate the full dashboard composition in both surfaces again during V3.1
 - keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
 
 Reference tests:
@@ -276,6 +278,7 @@ Reference tests:
 
 Primary runtime sources:
 
+- `wms/application/pilotage/pilotage_queries.py`
 - `wms/scan_pilotage.py`
 - `wms/views_scan_pilotage.py`
 - `templates/scan/pilotage.html`
@@ -283,7 +286,7 @@ Primary runtime sources:
 
 Current local contract:
 
-- `build_scan_pilotage_payload()` is the shared adapter for both the legacy HTML cockpit and the UI API mirror
+- `build_scan_pilotage_payload()` from `wms/application/pilotage/pilotage_queries.py` is the shared adapter for both the legacy HTML cockpit and the UI API mirror
 - the cockpit is intentionally read-only in this local phase and consumes:
   - the latest `OpsPilotageSnapshot` capture for summary cards and planning export health
   - active `OpsEscalation` rows for `priority_rows[]` and `escalation_rows[]`
@@ -296,6 +299,7 @@ Current local contract:
 Maintenance rule:
 
 - if pilotage section ordering, payload keys, escalation-to-CTA routing, or planning-export health semantics change, update the shared adapter, the HTML cockpit, the UI API mirror, and this repo-reference section in the same work
+- `wms/scan_pilotage.py` is only a compatibility wrapper during V3.1; new pilotage query composition belongs under `wms/application/pilotage/`
 - keep this surface orchestration-only: it should link operators back to the underlying working screens instead of introducing a second workflow engine
 
 Reference tests:
