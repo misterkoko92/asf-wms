@@ -175,13 +175,29 @@ the transverse cockpit:
 ```bash
 python manage.py capture_ops_pilotage_snapshot
 python manage.py evaluate_ops_escalations
+python manage.py refresh_ops_pilotage
 ```
 
 Notes:
 
 - `capture_ops_pilotage_snapshot` refreshes the daily metric store used by phase 2 pilotage
 - `evaluate_ops_escalations` persists the current anomaly set and resolves stale ones no longer present
+- `refresh_ops_pilotage` is the stable production entry point when you want one command for both steps
 - the local thresholds used by the evaluator are calibrated from `scan/settings`
+
+### Planning PDF runtime check
+
+Before a release or when investigating a planning export incident, validate the Excel backend explicitly:
+
+```bash
+python manage.py check_planning_pdf_runtime
+```
+
+Interpretation:
+
+- `backend=excel_desktop` and `status=ready` means the host is currently able to generate `Planning.pdf`
+- `excel_not_installed` means the workbook can still generate, but PDF generation is not production-ready
+- `excel_automation_unavailable` means the Excel automation bridge itself is missing or unusable
 
 ### 3.0) Tooling rollback
 
