@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from contacts.models import Contact
+from contacts.models import Contact, ContactType
 from wms.forms_admin_contacts_contact import ContactCrudForm
 from wms.models import (
     Destination,
@@ -19,6 +19,8 @@ from wms.models import (
     RecipientStructureDocument,
     RecipientStructureDocumentType,
     ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
     WmsRuntimeSettings,
 )
@@ -266,11 +268,81 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "Quarantaine (scan antivirus en cours).")
         self.assertContains(response, clean_document.file.name)
 
-    def test_scan_admin_contacts_explains_how_to_resolve_pending_recipient_alerts(self):
+    def test_scan_admin_contacts_lists_pending_recipient_validations_with_verify_action(self):
         self.client.force_login(self.superuser)
         pending_contact = Contact.objects.create(
             name="Destinataire en attente",
-            contact_type="organization",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        validated_contact = Contact.objects.create(
+            name="Destinataire validé",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_contact = Contact.objects.create(
+            name="Expéditeur autorisé",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_referent = Contact.objects.create(
+            name="Referent Expéditeur",
+            contact_type=ContactType.PERSON,
+            first_name="Referent",
+            last_name="Expéditeur",
+            organization=shipper_contact,
+            is_active=True,
+        )
+        pending_recipient = ShipmentRecipientOrganization.objects.create(
+            organization=pending_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=validated_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_contact,
+            default_contact=shipper_referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=pending_recipient,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        pending_validations = response.context["pending_recipient_validations"]
+        self.assertEqual(
+            [item["organization"] for item in pending_validations],
+            [pending_contact],
+        )
+        self.assertContains(response, "Destinataires en attente de validation")
+        self.assertContains(response, "<th>Type métier</th>", html=True)
+        self.assertContains(response, pending_contact.name)
+        self.assertContains(response, "Destinataire")
+        self.assertContains(response, self.destination.city)
+        self.assertContains(response, shipper_contact.name)
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_admin_contacts")}?edit={pending_contact.id}"',
+        )
+        self.assertContains(response, "Vérifier")
+        self.assertNotContains(response, "Pour lever cette alerte")
+
+    def test_scan_admin_contacts_pending_recipient_edit_uses_validate_label(self):
+        self.client.force_login(self.superuser)
+        pending_contact = Contact.objects.create(
+            name="Destinataire en attente",
+            contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         ShipmentRecipientOrganization.objects.create(
@@ -280,16 +352,37 @@ class ScanAdminViewTests(TestCase):
             is_active=True,
         )
 
-        response = self.client.get(reverse("scan:scan_admin_contacts"))
+        response = self.client.get(
+            reverse("scan:scan_admin_contacts"),
+            {"edit": str(pending_contact.id)},
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Destinataires en attente de validation")
-        self.assertContains(response, "Pour lever cette alerte")
-        self.assertContains(response, "ouvrez la fiche")
-        self.assertContains(response, "Type métier")
-        self.assertContains(response, "Destinataire")
-        self.assertContains(response, "Expéditeurs autorisés")
+        self.assertContains(response, "Valider le destinataire")
+        self.assertNotContains(response, "Mettre à jour le contact")
+
+    def test_scan_admin_contacts_validated_recipient_edit_keeps_update_label(self):
+        self.client.force_login(self.superuser)
+        validated_contact = Contact.objects.create(
+            name="Destinataire validé",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=validated_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_admin_contacts"),
+            {"edit": str(validated_contact.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mettre à jour le contact")
+        self.assertNotContains(response, "Valider le destinataire")
 
     def test_scan_admin_contacts_directory_exposes_inline_actions(self):
         self.client.force_login(self.superuser)

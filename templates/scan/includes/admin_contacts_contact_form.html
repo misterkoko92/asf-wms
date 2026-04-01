@@ -410,7 +410,11 @@
     <div class="col-12 d-flex flex-wrap gap-2">
         <button type="submit" class="btn btn-primary">
             {% if contact_form_mode == "edit" %}
-                {% trans "Mettre à jour le contact" %}
+                {% if editing_contact_requires_recipient_validation %}
+                    {% trans "Valider le destinataire" %}
+                {% else %}
+                    {% trans "Mettre à jour le contact" %}
+                {% endif %}
             {% else %}
                 {% trans "Enregistrer le contact" %}
             {% endif %}
