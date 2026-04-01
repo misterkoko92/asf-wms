@@ -38,6 +38,7 @@ Always check:
 - `wms/portal_urls.py`
 - `wms/views.py`
 - `wms/views_portal_*.py`
+- the matching shared query or use-case module under `wms/application/portal/` when the page is mirrored elsewhere
 - `wms/portal_order_handlers.py` or `wms/portal_recipient_sync.py` when data moves downstream
 - matching templates in `templates/portal/`
 - portal tests in `wms/tests/portal/` and `wms/tests/views/tests_portal_bootstrap_ui.py`
@@ -45,6 +46,7 @@ Always check:
 Ask yourself:
 
 - does the same feature exist in the portal UI API?
+- if the legacy page and UI API mirror the same cockpit, should both adapters read the same `wms/application/portal/*` payload instead of recomposing it separately?
 - does this field feed shipment-party eligibility or contact sync?
 - does portal permission logic in `wms/view_permissions.py` need the same update?
 - does a nominal post-deploy smoke step need to change?
@@ -212,6 +214,7 @@ Always check:
 - `wms/planning_urls.py`
 - `wms/views_planning.py`
 - `wms/models_domain/planning.py`
+- the matching shared query or use-case module under `wms/application/planning/` when the change is read-only cockpit composition
 - the matching module in `wms/planning/`
 - planning commands under `wms/management/commands/`
 - `docs/operations.md`
@@ -221,6 +224,7 @@ Ask yourself:
 
 - does the seeded smoke flow still reach solve, publish, draft generation, export, and cockpit view?
 - did artifact names or visibility change?
+- should the GET cockpit composition move through `wms/application/planning/*` instead of growing `wms/views_planning.py` again?
 - should the post-deploy conditional smoke wording change?
 
 Run or inspect first:

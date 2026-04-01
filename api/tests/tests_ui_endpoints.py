@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from contacts.capabilities import ContactCapabilityType
 from contacts.models import Contact, ContactType
+from wms.application.portal.dashboard_queries import build_portal_dashboard_payload
 from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
@@ -2199,6 +2200,19 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(rows[self.portal_order.id]["next_step_tone"], "info")
         self.assertEqual(rows[changes_requested.id]["next_step_label"], "Corriger la commande")
         self.assertEqual(rows[shipped_order.id]["next_step_label"], "Suivre l'expédition")
+
+    def test_ui_portal_dashboard_uses_shared_payload_without_html_orders(self):
+        profile = AssociationProfile.objects.get(user=self.portal_user)
+        payload = build_portal_dashboard_payload(profile=profile)
+        payload.pop("orders", None)
+
+        with mock.patch("api.v1.ui_views.build_portal_dashboard_payload", return_value=payload):
+            response = self.portal_client.get("/api/v1/ui/portal/dashboard/")
+
+        self.assertEqual(response.status_code, 200)
+        response_payload = response.json()
+        self.assertEqual(response_payload["kpis"], payload["dashboard_kpis"])
+        self.assertEqual(response_payload["orders"], payload["order_rows"])
 
     def test_ui_stock_update_post_creates_new_lot(self):
         previous_lot_count = ProductLot.objects.count()

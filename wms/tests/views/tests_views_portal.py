@@ -15,6 +15,7 @@ from django.utils.http import urlsafe_base64_encode
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms import portal_helpers
+from wms.application.portal.dashboard_queries import build_portal_dashboard_payload
 from wms.forms import ScanShipmentForm
 from wms.models import (
     AccountDocument,
@@ -756,6 +757,20 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             dashboard_orders[shipped_order.id].next_step_label,
             "Suivre l'expédition",
         )
+
+    def test_portal_dashboard_uses_shared_payload_without_api_rows(self):
+        self._order(review_status=OrderReviewStatus.PENDING)
+        payload = build_portal_dashboard_payload(profile=self.profile)
+        payload.pop("order_rows", None)
+
+        with mock.patch(
+            "wms.views_portal_orders.build_portal_dashboard_payload", return_value=payload
+        ):
+            response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["dashboard_kpis"], payload["dashboard_kpis"])
+        self.assertEqual(len(response.context["orders"]), len(payload["orders"]))
 
     def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
         AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()

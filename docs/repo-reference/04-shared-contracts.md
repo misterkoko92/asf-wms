@@ -143,6 +143,7 @@ Reference tests:
 
 Primary runtime sources:
 
+- `wms/application/portal/dashboard_queries.py`
 - `wms/views_portal_orders.py`
 - `wms/portal_dashboard_helpers.py`
 - `templates/portal/dashboard.html`
@@ -150,6 +151,7 @@ Primary runtime sources:
 
 Current contract:
 
+- `wms/application/portal/dashboard_queries.py` is the shared composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
 - `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
 - portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
 - the HTML table and the UI API must stay aligned on the meaning of "next step" for pending review, correction, preparation, and tracked shipment states
@@ -157,6 +159,7 @@ Current contract:
 Maintenance rule:
 
 - if the association-facing dossier guidance changes, update the helper logic, the portal template, and the portal UI API in the same work
+- keep `wms/views_portal_orders.py` and `api/v1/ui_views.py` thin over `wms/application/portal/dashboard_queries.py`; do not let the two surfaces drift back to separate query composition during V3.1
 - keep KPI naming stable while phase 1 stays local, so seed data and operator feedback can be compared across runs
 
 Reference tests:
@@ -475,6 +478,7 @@ Historical drift to watch:
 
 Primary runtime sources:
 
+- `wms/application/planning/version_detail_queries.py`
 - `wms/planning/stats.py`
 - `wms/planning/version_dashboard.py`
 - `wms/planning/artifact_health.py`
@@ -484,6 +488,7 @@ Primary runtime sources:
 
 Current local contract:
 
+- `wms/application/planning/version_detail_queries.py` is the V3.1 shared GET composition layer for `planning/version_detail`
 - `build_version_stats(version)` now keeps `flight_load_breakdown[]` as the flight-capacity source of truth for the planning cockpit
 - one `flight_load_breakdown[]` row represents one `PlanningFlightSnapshot` from the run, even when no shipment is assigned yet
 - stable row fields in this local phase are `flight_snapshot_id`, `flight_number`, `departure_date`, `departure_time`, `destination_iata`, `capacity_units`, `assignment_count`, `carton_total`, `equivalent_total`, `remaining_units`, `utilization_pct`, `load_state`, `load_state_label`
@@ -509,6 +514,7 @@ Current local contract:
 Maintenance rule:
 
 - if flight-capacity thresholds, row fields, cockpit ordering, planning export artifacts, or artifact-health semantics change, update the stats/export helpers, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
+- keep `wms/views_planning.py` thin for the GET cockpit path: `dashboard` and `priority_cards` should continue to come from `wms/application/planning/version_detail_queries.py` instead of being recomposed in the view
 - keep shared load-state ordering and threshold semantics in `wms/policies/planning.py` and `wms/policies/pilotage.py`; `wms/planning/stats.py` should remain the aggregator, not the rule-definition layer
 - keep this lot read-only during the local phase; do not smuggle mutation or validation rules into the capacity cockpit
 

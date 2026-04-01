@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from wms.application.pilotage.pilotage_queries import build_scan_pilotage_payload
+from wms.application.portal.dashboard_queries import build_portal_dashboard_payload
 from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.carton_status_events import set_carton_status
 from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
@@ -55,11 +56,6 @@ from wms.models import (
     ShipmentWorkflowProjection,
 )
 from wms.order_notifications import send_portal_order_notifications
-from wms.portal_dashboard_helpers import (
-    build_portal_dashboard_kpis,
-    portal_order_next_step_label,
-    portal_order_next_step_tone,
-)
 from wms.portal_helpers import (
     build_destination_address,
     get_association_profile,
@@ -2540,29 +2536,10 @@ class UiPortalDashboardView(APIView):
 
     def get(self, request):
         profile = get_association_profile(request.user)
-        orders = list(
-            Order.objects.filter(association_contact=profile.contact)
-            .select_related("shipment")
-            .order_by("-created_at")
-        )
-        kpis = build_portal_dashboard_kpis(orders)
-        rows = [
+        dashboard_payload = build_portal_dashboard_payload(profile=profile)
+        return Response(
             {
-                "id": order.id,
-                "reference": order.reference or f"CMD-{order.id}",
-                "review_status": order.review_status,
-                "review_status_label": order.get_review_status_display(),
-                "shipment_id": order.shipment_id,
-                "shipment_reference": (order.shipment.reference if order.shipment_id else ""),
-                "next_step_label": portal_order_next_step_label(order),
-                "next_step_tone": portal_order_next_step_tone(order),
-                "requested_delivery_date": (
-                    order.requested_delivery_date.isoformat()
-                    if order.requested_delivery_date
-                    else None
-                ),
-                "created_at": order.created_at.isoformat(),
+                "kpis": dashboard_payload["dashboard_kpis"],
+                "orders": dashboard_payload["order_rows"],
             }
-            for order in orders[:12]
-        ]
-        return Response({"kpis": kpis, "orders": rows})
+        )
