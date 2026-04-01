@@ -2,6 +2,7 @@ from io import StringIO
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase
 
@@ -17,6 +18,8 @@ from wms.models import (
     PlanningParameterSet,
     PublicAccountRequest,
     ReceiptDonorSequence,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
@@ -117,6 +120,11 @@ class ResetOperationalDataCommandTests(TestCase):
             city="Paris",
             country="France",
         )
+        self.recipient_structure_document = RecipientStructureDocument.objects.create(
+            contact=self.association,
+            doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            file=SimpleUploadedFile("registration-proof.pdf", b"%PDF-1.4 registration proof"),
+        )
         self.shipper_referent = Contact.objects.create(
             name="Alice Shipper",
             contact_type=ContactType.PERSON,
@@ -180,6 +188,11 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertTrue(
             PublicAccountRequest.objects.filter(pk=self.public_account_request.pk).exists()
         )
+        self.assertTrue(
+            RecipientStructureDocument.objects.filter(
+                pk=self.recipient_structure_document.pk
+            ).exists()
+        )
         self.assertTrue(ShipmentShipper.objects.filter(pk=self.shipment_shipper.pk).exists())
         self.assertTrue(
             ShipmentRecipientOrganization.objects.filter(
@@ -221,6 +234,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(AssociationPortalContact.objects.exists())
         self.assertFalse(AssociationRecipient.objects.exists())
         self.assertFalse(PublicAccountRequest.objects.exists())
+        self.assertFalse(RecipientStructureDocument.objects.exists())
         self.assertFalse(ShipmentShipper.objects.exists())
         self.assertFalse(ShipmentRecipientOrganization.objects.exists())
         self.assertFalse(ShipmentRecipientContact.objects.exists())

@@ -406,6 +406,12 @@ body.portal-bootstrap-enabled {
   grid-template-columns: repeat(3, minmax(140px, 1fr));
 }
 
+.portal-bootstrap-enabled .portal-recipient-grid-2 {
+  display: grid;
+  gap: var(--wms-field-gap) calc(var(--wms-space-unit) * 1.5);
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
 .portal-bootstrap-enabled .portal-recipient-flags {
   display: flex;
   gap: calc(var(--wms-space-unit) * 1.5);
@@ -421,6 +427,15 @@ body.portal-bootstrap-enabled {
 .portal-bootstrap-enabled .portal-recipient-flags label {
   margin: 0;
   font-weight: 600;
+}
+
+.portal-bootstrap-enabled .portal-switch-leading .scan-switch-label {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.portal-bootstrap-enabled .portal-switch-leading .scan-switch-control {
+  margin-left: 0;
 }
 
 .portal-bootstrap-enabled .portal-recipient-actions {
@@ -448,7 +463,8 @@ body.portal-bootstrap-enabled {
   }
 
   .portal-bootstrap-enabled .portal-recipient-grid-3,
-  .portal-bootstrap-enabled .portal-recipient-grid-3-equal {
+  .portal-bootstrap-enabled .portal-recipient-grid-3-equal,
+  .portal-bootstrap-enabled .portal-recipient-grid-2 {
     grid-template-columns: 1fr;
   }
 }

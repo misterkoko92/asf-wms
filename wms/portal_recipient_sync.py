@@ -162,6 +162,8 @@ def _upsert_recipient_structure_contact(
             name=_recipient_structure_name(recipient),
             email=primary_email[:254],
             phone=primary_phone[:40],
+            legal_form=recipient.legal_form or "",
+            beneficiary_count=recipient.beneficiary_count,
             notes=_build_contact_notes(recipient),
             is_active=True,
         )
@@ -170,6 +172,8 @@ def _upsert_recipient_structure_contact(
         contact.name = _recipient_structure_name(recipient)
         contact.email = primary_email[:254]
         contact.phone = primary_phone[:40]
+        contact.legal_form = recipient.legal_form or ""
+        contact.beneficiary_count = recipient.beneficiary_count
         contact.notes = _build_contact_notes(recipient)
         contact.is_active = True
         contact.save(
@@ -178,6 +182,8 @@ def _upsert_recipient_structure_contact(
                 "name",
                 "email",
                 "phone",
+                "legal_form",
+                "beneficiary_count",
                 "notes",
                 "is_active",
             ]

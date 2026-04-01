@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.test.client import RequestFactory
 from django.urls import reverse
@@ -134,9 +135,19 @@ class PortalRoleReviewGateTests(TestCase):
                 "postal_code": "",
                 "city": "Douala",
                 "country": "Cameroun",
+                "legal_form": "association",
+                "beneficiary_count": "120",
                 "notes": "",
                 "notify_deliveries": "",
                 "is_delivery_contact": "",
+                "doc_registration_proof": SimpleUploadedFile(
+                    "registration-proof.pdf",
+                    b"%PDF-1.7 registration proof",
+                ),
+                "doc_statutes": SimpleUploadedFile(
+                    "statutes.pdf",
+                    b"%PDF-1.7 statutes",
+                ),
             },
             follow=False,
         )

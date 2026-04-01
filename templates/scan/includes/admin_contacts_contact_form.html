@@ -1,4 +1,4 @@
-{% load i18n wms_ui %}
+{% load i18n wms_status wms_ui %}
 <form method="post" class="row g-3 ui-comp-form" data-admin-contact-form="1">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_contact">
@@ -42,7 +42,7 @@
     </div>
     <div class="col-12">
         <div class="row g-3">
-            <div class="scan-field col-12 col-lg-6"
+            <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="organization"
                  data-contact-businesses="shipper,recipient,correspondent,donor,transporter"
                  data-contact-entities="organization,person">
@@ -55,6 +55,32 @@
                 {{ contact_form.organization_name }}
                 {{ contact_form.organization_name.errors }}
             </div>
+            <div class="scan-field col-12 col-lg-4"
+                 data-contact-field-group="recipient-structure-compliance"
+                 data-contact-businesses="recipient"
+                 data-contact-entities="organization,person">
+                <label class="form-label" for="{{ contact_form.legal_form.id_for_label }}">
+                    {{ contact_form.legal_form.label }}
+                    <span class="text-danger"
+                          data-required-marker="legal_form"
+                          hidden>*</span>
+                </label>
+                {{ contact_form.legal_form }}
+                {{ contact_form.legal_form.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-2"
+                 data-contact-field-group="recipient-structure-compliance"
+                 data-contact-businesses="recipient"
+                 data-contact-entities="organization,person">
+                <label class="form-label" for="{{ contact_form.beneficiary_count.id_for_label }}">
+                    {{ contact_form.beneficiary_count.label }}
+                    <span class="text-danger"
+                          data-required-marker="beneficiary_count"
+                          hidden>*</span>
+                </label>
+                {{ contact_form.beneficiary_count }}
+                {{ contact_form.beneficiary_count.errors }}
+            </div>
             <div class="scan-field col-12 col-lg-3"
                  data-contact-field-group="person"
                  data-contact-businesses="shipper,recipient,correspondent,donor,transporter,volunteer"
@@ -65,7 +91,7 @@
                 {{ contact_form.title }}
                 {{ contact_form.title.errors }}
             </div>
-            <div class="scan-field col-12 col-lg-3">
+            <div class="scan-field col-12 col-lg-2">
                 <label class="form-label" for="{{ contact_form.asf_id.id_for_label }}">
                     {{ contact_form.asf_id.label }}
                 </label>
@@ -262,6 +288,57 @@
         {{ contact_form.notes }}
         {{ contact_form.notes.errors }}
     </div>
+    {% if contact_form_mode == "edit" and editing_structure_contact %}
+        <div class="col-12">
+            <div class="ui-comp-panel border rounded-3 p-3">
+                <h4 class="h6 mb-2">{% trans "Documents de structure" %}</h4>
+                <p class="scan-help mb-3">{{ editing_structure_contact.name }}</p>
+                {% if editing_structure_documents %}
+                    <div class="scan-table-wrap table-responsive">
+                        <table class="scan-table table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Type" %}</th>
+                                    <th>{% trans "Statut" %}</th>
+                                    <th>{% trans "Ajouté le" %}</th>
+                                    <th>{% trans "Fichier" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for document in editing_structure_documents %}
+                                    <tr>
+                                        <td>{{ document.get_doc_type_display }}</td>
+                                        <td>
+                                            <span class="{% status_portal_badge_class document.status 'document_review' %}">
+                                                {{ document.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ document.uploaded_at|date:"d/m/Y" }}</td>
+                                        <td>
+                                            {% if document.file and document.scan_status == "clean" %}
+                                                <a class="scan-scan-btn btn btn-tertiary btn-sm"
+                                                   href="{{ document.file.url }}"
+                                                   target="_blank"
+                                                   rel="noopener">{{ document.file.name }}</a>
+                                            {% elif document.scan_status == "infected" %}
+                                                <span class="scan-help">{% trans "Bloqué (fichier suspect)." %}</span>
+                                            {% elif document.file %}
+                                                <span class="scan-help">{% trans "Quarantaine (scan antivirus en cours)." %}</span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="mb-0">{% trans "Aucun document de structure pour le moment." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
     {% if contact_duplicate_candidates %}
         <div class="col-12">
             <div class="ui-comp-panel border rounded-3 p-3">

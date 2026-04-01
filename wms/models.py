@@ -113,6 +113,8 @@ from .models_domain.portal import (
     PublicAccountRequestStatus,
     PublicAccountRequestType,
     PublicOrderLink,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
 )
 from .models_domain.shipment import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
@@ -254,6 +256,8 @@ __all__ = [
     "AssociationContactTitle",
     "AssociationPortalContact",
     "AssociationRecipient",
+    "RecipientStructureDocumentType",
+    "RecipientStructureDocument",
     "DestinationCorrespondentDefault",
     "DestinationCorrespondentOverride",
     "ShipmentValidationStatus",

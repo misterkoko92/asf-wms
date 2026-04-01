@@ -85,7 +85,7 @@
         {% endfor %}
       </div>
     {% endif %}
-    <form method="post" novalidate class="ui-comp-form">
+    <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="{% if editing_recipient %}update_recipient{% else %}create_recipient{% endif %}">
       {% if editing_recipient %}
@@ -103,10 +103,27 @@
           {% endfor %}
         </select>
       </div>
+      <div id="recipient-structure-row" class="portal-recipient-grid-3">
+        <div class="scan-field">
+          <label class="form-label" for="structure_name">{% trans "Nom de la structure" %}</label>
+          <input class="form-control" type="text" id="structure_name" name="structure_name" value="{{ form_data.structure_name }}" required>
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="legal_form">{% trans "Forme juridique" %}</label>
+          <select class="form-select" id="legal_form" name="legal_form" required>
+            <option value="">---------</option>
+            {% for value, label in legal_form_choices %}
+              <option value="{{ value }}" {% if form_data.legal_form == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
+          <input class="form-control" type="number" min="0" step="1" id="beneficiary_count" name="beneficiary_count" value="{{ form_data.beneficiary_count }}" required>
+        </div>
+      </div>
       <div class="scan-field">
-        <label class="form-label" for="structure_name">{% trans "Nom de la structure" %}</label>
-        <input class="form-control" type="text" id="structure_name" name="structure_name" value="{{ form_data.structure_name }}" required>
-        {% ui_switch name="reuse_existing_structure" id="reuse_existing_structure" label=reuse_existing_structure_label checked=form_data.reuse_existing_structure wide=True extra_classes="mt-2" %}
+        {% ui_switch name="reuse_existing_structure" id="reuse_existing_structure" label=reuse_existing_structure_label checked=form_data.reuse_existing_structure wide=True extra_classes="portal-switch-leading" %}
         {% if duplicate_recipient_suggestions %}
           <div class="scan-help mt-2">
             {% trans "Structures similaires déjà connues sur cette escale :" %}
@@ -141,9 +158,25 @@
         </div>
         <div class="scan-field">
           <label class="form-label" for="country">{% trans "Pays" %}</label>
-          <input class="form-control" type="text" id="country" name="country" value="{{ form_data.country|default:'France' }}">
+          <select class="form-select" id="country" name="country">
+            {% for value, label in country_choices %}
+              <option value="{{ value }}" {% if form_data.country == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
+      {% if not editing_recipient %}
+        <div class="portal-recipient-grid-2">
+          <div class="scan-field">
+            <label class="form-label" for="doc_registration_proof">{% trans "Preuve d'enregistrement" %}</label>
+            {% ui_file_input name="doc_registration_proof" field_id="doc_registration_proof" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required=True %}
+          </div>
+          <div class="scan-field">
+            <label class="form-label" for="doc_statutes">{% trans "Statut" %}</label>
+            {% ui_file_input name="doc_statutes" field_id="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" required=True %}
+          </div>
+        </div>
+      {% endif %}
       <div class="scan-field">
         <label class="form-label" for="notes">{% trans "Notes / Autres informations" %}</label>
         <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>

@@ -109,6 +109,35 @@ class AdminContactsContactServiceTests(TestCase):
         self.assertTrue(authorization.is_default)
         self.assertTrue(authorization.is_active)
 
+    def test_create_recipient_persists_structure_compliance_fields(self):
+        shipper_org = save_contact_from_form(
+            {
+                "business_type": "shipper",
+                "organization_name": "ASF",
+                "first_name": "Jean",
+                "last_name": "Dupont",
+                "is_active": True,
+            }
+        )
+
+        organization = save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan",
+                "first_name": "Alice",
+                "last_name": "Martin",
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "is_active": True,
+            }
+        )
+
+        organization.refresh_from_db()
+        self.assertEqual(organization.legal_form, "association")
+        self.assertEqual(organization.beneficiary_count, 120)
+
     def test_create_correspondent_marks_stopover_and_destination_contact(self):
         organization = save_contact_from_form(
             {

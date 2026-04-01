@@ -14,6 +14,13 @@ class ContactCapabilityType(models.TextChoices):
     VOLUNTEER = "volunteer", "Benevole"
 
 
+class RecipientLegalForm(models.TextChoices):
+    ASSOCIATION = "association", "Association"
+    PRIVATE_SECTOR = "private_sector", "Secteur privé"
+    PUBLIC_SECTOR = "public_sector", "Publique"
+    OTHER = "other", "Autre"
+
+
 class Contact(models.Model):
     contact_type = models.CharField(
         max_length=20, choices=ContactType.choices, default=ContactType.ORGANIZATION
@@ -38,6 +45,12 @@ class Contact(models.Model):
     siret = models.CharField(max_length=30, blank=True)
     vat_number = models.CharField(max_length=40, blank=True)
     legal_registration_number = models.CharField(max_length=80, blank=True)
+    legal_form = models.CharField(
+        max_length=30,
+        choices=RecipientLegalForm.choices,
+        blank=True,
+    )
+    beneficiary_count = models.PositiveIntegerField(null=True, blank=True)
     asf_id = models.CharField(max_length=20, blank=True, null=True, unique=True)
     use_organization_address = models.BooleanField(default=False)
     notes = models.TextField(blank=True)

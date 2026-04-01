@@ -339,6 +339,26 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "form-check form-switch scan-inline-switch", count=3)
 
+    def test_portal_recipients_renders_structure_compliance_fields(self):
+        response = self.client.get(reverse("portal:portal_recipients"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="recipient-structure-row"')
+        self.assertContains(response, 'name="legal_form"')
+        self.assertContains(response, 'name="beneficiary_count"')
+        self.assertContains(response, "Forme juridique")
+        self.assertContains(response, "Nombre de bénéficiaires")
+
+    def test_portal_recipients_uses_country_select_and_leading_switch_controls(self):
+        response = self.client.get(reverse("portal:portal_recipients"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            r'<select[^>]+id="country"[^>]+name="country"',
+        )
+        self.assertContains(response, "portal-switch-leading", count=3)
+
     def test_portal_recipients_page_shows_recipient_status_column(self):
         pending_recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
