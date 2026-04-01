@@ -328,6 +328,38 @@ Historical drift to watch:
 - older docs still mention `wms.tests.emailing.tests_email_flows_e2e`
 - verify the current `wms/tests/emailing/` tree before copying an old reference forward
 
+### Planning Flight Capacity Cockpit Contract
+
+Primary runtime sources:
+
+- `wms/planning/stats.py`
+- `wms/planning/version_dashboard.py`
+- `templates/planning/_version_stats_block.html`
+- `templates/planning/_version_planning_block.html`
+- `templates/planning/version_detail.html`
+
+Current local contract:
+
+- `build_version_stats(version)` now keeps `flight_load_breakdown[]` as the flight-capacity source of truth for the planning cockpit
+- one `flight_load_breakdown[]` row represents one `PlanningFlightSnapshot` from the run, even when no shipment is assigned yet
+- stable row fields in this local phase are `flight_snapshot_id`, `flight_number`, `departure_date`, `departure_time`, `destination_iata`, `capacity_units`, `assignment_count`, `carton_total`, `equivalent_total`, `remaining_units`, `utilization_pct`, `load_state`, `load_state_label`
+- load-state thresholds are explicit and stable in this local phase: `ok` when `< 80%`, `tension` when `>= 80% and < 95%`, `critical` when `>= 95% and <= 100%`, `overload` when `> 100%`
+- missing capacity stays visible through `load_state=unknown`, `load_state_label=A renseigner`, and `remaining_units/utilization_pct = None`
+- `build_version_dashboard(version)` exposes `capacity_summary` with `tension_count`, `critical_count`, `overload_count`, `remaining_capacity_total`
+- `build_version_dashboard(version)` also exposes `flight_capacity_rows[]` for template consumption, with formatted labels layered on top of the stats rows
+- `templates/planning/_version_stats_block.html` owns the four capacity summary cards
+- `templates/planning/_version_planning_block.html` owns the compact `Charge vols` table and must keep it before the detailed assignment groups
+
+Maintenance rule:
+
+- if flight-capacity thresholds, row fields, or cockpit ordering change, update the stats helper, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
+- keep this lot read-only during the local phase; do not smuggle mutation or validation rules into the capacity cockpit
+
+Reference tests:
+
+- `wms/tests/planning/tests_version_dashboard.py`
+- `wms/tests/views/tests_views_planning.py`
+
 ## 5. Living Cross-Domain Test Contracts
 
 These tests are not just checks. They are compact maps of the intended repo wiring.

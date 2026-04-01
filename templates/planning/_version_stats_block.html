@@ -18,6 +18,30 @@
       <dd class="col-4 text-end">{{ dashboard.stats.manual_adjustment_count }}</dd>
     </dl>
 
+    <div class="small text-muted mb-2">Cockpit capacite vols</div>
+    <div class="scan-kpi-grid mb-3" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">Vols en tension</span>
+        <span class="scan-kpi-value">{{ dashboard.capacity_summary.tension_count }}</span>
+        <span class="scan-kpi-help">Entre 80% et 95%</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">Vols critiques</span>
+        <span class="scan-kpi-value">{{ dashboard.capacity_summary.critical_count }}</span>
+        <span class="scan-kpi-help">Entre 95% et 100%</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">Vols en surcharge</span>
+        <span class="scan-kpi-value">{{ dashboard.capacity_summary.overload_count }}</span>
+        <span class="scan-kpi-help">Au-dela de 100%</span>
+      </div>
+      <div class="scan-kpi-card">
+        <span class="scan-kpi-label">Capacité restante totale</span>
+        <span class="scan-kpi-value">{{ dashboard.capacity_summary.remaining_capacity_total }}</span>
+        <span class="scan-kpi-help">Equivalent disponible sur le run</span>
+      </div>
+    </div>
+
     <div class="small text-muted mb-2">{% trans "Destinations" %}</div>
     <ul class="list-group list-group-flush">
       {% for item in dashboard.stats.destination_breakdown %}

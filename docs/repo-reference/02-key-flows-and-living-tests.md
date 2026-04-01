@@ -262,8 +262,12 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `wms/views_planning.py`
 - `wms/models_domain/planning.py`
 - `wms/planning/*`
+- `wms/planning/stats.py`
+- `wms/planning/version_dashboard.py`
 - `wms/management/commands/seed_planning_demo_data.py`
 - `wms/management/commands/planning_recipe_export.py`
+- `templates/planning/_version_stats_block.html`
+- `templates/planning/_version_planning_block.html`
 
 ### Living reference tests
 
@@ -271,6 +275,8 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `wms/tests/planning/tests_outputs.py`
 - `wms/tests/planning/tests_communication_actions.py`
 - `wms/tests/planning/tests_run_preparation.py`
+- `wms/tests/planning/tests_version_dashboard.py`
+- `wms/tests/views/tests_views_planning.py`
 
 ### Docs that must stay aligned
 
@@ -282,11 +288,14 @@ Also check whether the dashboard/runtime calibration loop changed:
 
 - `templates/planning/run_list.html` is the action-oriented entry page with an attention block before history
 - `templates/planning/run_detail.html` exposes a single primary CTA and a short operator list of versions
-- `templates/planning/version_detail.html` is the operator cockpit and should stay ordered as `header -> priorities -> section nav -> planning by flight -> secondary details`
+- `templates/planning/version_detail.html` is the operator cockpit and should stay ordered as `header -> priorities -> section nav -> planning capacity -> planning by flight -> secondary details`
+- the stats panel now includes the local flight-capacity summary cards `Vols en tension`, `Vols critiques`, `Vols en surcharge`, `Capacité restante totale`
+- the main planning block now starts with a compact `Charge vols` table ordered by load urgency before the detailed assignment groups
+- flight-capacity indicators are read-only in this local phase and must not silently change assignment or publication rules
 
 ### Propagation warning
 
-If planning run lifecycle, publication, artifact export, or communication draft behavior changes, update both:
+If planning run lifecycle, publication, artifact export, communication draft behavior, or flight-capacity readout changes, update both:
 
 - the planning cockpit/runtime docs
 - the smoke/reference tests

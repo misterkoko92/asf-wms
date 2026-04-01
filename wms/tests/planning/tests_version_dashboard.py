@@ -43,6 +43,87 @@ class PlanningVersionDashboardTests(TestCase):
             solver_result={"unassigned_reasons": {}},
         )
 
+    def make_version_with_capacity_states(self):
+        version = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.user,
+        )
+        volunteer = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="Alice",
+        )
+        flight_specs = [
+            {
+                "reference": "SHP-OK",
+                "flight_number": "AF100",
+                "departure_date": "2026-03-10",
+                "departure_time": "08:00",
+                "destination_iata": "RUN",
+                "capacity_units": 10,
+                "equivalent_units": 2,
+                "assigned_carton_count": 2,
+            },
+            {
+                "reference": "SHP-TENSION",
+                "flight_number": "AF200",
+                "departure_date": "2026-03-10",
+                "departure_time": "09:00",
+                "destination_iata": "DSS",
+                "capacity_units": 10,
+                "equivalent_units": 8,
+                "assigned_carton_count": 8,
+            },
+            {
+                "reference": "SHP-CRITICAL",
+                "flight_number": "AF300",
+                "departure_date": "2026-03-11",
+                "departure_time": "10:00",
+                "destination_iata": "NSI",
+                "capacity_units": 20,
+                "equivalent_units": 19,
+                "assigned_carton_count": 19,
+            },
+            {
+                "reference": "SHP-OVERLOAD",
+                "flight_number": "AF400",
+                "departure_date": "2026-03-11",
+                "departure_time": "11:00",
+                "destination_iata": "ABJ",
+                "capacity_units": 15,
+                "equivalent_units": 16,
+                "assigned_carton_count": 16,
+            },
+        ]
+        for sequence, spec in enumerate(flight_specs, start=1):
+            shipment = PlanningShipmentSnapshot.objects.create(
+                run=self.run,
+                shipment_reference=spec["reference"],
+                shipper_name=f"Association {sequence}",
+                destination_iata=spec["destination_iata"],
+                priority=sequence,
+                carton_count=spec["assigned_carton_count"],
+                equivalent_units=spec["equivalent_units"],
+            )
+            flight = PlanningFlightSnapshot.objects.create(
+                run=self.run,
+                flight_number=spec["flight_number"],
+                departure_date=spec["departure_date"],
+                destination_iata=spec["destination_iata"],
+                capacity_units=spec["capacity_units"],
+                payload={"departure_time": spec["departure_time"]},
+            )
+            PlanningAssignment.objects.create(
+                version=version,
+                shipment_snapshot=shipment,
+                volunteer_snapshot=volunteer,
+                flight_snapshot=flight,
+                assigned_carton_count=spec["assigned_carton_count"],
+                source=PlanningAssignmentSource.SOLVER,
+                sequence=sequence,
+            )
+        return version
+
     def test_build_version_dashboard_groups_assignments_by_flight(self):
         version = PlanningVersion.objects.create(
             run=self.run,
@@ -736,6 +817,60 @@ class PlanningVersionDashboardTests(TestCase):
         self.assertEqual(dashboard["communications"]["groups"][0]["change_status"], "changed")
         self.assertTrue(dashboard["communications"]["groups"][0]["is_priority"])
         self.assertFalse(dashboard["communications"]["groups"][0]["is_collapsed"])
+
+    def test_build_version_stats_exposes_flight_capacity_states(self):
+        version = self.make_version_with_capacity_states()
+
+        stats = build_version_stats(version)
+
+        self.assertEqual(
+            [row["flight_number"] for row in stats["flight_load_breakdown"]],
+            ["AF400", "AF300", "AF200", "AF100"],
+        )
+        overload_row = stats["flight_load_breakdown"][0]
+        critical_row = stats["flight_load_breakdown"][1]
+        tension_row = stats["flight_load_breakdown"][2]
+        ok_row = stats["flight_load_breakdown"][3]
+
+        self.assertEqual(overload_row["remaining_units"], -1)
+        self.assertEqual(overload_row["utilization_pct"], 107)
+        self.assertEqual(overload_row["load_state"], "overload")
+        self.assertEqual(overload_row["load_state_label"], "En surcharge")
+
+        self.assertEqual(critical_row["remaining_units"], 1)
+        self.assertEqual(critical_row["utilization_pct"], 95)
+        self.assertEqual(critical_row["load_state"], "critical")
+        self.assertEqual(critical_row["load_state_label"], "Critique")
+
+        self.assertEqual(tension_row["remaining_units"], 2)
+        self.assertEqual(tension_row["utilization_pct"], 80)
+        self.assertEqual(tension_row["load_state"], "tension")
+        self.assertEqual(tension_row["load_state_label"], "En tension")
+
+        self.assertEqual(ok_row["remaining_units"], 8)
+        self.assertEqual(ok_row["utilization_pct"], 20)
+        self.assertEqual(ok_row["load_state"], "ok")
+        self.assertEqual(ok_row["load_state_label"], "OK")
+
+    def test_build_version_dashboard_exposes_capacity_summary(self):
+        version = self.make_version_with_capacity_states()
+
+        dashboard = build_version_dashboard(version)
+
+        self.assertEqual(dashboard["capacity_summary"]["tension_count"], 1)
+        self.assertEqual(dashboard["capacity_summary"]["critical_count"], 1)
+        self.assertEqual(dashboard["capacity_summary"]["overload_count"], 1)
+        self.assertEqual(dashboard["capacity_summary"]["remaining_capacity_total"], 10)
+        self.assertEqual(
+            [row["load_state"] for row in dashboard["flight_capacity_rows"]],
+            ["overload", "critical", "tension", "ok"],
+        )
+        self.assertEqual(dashboard["flight_capacity_rows"][0]["flight_number_label"], "AF 400")
+        self.assertEqual(dashboard["flight_capacity_rows"][0]["utilization_label"], "107%")
+        self.assertEqual(
+            dashboard["flight_capacity_rows"][0]["departure_date_label"],
+            "Mercredi 11/03/2026",
+        )
 
     def test_build_version_stats_exposes_unassigned_and_breakdowns(self):
         version = PlanningVersion.objects.create(

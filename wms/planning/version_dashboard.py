@@ -258,6 +258,38 @@ def _build_planning_rows(version: PlanningVersion) -> list[dict[str, object]]:
     return rows
 
 
+def _build_capacity_summary(stats: dict[str, object]) -> dict[str, int]:
+    rows = stats["flight_load_breakdown"]
+    return {
+        "tension_count": sum(1 for row in rows if row["load_state"] == "tension"),
+        "critical_count": sum(1 for row in rows if row["load_state"] == "critical"),
+        "overload_count": sum(1 for row in rows if row["load_state"] == "overload"),
+        "remaining_capacity_total": sum(
+            row["remaining_units"] for row in rows if row["remaining_units"] is not None
+        ),
+    }
+
+
+def _build_flight_capacity_rows(stats: dict[str, object]) -> list[dict[str, object]]:
+    rows = []
+    for item in stats["flight_load_breakdown"]:
+        capacity_units = item["capacity_units"]
+        remaining_units = item["remaining_units"]
+        utilization_pct = item["utilization_pct"]
+        rows.append(
+            {
+                **item,
+                "flight_number_label": _format_flight_number(item["flight_number"]),
+                "departure_date_label": _format_flight_date(item["departure_date"]),
+                "departure_time_label": _format_flight_time(item["departure_time"]),
+                "capacity_label": "-" if capacity_units is None else str(capacity_units),
+                "remaining_label": "-" if remaining_units is None else str(remaining_units),
+                "utilization_label": "-" if utilization_pct is None else f"{utilization_pct}%",
+            }
+        )
+    return rows
+
+
 def _build_week_dates(version: PlanningVersion) -> list[date]:
     start = _coerce_date(version.run.week_start)
     end = _coerce_date(version.run.week_end)
@@ -826,12 +858,15 @@ def _build_exports(version: PlanningVersion) -> dict[str, object]:
 
 def build_version_dashboard(version: PlanningVersion) -> dict[str, object]:
     stats = build_version_stats(version)
+    flight_capacity_rows = _build_flight_capacity_rows(stats)
     history = _build_history(version)
     return {
         "header": _build_header(version, stats=stats),
         "week_view": _build_week_view(version),
         "planning_summary": _build_planning_summary(version),
         "planning_rows": _build_planning_rows(version),
+        "capacity_summary": _build_capacity_summary(stats),
+        "flight_capacity_rows": flight_capacity_rows,
         "flight_groups": _build_flight_groups(version),
         "unassigned_shipments": _build_unassigned_shipments(version),
         "communications": _build_communications(version),

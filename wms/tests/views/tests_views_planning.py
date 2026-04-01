@@ -815,6 +815,21 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Vol AF 908")
         self.assertContains(response, "Alice")
 
+    def test_version_detail_renders_capacity_cockpit(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vols en tension")
+        self.assertContains(response, "Vols critiques")
+        self.assertContains(response, "Vols en surcharge")
+        self.assertContains(response, "Capacité restante totale")
+        self.assertContains(response, "Charge vols")
+        self.assertContains(response, "AF 908")
+        self.assertContains(response, "AF 910")
+
     def test_version_detail_renders_operator_header_and_detailed_planning_row(self):
         run = PlanningRun.objects.create(
             week_start="2026-03-09",
