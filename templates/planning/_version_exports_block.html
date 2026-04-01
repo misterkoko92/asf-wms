@@ -56,6 +56,19 @@
               {% else %}
                 <small class="text-muted d-block">Le PDF reste la sortie prioritaire pour la diffusion mail.</small>
               {% endif %}
+              <div class="border-top pt-3 mt-3">
+                <div class="fw-semibold mb-1">Runtime PDF</div>
+                <div>{{ dashboard.exports.pdf_runtime.status_label }}</div>
+                {% if dashboard.exports.pdf_runtime.backend %}
+                  <small class="text-muted d-block">{{ dashboard.exports.pdf_runtime.backend }}</small>
+                {% endif %}
+                {% if dashboard.exports.pdf_runtime.status and dashboard.exports.pdf_runtime.status != "ready" %}
+                  <small class="text-muted d-block">{{ dashboard.exports.pdf_runtime.status }}</small>
+                {% endif %}
+                {% if dashboard.exports.pdf_runtime.detail %}
+                  <small class="{% if dashboard.exports.pdf_runtime.available %}text-muted{% else %}text-danger{% endif %} d-block">{{ dashboard.exports.pdf_runtime.detail }}</small>
+                {% endif %}
+              </div>
             </div>
           </div>
         </div>

@@ -6,7 +6,13 @@ from datetime import date, timedelta
 
 from django.utils import timezone
 
+from tools.planning_comm_helper import excel_runtime
 from wms.models import CommunicationDraft, PlanningVersion
+from wms.planning.artifact_health import (
+    PLANNING_ARTIFACT_STATUS_MISSING,
+    planning_artifact_status_label,
+    planning_runtime_status_label,
+)
 from wms.planning.communication_plan import (
     CHANGE_STATUS_PRIORITY,
     build_version_communication_plan,
@@ -861,27 +867,37 @@ def _build_exports(version: PlanningVersion) -> dict[str, object]:
         if health is None:
             artifact_health[output_type] = {
                 "output_type": output_type,
-                "status": "missing",
-                "status_label": "Aucune tentative",
+                "status": PLANNING_ARTIFACT_STATUS_MISSING,
+                "status_label": planning_artifact_status_label(PLANNING_ARTIFACT_STATUS_MISSING),
                 "backend": "",
                 "file_name": "",
                 "generated_at": "",
                 "error_message": "",
+                "payload": {},
             }
             continue
         artifact_health[output_type] = {
             "output_type": output_type,
             "status": health.status,
-            "status_label": "Pret" if health.status == "ready" else "Echec",
+            "status_label": planning_artifact_status_label(health.status),
             "backend": health.backend,
             "file_name": health.file_name,
             "generated_at": _display_datetime(health.generated_at),
             "error_message": health.error_message,
+            "payload": health.payload or {},
         }
+    pdf_runtime_status = excel_runtime.get_excel_runtime_status()
     return {
         "artifact_count": len(artifacts),
         "artifacts": artifacts,
         "artifact_health": artifact_health,
+        "pdf_runtime": {
+            "backend": pdf_runtime_status["backend"],
+            "status": pdf_runtime_status["status"],
+            "status_label": planning_runtime_status_label(pdf_runtime_status["status"]),
+            "available": pdf_runtime_status["available"],
+            "detail": pdf_runtime_status["detail"],
+        },
     }
 
 

@@ -11,7 +11,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 
-from tools.planning_comm_helper import excel_pdf
+from tools.planning_comm_helper import excel_pdf, excel_runtime
 from tools.planning_comm_helper.planning_pdf import (
     PlanningPdfConversionError,
     convert_workbook_to_pdf,
@@ -521,9 +521,30 @@ def _export_pdf_artifact(
 ) -> PlanningArtifact:
     workbook_path = Path(workbook_artifact.file_path)
     pdf_path = _planning_output_dir() / f"{_planning_basename(version)}.pdf"
+    runtime_status = excel_runtime.get_excel_runtime_status()
+    if not runtime_status["available"]:
+        runtime_message = excel_runtime.build_runtime_unavailable_message(runtime_status)
+        record_planning_artifact_result(
+            version=version,
+            output_type=PLANNING_PDF_ARTIFACT,
+            status=PLANNING_ARTIFACT_STATUS_FAILED,
+            backend=excel_pdf.pdf_backend_name(),
+            file_name=artifact_file_name(pdf_path),
+            error_message=runtime_message,
+            payload={
+                "workbook_artifact_id": workbook_artifact.pk,
+                "error_code": runtime_status["status"],
+                "runtime_status": runtime_status["status"],
+                "runtime_detail": runtime_status["detail"],
+            },
+        )
+        raise PlanningExportError("Planning PDF indisponible.")
     try:
         generated = Path(convert_workbook_to_pdf(workbook_path, pdf_path, strict=True))
     except _EXPORT_PDF_ERRORS as exc:
+        error_code = runtime_status["status"]
+        if error_code == excel_runtime.EXCEL_RUNTIME_READY:
+            error_code = excel_runtime.EXCEL_RUNTIME_AUTOMATION_UNAVAILABLE
         record_planning_artifact_result(
             version=version,
             output_type=PLANNING_PDF_ARTIFACT,
@@ -531,7 +552,12 @@ def _export_pdf_artifact(
             backend=excel_pdf.pdf_backend_name(),
             file_name=artifact_file_name(pdf_path),
             error_message=str(exc),
-            payload={"workbook_artifact_id": workbook_artifact.pk},
+            payload={
+                "workbook_artifact_id": workbook_artifact.pk,
+                "error_code": error_code,
+                "runtime_status": runtime_status["status"],
+                "runtime_detail": runtime_status["detail"],
+            },
         )
         raise PlanningExportError("Planning PDF indisponible.") from exc
     if not generated.exists():
@@ -542,7 +568,12 @@ def _export_pdf_artifact(
             backend=excel_pdf.pdf_backend_name(),
             file_name=artifact_file_name(pdf_path),
             error_message="Generated PDF file is missing.",
-            payload={"workbook_artifact_id": workbook_artifact.pk},
+            payload={
+                "workbook_artifact_id": workbook_artifact.pk,
+                "error_code": excel_runtime.EXCEL_RUNTIME_AUTOMATION_UNAVAILABLE,
+                "runtime_status": runtime_status["status"],
+                "runtime_detail": runtime_status["detail"],
+            },
         )
         raise PlanningExportError("Planning PDF indisponible.")
     artifact = _upsert_artifact(

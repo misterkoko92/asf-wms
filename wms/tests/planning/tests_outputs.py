@@ -22,7 +22,7 @@ from wms.models import (
     PlanningVolunteerSnapshot,
 )
 from wms.planning.communications import generate_version_drafts
-from wms.planning.exports import export_version_pdf, export_version_workbook
+from wms.planning.exports import PlanningExportError, export_version_pdf, export_version_workbook
 from wms.planning.legacy_communications import CommunicationFamily
 from wms.planning.stats import build_version_stats
 
@@ -222,8 +222,21 @@ class PlanningOutputTests(TestCase):
         workbook.save.assert_called_once()
         workbook.close.assert_called_once_with()
 
+    @mock.patch(
+        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": "ready",
+            "available": True,
+            "detail": "",
+        },
+    )
     @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
-    def test_export_version_pdf_creates_pdf_artifact(self, convert_workbook_to_pdf_mock):
+    def test_export_version_pdf_creates_pdf_artifact(
+        self,
+        convert_workbook_to_pdf_mock,
+        _runtime_status_mock,
+    ):
         version = self.make_published_version()
 
         def _fake_convert(workbook_path, pdf_path=None, *, strict=True):
@@ -240,8 +253,21 @@ class PlanningOutputTests(TestCase):
         self.assertTrue(artifact.file_path.endswith(".pdf"))
         self.assertTrue(Path(artifact.file_path).exists())
 
+    @mock.patch(
+        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": "ready",
+            "available": True,
+            "detail": "",
+        },
+    )
     @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
-    def test_planning_export_records_pdf_artifact_health(self, convert_workbook_to_pdf_mock):
+    def test_planning_export_records_pdf_artifact_health(
+        self,
+        convert_workbook_to_pdf_mock,
+        _runtime_status_mock,
+    ):
         version = self.make_published_version()
 
         def _fake_convert(workbook_path, pdf_path=None, *, strict=True):
@@ -261,6 +287,41 @@ class PlanningOutputTests(TestCase):
         self.assertEqual(health.status, "ready")
         self.assertEqual(health.output_type, "planning_pdf")
         self.assertTrue(health.file_name.endswith(".pdf"))
+
+    @mock.patch(
+        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": "excel_not_installed",
+            "available": False,
+            "detail": "Microsoft Excel is not installed.",
+        },
+    )
+    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    def test_planning_export_records_runtime_failure_code_when_excel_is_unavailable(
+        self,
+        convert_workbook_to_pdf_mock,
+        _runtime_status_mock,
+    ):
+        version = self.make_published_version()
+
+        with self.assertRaises(PlanningExportError):
+            export_version_pdf(version)
+
+        convert_workbook_to_pdf_mock.assert_not_called()
+        workbook_health = PlanningCommunicationArtifact.objects.filter(
+            planning_version=version,
+            output_type="planning_workbook",
+        ).latest("generated_at")
+        pdf_health = PlanningCommunicationArtifact.objects.filter(
+            planning_version=version,
+            output_type="planning_pdf",
+        ).latest("generated_at")
+        self.assertEqual(workbook_health.status, "ready")
+        self.assertEqual(pdf_health.status, "failed")
+        self.assertEqual(pdf_health.payload["error_code"], "excel_not_installed")
+        self.assertEqual(pdf_health.payload["runtime_status"], "excel_not_installed")
+        self.assertEqual(pdf_health.payload["runtime_detail"], "Microsoft Excel is not installed.")
 
     def test_generate_drafts_aggregates_multiple_assignments_for_same_recipient(self):
         second_shipment = PlanningShipmentSnapshot.objects.create(

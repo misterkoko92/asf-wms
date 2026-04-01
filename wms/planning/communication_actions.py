@@ -16,6 +16,7 @@ PLANNING_WORKBOOK_ATTACHMENT = EXCEL_WORKBOOK_ATTACHMENT
 LEGACY_PLANNING_WORKBOOK_ATTACHMENT = "planning_workbook"
 PLANNING_PDF_ATTACHMENT = "planning_pdf"
 PACKING_LIST_ATTACHMENT = "packing_list_pdf"
+PLANNING_PDF_NOT_READY_BLOCKING_REASON = "planning_pdf_not_ready"
 
 
 def _plan_item_key(
@@ -75,6 +76,20 @@ def _planning_pdf_attachments(version: PlanningVersion) -> list[dict[str, object
     return [attachment]
 
 
+def _planning_pdf_delivery_state(version: PlanningVersion) -> dict[str, object]:
+    latest_ready = latest_ready_planning_artifact_health(
+        version=version,
+        output_type=PLANNING_PDF_ATTACHMENT,
+    )
+    return {
+        "attachments": _planning_pdf_attachments(version),
+        "blocked": latest_ready is None,
+        "blocking_reason": ""
+        if latest_ready is not None
+        else PLANNING_PDF_NOT_READY_BLOCKING_REASON,
+    }
+
+
 def _packing_list_attachments(draft: CommunicationDraft) -> list[dict[str, object]]:
     attachments: list[dict[str, object]] = []
     seen_snapshot_ids: set[int] = set()
@@ -122,9 +137,11 @@ def build_draft_helper_action_payload(draft: CommunicationDraft) -> dict[str, ob
             "body": draft.body,
             "wa_url": _wa_me_url(draft.recipient_contact, draft.body),
             "attachments": [],
+            "blocked": False,
+            "blocking_reason": "",
         }
 
-    return {
+    payload = {
         "draft_id": draft.pk,
         "action": "email",
         "family": draft.family,
@@ -133,7 +150,12 @@ def build_draft_helper_action_payload(draft: CommunicationDraft) -> dict[str, ob
         "subject": draft.subject,
         "body_html": draft.body,
         "attachments": _attachments_for_draft(draft),
+        "blocked": False,
+        "blocking_reason": "",
     }
+    if draft.family in {"email_asf", "email_airfrance"}:
+        payload.update(_planning_pdf_delivery_state(draft.version))
+    return payload
 
 
 def build_family_helper_action_payload(

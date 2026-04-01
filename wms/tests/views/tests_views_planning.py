@@ -8,6 +8,7 @@ from django.http import FileResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from tools.planning_comm_helper import excel_runtime
 from wms.helper_install import build_helper_install_context
 from wms.models import (
     PlanningAssignment,
@@ -856,6 +857,26 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Statut PDF")
         self.assertContains(response, "excel_desktop")
         self.assertContains(response, "Excel indisponible")
+
+    @mock.patch(
+        "wms.planning.version_dashboard.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": excel_runtime.EXCEL_RUNTIME_NOT_INSTALLED,
+            "available": False,
+            "detail": "Microsoft Excel is not installed.",
+        },
+    )
+    def test_version_detail_renders_pdf_runtime_status(self, _runtime_status_mock):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Runtime PDF")
+        self.assertContains(response, "excel_desktop")
+        self.assertContains(response, "Microsoft Excel is not installed.")
 
     def test_version_detail_renders_operator_header_and_detailed_planning_row(self):
         run = PlanningRun.objects.create(
