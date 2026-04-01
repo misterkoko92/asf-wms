@@ -38,6 +38,15 @@ class ScanSettingsViewTests(TestCase):
             "tracking_alert_hours": runtime.tracking_alert_hours,
             "workflow_blockage_hours": runtime.workflow_blockage_hours,
             "stale_drafts_age_days": runtime.stale_drafts_age_days,
+            "pilotage_dispute_unassigned_hours": getattr(
+                runtime, "pilotage_dispute_unassigned_hours", 12
+            ),
+            "pilotage_workflow_blockage_unclaimed_hours": getattr(
+                runtime, "pilotage_workflow_blockage_unclaimed_hours", 12
+            ),
+            "pilotage_queue_backlog_threshold": getattr(
+                runtime, "pilotage_queue_backlog_threshold", 3
+            ),
             "email_queue_max_attempts": runtime.email_queue_max_attempts,
             "email_queue_retry_base_seconds": runtime.email_queue_retry_base_seconds,
             "email_queue_retry_max_seconds": runtime.email_queue_retry_max_seconds,
@@ -96,6 +105,9 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours",
                 "workflow_blockage_hours",
                 "stale_drafts_age_days",
+                "pilotage_dispute_unassigned_hours",
+                "pilotage_workflow_blockage_unclaimed_hours",
+                "pilotage_queue_backlog_threshold",
                 "email_queue_max_attempts",
                 "email_queue_retry_base_seconds",
                 "email_queue_retry_max_seconds",
@@ -122,6 +134,9 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours": 36,
                 "workflow_blockage_hours": 84,
                 "stale_drafts_age_days": 20,
+                "pilotage_dispute_unassigned_hours": 10,
+                "pilotage_workflow_blockage_unclaimed_hours": 11,
+                "pilotage_queue_backlog_threshold": 4,
                 "email_queue_max_attempts": 9,
                 "email_queue_retry_base_seconds": 45,
                 "email_queue_retry_max_seconds": 600,
@@ -137,6 +152,9 @@ class ScanSettingsViewTests(TestCase):
         self.assertEqual(runtime_settings.tracking_alert_hours, 36)
         self.assertEqual(runtime_settings.workflow_blockage_hours, 84)
         self.assertEqual(runtime_settings.stale_drafts_age_days, 20)
+        self.assertEqual(runtime_settings.pilotage_dispute_unassigned_hours, 10)
+        self.assertEqual(runtime_settings.pilotage_workflow_blockage_unclaimed_hours, 11)
+        self.assertEqual(runtime_settings.pilotage_queue_backlog_threshold, 4)
         self.assertEqual(runtime_settings.email_queue_max_attempts, 9)
         self.assertEqual(runtime_settings.email_queue_retry_base_seconds, 45)
         self.assertEqual(runtime_settings.email_queue_retry_max_seconds, 600)
@@ -153,6 +171,9 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours": 36,
                 "workflow_blockage_hours": 84,
                 "stale_drafts_age_days": 20,
+                "pilotage_dispute_unassigned_hours": 12,
+                "pilotage_workflow_blockage_unclaimed_hours": 12,
+                "pilotage_queue_backlog_threshold": 3,
                 "email_queue_max_attempts": 9,
                 "email_queue_retry_base_seconds": 600,
                 "email_queue_retry_max_seconds": 45,
@@ -173,6 +194,9 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours": 0,
                 "workflow_blockage_hours": 0,
                 "stale_drafts_age_days": 0,
+                "pilotage_dispute_unassigned_hours": 0,
+                "pilotage_workflow_blockage_unclaimed_hours": 0,
+                "pilotage_queue_backlog_threshold": 0,
                 "email_queue_max_attempts": 0,
                 "email_queue_retry_base_seconds": 0,
                 "email_queue_retry_max_seconds": 0,
@@ -187,6 +211,9 @@ class ScanSettingsViewTests(TestCase):
             "tracking_alert_hours",
             "workflow_blockage_hours",
             "stale_drafts_age_days",
+            "pilotage_dispute_unassigned_hours",
+            "pilotage_workflow_blockage_unclaimed_hours",
+            "pilotage_queue_backlog_threshold",
             "email_queue_max_attempts",
             "email_queue_retry_base_seconds",
             "email_queue_retry_max_seconds",
@@ -269,6 +296,13 @@ class ScanSettingsViewTests(TestCase):
         self.assertEqual(response.context["preview"]["sla_persistent_delay_count"], 1)
         self.assertEqual(response.context["preview"]["sla_critical_delay_count"], 1)
 
+    def test_scan_settings_preview_exposes_ops_escalation_counts(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("scan:scan_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Escalades pilotage")
+
     def test_scan_settings_save_creates_runtime_audit_entry(self):
         self.client.force_login(self.superuser)
         response = self.client.post(
@@ -300,6 +334,9 @@ class ScanSettingsEndToEndTests(TestCase):
             "tracking_alert_hours": 72,
             "workflow_blockage_hours": 72,
             "stale_drafts_age_days": 30,
+            "pilotage_dispute_unassigned_hours": 12,
+            "pilotage_workflow_blockage_unclaimed_hours": 12,
+            "pilotage_queue_backlog_threshold": 3,
             "email_queue_max_attempts": 5,
             "email_queue_retry_base_seconds": 60,
             "email_queue_retry_max_seconds": 3600,

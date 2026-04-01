@@ -169,6 +169,20 @@ Notes:
 - it recomputes from `Shipment` and `ShipmentTrackingEvent`, it does not parse workflow logs
 - use it in local V2 when you want `/api/v1/workflow-projections/shipments/` to reflect the current dataset immediately
 
+Capture and evaluate the local pilotage layers after reseed, settings calibration, or before reviewing
+the transverse cockpit:
+
+```bash
+python manage.py capture_ops_pilotage_snapshot
+python manage.py evaluate_ops_escalations
+```
+
+Notes:
+
+- `capture_ops_pilotage_snapshot` refreshes the daily metric store used by phase 2 pilotage
+- `evaluate_ops_escalations` persists the current anomaly set and resolves stale ones no longer present
+- the local thresholds used by the evaluator are calibrated from `scan/settings`
+
 ### 3.0) Tooling rollback
 
 If the standardized Python tooling blocks a release or hotfix:

@@ -11,6 +11,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "tracking_alert_hours",
         "workflow_blockage_hours",
         "stale_drafts_age_days",
+        "pilotage_dispute_unassigned_hours",
+        "pilotage_workflow_blockage_unclaimed_hours",
+        "pilotage_queue_backlog_threshold",
         "email_queue_max_attempts",
         "email_queue_retry_base_seconds",
         "email_queue_retry_max_seconds",
@@ -22,6 +25,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "tracking_alert_hours",
         "workflow_blockage_hours",
         "stale_drafts_age_days",
+        "pilotage_dispute_unassigned_hours",
+        "pilotage_workflow_blockage_unclaimed_hours",
+        "pilotage_queue_backlog_threshold",
         "email_queue_max_attempts",
         "email_queue_retry_base_seconds",
         "email_queue_retry_max_seconds",
@@ -42,6 +48,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "tracking_alert_hours",
             "workflow_blockage_hours",
             "stale_drafts_age_days",
+            "pilotage_dispute_unassigned_hours",
+            "pilotage_workflow_blockage_unclaimed_hours",
+            "pilotage_queue_backlog_threshold",
             "email_queue_max_attempts",
             "email_queue_retry_base_seconds",
             "email_queue_retry_max_seconds",
@@ -53,6 +62,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "tracking_alert_hours": _("Alerte suivi (heures)"),
             "workflow_blockage_hours": _("Blocage workflow (heures)"),
             "stale_drafts_age_days": _("Ancienneté brouillons (jours)"),
+            "pilotage_dispute_unassigned_hours": _("Litige sans owner (heures)"),
+            "pilotage_workflow_blockage_unclaimed_hours": _("Blocage non pris en charge (heures)"),
+            "pilotage_queue_backlog_threshold": _("Queue backlog pilotage (items)"),
             "email_queue_max_attempts": _("Queue email: tentatives max"),
             "email_queue_retry_base_seconds": _("Queue email: retry base (secondes)"),
             "email_queue_retry_max_seconds": _("Queue email: retry max (secondes)"),
@@ -66,6 +78,15 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "tracking_alert_hours": _("Déclenche les cartes d'alerte de suivi."),
             "workflow_blockage_hours": _("Ancienneté utilisée pour détecter les blocages."),
             "stale_drafts_age_days": _("Un brouillon temporaire plus ancien est archivable."),
+            "pilotage_dispute_unassigned_hours": _(
+                "Au-delà, un litige ouvert sans owner devient une escalade."
+            ),
+            "pilotage_workflow_blockage_unclaimed_hours": _(
+                "Au-delà, un blocage workflow non pris en charge devient une escalade."
+            ),
+            "pilotage_queue_backlog_threshold": _(
+                "Nombre d'items queue à partir duquel le backlog devient une escalade."
+            ),
             "email_queue_max_attempts": _("Nombre maximal de retries avant échec définitif."),
             "email_queue_retry_base_seconds": _("Délai de base du backoff exponentiel."),
             "email_queue_retry_max_seconds": _("Délai maximal du backoff exponentiel."),
@@ -79,6 +100,11 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "tracking_alert_hours": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "workflow_blockage_hours": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "stale_drafts_age_days": forms.NumberInput(attrs={"min": 1, "step": 1}),
+            "pilotage_dispute_unassigned_hours": forms.NumberInput(attrs={"min": 1, "step": 1}),
+            "pilotage_workflow_blockage_unclaimed_hours": forms.NumberInput(
+                attrs={"min": 1, "step": 1}
+            ),
+            "pilotage_queue_backlog_threshold": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_max_attempts": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_retry_base_seconds": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_retry_max_seconds": forms.NumberInput(attrs={"min": 1, "step": 1}),

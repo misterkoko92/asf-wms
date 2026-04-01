@@ -78,6 +78,30 @@
         </div>
       </div>
 
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.pilotage_dispute_unassigned_hours.label_tag }}
+          {{ form.pilotage_dispute_unassigned_hours }}
+          {% if form.pilotage_dispute_unassigned_hours.errors %}<div class="scan-help">{{ form.pilotage_dispute_unassigned_hours.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_dispute_unassigned_hours.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.pilotage_workflow_blockage_unclaimed_hours.label_tag }}
+          {{ form.pilotage_workflow_blockage_unclaimed_hours }}
+          {% if form.pilotage_workflow_blockage_unclaimed_hours.errors %}<div class="scan-help">{{ form.pilotage_workflow_blockage_unclaimed_hours.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_workflow_blockage_unclaimed_hours.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.pilotage_queue_backlog_threshold.label_tag }}
+          {{ form.pilotage_queue_backlog_threshold }}
+          {% if form.pilotage_queue_backlog_threshold.errors %}<div class="scan-help">{{ form.pilotage_queue_backlog_threshold.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_queue_backlog_threshold.help_text }}</div>
+        </div>
+      </div>
+
       <div class="scan-divider"></div>
 
       <h3>{% trans "Queue email" %}</h3>
@@ -169,6 +193,18 @@
       </ul>
     </div>
   {% endif %}
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3>{% trans "Escalades pilotage" %}</h3>
+    <ul class="scan-help">
+      <li>{% trans "Total estimé:" %} {{ ops_escalation_preview.total_count }}</li>
+      {% for category, count in ops_escalation_preview.category_counts.items %}
+        <li>{{ category }}: {{ count }}</li>
+      {% empty %}
+        <li>{% trans "Aucune escalade active sur le périmètre courant." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
 
   <div class="scan-card card border-0 ui-comp-card">
     <h3>{% trans "Historique recent" %}</h3>

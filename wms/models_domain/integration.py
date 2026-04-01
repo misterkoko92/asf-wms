@@ -204,6 +204,31 @@ class OpsPilotageSnapshot(models.Model):
         return f"{self.snapshot_date}:{self.scope_type}:{self.scope_key}:{self.metric_key}"
 
 
+class OpsEscalation(models.Model):
+    escalation_key = models.CharField(max_length=160, unique=True)
+    category = models.CharField(max_length=40)
+    scope_type = models.CharField(max_length=40)
+    scope_key = models.CharField(max_length=120)
+    severity = models.CharField(max_length=20)
+    owner = models.CharField(max_length=20, blank=True, default="")
+    status = models.CharField(max_length=20, default="open")
+    first_detected_at = models.DateTimeField(default=timezone.now)
+    last_detected_at = models.DateTimeField(default=timezone.now)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["status", "-last_detected_at", "category", "escalation_key"]
+        indexes = [
+            models.Index(fields=["status", "category"], name="wms_ops_esc_status_cat_idx"),
+            models.Index(fields=["scope_type", "scope_key"], name="wms_ops_esc_scope_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.escalation_key
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)
@@ -218,6 +243,9 @@ class WmsRuntimeSettings(models.Model):
     tracking_alert_hours = models.PositiveIntegerField(default=72)
     workflow_blockage_hours = models.PositiveIntegerField(default=72)
     stale_drafts_age_days = models.PositiveIntegerField(default=30)
+    pilotage_dispute_unassigned_hours = models.PositiveIntegerField(default=12)
+    pilotage_workflow_blockage_unclaimed_hours = models.PositiveIntegerField(default=12)
+    pilotage_queue_backlog_threshold = models.PositiveIntegerField(default=3)
     email_queue_max_attempts = models.PositiveIntegerField(default=5)
     email_queue_retry_base_seconds = models.PositiveIntegerField(default=60)
     email_queue_retry_max_seconds = models.PositiveIntegerField(default=3600)
@@ -274,6 +302,9 @@ class WmsRuntimeSettings(models.Model):
             "tracking_alert_hours": 72,
             "workflow_blockage_hours": 72,
             "stale_drafts_age_days": 30,
+            "pilotage_dispute_unassigned_hours": 12,
+            "pilotage_workflow_blockage_unclaimed_hours": 12,
+            "pilotage_queue_backlog_threshold": 3,
             "email_queue_max_attempts": _safe_int(
                 getattr(django_settings, "EMAIL_QUEUE_MAX_ATTEMPTS", 5),
                 default=5,

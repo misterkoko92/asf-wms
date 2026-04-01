@@ -231,6 +231,39 @@ Reference tests:
 - `wms/tests/test_ops_pilotage_snapshots.py`
 - `wms/tests/management/tests_management_capture_ops_pilotage_snapshot.py`
 
+### Ops Escalation Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/integration.py`
+- `wms/ops_escalations.py`
+- `wms/management/commands/evaluate_ops_escalations.py`
+- `wms/views_scan_settings.py`
+- `templates/scan/settings.html`
+
+Current local contract:
+
+- `OpsEscalation` is the persistent local anomaly layer above workflow snapshots and current operational state
+- supported categories in this local phase are `sla_persistent`, `dispute_unassigned`, `workflow_blockage_unclaimed`, `planning_capacity_overload`, `planning_pdf_missing`, `queue_backlog`, `portal_stalled`
+- supported statuses in this local phase are `open`, `acknowledged`, `resolved`, `suppressed`
+- `escalation_key` must stay stable and unique across evaluation runs
+- the evaluation entry point is `python manage.py evaluate_ops_escalations`
+- local calibration happens in `scan/settings` through:
+  - `pilotage_dispute_unassigned_hours`
+  - `pilotage_workflow_blockage_unclaimed_hours`
+  - `pilotage_queue_backlog_threshold`
+- the settings page always exposes a lightweight `Escalades pilotage` preview for the current thresholds
+
+Maintenance rule:
+
+- if escalation categories, statuses, or threshold semantics change, update the evaluator, the settings preview, the command, and this repo-reference section in the same work
+- keep this phase local and operator-facing: escalations are a pilotage layer, not customer-visible workflow statuses
+
+Reference tests:
+
+- `wms/tests/test_ops_escalations.py`
+- `wms/tests/views/tests_views_scan_settings.py`
+
 ### Destination Workflow Aggregate Contract
 
 Primary runtime sources:
