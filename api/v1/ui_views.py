@@ -73,6 +73,7 @@ from wms.scan_dashboard_sla import (
     build_sla_rows,
     summarize_sla_alert_rows,
 )
+from wms.scan_pilotage import build_scan_pilotage_payload
 from wms.scan_product_helpers import resolve_product
 from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
@@ -1602,6 +1603,15 @@ class UiDashboardWorkflowBlockageClaimView(APIView):
                 "claim_state": "claimed",
             }
         )
+
+
+class UiPilotageView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        payload = build_scan_pilotage_payload()
+        payload["updated_at"] = timezone.now().isoformat()
+        return Response(payload)
 
 
 class UiStockView(APIView):

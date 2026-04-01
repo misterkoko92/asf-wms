@@ -16,6 +16,7 @@ from .views_scan_dashboard import scan_dashboard, scan_root
 from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
 from .views_scan_orders import scan_order, scan_orders_view
+from .views_scan_pilotage import scan_pilotage
 from .views_scan_receipts import (
     scan_receipts_view,
     scan_receive,
@@ -43,6 +44,7 @@ from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
 SCAN_FLOW_EXPORTS = (
     "scan_root",
     "scan_dashboard",
+    "scan_pilotage",
     "scan_stock",
     "scan_kits_view",
     "scan_local_document_helper_installer",

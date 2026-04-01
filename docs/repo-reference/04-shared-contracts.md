@@ -264,6 +264,37 @@ Reference tests:
 - `wms/tests/test_ops_escalations.py`
 - `wms/tests/views/tests_views_scan_settings.py`
 
+### Daily Ops Cockpit Contract
+
+Primary runtime sources:
+
+- `wms/scan_pilotage.py`
+- `wms/views_scan_pilotage.py`
+- `templates/scan/pilotage.html`
+- `api/v1/ui_views.py` via `GET /api/v1/ui/pilotage/`
+
+Current local contract:
+
+- `build_scan_pilotage_payload()` is the shared adapter for both the legacy HTML cockpit and the UI API mirror
+- the cockpit is intentionally read-only in this local phase and consumes:
+  - the latest `OpsPilotageSnapshot` capture for summary cards and planning export health
+  - active `OpsEscalation` rows for `priority_rows[]` and `escalation_rows[]`
+  - destination trend rows from the existing destination-risk aggregate
+  - live portal backlog rows from pending or changes-requested orders without a shipment
+- `GET /api/v1/ui/pilotage/` exposes at least `summary_cards`, `priority_rows`, `escalation_rows`, `destination_trend_rows`, `planning_export_rows`, `portal_backlog_rows`
+- `surface_links` keeps the stable cross-surface navigation targets toward `scan/dashboard`, `portal/dashboard`, and `planning/`
+- planning export rows remain snapshot-driven in this phase; do not add cockpit-only recomputation of workbook or PDF state
+
+Maintenance rule:
+
+- if pilotage section ordering, payload keys, escalation-to-CTA routing, or planning-export health semantics change, update the shared adapter, the HTML cockpit, the UI API mirror, and this repo-reference section in the same work
+- keep this surface orchestration-only: it should link operators back to the underlying working screens instead of introducing a second workflow engine
+
+Reference tests:
+
+- `wms/tests/views/tests_views_scan_pilotage.py`
+- `api/tests/tests_ui_endpoints.py`
+
 ### Destination Workflow Aggregate Contract
 
 Primary runtime sources:

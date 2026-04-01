@@ -27,6 +27,8 @@ Use it when you need to answer:
 - `wms/views_scan_shipments.py`
 - `wms/views_scan_shipments_support.py`
 - `wms/views_scan_dashboard.py`
+- `wms/views_scan_pilotage.py`
+- `wms/scan_pilotage.py`
 - `wms/scan_dashboard_destination_risk.py`
 - `wms/views_scan_settings.py`
 - `wms/scan_dashboard_sla.py`
@@ -53,6 +55,8 @@ Use it when you need to answer:
 - scan dashboard destination-risk block driven by destination workflow aggregates
 - scan dashboard destination-risk rows enriched with current ISO week vs previous ISO week trend
 - scan dashboard health cards for both email and document-scan queues
+- daily ops cockpit under `/scan/pilotage/` as the transverse read surface for snapshots, escalations, destination trends, portal backlog, and planning exports
+- UI API mirror under `/api/v1/ui/pilotage/`
 - scan settings preset-based calibration, including local `incident_sla` preview
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - shipment creation or draft/edit
@@ -79,6 +83,7 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_stock.py`
 - `wms/tests/views/tests_views_scan_dashboard.py`
+- `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`
 - `wms/tests/test_workflow_projection.py`
@@ -246,8 +251,10 @@ Historical note:
 Also check whether the dashboard/runtime calibration loop changed:
 
 - `/scan/dashboard/`
+- `/scan/pilotage/`
 - `/scan/settings/`
 - `api/v1/ui/dashboard/`
+- `api/v1/ui/pilotage/`
 - `docs/operations.md`
 
 ## 5. Planning: Seed -> Solve -> Publish -> Communications -> Cockpit

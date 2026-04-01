@@ -5,6 +5,7 @@ from .ui_views import (
     UiCartonsView,
     UiDashboardView,
     UiDashboardWorkflowBlockageClaimView,
+    UiPilotageView,
     UiPortalAccountView,
     UiPortalDashboardView,
     UiPortalOrdersView,
@@ -73,6 +74,7 @@ urlpatterns = [
         name="workflow-projection-destination-weeks",
     ),
     path("ui/dashboard/", UiDashboardView.as_view(), name="ui-dashboard"),
+    path("ui/pilotage/", UiPilotageView.as_view(), name="ui-pilotage"),
     path(
         "ui/dashboard/workflow-blockages/claims/",
         UiDashboardWorkflowBlockageClaimView.as_view(),

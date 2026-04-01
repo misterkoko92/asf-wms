@@ -29,6 +29,8 @@ from wms.models import (
     IntegrationEvent,
     IntegrationStatus,
     Location,
+    OpsEscalation,
+    OpsPilotageSnapshot,
     Order,
     OrderReviewStatus,
     PrintTemplate,
@@ -1727,6 +1729,64 @@ class UiApiEndpointsTests(TestCase):
         self.assertFalse(
             WorkflowBlockageClaim.objects.filter(blockage_key=blockage_row["blockage_key"]).exists()
         )
+
+    def test_ui_pilotage_exposes_summary_escalations_and_export_health(self):
+        snapshot_date = timezone.localdate()
+        OpsPilotageSnapshot.objects.create(
+            snapshot_date=snapshot_date,
+            scope_type="global",
+            scope_key="all",
+            metric_key="sla_critical_count",
+            metric_value=3,
+            payload={},
+        )
+        OpsPilotageSnapshot.objects.create(
+            snapshot_date=snapshot_date,
+            scope_type="planning_export",
+            scope_key="27",
+            metric_key="planning_pdf_ok",
+            metric_value=0,
+            payload={"version_id": 27, "run_id": 9},
+        )
+        OpsPilotageSnapshot.objects.create(
+            snapshot_date=snapshot_date,
+            scope_type="planning_export",
+            scope_key="27",
+            metric_key="planning_workbook_ok",
+            metric_value=1,
+            payload={"version_id": 27, "run_id": 9},
+        )
+        OpsEscalation.objects.create(
+            escalation_key="planning_pdf_missing:version:27",
+            category="planning_pdf_missing",
+            scope_type="planning_version",
+            scope_key="27",
+            severity="high",
+            owner="admin",
+            status="open",
+            payload={"version_id": 27, "run_id": 9},
+        )
+        self._create_workflow_projection(
+            reference="EXP-PILOTAGE-API-001",
+            destination=self.destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=132.0,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/pilotage/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("summary_cards", payload)
+        self.assertIn("priority_rows", payload)
+        self.assertIn("escalation_rows", payload)
+        self.assertIn("destination_trend_rows", payload)
+        self.assertIn("planning_export_rows", payload)
+        self.assertIn("portal_backlog_rows", payload)
+        self.assertEqual(payload["escalation_rows"][0]["category"], "planning_pdf_missing")
+        self.assertFalse(payload["planning_export_rows"][0]["pdf_ok"])
 
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")

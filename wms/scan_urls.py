@@ -7,6 +7,7 @@ app_name = "scan"
 urlpatterns = [
     path("", views.scan_root, name="scan_root"),
     path("dashboard/", views.scan_dashboard, name="scan_dashboard"),
+    path("pilotage/", views.scan_pilotage, name="scan_pilotage"),
     path("stock/", views.scan_stock, name="scan_stock"),
     path("kits/", views.scan_kits_view, name="scan_kits_view"),
     path(
