@@ -59,6 +59,7 @@ from .views_scan import (
     scan_orders_view,
     scan_out,
     scan_pack,
+    scan_pilotage,
     scan_prepare_kits,
     scan_prepare_kits_picking,
     scan_product_labels,
@@ -147,6 +148,7 @@ PUBLIC_EXPORTS = (
 SCAN_FLOW_EXPORTS = (
     "scan_root",
     "scan_dashboard",
+    "scan_pilotage",
     "scan_stock",
     "scan_kits_view",
     "scan_local_document_helper_installer",

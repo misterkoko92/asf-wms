@@ -1,8 +1,10 @@
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from wms.models import (
     Carton,
@@ -156,7 +158,14 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         url = reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
 
         with mock.patch("wms.shipment_tracking_handlers.log_shipment_dispute_action") as log_mock:
-            response_dispute = self.client.post(url, {"action": "set_disputed"})
+            response_dispute = self.client.post(
+                url,
+                {
+                    "action": "set_disputed",
+                    "dispute_reason": "docs_missing",
+                    "dispute_status": "open",
+                },
+            )
         self.assertEqual(response_dispute.status_code, 302)
         shipment.refresh_from_db()
         self.assertTrue(shipment.is_disputed)
@@ -184,6 +193,47 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         shipment.refresh_from_db()
         self.assertEqual(shipment.status, ShipmentStatus.PLANNED)
         self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0)
+
+    def test_set_disputed_stores_structured_reason_owner_status_due_at(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
+        due_at = timezone.now() + timedelta(days=2)
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {
+                "action": "set_disputed",
+                "dispute_reason": "docs_missing",
+                "dispute_owner": "qualite",
+                "dispute_status": "open",
+                "dispute_due_at": due_at.strftime("%Y-%m-%dT%H:%M"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertTrue(shipment.is_disputed)
+        self.assertEqual(getattr(shipment, "dispute_reason", ""), "docs_missing")
+        self.assertEqual(getattr(shipment, "dispute_owner", ""), "qualite")
+        self.assertEqual(getattr(shipment, "dispute_status", ""), "open")
+        self.assertIsNotNone(getattr(shipment, "dispute_due_at", None))
+        self.assertIsNotNone(getattr(shipment, "dispute_opened_at", None))
+        self.assertEqual(getattr(shipment, "dispute_resolution_notes", ""), "")
+
+    def test_set_disputed_defaults_structured_status_to_open(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {
+                "action": "set_disputed",
+                "dispute_reason": "docs_missing",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertTrue(shipment.is_disputed)
+        self.assertEqual(getattr(shipment, "dispute_status", ""), "open")
 
     def test_anonymous_user_cannot_set_disputed(self):
         shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
@@ -223,6 +273,23 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         self.assertEqual(shipment.status, ShipmentStatus.SHIPPED)
         self.assertEqual(carton.status, CartonStatus.SHIPPED)
 
+    def test_resolve_dispute_requires_resolution_notes(self):
+        shipment = self._create_shipment(
+            status=ShipmentStatus.SHIPPED,
+            is_disputed=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {"action": "resolve_dispute"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        shipment.refresh_from_db()
+        self.assertTrue(shipment.is_disputed)
+        self.assertEqual(shipment.status, ShipmentStatus.SHIPPED)
+        self.assertContains(response, "Notes de résolution")
+
     def test_resolve_dispute_resets_status_to_ready(self):
         shipment = self._create_shipment(
             status=ShipmentStatus.SHIPPED,
@@ -237,7 +304,10 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         with mock.patch("wms.shipment_tracking_handlers.log_shipment_dispute_action") as log_mock:
             response = self.client.post(
                 reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
-                {"action": "resolve_dispute"},
+                {
+                    "action": "resolve_dispute",
+                    "dispute_resolution_notes": "Cartons recontroles et dossier relance.",
+                },
             )
 
         self.assertEqual(response.status_code, 302)
@@ -275,3 +345,140 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Litige")
         self.assertContains(response, "Traiter le litige")
+
+    def test_shipments_tracking_filter_open_disputes_only(self):
+        disputed = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+        )
+        undisputed = self._create_shipment(status=ShipmentStatus.SHIPPED)
+        ShipmentTrackingEvent.objects.create(
+            shipment=disputed,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Agent",
+            actor_structure="ASF",
+            comments="planned",
+            created_by=self.user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=undisputed,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            actor_name="Agent",
+            actor_structure="ASF",
+            comments="boarded",
+            created_by=self.user,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_shipments_tracking"),
+            {"dispute": "open"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, disputed.reference)
+        self.assertNotContains(response, undisputed.reference)
+
+    def test_shipments_tracking_filter_overdue_disputes_only(self):
+        overdue = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+        )
+        overdue.dispute_reason = "docs_missing"
+        overdue.dispute_owner = "qualite"
+        overdue.dispute_status = "open"
+        overdue.dispute_due_at = timezone.now() - timedelta(hours=3)
+        overdue.save(
+            update_fields=[
+                "dispute_reason",
+                "dispute_owner",
+                "dispute_status",
+                "dispute_due_at",
+            ]
+        )
+        not_overdue = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+        )
+        not_overdue.dispute_reason = "delivery_issue"
+        not_overdue.dispute_owner = "transport"
+        not_overdue.dispute_status = "in_progress"
+        not_overdue.dispute_due_at = timezone.now() + timedelta(hours=5)
+        not_overdue.save(
+            update_fields=[
+                "dispute_reason",
+                "dispute_owner",
+                "dispute_status",
+                "dispute_due_at",
+            ]
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_shipments_tracking"),
+            {"dispute": "overdue"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, overdue.reference)
+        self.assertNotContains(response, not_overdue.reference)
+
+    def test_shipments_tracking_filter_unassigned_disputes_only(self):
+        unassigned = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+        )
+        unassigned.dispute_reason = "docs_missing"
+        unassigned.dispute_status = "open"
+        unassigned.save(update_fields=["dispute_reason", "dispute_status"])
+        assigned = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+        )
+        assigned.dispute_reason = "delivery_issue"
+        assigned.dispute_owner = "transport"
+        assigned.dispute_status = "in_progress"
+        assigned.save(
+            update_fields=[
+                "dispute_reason",
+                "dispute_owner",
+                "dispute_status",
+            ]
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_shipments_tracking"),
+            {"dispute": "unassigned"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, unassigned.reference)
+        self.assertNotContains(response, assigned.reference)
+
+    def test_tracking_detail_renders_structured_dispute_summary(self):
+        shipment = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+        )
+        shipment.dispute_reason = "docs_missing"
+        shipment.dispute_owner = "qualite"
+        shipment.dispute_status = "in_progress"
+        shipment.dispute_due_at = timezone.now() + timedelta(days=1)
+        shipment.dispute_opened_at = timezone.now() - timedelta(hours=6)
+        shipment.save(
+            update_fields=[
+                "dispute_reason",
+                "dispute_owner",
+                "dispute_status",
+                "dispute_due_at",
+                "dispute_opened_at",
+            ]
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Motif du litige")
+        self.assertContains(response, "Documents manquants")
+        self.assertContains(response, "Qualité")
+        self.assertContains(response, "Historique du litige")

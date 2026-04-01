@@ -32,12 +32,20 @@ from .planning.communication_actions import (
     EXCEL_WORKBOOK_ATTACHMENT,
     LEGACY_PLANNING_WORKBOOK_ATTACHMENT,
     PACKING_LIST_ATTACHMENT,
+    PLANNING_PDF_ATTACHMENT,
     PLANNING_WORKBOOK_ATTACHMENT,
     build_draft_helper_action_payload,
     build_family_helper_action_payload,
 )
 from .planning.communications import generate_version_drafts
-from .planning.exports import export_version_workbook
+from .planning.exports import (
+    PLANNING_PDF_ARTIFACT,
+    PLANNING_WORKBOOK_ARTIFACT,
+    PlanningExportError,
+    export_version_artifacts,
+    export_version_pdf,
+    export_version_workbook,
+)
 from .planning.operator_mutations import (
     assign_unassigned_shipment,
     delete_assignment,
@@ -275,6 +283,8 @@ def _communication_attachment_download_url(version, attachment):
         PLANNING_WORKBOOK_ATTACHMENT,
     }:
         return reverse("planning:version_communication_workbook", args=[version.pk])
+    if attachment_type == PLANNING_PDF_ATTACHMENT:
+        return reverse("planning:version_communication_pdf", args=[version.pk])
     if attachment_type == PACKING_LIST_ATTACHMENT:
         return reverse(
             "planning:version_communication_packing_list_pdf",
@@ -308,6 +318,17 @@ def _build_workbook_file_response(version):
     response = FileResponse(
         open(artifact.file_path, "rb"),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _build_planning_pdf_file_response(version):
+    artifact = export_version_pdf(version)
+    filename = Path(artifact.file_path).name or f"planning-v{version.number}.pdf"
+    response = FileResponse(
+        open(artifact.file_path, "rb"),
+        content_type="application/pdf",
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
@@ -446,6 +467,7 @@ def planning_version_detail(request, version_id):
             "assignments__volunteer_snapshot",
             "assignments__flight_snapshot",
             "communication_drafts__template",
+            "communication_artifacts",
             "artifacts",
         ),
         pk=version_id,
@@ -530,8 +552,15 @@ def planning_version_detail(request, version_id):
                 messages.success(request, "Brouillons mis a jour.")
                 return redirect("planning:version_detail", version.pk)
         elif request.POST.get("artifact_action") == "export":
-            export_version_workbook(version)
-            messages.success(request, "Export Planning.xlsx regenere.")
+            try:
+                export_version_artifacts(version)
+            except PlanningExportError as exc:
+                messages.warning(
+                    request,
+                    f"Planning.xlsx regenere, mais le PDF reste indisponible. {exc}",
+                )
+            else:
+                messages.success(request, "Exports Planning.pdf et Planning.xlsx regeneres.")
             return redirect("planning:version_detail", version.pk)
         elif request.POST.get("shipment_action") == "apply_updates":
             summary = apply_version_updates(
@@ -635,6 +664,16 @@ def planning_version_communication_family_action(request, version_id, family):
 def planning_version_communication_workbook(request, version_id):
     version = get_object_or_404(PlanningVersion, pk=version_id)
     return _build_workbook_file_response(version)
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def planning_version_communication_pdf(request, version_id):
+    version = get_object_or_404(PlanningVersion, pk=version_id)
+    try:
+        return _build_planning_pdf_file_response(version)
+    except PlanningExportError as exc:
+        return JsonResponse({"error": _validation_error_message(exc)}, status=409)
 
 
 @scan_staff_required

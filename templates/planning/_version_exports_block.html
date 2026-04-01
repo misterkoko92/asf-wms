@@ -18,16 +18,74 @@
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="artifact_action" value="export">
-          <button type="submit" class="btn btn-tertiary">{% trans "Exporter Planning.xlsx" %}</button>
+          <button type="submit" class="btn btn-tertiary">{% trans "Regenerer Planning.pdf + Planning.xlsx" %}</button>
         </form>
       </div>
     </div>
 
     <ul class="list-group list-group-flush mt-3">
+      <li class="list-group-item px-0">
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="border rounded p-3 h-100">
+              <div class="fw-semibold mb-1">Statut XLSX</div>
+              <div>{{ dashboard.exports.artifact_health.planning_workbook.status_label }}</div>
+              {% if dashboard.exports.artifact_health.planning_workbook.backend %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_workbook.backend }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_workbook.generated_at %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_workbook.generated_at }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_workbook.error_message %}
+                <small class="text-danger d-block">{{ dashboard.exports.artifact_health.planning_workbook.error_message }}</small>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="border rounded p-3 h-100">
+              <div class="fw-semibold mb-1">Statut PDF</div>
+              <div>{{ dashboard.exports.artifact_health.planning_pdf.status_label }}</div>
+              {% if dashboard.exports.artifact_health.planning_pdf.backend %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_pdf.backend }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_pdf.generated_at %}
+                <small class="text-muted d-block">{{ dashboard.exports.artifact_health.planning_pdf.generated_at }}</small>
+              {% endif %}
+              {% if dashboard.exports.artifact_health.planning_pdf.error_message %}
+                <small class="text-danger d-block">{{ dashboard.exports.artifact_health.planning_pdf.error_message }}</small>
+              {% else %}
+                <small class="text-muted d-block">Le PDF reste la sortie prioritaire pour la diffusion mail.</small>
+              {% endif %}
+              <div class="border-top pt-3 mt-3">
+                <div class="fw-semibold mb-1">Runtime PDF</div>
+                <div>{{ dashboard.exports.pdf_runtime.status_label }}</div>
+                {% if dashboard.exports.pdf_runtime.backend %}
+                  <small class="text-muted d-block">{{ dashboard.exports.pdf_runtime.backend }}</small>
+                {% endif %}
+                {% if dashboard.exports.pdf_runtime.status and dashboard.exports.pdf_runtime.status != "ready" %}
+                  <small class="text-muted d-block">{{ dashboard.exports.pdf_runtime.status }}</small>
+                {% endif %}
+                {% if dashboard.exports.pdf_runtime.detail %}
+                  <small class="{% if dashboard.exports.pdf_runtime.available %}text-muted{% else %}text-danger{% endif %} d-block">{{ dashboard.exports.pdf_runtime.detail }}</small>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
       {% for artifact in dashboard.exports.artifacts %}
         <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-          <span>{{ artifact.label }}</span>
-          <small class="text-muted">{{ artifact.generated_at|default:artifact.file_path }}</small>
+          <div>
+            <span>{{ artifact.label }}</span>
+            <small class="text-muted d-block">{{ artifact.generated_at|default:artifact.file_path }}</small>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            {% if artifact.artifact_type == "planning_pdf" %}
+              <a href="{% url 'planning:version_communication_pdf' version.pk %}" class="btn btn-sm btn-outline-secondary">{% trans "Telecharger PDF" %}</a>
+            {% elif artifact.artifact_type == "planning_workbook" %}
+              <a href="{% url 'planning:version_communication_workbook' version.pk %}" class="btn btn-sm btn-outline-secondary">{% trans "Telecharger XLSX" %}</a>
+            {% endif %}
+          </div>
         </li>
       {% empty %}
         <li class="list-group-item px-0 text-muted">{% trans "Aucun export genere." %}</li>

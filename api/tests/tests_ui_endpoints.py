@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
 from django.test import Client, TestCase
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -28,6 +29,8 @@ from wms.models import (
     IntegrationEvent,
     IntegrationStatus,
     Location,
+    OpsEscalation,
+    OpsPilotageSnapshot,
     Order,
     OrderReviewStatus,
     PrintTemplate,
@@ -48,7 +51,9 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
+    ShipmentWorkflowProjection,
     Warehouse,
+    WorkflowBlockageClaim,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
@@ -292,6 +297,95 @@ class UiApiEndpointsTests(TestCase):
         )
         return contact
 
+    def _create_delayed_dashboard_shipment(
+        self,
+        *,
+        reference,
+        shipment_status,
+        tracking_status,
+        hours_ago,
+    ):
+        shipment = Shipment.objects.create(
+            reference=reference,
+            status=shipment_status,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="99 Rue SLA",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        event = ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=tracking_status,
+            comments="delayed",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.filter(pk=event.pk).update(
+            created_at=timezone.now() - timedelta(hours=hours_ago)
+        )
+        shipment.refresh_from_db()
+        return shipment
+
+    def _create_workflow_projection(
+        self,
+        *,
+        reference,
+        destination,
+        shipment_status=ShipmentStatus.PLANNED,
+        current_segment="planned_to_boarding",
+        delay_state="on_time",
+        has_open_dispute=False,
+        is_closed=False,
+        active_blockage_category="",
+        segment_age_hours=0.0,
+        lead_hours_total_to_delivery=None,
+        lead_hours_delivery_to_close=None,
+        planned_at=None,
+        projected_at=None,
+    ):
+        shipment = Shipment.objects.create(
+            reference=reference,
+            status=shipment_status,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=destination,
+            destination_address=f"{destination.city} Projection",
+            destination_country=destination.country,
+            created_by=self.staff_user,
+            is_disputed=has_open_dispute,
+        )
+        started_at = timezone.now() - timedelta(hours=segment_age_hours)
+        return ShipmentWorkflowProjection.objects.create(
+            shipment=shipment,
+            destination=destination,
+            reference=shipment.reference,
+            tracking_token=shipment.tracking_token,
+            destination_label=str(destination),
+            shipment_status=shipment_status,
+            planned_at=planned_at,
+            current_segment=current_segment,
+            segment_started_at=started_at,
+            segment_age_hours=segment_age_hours,
+            is_closed=is_closed,
+            has_open_dispute=has_open_dispute,
+            delay_state=delay_state,
+            active_blockage_category=active_blockage_category,
+            lead_hours_total_to_delivery=lead_hours_total_to_delivery,
+            lead_hours_delivery_to_close=lead_hours_delivery_to_close,
+            projected_at=projected_at or timezone.now(),
+        )
+
     def _ensure_shipment_shipper(self, shipper_contact, *, default_contact=None):
         if default_contact is None:
             default_contact = (
@@ -414,6 +508,22 @@ class UiApiEndpointsTests(TestCase):
             destination_country="Madagascar",
             created_by=self.staff_user,
         )
+        self._create_workflow_projection(
+            reference="EXP-UI-FILTER-RUN",
+            destination=self.destination,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=48,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-FILTER-TNR",
+            destination=secondary_destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=96,
+        )
 
         response = self.staff_client.get("/api/v1/ui/dashboard/")
         self.assertEqual(response.status_code, 200)
@@ -433,7 +543,12 @@ class UiApiEndpointsTests(TestCase):
             filtered_payload["filters"]["destination"],
             str(secondary_destination.id),
         )
-        self.assertEqual(filtered_payload["kpis"]["open_shipments"], 1)
+        self.assertEqual(filtered_payload["kpis"]["open_shipments"], 2)
+        self.assertEqual(len(filtered_payload["destination_risk_rows"]), 1)
+        self.assertEqual(
+            filtered_payload["destination_risk_rows"][0]["destination_id"],
+            secondary_destination.id,
+        )
 
     def test_ui_dashboard_period_filter_and_activity_cards(self):
         old_shipment = Shipment.objects.create(
@@ -941,6 +1056,179 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(cards["Queue email en echec"]["tone"], "danger")
         self.assertEqual(cards["Queue email bloquee (timeout)"]["tone"], "danger")
 
+    def test_ui_dashboard_exposes_pending_actions_with_age_owner_priority_and_url(self):
+        disputed = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="44 Rue Action",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+        Shipment.objects.filter(pk=disputed.pk).update(
+            created_at=timezone.now() - timedelta(hours=12)
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("pending_actions", payload)
+        self.assertGreaterEqual(len(payload["pending_actions"]), 1)
+
+        for item in payload["pending_actions"]:
+            self.assertIn("type", item)
+            self.assertIn("reference", item)
+            self.assertIn("label", item)
+            self.assertIn("priority", item)
+            self.assertIn("owner", item)
+            self.assertIn("url", item)
+            self.assertIn("age_hours", item)
+
+        dispute_item = next(
+            item for item in payload["pending_actions"] if item["reference"] == disputed.reference
+        )
+        self.assertEqual(dispute_item["type"], "shipment_dispute")
+        self.assertEqual(dispute_item["priority"], "high")
+        self.assertEqual(dispute_item["owner"], "qualite")
+        self.assertGreaterEqual(dispute_item["age_hours"], 12)
+        self.assertTrue(dispute_item["url"])
+
+    def test_ui_dashboard_exposes_document_scan_cards_alongside_email_cards(self):
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.PENDING,
+        )
+        fresh_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now(),
+        )
+        stale_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now() - timedelta(hours=24),
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            event_type="scan_document",
+            status=IntegrationStatus.FAILED,
+            error_message="ClamAV down",
+        )
+        IntegrationEvent.objects.filter(pk__in=[fresh_processing.pk, stale_processing.pk]).update(
+            status=IntegrationStatus.PROCESSING
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("document_scan_cards", payload)
+
+        cards = {card["label"]: card for card in payload["document_scan_cards"]}
+        self.assertEqual(cards["Queue scan doc en attente"]["value"], 1)
+        self.assertEqual(cards["Queue scan doc en traitement"]["value"], 2)
+        self.assertEqual(cards["Queue scan doc en echec"]["value"], 1)
+        self.assertEqual(cards["Queue scan doc bloquee (timeout)"]["value"], 1)
+        self.assertEqual(cards["Queue scan doc en attente"]["tone"], "warn")
+        self.assertEqual(cards["Queue scan doc en echec"]["tone"], "danger")
+        self.assertEqual(cards["Queue scan doc bloquee (timeout)"]["tone"], "danger")
+
+    def test_ui_dashboard_pending_actions_use_stable_owner_and_priority_vocab(self):
+        Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="45 Rue Action",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        allowed_owners = {"magasin", "qualite", "admin", "portal"}
+        allowed_priorities = {"high", "medium", "low"}
+        self.assertGreaterEqual(len(payload["pending_actions"]), 1)
+        for item in payload["pending_actions"]:
+            self.assertIn(item["owner"], allowed_owners)
+            self.assertIn(item["priority"], allowed_priorities)
+
+    def test_ui_dashboard_exposes_sla_alert_summary_cards_and_rows(self):
+        self._create_delayed_dashboard_shipment(
+            reference="API-SLA-NEW",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=80,
+        )
+        persistent = self._create_delayed_dashboard_shipment(
+            reference="API-SLA-PERSISTENT",
+            shipment_status=ShipmentStatus.SHIPPED,
+            tracking_status=ShipmentTrackingStatus.BOARDING_OK,
+            hours_ago=170,
+        )
+        critical = self._create_delayed_dashboard_shipment(
+            reference="API-SLA-CRITICAL",
+            shipment_status=ShipmentStatus.RECEIVED_CORRESPONDENT,
+            tracking_status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            hours_ago=250,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("sla_alert_summary_cards", payload)
+        self.assertIn("sla_alert_rows", payload)
+
+        summary_cards = {
+            card["label"]: card["value"] for card in payload["sla_alert_summary_cards"]
+        }
+        self.assertEqual(summary_cards["Nouveaux retards"], 1)
+        self.assertEqual(summary_cards["Retards persistants"], 1)
+        self.assertEqual(summary_cards["Retards critiques"], 1)
+
+        rows_by_reference = {row["reference"]: row for row in payload["sla_alert_rows"]}
+        self.assertEqual(
+            rows_by_reference["API-SLA-PERSISTENT"]["segment"], "OK mise a bord -> Recu escale"
+        )
+        self.assertEqual(rows_by_reference["API-SLA-PERSISTENT"]["owner"], "qualite")
+        self.assertEqual(rows_by_reference["API-SLA-PERSISTENT"]["freshness"], "persistent")
+        self.assertEqual(rows_by_reference["API-SLA-PERSISTENT"]["severity"], "high")
+        self.assertGreater(rows_by_reference["API-SLA-PERSISTENT"]["delay_hours"], 95)
+
+        self.assertEqual(
+            rows_by_reference["API-SLA-CRITICAL"]["segment"],
+            "Recu escale -> Livre",
+        )
+        self.assertEqual(rows_by_reference["API-SLA-CRITICAL"]["owner"], "portal")
+        self.assertEqual(rows_by_reference["API-SLA-CRITICAL"]["freshness"], "persistent")
+        self.assertEqual(rows_by_reference["API-SLA-CRITICAL"]["severity"], "critical")
+        self.assertGreater(rows_by_reference["API-SLA-CRITICAL"]["delay_hours"], 175)
+        self.assertEqual(
+            rows_by_reference["API-SLA-CRITICAL"]["url"],
+            reverse("scan:scan_shipment_track", args=[critical.tracking_token]),
+        )
+        self.assertEqual(payload["sla_alert_rows"][0]["reference"], critical.reference)
+
     def test_ui_dashboard_exposes_stock_cards(self):
         ProductLot.objects.create(
             product=self.product,
@@ -1138,6 +1426,367 @@ class UiApiEndpointsTests(TestCase):
             sla_cards[f"Planifie -> OK mise a bord >{tracking_alert_hours}h"]["tone"],
             "danger",
         )
+
+    def test_ui_dashboard_exposes_destination_risk_rows(self):
+        secondary_destination = Destination.objects.create(
+            city="BZV",
+            iata_code="BZV-UI",
+            country="Congo",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-RUN-1",
+            destination=self.destination,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=72,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-BZV-1",
+            destination=secondary_destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("destination_risk_summary_cards", payload)
+        self.assertIn("destination_risk_rows", payload)
+        summary_cards = {
+            card["label"]: card["value"] for card in payload["destination_risk_summary_cards"]
+        }
+        self.assertEqual(summary_cards["Destinations critiques"], 1)
+        self.assertEqual(summary_cards["Destinations avec litiges"], 2)
+        self.assertEqual(summary_cards["Plus ancien dossier ouvert"], "144.0h")
+
+        rows = payload["destination_risk_rows"]
+        self.assertEqual(rows[0]["destination_id"], secondary_destination.id)
+        self.assertEqual(rows[0]["destination_label"], str(secondary_destination))
+        self.assertEqual(rows[0]["delayed_shipment_count"], 1)
+        self.assertEqual(rows[0]["critical_shipment_count"], 1)
+        self.assertEqual(rows[0]["open_dispute_count"], 1)
+        self.assertEqual(rows[0]["top_blockage_category"], "Suivi")
+        self.assertEqual(rows[0]["oldest_open_segment_age_hours"], 144)
+        self.assertEqual(
+            rows[0]["url"],
+            f"{reverse('scan:scan_shipments_tracking')}?destination={secondary_destination.id}",
+        )
+        self.assertEqual(rows[0]["cta_label"], "Ouvrir les dossiers")
+
+    def test_ui_dashboard_exposes_destination_risk_week_trend(self):
+        secondary_destination = Destination.objects.create(
+            city="BZV",
+            iata_code="BZV-UI-TREND",
+            country="Congo",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        current_week_planned_at = timezone.make_aware(datetime(2026, 3, 31, 10, 0))
+        previous_week_planned_at = timezone.make_aware(datetime(2026, 3, 24, 10, 0))
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-TREND-1",
+            destination=self.destination,
+            delay_state="persistent",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=72,
+            planned_at=current_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-TREND-2",
+            destination=self.destination,
+            delay_state="new",
+            has_open_dispute=False,
+            active_blockage_category="creation_expedition",
+            segment_age_hours=48,
+            planned_at=previous_week_planned_at,
+        )
+        self._create_workflow_projection(
+            reference="EXP-UI-RISK-TREND-3",
+            destination=secondary_destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=144,
+            planned_at=current_week_planned_at,
+        )
+
+        with mock.patch(
+            "django.utils.timezone.localdate",
+            return_value=date(2026, 3, 31),
+        ):
+            response = self.staff_client.get("/api/v1/ui/dashboard/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        rows_by_destination = {
+            row["destination_id"]: row for row in payload["destination_risk_rows"]
+        }
+        trend_row = rows_by_destination[self.destination.id]
+        self.assertEqual(trend_row["current_week_label"], "2026-W14")
+        self.assertEqual(trend_row["current_week_score"], 2)
+        self.assertEqual(trend_row["previous_week_label"], "2026-W13")
+        self.assertEqual(trend_row["previous_week_score"], 1)
+        self.assertEqual(trend_row["trend_delta"], 1)
+        self.assertEqual(trend_row["trend_direction"], "up")
+        self.assertEqual(trend_row["trend_label"], "+1")
+
+        missing_previous_row = rows_by_destination[secondary_destination.id]
+        self.assertEqual(missing_previous_row["current_week_score"], 3)
+        self.assertEqual(missing_previous_row["previous_week_score"], 0)
+
+    def test_ui_dashboard_exposes_workflow_blockage_rows_and_claim_state(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}84",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="44 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        approved_order = Order.objects.create(
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="45 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Order.objects.filter(pk=approved_order.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        dispute = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-API-DISPUTE",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="46 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+        Shipment.objects.filter(pk=dispute.pk).update(
+            disputed_at=timezone.now() - timedelta(hours=96)
+        )
+
+        delivered = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            reference="EXP-API-CLOSE",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="47 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        delivered_event = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            comments="delivered",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.filter(pk=delivered_event.pk).update(
+            created_at=timezone.now() - timedelta(hours=48)
+        )
+
+        email_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            target="smtp",
+            event_type="send_email",
+            payload={"subject": "Processing"},
+            status=IntegrationStatus.PROCESSING,
+        )
+        IntegrationEvent.objects.filter(pk=email_processing.pk).update(
+            processed_at=timezone.now() - timedelta(minutes=30)
+        )
+
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={"document_id": 99},
+            status=IntegrationStatus.FAILED,
+            error_message="ClamAV error",
+        )
+
+        claimed_key = f"commande:order:{approved_order.pk}"
+        WorkflowBlockageClaim.objects.create(
+            blockage_key=claimed_key,
+            category="commande",
+            label="Creer expedition",
+            reference=approved_order.reference or f"CMD-{approved_order.pk}",
+            owner="admin",
+            claimed_by=self.staff_user,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("workflow_blockage_rows", payload)
+        self.assertIn("workflow_blockage_summary_cards", payload)
+        rows = payload["workflow_blockage_rows"]
+        self.assertEqual(
+            {row["category"] for row in rows},
+            {
+                "creation_expedition",
+                "commande",
+                "suivi",
+                "cloture",
+                "queue",
+            },
+        )
+        claimed_row = next(row for row in rows if row["blockage_key"] == claimed_key)
+        self.assertTrue(claimed_row["is_claimed"])
+        self.assertEqual(claimed_row["claimed_by"], self.staff_user.get_username())
+        self.assertTrue(
+            any(
+                row["category"] == "queue" and row["reference"] == "wms.document_scan"
+                for row in rows
+            )
+        )
+        self.assertTrue(any(row["category"] == "cloture" for row in rows))
+
+    def test_ui_dashboard_workflow_blockage_claim_endpoint(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}99",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="48 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        dashboard_response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(dashboard_response.status_code, 200)
+        blockage_row = next(
+            row
+            for row in dashboard_response.json()["workflow_blockage_rows"]
+            if row["reference"] == stale_draft.reference
+        )
+
+        claim_response = self.staff_client.post(
+            "/api/v1/ui/dashboard/workflow-blockages/claims/",
+            {"action": "claim", "blockage_key": blockage_row["blockage_key"]},
+            format="json",
+        )
+        self.assertEqual(claim_response.status_code, 200)
+        self.assertEqual(claim_response.json()["claim_state"], "claimed")
+        self.assertTrue(
+            WorkflowBlockageClaim.objects.filter(
+                blockage_key=blockage_row["blockage_key"],
+                claimed_by=self.staff_user,
+            ).exists()
+        )
+
+        release_response = self.staff_client.post(
+            "/api/v1/ui/dashboard/workflow-blockages/claims/",
+            {"action": "release", "blockage_key": blockage_row["blockage_key"]},
+            format="json",
+        )
+        self.assertEqual(release_response.status_code, 200)
+        self.assertEqual(release_response.json()["claim_state"], "released")
+        self.assertFalse(
+            WorkflowBlockageClaim.objects.filter(blockage_key=blockage_row["blockage_key"]).exists()
+        )
+
+    def test_ui_pilotage_exposes_summary_escalations_and_export_health(self):
+        snapshot_date = timezone.localdate()
+        OpsPilotageSnapshot.objects.create(
+            snapshot_date=snapshot_date,
+            scope_type="global",
+            scope_key="all",
+            metric_key="sla_critical_count",
+            metric_value=3,
+            payload={},
+        )
+        OpsPilotageSnapshot.objects.create(
+            snapshot_date=snapshot_date,
+            scope_type="planning_export",
+            scope_key="27",
+            metric_key="planning_pdf_ok",
+            metric_value=0,
+            payload={"version_id": 27, "run_id": 9},
+        )
+        OpsPilotageSnapshot.objects.create(
+            snapshot_date=snapshot_date,
+            scope_type="planning_export",
+            scope_key="27",
+            metric_key="planning_workbook_ok",
+            metric_value=1,
+            payload={"version_id": 27, "run_id": 9},
+        )
+        OpsEscalation.objects.create(
+            escalation_key="planning_pdf_missing:version:27",
+            category="planning_pdf_missing",
+            scope_type="planning_version",
+            scope_key="27",
+            severity="high",
+            owner="admin",
+            status="open",
+            payload={"version_id": 27, "run_id": 9},
+        )
+        self._create_workflow_projection(
+            reference="EXP-PILOTAGE-API-001",
+            destination=self.destination,
+            delay_state="critical",
+            has_open_dispute=True,
+            active_blockage_category="suivi",
+            segment_age_hours=132.0,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/pilotage/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("summary_cards", payload)
+        self.assertIn("priority_rows", payload)
+        self.assertIn("escalation_rows", payload)
+        self.assertIn("destination_trend_rows", payload)
+        self.assertIn("planning_export_rows", payload)
+        self.assertIn("portal_backlog_rows", payload)
+        self.assertEqual(payload["escalation_rows"][0]["category"], "planning_pdf_missing")
+        self.assertFalse(payload["planning_export_rows"][0]["pdf_ok"])
 
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
@@ -1444,6 +2093,60 @@ class UiApiEndpointsTests(TestCase):
         self.assertIn("kpis", payload)
         self.assertIn("orders", payload)
         self.assertEqual(payload["orders"][0]["id"], self.portal_order.id)
+
+    def test_ui_portal_dashboard_exposes_step_guidance_and_summary_counts(self):
+        portal_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name="ASF Hub",
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name="Recipient",
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name="M. Dupont",
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="30 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        changes_requested = Order.objects.create(
+            association_contact=self.association_contact,
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination_address="21 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        shipped_order = Order.objects.create(
+            association_contact=self.association_contact,
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination_address="22 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+            shipment=portal_shipment,
+        )
+
+        response = self.portal_client.get("/api/v1/ui/portal/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("kpis", payload)
+        self.assertEqual(payload["kpis"]["orders_total"], 3)
+        self.assertEqual(payload["kpis"]["orders_pending_review"], 1)
+        self.assertEqual(payload["kpis"]["orders_changes_requested"], 1)
+        self.assertEqual(payload["kpis"]["orders_with_shipment"], 1)
+
+        rows = {row["id"]: row for row in payload["orders"]}
+        self.assertEqual(
+            rows[self.portal_order.id]["next_step_label"], "Attendre la validation ASF"
+        )
+        self.assertEqual(rows[self.portal_order.id]["next_step_tone"], "info")
+        self.assertEqual(rows[changes_requested.id]["next_step_label"], "Corriger la commande")
+        self.assertEqual(rows[shipped_order.id]["next_step_label"], "Suivre l'expédition")
 
     def test_ui_stock_update_post_creates_new_lot(self):
         previous_lot_count = ProductLot.objects.count()

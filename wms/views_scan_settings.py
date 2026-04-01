@@ -18,7 +18,14 @@ from .models import (
     ShipmentStatus,
     WmsRuntimeSettingsAudit,
 )
+from .ops_escalations import evaluate_ops_escalations
+from .pilotage_runtime import SCAN_SETTINGS_PRESETS, build_pilotage_threshold_context
 from .runtime_settings import get_runtime_settings_instance, is_shipment_track_legacy_enabled
+from .scan_dashboard_sla import (
+    annotate_shipment_tracking_dates,
+    build_sla_alert_rows,
+    summarize_sla_alert_rows,
+)
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
 
@@ -28,34 +35,6 @@ ACTION_SAVE = "save"
 ACTION_PREVIEW = "preview"
 ACTION_APPLY_PRESET = "apply_preset"
 DEFAULT_ACTION = ACTION_SAVE
-
-SETTINGS_PRESETS = {
-    "standard": {
-        "label": _("Standard"),
-        "description": _("Valeurs operationnelles recommandees."),
-        "values": {
-            "low_stock_threshold": 20,
-            "tracking_alert_hours": 72,
-            "workflow_blockage_hours": 72,
-            "stale_drafts_age_days": 30,
-            "email_queue_max_attempts": 5,
-            "email_queue_retry_base_seconds": 60,
-            "email_queue_retry_max_seconds": 3600,
-            "email_queue_processing_timeout_seconds": 900,
-            "enable_shipment_track_legacy": True,
-        },
-    },
-    "incident_email_queue": {
-        "label": _("Incident queue email"),
-        "description": _("Accroit l'agressivite de reprise et baisse le timeout."),
-        "values": {
-            "email_queue_max_attempts": 8,
-            "email_queue_retry_base_seconds": 30,
-            "email_queue_retry_max_seconds": 300,
-            "email_queue_processing_timeout_seconds": 120,
-        },
-    },
-}
 
 
 def _runtime_values_dict(runtime_settings):
@@ -95,6 +74,15 @@ def _build_impact_preview(values):
 
     env_flag = bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True))
     runtime_flag = bool(values["enable_shipment_track_legacy"])
+    shipments_with_tracking = annotate_shipment_tracking_dates(
+        Shipment.objects.filter(archived_at__isnull=True)
+    )
+    sla_alert_rows = build_sla_alert_rows(
+        shipments_with_tracking,
+        tracking_alert_hours=max(1, int(values["tracking_alert_hours"])),
+    )
+    sla_alert_summary = summarize_sla_alert_rows(sla_alert_rows)
+    ops_escalation_preview = _build_ops_escalation_preview(values)
 
     return {
         "stale_drafts_age_days": stale_days,
@@ -102,6 +90,24 @@ def _build_impact_preview(values):
         "queue_processing_timeout_seconds": queue_timeout_seconds,
         "queue_stale_processing_count": stale_processing_count,
         "legacy_effective_enabled": env_flag and runtime_flag,
+        "sla_new_delay_count": sla_alert_summary["new_count"],
+        "sla_persistent_delay_count": sla_alert_summary["persistent_count"],
+        "sla_critical_delay_count": sla_alert_summary["critical_count"],
+        "ops_escalation_count": ops_escalation_preview["total_count"],
+        "ops_escalation_category_counts": ops_escalation_preview["category_counts"],
+        "pilotage_threshold_context": build_pilotage_threshold_context(values),
+    }
+
+
+def _build_ops_escalation_preview(values):
+    escalation_rows = evaluate_ops_escalations(now=timezone.now(), config=values)
+    category_counts = {}
+    for row in escalation_rows:
+        category_counts[row["category"]] = category_counts.get(row["category"], 0) + 1
+    return {
+        "total_count": len(escalation_rows),
+        "category_counts": category_counts,
+        "rows": escalation_rows[:5],
     }
 
 
@@ -112,7 +118,7 @@ def _preset_options():
             "label": preset["label"],
             "description": preset["description"],
         }
-        for key, preset in SETTINGS_PRESETS.items()
+        for key, preset in SCAN_SETTINGS_PRESETS.items()
     ]
 
 
@@ -124,12 +130,14 @@ def scan_settings(request):
     runtime_values = _runtime_values_dict(runtime_settings)
     preview = None
     selected_preset = ""
+    ops_escalation_preview = _build_ops_escalation_preview(runtime_values)
+    active_pilotage_threshold_context = build_pilotage_threshold_context(runtime_values)
 
     if request.method == "POST":
         action = (request.POST.get("action") or DEFAULT_ACTION).strip()
         selected_preset = (request.POST.get("preset") or "").strip()
         if action == ACTION_APPLY_PRESET:
-            preset = SETTINGS_PRESETS.get(selected_preset)
+            preset = SCAN_SETTINGS_PRESETS.get(selected_preset)
             if preset is None:
                 form = ScanRuntimeSettingsForm(instance=runtime_settings)
                 messages.error(request, _("Preset introuvable."))
@@ -144,6 +152,7 @@ def scan_settings(request):
                     instance=runtime_settings,
                 )
                 preview = _build_impact_preview(preset_values)
+                ops_escalation_preview = _build_ops_escalation_preview(preset_values)
                 preview["changed_fields"] = changed_fields
                 preview["preset_label"] = preset["label"]
                 messages.info(
@@ -159,6 +168,7 @@ def scan_settings(request):
                 }
                 changed_fields = _changed_runtime_fields(runtime_values, submitted_values)
                 preview = _build_impact_preview(submitted_values)
+                ops_escalation_preview = _build_ops_escalation_preview(submitted_values)
                 preview["changed_fields"] = changed_fields
                 if action == ACTION_PREVIEW:
                     messages.info(request, _("Apercu d'impact calcule."))
@@ -207,6 +217,8 @@ def scan_settings(request):
             "preset_options": _preset_options(),
             "selected_preset": selected_preset,
             "preview": preview,
+            "ops_escalation_preview": ops_escalation_preview,
+            "active_pilotage_threshold_context": active_pilotage_threshold_context,
             "recent_audits": recent_audits,
             "legacy_env_disabled": not bool(
                 getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)

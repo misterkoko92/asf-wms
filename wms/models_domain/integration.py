@@ -76,6 +76,193 @@ class IntegrationEvent(models.Model):
         return f"{self.source}:{self.event_type} ({self.direction})"
 
 
+class WorkflowBlockageClaim(models.Model):
+    blockage_key = models.CharField(max_length=160, unique=True)
+    category = models.CharField(max_length=32)
+    label = models.CharField(max_length=120, blank=True)
+    reference = models.CharField(max_length=120, blank=True)
+    owner = models.CharField(max_length=20, blank=True)
+    claimed_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workflow_blockage_claims",
+    )
+    claimed_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-claimed_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["category", "claimed_at"],
+                name="wms_workflo_categor_25334f_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.blockage_key
+
+
+class ShipmentWorkflowProjection(models.Model):
+    shipment = models.OneToOneField(
+        "wms.Shipment",
+        on_delete=models.CASCADE,
+        related_name="workflow_projection",
+    )
+    destination = models.ForeignKey(
+        "wms.Destination",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipment_workflow_projections",
+    )
+    reference = models.CharField(max_length=80, blank=True, default="")
+    tracking_token = models.UUIDField(null=True, blank=True)
+    destination_label = models.CharField(max_length=200, blank=True, default="")
+    shipment_status = models.CharField(max_length=40, blank=True, default="")
+    shipment_created_at = models.DateTimeField(null=True, blank=True)
+    planned_at = models.DateTimeField(null=True, blank=True)
+    boarding_ok_at = models.DateTimeField(null=True, blank=True)
+    received_correspondent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    current_segment = models.CharField(max_length=40, blank=True, default="")
+    segment_started_at = models.DateTimeField(null=True, blank=True)
+    segment_age_hours = models.FloatField(default=0.0)
+    is_closed = models.BooleanField(default=False)
+    lead_hours_planned_to_boarding = models.FloatField(null=True, blank=True)
+    lead_hours_boarding_to_correspondent = models.FloatField(null=True, blank=True)
+    lead_hours_correspondent_to_delivery = models.FloatField(null=True, blank=True)
+    lead_hours_delivery_to_close = models.FloatField(null=True, blank=True)
+    lead_hours_total_to_delivery = models.FloatField(null=True, blank=True)
+    has_open_dispute = models.BooleanField(default=False)
+    dispute_reason = models.CharField(max_length=40, blank=True, default="")
+    dispute_owner = models.CharField(max_length=20, blank=True, default="")
+    dispute_opened_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolved_at = models.DateTimeField(null=True, blank=True)
+    dispute_resolution_hours = models.FloatField(null=True, blank=True)
+    delay_state = models.CharField(max_length=20, blank=True, default="on_time")
+    current_delay_hours = models.FloatField(default=0.0)
+    active_blockage_category = models.CharField(max_length=32, blank=True, default="")
+    projected_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["reference", "shipment_id"]
+        indexes = [
+            models.Index(
+                fields=["shipment_status", "current_segment"],
+                name="wms_shipwf_status_seg_idx",
+            ),
+            models.Index(
+                fields=["delay_state", "is_closed"],
+                name="wms_shipwf_delay_closed_idx",
+            ),
+            models.Index(
+                fields=["has_open_dispute", "projected_at"],
+                name="wms_shipwf_dispute_proj_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.reference or f"workflow-projection:{self.shipment_id}"
+
+
+class OpsPilotageSnapshot(models.Model):
+    snapshot_date = models.DateField()
+    scope_type = models.CharField(max_length=40)
+    scope_key = models.CharField(max_length=120)
+    metric_key = models.CharField(max_length=80)
+    metric_value = models.FloatField(default=0.0)
+    payload = models.JSONField(default=dict, blank=True)
+    captured_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = [
+            "-snapshot_date",
+            "scope_type",
+            "scope_key",
+            "metric_key",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["snapshot_date", "scope_type", "scope_key", "metric_key"],
+                name="wms_ops_snapshot_unique_metric",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["snapshot_date", "scope_type"],
+                name="wms_ops_snap_date_scope_idx",
+            ),
+            models.Index(
+                fields=["scope_type", "metric_key"],
+                name="wms_ops_snap_scope_metric_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.snapshot_date}:{self.scope_type}:{self.scope_key}:{self.metric_key}"
+
+
+class OpsEscalation(models.Model):
+    escalation_key = models.CharField(max_length=160, unique=True)
+    category = models.CharField(max_length=40)
+    scope_type = models.CharField(max_length=40)
+    scope_key = models.CharField(max_length=120)
+    severity = models.CharField(max_length=20)
+    owner = models.CharField(max_length=20, blank=True, default="")
+    status = models.CharField(max_length=20, default="open")
+    first_detected_at = models.DateTimeField(default=timezone.now)
+    last_detected_at = models.DateTimeField(default=timezone.now)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["status", "-last_detected_at", "category", "escalation_key"]
+        indexes = [
+            models.Index(fields=["status", "category"], name="wms_ops_esc_status_cat_idx"),
+            models.Index(fields=["scope_type", "scope_key"], name="wms_ops_esc_scope_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.escalation_key
+
+
+class PlanningCommunicationArtifact(models.Model):
+    planning_version = models.ForeignKey(
+        "wms.PlanningVersion",
+        on_delete=models.CASCADE,
+        related_name="communication_artifacts",
+    )
+    output_type = models.CharField(max_length=40)
+    status = models.CharField(max_length=20)
+    backend = models.CharField(max_length=40, blank=True, default="")
+    file_name = models.CharField(max_length=255, blank=True, default="")
+    generated_at = models.DateTimeField(default=timezone.now)
+    error_message = models.TextField(blank=True, default="")
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["planning_version_id", "output_type", "-generated_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["planning_version", "output_type", "-generated_at"],
+                name="wms_plan_comm_lookup_idx",
+            ),
+            models.Index(
+                fields=["output_type", "status"],
+                name="wms_plan_comm_status_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.planning_version_id}:{self.output_type}:{self.status}"
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)
@@ -90,6 +277,11 @@ class WmsRuntimeSettings(models.Model):
     tracking_alert_hours = models.PositiveIntegerField(default=72)
     workflow_blockage_hours = models.PositiveIntegerField(default=72)
     stale_drafts_age_days = models.PositiveIntegerField(default=30)
+    pilotage_dispute_unassigned_hours = models.PositiveIntegerField(default=12)
+    pilotage_workflow_blockage_unclaimed_hours = models.PositiveIntegerField(default=12)
+    pilotage_queue_backlog_threshold = models.PositiveIntegerField(default=3)
+    pilotage_planning_tension_pct = models.PositiveIntegerField(default=80)
+    pilotage_planning_critical_pct = models.PositiveIntegerField(default=95)
     email_queue_max_attempts = models.PositiveIntegerField(default=5)
     email_queue_retry_base_seconds = models.PositiveIntegerField(default=60)
     email_queue_retry_max_seconds = models.PositiveIntegerField(default=3600)
@@ -146,6 +338,11 @@ class WmsRuntimeSettings(models.Model):
             "tracking_alert_hours": 72,
             "workflow_blockage_hours": 72,
             "stale_drafts_age_days": 30,
+            "pilotage_dispute_unassigned_hours": 12,
+            "pilotage_workflow_blockage_unclaimed_hours": 12,
+            "pilotage_queue_backlog_threshold": 3,
+            "pilotage_planning_tension_pct": 80,
+            "pilotage_planning_critical_pct": 95,
             "email_queue_max_attempts": _safe_int(
                 getattr(django_settings, "EMAIL_QUEUE_MAX_ATTEMPTS", 5),
                 default=5,

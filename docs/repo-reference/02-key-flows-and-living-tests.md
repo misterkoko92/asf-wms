@@ -27,19 +27,37 @@ Use it when you need to answer:
 - `wms/views_scan_shipments.py`
 - `wms/views_scan_shipments_support.py`
 - `wms/views_scan_dashboard.py`
+- `wms/views_scan_pilotage.py`
+- `wms/scan_pilotage.py`
+- `wms/scan_dashboard_destination_risk.py`
+- `wms/views_scan_settings.py`
+- `wms/scan_dashboard_sla.py`
 - `wms/scan_shipment_handlers.py`
 - `wms/shipment_tracking_handlers.py`
 - `wms/shipment_document_handlers.py`
+- `wms/workflow_projection.py`
+- `wms/management/commands/rebuild_workflow_projections.py`
 - `wms/carton_handlers.py`
 - `wms/services.py`
 - `templates/scan/`
 - `templates/print/`
 - `wms/static/scan/`
 - `api/v1/ui_views.py`
+- `api/v1/views.py`
 
 ### What the flow covers
 
 - stock update and stock availability
+- scan dashboard action queue for low stock, disputes, and pending reviews
+- scan dashboard workflow blockage queue split by `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
+- scan dashboard local claim/release flow for workflow blockages
+- scan dashboard SLA alert queue for new, persistent, and critical tracking delays
+- scan dashboard destination-risk block driven by destination workflow aggregates
+- scan dashboard destination-risk rows enriched with current ISO week vs previous ISO week trend
+- scan dashboard health cards for both email and document-scan queues
+- daily ops cockpit under `/scan/pilotage/` as the transverse read surface for snapshots, escalations, destination trends, portal backlog, and planning exports
+- UI API mirror under `/api/v1/ui/pilotage/`
+- scan settings preset-based calibration, including local `incident_sla` preview
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - shipment creation or draft/edit
 - carton status progression
@@ -47,6 +65,12 @@ Use it when you need to answer:
 - direct HTML print bundles for shipment `paper`, `standard_labels`, and `carton_lists_a4`
 - shipment `carton_lists` kept as a per-carton action page for continuous-roll printing
 - tracking events
+- structured shipment dispute intake, assignment, due date, and resolution
+- shipment tracking list filters for open, overdue, and unassigned disputes
+- shipment tracking deep links filtered by `destination`
+- shipment workflow projection rebuild and reporting endpoint under `/api/v1/workflow-projections/shipments/`
+- destination workflow aggregates under `/api/v1/workflow-projections/destinations/`
+- destination workflow aggregates by ISO week of `planned_at` under `/api/v1/workflow-projections/destination-weeks/`
 - document upload and print/document endpoints
 - label generation
 - closure of a completed shipment
@@ -56,10 +80,15 @@ Use it when you need to answer:
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_scan_workflow_stock_to_close_with_docs_labels_templates`
 - `wms/tests/core/tests_flow.py::FlowTests::test_import_to_order_prepare_flow`
 - `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_stock.py`
 - `wms/tests/views/tests_views_scan_dashboard.py`
+- `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`
+- `wms/tests/test_workflow_projection.py`
+- `wms/tests/management/tests_management_rebuild_workflow_projections.py`
+- `api/tests/tests_views_extra.py`
 
 ### Docs that must stay aligned
 
@@ -110,6 +139,7 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 ### What the flow covers
 
 - association authentication and account maintenance
+- portal dashboard cockpit KPIs and per-order next-step guidance
 - recipient creation/update
 - synchronization from `AssociationRecipient` to operational contact structures
 - shipper/recipient authorization chain
@@ -124,6 +154,8 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_portal.py`
+- `api/tests/tests_ui_endpoints.py`
 
 ### Docs that must stay aligned
 
@@ -181,6 +213,7 @@ If order creation or status transitions change, inspect:
 - `wms/models_domain/integration.py`
 - `wms/management/commands/process_email_queue.py`
 - `wms/runtime_settings.py`
+- `wms/views_scan_settings.py`
 - `wms/account_request_handlers.py`
 - `wms/admin_account_request_approval.py`
 - `wms/public_order_handlers.py`
@@ -215,6 +248,15 @@ Historical note:
 - do not trust that historical path blindly
 - verify the real `wms/tests/emailing/` tree before updating smoke documentation
 
+Also check whether the dashboard/runtime calibration loop changed:
+
+- `/scan/dashboard/`
+- `/scan/pilotage/`
+- `/scan/settings/`
+- `api/v1/ui/dashboard/`
+- `api/v1/ui/pilotage/`
+- `docs/operations.md`
+
 ## 5. Planning: Seed -> Solve -> Publish -> Communications -> Cockpit
 
 ### Main entry points
@@ -227,8 +269,12 @@ Historical note:
 - `wms/views_planning.py`
 - `wms/models_domain/planning.py`
 - `wms/planning/*`
+- `wms/planning/stats.py`
+- `wms/planning/version_dashboard.py`
 - `wms/management/commands/seed_planning_demo_data.py`
 - `wms/management/commands/planning_recipe_export.py`
+- `templates/planning/_version_stats_block.html`
+- `templates/planning/_version_planning_block.html`
 
 ### Living reference tests
 
@@ -236,6 +282,8 @@ Historical note:
 - `wms/tests/planning/tests_outputs.py`
 - `wms/tests/planning/tests_communication_actions.py`
 - `wms/tests/planning/tests_run_preparation.py`
+- `wms/tests/planning/tests_version_dashboard.py`
+- `wms/tests/views/tests_views_planning.py`
 
 ### Docs that must stay aligned
 
@@ -247,11 +295,21 @@ Historical note:
 
 - `templates/planning/run_list.html` is the action-oriented entry page with an attention block before history
 - `templates/planning/run_detail.html` exposes a single primary CTA and a short operator list of versions
-- `templates/planning/version_detail.html` is the operator cockpit and should stay ordered as `header -> priorities -> section nav -> planning by flight -> secondary details`
+- `templates/planning/version_detail.html` is the operator cockpit and should stay ordered as `header -> priorities -> section nav -> planning capacity -> planning by flight -> secondary details`
+- the stats panel now includes the local flight-capacity summary cards `Vols en tension`, `Vols critiques`, `Vols en surcharge`, `Capacité restante totale`
+- the main planning block now starts with a compact `Charge vols` table ordered by load urgency before the detailed assignment groups
+- the exports block now regenerates a strict planning workbook plus a derived planning PDF from the vendored `Planning-maquette.xlsx`
+- the planning PDF is the primary operator artifact; the workbook remains available for calibration and download
+- the exports block also exposes the latest workbook/PDF artifact health with backend, last attempt, and the last PDF error when present
+- the exports block exposes a distinct `Runtime PDF` state for the current host, separate from the last artifact attempt
+- internal planning communication drafts now expose `planning_pdf` attachments instead of the workbook
+- internal planning communication drafts are explicitly `blocked` with `blocking_reason=planning_pdf_not_ready` when no ready PDF artifact exists yet
+- the production-facing ops entry points for this flow are `python manage.py check_planning_pdf_runtime` and `python manage.py refresh_ops_pilotage`
+- flight-capacity indicators are read-only in this local phase and must not silently change assignment or publication rules
 
 ### Propagation warning
 
-If planning run lifecycle, publication, artifact export, or communication draft behavior changes, update both:
+If planning run lifecycle, publication, artifact export, communication draft behavior, or flight-capacity readout changes, update both:
 
 - the planning cockpit/runtime docs
 - the smoke/reference tests

@@ -11,6 +11,9 @@
     </h2>
 
     <form method="get" class="scan-filters row g-3 ui-comp-form">
+      {% if destination_filter_value %}
+        <input type="hidden" name="destination" value="{{ destination_filter_value }}">
+      {% endif %}
       <div class="scan-field col-12 col-md-6">
         <label class="form-label" for="id_planned_week">{% if LANGUAGE_CODE|slice:":2" == "en" %}Planned week{% else %}{% trans "Semaine planifiée" %}{% endif %}</label>
         <input
@@ -29,10 +32,22 @@
           <option value="all" {% if closed_filter == "all" %}selected{% endif %}>{% trans "Inclure clos" %}</option>
         </select>
       </div>
+      <div class="scan-field col-12 col-md-6">
+        <label class="form-label" for="id_dispute">{% trans "Litiges" %}</label>
+        <select id="id_dispute" name="dispute" class="form-select">
+          <option value="all" {% if dispute_filter == "all" %}selected{% endif %}>{% trans "Tous" %}</option>
+          <option value="open" {% if dispute_filter == "open" %}selected{% endif %}>{% trans "Ouverts" %}</option>
+          <option value="overdue" {% if dispute_filter == "overdue" %}selected{% endif %}>{% trans "En retard" %}</option>
+          <option value="unassigned" {% if dispute_filter == "unassigned" %}selected{% endif %}>{% trans "Sans owner" %}</option>
+        </select>
+      </div>
       <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center">
         <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Filtrer" %}</button>
         <a class="btn btn-tertiary" href="{% url 'scan:scan_shipments_tracking' %}">{% trans "Réinitialiser" %}</a>
       </div>
+      {% if destination_filter_label %}
+        <p class="scan-help col-12 mb-0">{% blocktrans with destination_label=destination_filter_label %}Filtre destination actif : {{ destination_label }}{% endblocktrans %}</p>
+      {% endif %}
     </form>
 
     <div id="scan-shipments-tracking-summary" class="scan-kpi-grid scan-shipments-tracking-summary mt-4 mb-4">
@@ -67,10 +82,23 @@
                       {% if shipment.is_disputed %}
                         <span class="ui-comp-status-pill is-error">{% trans "Litige" %}</span>
                       {% endif %}
+                      {% if shipment.is_dispute_overdue %}
+                        <span class="ui-comp-status-pill is-error">{% trans "En retard" %}</span>
+                      {% endif %}
                       {% if shipment.is_closed %}
                         <span class="ui-comp-status-pill is-info">{% trans "Clôturé" %}</span>
                       {% endif %}
                     </div>
+                    {% if shipment.is_disputed %}
+                      <div class="scan-help">
+                        {% if shipment.dispute_owner_display %}{{ shipment.dispute_owner_display }}{% else %}{% trans "Sans owner" %}{% endif %}
+                        {% if shipment.dispute_reason_display %} · {{ shipment.dispute_reason_display }}{% endif %}
+                      </div>
+                      <div class="scan-help">
+                        {% if shipment.dispute_status_display %}{{ shipment.dispute_status_display }}{% endif %}
+                        {% if shipment.dispute_due_at %} · {% trans "Échéance" %} {{ shipment.dispute_due_at|date:"d/m/y H\\hi" }}{% endif %}
+                      </div>
+                    {% endif %}
                   </div>
                 </td>
                 <td>
@@ -113,6 +141,8 @@
                         <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
                         <input type="hidden" name="planned_week" value="{{ planned_week_value }}">
                         <input type="hidden" name="closed" value="{{ closed_filter }}">
+                        <input type="hidden" name="dispute" value="{{ dispute_filter }}">
+                        <input type="hidden" name="destination" value="{{ destination_filter_value }}">
                         <button
                           type="submit"
                           class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"

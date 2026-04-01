@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import EmailValidator
 from django.db import connection, transaction
@@ -15,6 +16,11 @@ from rest_framework.views import APIView
 
 from wms.carton_status_events import set_carton_status
 from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
+from wms.document_scan_queue import (
+    DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
+    DOCUMENT_SCAN_QUEUE_SOURCE,
+)
 from wms.forms import ScanOutForm, ScanShipmentForm, ScanStockUpdateForm, ShipmentTrackingForm
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
@@ -43,8 +49,14 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipmentWorkflowProjection,
 )
 from wms.order_notifications import send_portal_order_notifications
+from wms.portal_dashboard_helpers import (
+    build_portal_dashboard_kpis,
+    portal_order_next_step_label,
+    portal_order_next_step_tone,
+)
 from wms.portal_helpers import (
     build_destination_address,
     get_association_profile,
@@ -54,6 +66,14 @@ from wms.portal_order_handlers import create_portal_order
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from wms.runtime_settings import get_runtime_config
+from wms.scan_dashboard_destination_risk import build_destination_risk_snapshot
+from wms.scan_dashboard_sla import (
+    annotate_shipment_tracking_dates,
+    build_sla_alert_rows,
+    build_sla_rows,
+    summarize_sla_alert_rows,
+)
+from wms.scan_pilotage import build_scan_pilotage_payload
 from wms.scan_product_helpers import resolve_product
 from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
@@ -92,6 +112,14 @@ from wms.views_scan_shipments_support import (
     _shipment_can_be_closed,
     _stale_drafts_age_days,
     _stale_drafts_queryset,
+)
+from wms.workflow_blockage_queue import (
+    WORKFLOW_BLOCKAGE_CLAIM_CLAIMED,
+    build_workflow_blockage_rows,
+    claim_workflow_blockage,
+    release_workflow_blockage,
+    summarize_workflow_blockage_rows,
+    workflow_blockage_row_by_key,
 )
 from wms.workflow_observability import log_shipment_case_closed, log_workflow_event
 
@@ -192,6 +220,8 @@ DASHBOARD_PERIOD_CHOICES = (
     (DASHBOARD_PERIOD_30D, "30 jours"),
     (DASHBOARD_PERIOD_WEEK, "Semaine en cours"),
 )
+DASHBOARD_ACTION_OWNERS = ("magasin", "qualite", "admin", "portal")
+DASHBOARD_ACTION_PRIORITIES = ("high", "medium", "low")
 DASHBOARD_SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.DRAFT,
     ShipmentStatus.PICKING,
@@ -201,6 +231,50 @@ DASHBOARD_SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 )
+DASHBOARD_SLA_SEGMENT_LABELS = {
+    "planned_to_boarding": "Planifie -> OK mise a bord",
+    "boarding_to_correspondent": "OK mise a bord -> Recu escale",
+    "correspondent_to_delivery": "Recu escale -> Livre",
+    "planned_to_delivery": "Planifie -> Livre",
+}
+DASHBOARD_SLA_ACTION_LABELS = {
+    "planned_to_boarding": "Relancer mise a bord",
+    "boarding_to_correspondent": "Relancer recu escale",
+    "correspondent_to_delivery": "Relancer livraison",
+}
+DASHBOARD_WORKFLOW_BLOCKAGE_CATEGORY_LABELS = {
+    "creation_expedition": "Creation expedition",
+    "commande": "Commande",
+    "suivi": "Suivi",
+    "cloture": "Cloture",
+    "queue": "Queue",
+}
+DASHBOARD_WORKFLOW_BLOCKAGE_KIND_LABELS = {
+    "shipment_creation": "Debloquer creation expedition",
+    "order_without_shipment": "Creer expedition",
+    "shipment_dispute": "Resoudre litige",
+    "shipment_sla_alert": "Traiter retard de suivi",
+    "shipment_closure": "Clore dossier livre",
+    "email_queue_failed": "Investiguer queue email en echec",
+    "email_queue_stale": "Debloquer queue email",
+    "document_scan_failed": "Investiguer queue scan doc en echec",
+    "document_scan_stale": "Debloquer queue scan doc",
+}
+DASHBOARD_WORKFLOW_BLOCKAGE_CLAIM_STATE_LABELS = {
+    "open": "A prendre",
+    WORKFLOW_BLOCKAGE_CLAIM_CLAIMED: "Pris en charge",
+}
+DASHBOARD_WORKFLOW_PENDING_ACTION_TYPES = {
+    "shipment_creation": "shipment_creation_blockage",
+    "order_without_shipment": "order_without_shipment",
+    "shipment_dispute": "shipment_dispute",
+    "shipment_sla_alert": "shipment_sla_alert",
+    "shipment_closure": "shipment_closure",
+    "email_queue_failed": "workflow_queue_issue",
+    "email_queue_stale": "workflow_queue_issue",
+    "document_scan_failed": "workflow_queue_issue",
+    "document_scan_stale": "workflow_queue_issue",
+}
 
 
 def _dashboard_period_start(period_key):
@@ -251,11 +325,89 @@ def _build_dashboard_shipment_chart_rows(status_count_map):
     return rows, shipments_total
 
 
+def _dashboard_positive_int(value, *, default: int) -> int:
+    try:
+        int_value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, int_value)
+
+
+def _dashboard_age_hours(started_at):
+    if started_at is None:
+        return 0.0
+    delta = timezone.now() - started_at
+    return max(round(delta.total_seconds() / 3600, 1), 0.0)
+
+
+def _build_dashboard_action(
+    *,
+    action_type: str,
+    reference: str,
+    label: str,
+    priority: str,
+    owner: str,
+    url: str,
+    started_at=None,
+    context=None,
+):
+    if owner not in DASHBOARD_ACTION_OWNERS:
+        raise ValueError(f"Unsupported dashboard action owner: {owner}")
+    if priority not in DASHBOARD_ACTION_PRIORITIES:
+        raise ValueError(f"Unsupported dashboard action priority: {priority}")
+    item = {
+        "type": action_type,
+        "reference": reference,
+        "label": label,
+        "priority": priority,
+        "owner": owner,
+        "url": url,
+        "age_hours": _dashboard_age_hours(started_at),
+    }
+    if context:
+        item["context"] = context
+    return item
+
+
 def _dashboard_email_queue_snapshot(*, processing_timeout_seconds: int):
     queue_qs = IntegrationEvent.objects.filter(
         direction=IntegrationDirection.OUTBOUND,
         source="wms.email",
         event_type="send_email",
+    )
+    status_counts = {
+        item["status"]: item["total"]
+        for item in queue_qs.values("status").annotate(total=Count("id"))
+    }
+    stale_cutoff = timezone.now() - timedelta(seconds=processing_timeout_seconds)
+    stale_processing_count = queue_qs.filter(
+        status=IntegrationStatus.PROCESSING,
+        processed_at__lte=stale_cutoff,
+    ).count()
+    return {
+        "pending_count": status_counts.get(IntegrationStatus.PENDING, 0),
+        "processing_count": status_counts.get(IntegrationStatus.PROCESSING, 0),
+        "failed_count": status_counts.get(IntegrationStatus.FAILED, 0),
+        "stale_processing_count": stale_processing_count,
+    }
+
+
+def _dashboard_document_scan_timeout_seconds():
+    return _dashboard_positive_int(
+        getattr(
+            settings,
+            "DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS",
+            DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+        ),
+        default=DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    )
+
+
+def _dashboard_document_scan_queue_snapshot(*, processing_timeout_seconds: int):
+    queue_qs = IntegrationEvent.objects.filter(
+        direction=IntegrationDirection.OUTBOUND,
+        source=DOCUMENT_SCAN_QUEUE_SOURCE,
+        event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
     )
     status_counts = {
         item["status"]: item["total"]
@@ -302,78 +454,37 @@ def _dashboard_workflow_blockage_snapshot(
     }
 
 
-def _dashboard_hours_between(start_at, end_at):
-    if start_at is None or end_at is None:
-        return None
-    if end_at < start_at:
-        return 0.0
-    return (end_at - start_at).total_seconds() / 3600
-
-
-def _build_dashboard_sla_rows(
-    shipments_with_tracking,
+def _dashboard_workflow_blockage_rows(
     *,
+    destination_id: str,
+    workflow_blockage_hours: int,
     tracking_alert_hours: int,
+    queue_processing_timeout_seconds: int,
+    document_scan_timeout_seconds: int,
 ):
-    stage_definitions = (
-        {
-            "label": "Planifie -> OK mise a bord",
-            "start": "planned_at",
-            "end": "boarding_ok_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": "OK mise a bord -> Recu escale",
-            "start": "boarding_ok_at",
-            "end": "received_correspondent_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": "Recu escale -> Livre",
-            "start": "received_correspondent_at",
-            "end": "received_recipient_at",
-            "target_hours": tracking_alert_hours,
-        },
-        {
-            "label": "Planifie -> Livre",
-            "start": "planned_at",
-            "end": "received_recipient_at",
-            "target_hours": tracking_alert_hours * 3,
-        },
+    shipments_qs = Shipment.objects.filter(archived_at__isnull=True)
+    if destination_id:
+        shipments_qs = shipments_qs.filter(destination_id=destination_id)
+    shipments_with_tracking = annotate_shipment_tracking_dates(shipments_qs)
+    base_rows = build_workflow_blockage_rows(
+        shipments_scope=shipments_qs,
+        shipments_with_tracking=shipments_with_tracking,
+        workflow_blockage_hours=workflow_blockage_hours,
+        tracking_alert_hours=tracking_alert_hours,
+        email_queue_processing_timeout_seconds=queue_processing_timeout_seconds,
+        document_scan_processing_timeout_seconds=document_scan_timeout_seconds,
     )
-    rows = list(
-        shipments_with_tracking.values(
-            "planned_at",
-            "boarding_ok_at",
-            "received_correspondent_at",
-            "received_recipient_at",
-        )
-    )
-    sla_rows = []
-    for stage in stage_definitions:
-        durations = []
-        for row in rows:
-            duration_hours = _dashboard_hours_between(row[stage["start"]], row[stage["end"]])
-            if duration_hours is None:
-                continue
-            durations.append(duration_hours)
-        completed_count = len(durations)
-        breach_count = sum(
-            1 for duration_hours in durations if duration_hours > stage["target_hours"]
-        )
-        average_hours = round(sum(durations) / completed_count, 1) if durations else None
-        max_hours = round(max(durations), 1) if durations else None
-        sla_rows.append(
-            {
-                "label": stage["label"],
-                "target_hours": stage["target_hours"],
-                "completed_count": completed_count,
-                "breach_count": breach_count,
-                "average_hours": average_hours,
-                "max_hours": max_hours,
-            }
-        )
-    return sla_rows
+    rows = [
+        {
+            **row,
+            "category_label": DASHBOARD_WORKFLOW_BLOCKAGE_CATEGORY_LABELS[row["category"]],
+            "label": DASHBOARD_WORKFLOW_BLOCKAGE_KIND_LABELS.get(row["kind"], row["label"]),
+            "claim_state_label": DASHBOARD_WORKFLOW_BLOCKAGE_CLAIM_STATE_LABELS[row["claim_state"]],
+            "cta_label": "Ouvrir",
+        }
+        for row in base_rows
+    ]
+    return base_rows, rows
 
 
 def _shipment_payload(shipment):
@@ -749,24 +860,7 @@ class UiDashboardView(APIView):
         shipment_chart_rows, shipments_total = _build_dashboard_shipment_chart_rows(
             status_count_map
         )
-        shipments_with_tracking = shipments_qs.annotate(
-            planned_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.PLANNED),
-            ),
-            boarding_ok_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
-            ),
-            received_correspondent_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT),
-            ),
-            received_recipient_at=Max(
-                "tracking_events__created_at",
-                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT),
-            ),
-        )
+        shipments_with_tracking = annotate_shipment_tracking_dates(shipments_qs)
         week_start = timezone.localdate() - timedelta(days=timezone.localdate().isoweekday() - 1)
         week_end = week_start + timedelta(days=7)
         in_transit_count = (
@@ -809,39 +903,85 @@ class UiDashboardView(APIView):
             }
             for event in timeline_events
         ]
+        sla_alert_base_rows = build_sla_alert_rows(
+            shipments_with_tracking,
+            tracking_alert_hours=tracking_alert_hours,
+        )
+        sla_alert_summary = summarize_sla_alert_rows(sla_alert_base_rows)
+        sla_alert_rows = [
+            {
+                "reference": row["reference"],
+                "label": DASHBOARD_SLA_ACTION_LABELS[row["segment_key"]],
+                "segment": DASHBOARD_SLA_SEGMENT_LABELS[row["segment_key"]],
+                "owner": row["owner"],
+                "severity": row["severity"],
+                "freshness": row["freshness"],
+                "delay_hours": row["delay_hours"],
+                "age_hours": row["age_hours"],
+                "url": reverse("scan:scan_shipment_track", args=[row["tracking_token"]]),
+            }
+            for row in sla_alert_base_rows
+        ]
 
         pending_actions = []
+        for row in sla_alert_base_rows[:3]:
+            pending_actions.append(
+                _build_dashboard_action(
+                    action_type="shipment_sla_alert",
+                    reference=row["reference"],
+                    label=DASHBOARD_SLA_ACTION_LABELS[row["segment_key"]],
+                    priority=row["priority"],
+                    owner=row["owner"],
+                    url=reverse("scan:scan_shipment_track", args=[row["tracking_token"]]),
+                    started_at=row["started_at"],
+                    context={
+                        "shipment_id": row["shipment_id"],
+                        "segment": row["segment_key"],
+                    },
+                )
+            )
         for row in low_stock_rows[:3]:
             pending_actions.append(
-                {
-                    "type": "stock_replenish",
-                    "reference": row["sku"],
-                    "label": f"Reappro {row['name']}",
-                    "priority": "high",
-                    "owner": "magasin",
-                }
+                _build_dashboard_action(
+                    action_type="stock_replenish",
+                    reference=row["sku"],
+                    label=f"Reappro {row['name']}",
+                    priority="high",
+                    owner="magasin",
+                    url=reverse("scan:scan_stock"),
+                    context={"product_id": row["id"]},
+                )
             )
         for shipment in disputed_qs.order_by("-created_at")[:3]:
             pending_actions.append(
-                {
-                    "type": "shipment_dispute",
-                    "reference": shipment.reference or f"EXP-{shipment.id}",
-                    "label": "Resoudre litige",
-                    "priority": "high",
-                    "owner": "qualite",
-                }
+                _build_dashboard_action(
+                    action_type="shipment_dispute",
+                    reference=shipment.reference or f"EXP-{shipment.id}",
+                    label="Resoudre litige",
+                    priority="high",
+                    owner="qualite",
+                    url=reverse("scan:scan_shipments_tracking"),
+                    started_at=shipment.disputed_at or shipment.created_at,
+                    context={
+                        "shipment_id": shipment.id,
+                        "destination_id": shipment.destination_id,
+                    },
+                )
             )
         for order in Order.objects.filter(review_status=OrderReviewStatus.PENDING).order_by(
             "-created_at"
         )[:3]:
             pending_actions.append(
-                {
-                    "type": "order_review",
-                    "reference": order.reference or f"CMD-{order.id}",
-                    "label": "Valider commande",
-                    "priority": "medium",
-                    "owner": "admin",
-                }
+                _build_dashboard_action(
+                    action_type="order_review",
+                    reference=order.reference or f"CMD-{order.id}",
+                    label="Valider commande",
+                    priority="medium",
+                    owner="admin",
+                    url=reverse("scan:scan_orders_view"),
+                    started_at=order.created_at,
+                    context={"order_id": order.id},
+                )
             )
 
         period_shipments_qs = shipments_qs.filter(created_at__gte=period_start)
@@ -1100,6 +1240,17 @@ class UiDashboardView(APIView):
         technical_snapshot = _dashboard_email_queue_snapshot(
             processing_timeout_seconds=queue_processing_timeout_seconds
         )
+        document_scan_timeout_seconds = _dashboard_document_scan_timeout_seconds()
+        document_scan_snapshot = _dashboard_document_scan_queue_snapshot(
+            processing_timeout_seconds=document_scan_timeout_seconds
+        )
+        workflow_blockage_base_rows, workflow_blockage_rows = _dashboard_workflow_blockage_rows(
+            destination_id=destination_id,
+            workflow_blockage_hours=workflow_blockage_hours,
+            tracking_alert_hours=tracking_alert_hours,
+            queue_processing_timeout_seconds=queue_processing_timeout_seconds,
+            document_scan_timeout_seconds=document_scan_timeout_seconds,
+        )
         technical_cards = [
             {
                 "label": "Queue email en attente",
@@ -1131,6 +1282,41 @@ class UiDashboardView(APIView):
                 ),
                 "url": reverse("scan:scan_dashboard"),
                 "tone": ("danger" if technical_snapshot["stale_processing_count"] else "success"),
+            },
+        ]
+        document_scan_cards = [
+            {
+                "label": "Queue scan doc en attente",
+                "value": document_scan_snapshot["pending_count"],
+                "help": "Scans document en file d attente.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "warn" if document_scan_snapshot["pending_count"] else "success",
+            },
+            {
+                "label": "Queue scan doc en traitement",
+                "value": document_scan_snapshot["processing_count"],
+                "help": "Scans document claims en cours.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Queue scan doc en echec",
+                "value": document_scan_snapshot["failed_count"],
+                "help": "Scans document a investiguer ou rejouer.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "danger" if document_scan_snapshot["failed_count"] else "success",
+            },
+            {
+                "label": "Queue scan doc bloquee (timeout)",
+                "value": document_scan_snapshot["stale_processing_count"],
+                "help": (
+                    "Scans document processing au dela du timeout "
+                    f"({document_scan_timeout_seconds}s)."
+                ),
+                "url": reverse("scan:scan_dashboard"),
+                "tone": (
+                    "danger" if document_scan_snapshot["stale_processing_count"] else "success"
+                ),
             },
         ]
         workflow_blockage_snapshot = _dashboard_workflow_blockage_snapshot(
@@ -1183,13 +1369,112 @@ class UiDashboardView(APIView):
                 ),
             },
         ]
-        sla_rows = _build_dashboard_sla_rows(
+        workflow_blockage_summary = summarize_workflow_blockage_rows(workflow_blockage_base_rows)
+        workflow_blockage_summary_cards = [
+            {
+                "label": "Blocages ouverts",
+                "value": workflow_blockage_summary["open_count"],
+                "help": "Total des blocages visibles dans la file.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+                "tone": "danger" if workflow_blockage_summary["open_count"] else "success",
+            },
+            {
+                "label": "Sans prise en charge",
+                "value": workflow_blockage_summary["unclaimed_count"],
+                "help": "Blocages encore sans operateur.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+                "tone": "danger" if workflow_blockage_summary["unclaimed_count"] else "success",
+            },
+            {
+                "label": "Pris en charge",
+                "value": workflow_blockage_summary["claimed_count"],
+                "help": "Blocages deja pris par un operateur.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-workflow-blockages",
+                "tone": "warn" if workflow_blockage_summary["claimed_count"] else "neutral",
+            },
+        ]
+        destination_projection_scope = ShipmentWorkflowProjection.objects.select_related(
+            "destination"
+        ).all()
+        if destination_id:
+            destination_projection_scope = destination_projection_scope.filter(
+                destination_id=destination_id
+            )
+        destination_risk_snapshot = build_destination_risk_snapshot(
+            destination_projection_scope,
+            limit=5,
+        )
+        destination_risk_summary = destination_risk_snapshot["summary"]
+        destination_risk_summary_cards = [
+            {
+                "label": "Destinations critiques",
+                "value": destination_risk_summary["critical_destinations_count"],
+                "help": "Destinations avec au moins une expedition critique.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+                "tone": (
+                    "danger"
+                    if destination_risk_summary["critical_destinations_count"]
+                    else "success"
+                ),
+            },
+            {
+                "label": "Destinations avec litiges",
+                "value": destination_risk_summary["disputed_destinations_count"],
+                "help": "Destinations avec au moins un dossier en litige.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+                "tone": (
+                    "danger"
+                    if destination_risk_summary["disputed_destinations_count"]
+                    else "success"
+                ),
+            },
+            {
+                "label": "Plus ancien dossier ouvert",
+                "value": f"{destination_risk_summary['oldest_open_segment_age_hours']:.1f}h",
+                "help": "Anciennete maximale des dossiers encore ouverts.",
+                "url": f"{reverse('scan:scan_dashboard')}#scan-dashboard-destination-risk",
+                "tone": (
+                    "warn"
+                    if destination_risk_summary["oldest_open_segment_age_hours"]
+                    else "success"
+                ),
+            },
+        ]
+        destination_risk_rows = destination_risk_snapshot["rows"]
+        workflow_pending_actions = []
+        for row in workflow_blockage_rows:
+            if row["is_claimed"]:
+                continue
+            workflow_pending_actions.append(
+                _build_dashboard_action(
+                    action_type=DASHBOARD_WORKFLOW_PENDING_ACTION_TYPES.get(
+                        row["kind"],
+                        "workflow_blockage",
+                    ),
+                    reference=row["reference"],
+                    label=row["label"],
+                    priority=row["priority"],
+                    owner=row["owner"],
+                    url=row["url"],
+                    started_at=row["started_at"],
+                    context={
+                        "blockage_key": row["blockage_key"],
+                        "category": row["category"],
+                    },
+                )
+            )
+            if len(workflow_pending_actions) >= 5:
+                break
+        pending_actions = workflow_pending_actions + pending_actions
+        sla_rows = build_sla_rows(
             shipments_with_tracking.filter(status__in=list(DASHBOARD_SHIPMENT_STATUS_ORDER)[3:]),
             tracking_alert_hours=tracking_alert_hours,
         )
         sla_cards = [
             {
-                "label": f"{row['label']} >{row['target_hours']}h",
+                "label": (
+                    f"{DASHBOARD_SLA_SEGMENT_LABELS[row['segment_key']]} >{row['target_hours']}h"
+                ),
                 "value": f"{row['breach_count']} / {row['completed_count']}",
                 "help": (
                     "Aucune expedition completee sur ce segment."
@@ -1204,6 +1489,29 @@ class UiDashboardView(APIView):
                 ),
             }
             for row in sla_rows
+        ]
+        sla_alert_summary_cards = [
+            {
+                "label": "Nouveaux retards",
+                "value": sla_alert_summary["new_count"],
+                "help": "Retards entre 1x et 2x le seuil de suivi.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "warn" if sla_alert_summary["new_count"] else "success",
+            },
+            {
+                "label": "Retards persistants",
+                "value": sla_alert_summary["persistent_count"],
+                "help": "Retards entre 2x et 3x le seuil de suivi.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger" if sla_alert_summary["persistent_count"] else "success",
+            },
+            {
+                "label": "Retards critiques",
+                "value": sla_alert_summary["critical_count"],
+                "help": "Retards au dela de 3x le seuil de suivi.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger" if sla_alert_summary["critical_count"] else "success",
+            },
         ]
 
         return Response(
@@ -1221,9 +1529,17 @@ class UiDashboardView(APIView):
                 "tracking_cards": tracking_cards,
                 "queue_processing_timeout_seconds": queue_processing_timeout_seconds,
                 "technical_cards": technical_cards,
+                "document_scan_processing_timeout_seconds": document_scan_timeout_seconds,
+                "document_scan_cards": document_scan_cards,
                 "workflow_blockage_hours": workflow_blockage_hours,
                 "workflow_blockage_cards": workflow_blockage_cards,
+                "workflow_blockage_summary_cards": workflow_blockage_summary_cards,
+                "workflow_blockage_rows": workflow_blockage_rows,
+                "destination_risk_summary_cards": destination_risk_summary_cards,
+                "destination_risk_rows": destination_risk_rows,
                 "sla_cards": sla_cards,
+                "sla_alert_summary_cards": sla_alert_summary_cards,
+                "sla_alert_rows": sla_alert_rows,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {
@@ -1243,6 +1559,59 @@ class UiDashboardView(APIView):
                 "updated_at": timezone.now().isoformat(),
             }
         )
+
+
+class UiDashboardWorkflowBlockageClaimView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        action = str(request.data.get("action") or "").strip().lower()
+        blockage_key = str(request.data.get("blockage_key") or "").strip()
+        destination_id = str(request.data.get("destination") or "").strip()
+        if not blockage_key:
+            return api_error("missing_blockage_key", "blockage_key is required.", status=400)
+        if action not in {"claim", "release"}:
+            return api_error("invalid_action", "action must be claim or release.", status=400)
+
+        if action == "release":
+            release_workflow_blockage(blockage_key=blockage_key)
+            return Response(
+                {
+                    "ok": True,
+                    "blockage_key": blockage_key,
+                    "claim_state": "released",
+                }
+            )
+
+        runtime = get_runtime_config()
+        document_scan_timeout_seconds = _dashboard_document_scan_timeout_seconds()
+        base_rows, _rows = _dashboard_workflow_blockage_rows(
+            destination_id=destination_id,
+            workflow_blockage_hours=runtime.workflow_blockage_hours,
+            tracking_alert_hours=runtime.tracking_alert_hours,
+            queue_processing_timeout_seconds=runtime.email_queue_processing_timeout_seconds,
+            document_scan_timeout_seconds=document_scan_timeout_seconds,
+        )
+        row = workflow_blockage_row_by_key(base_rows, blockage_key)
+        if row is None:
+            return api_error("unknown_blockage", "Workflow blockage not found.", status=404)
+        claim_workflow_blockage(row=row, user=request.user)
+        return Response(
+            {
+                "ok": True,
+                "blockage_key": blockage_key,
+                "claim_state": "claimed",
+            }
+        )
+
+
+class UiPilotageView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        payload = build_scan_pilotage_payload()
+        payload["updated_at"] = timezone.now().isoformat()
+        return Response(payload)
 
 
 class UiStockView(APIView):
@@ -2817,21 +3186,12 @@ class UiPortalDashboardView(APIView):
 
     def get(self, request):
         profile = get_association_profile(request.user)
-        orders_qs = (
+        orders = list(
             Order.objects.filter(association_contact=profile.contact)
             .select_related("shipment")
             .order_by("-created_at")
         )
-        kpis = {
-            "orders_total": orders_qs.count(),
-            "orders_pending_review": orders_qs.filter(
-                review_status=OrderReviewStatus.PENDING
-            ).count(),
-            "orders_changes_requested": orders_qs.filter(
-                review_status=OrderReviewStatus.CHANGES_REQUESTED
-            ).count(),
-            "orders_with_shipment": orders_qs.filter(shipment__isnull=False).count(),
-        }
+        kpis = build_portal_dashboard_kpis(orders)
         rows = [
             {
                 "id": order.id,
@@ -2840,6 +3200,8 @@ class UiPortalDashboardView(APIView):
                 "review_status_label": order.get_review_status_display(),
                 "shipment_id": order.shipment_id,
                 "shipment_reference": (order.shipment.reference if order.shipment_id else ""),
+                "next_step_label": portal_order_next_step_label(order),
+                "next_step_tone": portal_order_next_step_tone(order),
                 "requested_delivery_date": (
                     order.requested_delivery_date.isoformat()
                     if order.requested_delivery_date
@@ -2847,6 +3209,6 @@ class UiPortalDashboardView(APIView):
                 ),
                 "created_at": order.created_at.isoformat(),
             }
-            for order in orders_qs[:12]
+            for order in orders[:12]
         ]
         return Response({"kpis": kpis, "orders": rows})

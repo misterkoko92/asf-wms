@@ -119,6 +119,19 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'data-table-tools="1"')
         self.assertContains(response, "btn btn-tertiary btn-sm")
 
+    def test_portal_dashboard_renders_kpi_cards(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Commandes en attente")
+        self.assertContains(response, "Corrections demandées")
+        self.assertContains(response, "Expéditions en cours")
+
+    def test_portal_dashboard_renders_next_step_guidance_per_order(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Étape suivante")
+        self.assertContains(response, "Attendre la validation ASF")
+
     def test_portal_pages_apply_status_badge_levels(self):
         shipment = Shipment.objects.create(
             shipper_name="ASF",

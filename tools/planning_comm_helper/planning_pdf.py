@@ -3,7 +3,7 @@ from __future__ import annotations
 import platform
 from pathlib import Path
 
-from tools.planning_comm_helper import excel_pdf
+from tools.planning_comm_helper import excel_pdf, excel_runtime
 
 
 class PlanningPdfConversionError(excel_pdf.ExcelPdfConversionError):
@@ -23,6 +23,11 @@ def convert_workbook_to_pdf(
     output_path = (
         Path(pdf_path).expanduser().resolve() if pdf_path else workbook.with_suffix(".pdf")
     )
+    runtime_status = excel_runtime.get_excel_runtime_status()
+    if not runtime_status["available"]:
+        raise PlanningPdfConversionError(
+            excel_runtime.build_runtime_unavailable_message(runtime_status)
+        )
     system = platform.system()
     if system == "Windows":
         return _convert_with_windows_excel(workbook, output_path, strict=strict)
@@ -32,11 +37,17 @@ def convert_workbook_to_pdf(
 
 
 def _convert_with_windows_excel(workbook_path: Path, pdf_path: Path, *, strict: bool = True) -> Path:
-    return excel_pdf._convert_with_windows_excel(workbook_path, pdf_path, strict=strict)
+    try:
+        return excel_pdf._convert_with_windows_excel(workbook_path, pdf_path, strict=strict)
+    except excel_pdf.ExcelPdfConversionError as exc:
+        raise PlanningPdfConversionError(str(exc)) from exc
 
 
 def _convert_with_macos_excel(workbook_path: Path, pdf_path: Path, *, strict: bool = True) -> Path:
-    return excel_pdf._convert_with_macos_excel(workbook_path, pdf_path, strict=strict)
+    try:
+        return excel_pdf._convert_with_macos_excel(workbook_path, pdf_path, strict=strict)
+    except excel_pdf.ExcelPdfConversionError as exc:
+        raise PlanningPdfConversionError(str(exc)) from exc
 
 
 def _applescript_escape(value: str) -> str:

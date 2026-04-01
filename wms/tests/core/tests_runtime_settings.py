@@ -26,6 +26,8 @@ class RuntimeSettingsTests(TestCase):
         self.assertEqual(config.email_queue_retry_base_seconds, 15)
         self.assertEqual(config.email_queue_retry_max_seconds, 15)
         self.assertEqual(config.email_queue_processing_timeout_seconds, 900)
+        self.assertEqual(config.pilotage_planning_tension_pct, 80)
+        self.assertEqual(config.pilotage_planning_critical_pct, 95)
         self.assertFalse(config.enable_shipment_track_legacy)
 
     def test_get_runtime_config_clamps_invalid_persisted_values(self):
@@ -35,6 +37,11 @@ class RuntimeSettingsTests(TestCase):
             tracking_alert_hours=0,
             workflow_blockage_hours=0,
             stale_drafts_age_days=0,
+            pilotage_dispute_unassigned_hours=0,
+            pilotage_workflow_blockage_unclaimed_hours=0,
+            pilotage_queue_backlog_threshold=0,
+            pilotage_planning_tension_pct=0,
+            pilotage_planning_critical_pct=0,
             email_queue_max_attempts=0,
             email_queue_retry_base_seconds=120,
             email_queue_retry_max_seconds=60,
@@ -48,6 +55,11 @@ class RuntimeSettingsTests(TestCase):
         self.assertEqual(config.tracking_alert_hours, 1)
         self.assertEqual(config.workflow_blockage_hours, 1)
         self.assertEqual(config.stale_drafts_age_days, 1)
+        self.assertEqual(config.pilotage_dispute_unassigned_hours, 1)
+        self.assertEqual(config.pilotage_workflow_blockage_unclaimed_hours, 1)
+        self.assertEqual(config.pilotage_queue_backlog_threshold, 1)
+        self.assertEqual(config.pilotage_planning_tension_pct, 1)
+        self.assertEqual(config.pilotage_planning_critical_pct, 1)
         self.assertEqual(config.email_queue_max_attempts, 1)
         self.assertEqual(config.email_queue_retry_base_seconds, 120)
         self.assertEqual(config.email_queue_retry_max_seconds, 120)

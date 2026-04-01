@@ -13,6 +13,7 @@ from wms.models import (
     PlanningArtifact,
     PlanningAssignment,
     PlanningAssignmentSource,
+    PlanningCommunicationArtifact,
     PlanningFlightSnapshot,
     PlanningRun,
     PlanningShipmentSnapshot,
@@ -20,8 +21,9 @@ from wms.models import (
     PlanningVersionStatus,
     PlanningVolunteerSnapshot,
 )
+from wms.planning.artifact_health import artifact_file_name
 from wms.planning.communications import generate_version_drafts
-from wms.planning.exports import export_version_workbook
+from wms.planning.exports import PlanningExportError, export_version_pdf, export_version_workbook
 from wms.planning.legacy_communications import CommunicationFamily
 from wms.planning.stats import build_version_stats
 
@@ -41,8 +43,16 @@ class PlanningOutputTests(TestCase):
         self.shipment_snapshot = PlanningShipmentSnapshot.objects.create(
             run=self.run,
             shipment_reference="SHP-001",
+            shipper_name="Hopital Saint Joseph",
+            destination_iata="NSI",
             carton_count=4,
             equivalent_units=4,
+            payload={
+                "destination_city": "YAOUNDE",
+                "legacy_type": "MM",
+                "legacy_destinataire": "Centre Medical",
+                "legacy_date_depart_mag": "2026-03-08",
+            },
         )
         self.volunteer_snapshot = PlanningVolunteerSnapshot.objects.create(
             run=self.run,
@@ -53,6 +63,7 @@ class PlanningOutputTests(TestCase):
             flight_number="AF123",
             departure_date="2026-03-10",
             destination_iata="CDG",
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
         )
         self.template = CommunicationTemplate.objects.create(
             label="Mail planning",
@@ -103,14 +114,14 @@ class PlanningOutputTests(TestCase):
         )
         return version
 
-    def test_generate_drafts_and_excel_artifact_for_version(self):
+    def test_generate_drafts_and_strict_workbook_artifact_for_version(self):
         version = self.make_published_version()
 
         drafts = generate_version_drafts(version)
         artifact = export_version_workbook(version)
         stats = build_version_stats(version)
 
-        self.assertEqual(len(drafts), 3)
+        self.assertEqual(len(drafts), 6)
         draft = CommunicationDraft.objects.get(
             version=version,
             family=CommunicationFamily.EMAIL_ASF,
@@ -124,39 +135,25 @@ class PlanningOutputTests(TestCase):
         self.assertTrue(Path(artifact.file_path).exists())
         workbook = load_workbook(artifact.file_path)
         try:
-            sheet = workbook["Planning"]
-            self.assertEqual(
-                [cell.value for cell in sheet[1]],
-                [
-                    "Date",
-                    "Flight",
-                    "Destination",
-                    "DepartureTime",
-                    "Volunteer",
-                    "Shipment",
-                    "Shipper",
-                    "Cartons",
-                    "Status",
-                    "Source",
-                    "Notes",
-                ],
-            )
-            self.assertEqual(
-                [cell.value for cell in sheet[2]],
-                [
-                    "2026-03-10",
-                    "AF123",
-                    "CDG",
-                    None,
-                    "Alice",
-                    "SHP-001",
-                    None,
-                    4,
-                    "proposed",
-                    "manual",
-                    None,
-                ],
-            )
+            sheet = workbook.worksheets[0]
+            week_anchor = sheet["A1"].value
+            if hasattr(week_anchor, "date"):
+                week_anchor = week_anchor.date()
+            self.assertEqual(week_anchor, date(2026, 3, 9))
+            self.assertEqual(sheet["Q1"].value, version.number)
+            self.assertEqual(sheet["D35"].value, "Alice")
+            self.assertEqual(sheet["F35"].value, "YAOUNDE")
+            self.assertEqual(sheet["G35"].value, "NSI")
+            self.assertEqual(sheet["H35"].value, "CDG-NSI")
+            self.assertEqual(sheet["I35"].value, "AF 123")
+            self.assertEqual(sheet["J35"].value, "11h10")
+            self.assertEqual(sheet["K35"].value, "000001")
+            self.assertEqual(sheet["L35"].value, 4)
+            self.assertEqual(sheet["M35"].value, "MM")
+            self.assertEqual(sheet["O35"].value, "08/03/26")
+            self.assertEqual(sheet["P35"].value, "Hopital Saint Joseph")
+            self.assertEqual(sheet["Q35"].value, "Centre Medical")
+            self.assertTrue(sheet.row_dimensions[38].hidden)
         finally:
             workbook.close()
 
@@ -170,7 +167,7 @@ class PlanningOutputTests(TestCase):
             stats["destination_breakdown"],
             [
                 {
-                    "destination_iata": "CDG",
+                    "destination_iata": "NSI",
                     "assignment_count": 1,
                     "carton_total": 4,
                     "equivalent_total": 4,
@@ -195,28 +192,140 @@ class PlanningOutputTests(TestCase):
                     "flight_snapshot_id": self.flight_snapshot.pk,
                     "flight_number": "AF123",
                     "departure_date": date(2026, 3, 10),
-                    "departure_time": "",
+                    "departure_time": "11:10",
                     "destination_iata": "CDG",
                     "capacity_units": None,
                     "assignment_count": 1,
                     "carton_total": 4,
                     "equivalent_total": 4,
+                    "remaining_units": None,
+                    "utilization_pct": None,
+                    "load_state": "unknown",
+                    "load_state_label": "A renseigner",
                 }
             ],
         )
 
-    @mock.patch("wms.planning.exports.Workbook")
-    def test_export_version_workbook_closes_workbook_after_save(self, workbook_cls):
+    def test_artifact_file_name_returns_empty_string_for_missing_path(self):
+        self.assertEqual(artifact_file_name(None), "")
+
+    @mock.patch("wms.planning.exports.load_workbook")
+    def test_export_version_workbook_closes_workbook_after_save(self, load_workbook_mock):
         version = self.make_published_version()
         workbook = mock.MagicMock()
-        sheet = mock.MagicMock()
-        workbook.active = sheet
-        workbook_cls.return_value = workbook
+        worksheet = mock.MagicMock()
+        worksheet.max_row = 219
+        worksheet.iter_rows.return_value = []
+        workbook.worksheets = [worksheet]
+        workbook.sheetnames = ["Planning SXX"]
+        workbook.__getitem__.return_value = worksheet
+        load_workbook_mock.return_value = workbook
 
         export_version_workbook(version)
 
         workbook.save.assert_called_once()
         workbook.close.assert_called_once_with()
+
+    @mock.patch(
+        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": "ready",
+            "available": True,
+            "detail": "",
+        },
+    )
+    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    def test_export_version_pdf_creates_pdf_artifact(
+        self,
+        convert_workbook_to_pdf_mock,
+        _runtime_status_mock,
+    ):
+        version = self.make_published_version()
+
+        def _fake_convert(workbook_path, pdf_path=None, *, strict=True):
+            pdf_output = Path(pdf_path or Path(workbook_path).with_suffix(".pdf"))
+            pdf_output.write_bytes(b"%PDF-1.4\n%")
+            return pdf_output
+
+        convert_workbook_to_pdf_mock.side_effect = _fake_convert
+
+        artifact = export_version_pdf(version)
+
+        self.assertIsInstance(artifact, PlanningArtifact)
+        self.assertEqual(artifact.artifact_type, "planning_pdf")
+        self.assertTrue(artifact.file_path.endswith(".pdf"))
+        self.assertTrue(Path(artifact.file_path).exists())
+
+    @mock.patch(
+        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": "ready",
+            "available": True,
+            "detail": "",
+        },
+    )
+    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    def test_planning_export_records_pdf_artifact_health(
+        self,
+        convert_workbook_to_pdf_mock,
+        _runtime_status_mock,
+    ):
+        version = self.make_published_version()
+
+        def _fake_convert(workbook_path, pdf_path=None, *, strict=True):
+            pdf_output = Path(pdf_path or Path(workbook_path).with_suffix(".pdf"))
+            pdf_output.write_bytes(b"%PDF-1.4\n%")
+            return pdf_output
+
+        convert_workbook_to_pdf_mock.side_effect = _fake_convert
+
+        artifact = export_version_pdf(version)
+
+        self.assertEqual(artifact.artifact_type, "planning_pdf")
+        health = PlanningCommunicationArtifact.objects.filter(
+            planning_version=version,
+            output_type="planning_pdf",
+        ).latest("generated_at")
+        self.assertEqual(health.status, "ready")
+        self.assertEqual(health.output_type, "planning_pdf")
+        self.assertTrue(health.file_name.endswith(".pdf"))
+
+    @mock.patch(
+        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": "excel_not_installed",
+            "available": False,
+            "detail": "Microsoft Excel is not installed.",
+        },
+    )
+    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    def test_planning_export_records_runtime_failure_code_when_excel_is_unavailable(
+        self,
+        convert_workbook_to_pdf_mock,
+        _runtime_status_mock,
+    ):
+        version = self.make_published_version()
+
+        with self.assertRaises(PlanningExportError):
+            export_version_pdf(version)
+
+        convert_workbook_to_pdf_mock.assert_not_called()
+        workbook_health = PlanningCommunicationArtifact.objects.filter(
+            planning_version=version,
+            output_type="planning_workbook",
+        ).latest("generated_at")
+        pdf_health = PlanningCommunicationArtifact.objects.filter(
+            planning_version=version,
+            output_type="planning_pdf",
+        ).latest("generated_at")
+        self.assertEqual(workbook_health.status, "ready")
+        self.assertEqual(pdf_health.status, "failed")
+        self.assertEqual(pdf_health.payload["error_code"], "excel_not_installed")
+        self.assertEqual(pdf_health.payload["runtime_status"], "excel_not_installed")
+        self.assertEqual(pdf_health.payload["runtime_detail"], "Microsoft Excel is not installed.")
 
     def test_generate_drafts_aggregates_multiple_assignments_for_same_recipient(self):
         second_shipment = PlanningShipmentSnapshot.objects.create(
@@ -244,7 +353,7 @@ class PlanningOutputTests(TestCase):
 
         drafts = generate_version_drafts(version)
 
-        self.assertEqual(len(drafts), 3)
+        self.assertEqual(len(drafts), 6)
         whatsapp_draft = next(
             draft for draft in drafts if draft.family == CommunicationFamily.WHATSAPP_BENEVOLE
         )
@@ -267,7 +376,7 @@ class PlanningOutputTests(TestCase):
 
         drafts_v2 = generate_version_drafts(version_2)
 
-        self.assertEqual(len(drafts_v2), 3)
+        self.assertEqual(len(drafts_v2), 6)
         whatsapp_draft = next(
             draft for draft in drafts_v2 if draft.family == CommunicationFamily.WHATSAPP_BENEVOLE
         )
@@ -286,7 +395,7 @@ class PlanningOutputTests(TestCase):
 
         drafts = generate_version_drafts(version)
 
-        self.assertEqual(len(drafts), 3)
+        self.assertEqual(len(drafts), 6)
         self.assertEqual(
             sorted(draft.template_id for draft in drafts if draft.template_id),
             sorted([self.template.pk, second_template.pk]),
@@ -315,8 +424,8 @@ class PlanningOutputTests(TestCase):
         drafts_v1 = generate_version_drafts(version_1)
         drafts_v2 = generate_version_drafts(version_2)
 
-        self.assertEqual(len(drafts_v1), 3)
-        self.assertEqual(len(drafts_v2), 4)
+        self.assertEqual(len(drafts_v1), 6)
+        self.assertEqual(len(drafts_v2), 7)
         self.assertEqual(
             sorted(
                 CommunicationDraft.objects.filter(version=version_2).values_list(
@@ -328,6 +437,9 @@ class PlanningOutputTests(TestCase):
                 [
                     (CommunicationFamily.EMAIL_AIRFRANCE, "Air France"),
                     (CommunicationFamily.EMAIL_ASF, "ASF interne"),
+                    (CommunicationFamily.EMAIL_CORRESPONDANT, "YAOUNDE"),
+                    (CommunicationFamily.EMAIL_DESTINATAIRE, "Centre Medical"),
+                    (CommunicationFamily.EMAIL_EXPEDITEUR, "Hopital Saint Joseph"),
                     (CommunicationFamily.WHATSAPP_BENEVOLE, "Alice"),
                     (CommunicationFamily.WHATSAPP_BENEVOLE, "Bob"),
                 ]

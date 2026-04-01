@@ -82,6 +82,178 @@
     </div>
   </section>
 
+  <section id="scan-dashboard-action-queue" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "À traiter maintenant" %}</h2>
+        <p class="scan-help mb-0">{% trans "Passez des signaux agrégés aux dossiers concrets à débloquer." %}</p>
+      </div>
+      {% if action_queue_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Action" %}</th>
+                <th>{% trans "Référence" %}</th>
+                <th>Owner</th>
+                <th>{% trans "Priorité" %}</th>
+                <th>{% trans "Âge" %}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in action_queue_rows %}
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.owner }}</td>
+                  <td>{{ row.priority }}</td>
+                  <td>{{ row.age_hours|floatformat:1 }}h</td>
+                  <td class="text-end">
+                    <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">{% trans "Aucune action transverse immédiate." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="scan-dashboard-workflow-blockages" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Blocages workflow" %}</h2>
+        <p class="scan-help mb-0">{% trans "Prenez en charge les blocages majeurs puis ouvrez directement le bon dossier." %}</p>
+      </div>
+      <div class="scan-kpi-grid">
+        {% for card in workflow_blockage_summary_cards %}
+          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+            <span class="scan-kpi-label">{{ card.label }}</span>
+            <span class="scan-kpi-value">{{ card.value }}</span>
+            <span class="scan-kpi-help">{{ card.help }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      {% if workflow_blockage_rows %}
+        <div class="scan-table-wrap table-responsive mt-3">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Catégorie" %}</th>
+                <th>{% trans "Action" %}</th>
+                <th>{% trans "Référence" %}</th>
+                <th>Owner</th>
+                <th>{% trans "Priorité" %}</th>
+                <th>{% trans "Âge" %}</th>
+                <th>{% trans "Prise en charge" %}</th>
+                <th></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in workflow_blockage_rows %}
+                <tr>
+                  <td>{{ row.category_label }}</td>
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.owner }}</td>
+                  <td>{{ row.priority }}</td>
+                  <td>{{ row.age_hours|floatformat:1 }}h</td>
+                  <td>
+                    {{ row.claim_state_label }}
+                    {% if row.is_claimed and row.claimed_by %}
+                      <br><span class="scan-help">{{ row.claimed_by }}{% if row.claimed_at %} · {{ row.claimed_at|date:"d/m H:i" }}{% endif %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a>
+                  </td>
+                  <td class="text-end">
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="blockage_key" value="{{ row.blockage_key }}">
+                      {% if row.is_claimed %}
+                        <button type="submit" name="action" value="release_workflow_blockage" class="btn btn-outline-secondary btn-sm">
+                          {% trans "Libérer" %}
+                        </button>
+                      {% else %}
+                        <button type="submit" name="action" value="claim_workflow_blockage" class="btn btn-primary btn-sm">
+                          {% trans "Prendre" %}
+                        </button>
+                      {% endif %}
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">{% trans "Aucun blocage workflow actif." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="scan-dashboard-destination-risk" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">{% trans "Destinations à risque" %}</h2>
+        <p class="scan-help mb-0">{% trans "Repérez les escales qui concentrent les retards et les litiges avant d'ouvrir la file dossier." %}</p>
+      </div>
+      <div class="scan-kpi-grid">
+        {% for card in destination_risk_summary_cards %}
+          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+            <span class="scan-kpi-label">{{ card.label }}</span>
+            <span class="scan-kpi-value">{{ card.value }}</span>
+            <span class="scan-kpi-help">{{ card.help }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      {% if destination_risk_rows %}
+        <div class="scan-table-wrap table-responsive mt-3">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Destination" %}</th>
+                <th>{% trans "Retards" %}</th>
+                <th>{% trans "Litiges ouverts" %}</th>
+                <th>{% trans "Semaine" %}</th>
+                <th>{% trans "S-1" %}</th>
+                <th>{% trans "Tendance" %}</th>
+                <th>{% trans "Blocage dominant" %}</th>
+                <th>{% trans "Plus ancien dossier ouvert" %}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in destination_risk_rows %}
+                <tr>
+                  <td>{{ row.destination_label }}</td>
+                  <td>{{ row.delayed_shipment_count }}</td>
+                  <td>{{ row.open_dispute_count }}</td>
+                  <td>{{ row.current_week_label }} · {{ row.current_week_score }}</td>
+                  <td>{{ row.previous_week_label }} · {{ row.previous_week_score }}</td>
+                  <td>{{ row.trend_label }}</td>
+                  <td>{{ row.top_blockage_category }}</td>
+                  <td>{{ row.oldest_open_segment_age_hours|floatformat:1 }}h</td>
+                  <td class="text-end">
+                    <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">{% trans "Aucune destination à risque visible." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
   <section id="scan-dashboard-pilotage" class="scan-dashboard-section">
     <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
       <div class="scan-dashboard-section-header">
@@ -89,6 +261,25 @@
         <p class="scan-help mb-0">{% trans "Lisez les volumes de la période puis descendez dans le détail." %}</p>
       </div>
       <div class="scan-dashboard-pilotage-grid">
+        <div class="ui-comp-panel">
+          <div class="scan-dashboard-subsection-header">
+            <h3 class="h5 ui-comp-title mb-1">{% trans "Seuils actifs" %}</h3>
+            <p class="scan-help mb-0">{% blocktrans with preset=pilotage_threshold_context.active_preset_label %}Preset actif: {{ preset }}.{% endblocktrans %}</p>
+          </div>
+          <div class="scan-kpi-grid">
+            {% for row in pilotage_threshold_context.threshold_rows %}
+              <div class="scan-kpi-card">
+                <span class="scan-kpi-label">{{ row.label }}</span>
+                <span class="scan-kpi-value">{{ row.value }}</span>
+              </div>
+            {% endfor %}
+          </div>
+          <ul class="scan-help mt-3 mb-0">
+            {% for row in pilotage_threshold_context.impact_rows %}
+              <li>{{ row.label }}: {{ row.value }}</li>
+            {% endfor %}
+          </ul>
+        </div>
         <div id="scan-dashboard-kpi-panel" class="ui-comp-panel">
           <h2>{% trans "KPI" %}</h2>
           <div class="scan-kpi-grid">
@@ -169,7 +360,7 @@
     <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
       <div class="scan-dashboard-section-header">
         <h2 class="ui-comp-title mb-1">{% trans "Santé système" %}</h2>
-        <p class="scan-help mb-0">{% trans "Surveillez la queue email et les délais de suivi sans prendre le dessus sur l’opérationnel." %}</p>
+        <p class="scan-help mb-0">{% trans "Surveillez les queues email et scan documentaire sans prendre le dessus sur l’opérationnel." %}</p>
       </div>
       <div class="scan-dashboard-health-grid">
         {% for section in system_health_sections %}
@@ -189,6 +380,59 @@
                 </a>
               {% endfor %}
             </div>
+            {% if section.id == "scan-dashboard-sla" %}
+              <div class="scan-dashboard-subsection-header mt-4">
+                <h4 class="h6 ui-comp-title mb-1">{% trans "Alertes SLA" %}</h4>
+                <p class="scan-help mb-0">{% trans "Passez des retards agrégés aux dossiers concrets à relancer." %}</p>
+              </div>
+              <div class="scan-kpi-grid mt-3">
+                {% for card in sla_alert_summary_cards %}
+                  <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+                    <span class="scan-kpi-label">{{ card.label }}</span>
+                    <span class="scan-kpi-value">{{ card.value }}</span>
+                    <span class="scan-kpi-help">{{ card.help }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+              {% if sla_alert_rows %}
+                <div class="scan-table-wrap table-responsive mt-3">
+                  <table class="scan-table table table-sm table-hover">
+                    <thead>
+                      <tr>
+                        <th>{% trans "Action" %}</th>
+                        <th>{% trans "Référence" %}</th>
+                        <th>{% trans "Segment" %}</th>
+                        <th>Owner</th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Criticité" %}</th>
+                        <th>{% trans "Retard" %}</th>
+                        <th>{% trans "Âge" %}</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in sla_alert_rows %}
+                        <tr>
+                          <td>{{ row.label }}</td>
+                          <td>{{ row.reference }}</td>
+                          <td>{{ row.segment }}</td>
+                          <td>{{ row.owner }}</td>
+                          <td>{{ row.freshness_label }}</td>
+                          <td>{{ row.severity_label }}</td>
+                          <td>{{ row.delay_hours|floatformat:1 }}h</td>
+                          <td>{{ row.age_hours|floatformat:1 }}h</td>
+                          <td class="text-end">
+                            <a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{% trans "Ouvrir le dossier" %}</a>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="scan-help mt-3 mb-0">{% trans "Aucune alerte SLA ouverte au-dessus du seuil courant." %}</p>
+              {% endif %}
+            {% endif %}
           </div>
         {% endfor %}
       </div>

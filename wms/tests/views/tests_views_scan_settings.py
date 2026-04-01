@@ -11,6 +11,8 @@ from wms.models import (
     IntegrationStatus,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
     WmsRuntimeSettings,
     WmsRuntimeSettingsAudit,
 )
@@ -36,6 +38,19 @@ class ScanSettingsViewTests(TestCase):
             "tracking_alert_hours": runtime.tracking_alert_hours,
             "workflow_blockage_hours": runtime.workflow_blockage_hours,
             "stale_drafts_age_days": runtime.stale_drafts_age_days,
+            "pilotage_dispute_unassigned_hours": getattr(
+                runtime, "pilotage_dispute_unassigned_hours", 12
+            ),
+            "pilotage_workflow_blockage_unclaimed_hours": getattr(
+                runtime, "pilotage_workflow_blockage_unclaimed_hours", 12
+            ),
+            "pilotage_queue_backlog_threshold": getattr(
+                runtime, "pilotage_queue_backlog_threshold", 3
+            ),
+            "pilotage_planning_tension_pct": getattr(runtime, "pilotage_planning_tension_pct", 80),
+            "pilotage_planning_critical_pct": getattr(
+                runtime, "pilotage_planning_critical_pct", 95
+            ),
             "email_queue_max_attempts": runtime.email_queue_max_attempts,
             "email_queue_retry_base_seconds": runtime.email_queue_retry_base_seconds,
             "email_queue_retry_max_seconds": runtime.email_queue_retry_max_seconds,
@@ -45,6 +60,31 @@ class ScanSettingsViewTests(TestCase):
         }
         data.update(overrides)
         return data
+
+    def _create_tracking_alert_shipment(
+        self, *, reference, shipment_status, tracking_status, hours_ago
+    ):
+        shipment = Shipment.objects.create(
+            reference=reference,
+            status=shipment_status,
+            shipper_name="Shipper SLA",
+            recipient_name="Recipient SLA",
+            destination_address="1 Rue SLA",
+            destination_country="France",
+            created_by=self.superuser,
+        )
+        event = ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=tracking_status,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="",
+            created_by=self.superuser,
+        )
+        ShipmentTrackingEvent.objects.filter(pk=event.pk).update(
+            created_at=timezone.now() - timedelta(hours=hours_ago)
+        )
+        return shipment
 
     def test_scan_settings_requires_superuser(self):
         self.client.force_login(self.staff_user)
@@ -69,6 +109,11 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours",
                 "workflow_blockage_hours",
                 "stale_drafts_age_days",
+                "pilotage_dispute_unassigned_hours",
+                "pilotage_workflow_blockage_unclaimed_hours",
+                "pilotage_queue_backlog_threshold",
+                "pilotage_planning_tension_pct",
+                "pilotage_planning_critical_pct",
                 "email_queue_max_attempts",
                 "email_queue_retry_base_seconds",
                 "email_queue_retry_max_seconds",
@@ -95,6 +140,11 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours": 36,
                 "workflow_blockage_hours": 84,
                 "stale_drafts_age_days": 20,
+                "pilotage_dispute_unassigned_hours": 10,
+                "pilotage_workflow_blockage_unclaimed_hours": 11,
+                "pilotage_queue_backlog_threshold": 4,
+                "pilotage_planning_tension_pct": 78,
+                "pilotage_planning_critical_pct": 92,
                 "email_queue_max_attempts": 9,
                 "email_queue_retry_base_seconds": 45,
                 "email_queue_retry_max_seconds": 600,
@@ -110,6 +160,11 @@ class ScanSettingsViewTests(TestCase):
         self.assertEqual(runtime_settings.tracking_alert_hours, 36)
         self.assertEqual(runtime_settings.workflow_blockage_hours, 84)
         self.assertEqual(runtime_settings.stale_drafts_age_days, 20)
+        self.assertEqual(runtime_settings.pilotage_dispute_unassigned_hours, 10)
+        self.assertEqual(runtime_settings.pilotage_workflow_blockage_unclaimed_hours, 11)
+        self.assertEqual(runtime_settings.pilotage_queue_backlog_threshold, 4)
+        self.assertEqual(runtime_settings.pilotage_planning_tension_pct, 78)
+        self.assertEqual(runtime_settings.pilotage_planning_critical_pct, 92)
         self.assertEqual(runtime_settings.email_queue_max_attempts, 9)
         self.assertEqual(runtime_settings.email_queue_retry_base_seconds, 45)
         self.assertEqual(runtime_settings.email_queue_retry_max_seconds, 600)
@@ -126,6 +181,11 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours": 36,
                 "workflow_blockage_hours": 84,
                 "stale_drafts_age_days": 20,
+                "pilotage_dispute_unassigned_hours": 12,
+                "pilotage_workflow_blockage_unclaimed_hours": 12,
+                "pilotage_queue_backlog_threshold": 3,
+                "pilotage_planning_tension_pct": 80,
+                "pilotage_planning_critical_pct": 95,
                 "email_queue_max_attempts": 9,
                 "email_queue_retry_base_seconds": 600,
                 "email_queue_retry_max_seconds": 45,
@@ -146,6 +206,11 @@ class ScanSettingsViewTests(TestCase):
                 "tracking_alert_hours": 0,
                 "workflow_blockage_hours": 0,
                 "stale_drafts_age_days": 0,
+                "pilotage_dispute_unassigned_hours": 0,
+                "pilotage_workflow_blockage_unclaimed_hours": 0,
+                "pilotage_queue_backlog_threshold": 0,
+                "pilotage_planning_tension_pct": 0,
+                "pilotage_planning_critical_pct": 0,
                 "email_queue_max_attempts": 0,
                 "email_queue_retry_base_seconds": 0,
                 "email_queue_retry_max_seconds": 0,
@@ -160,12 +225,25 @@ class ScanSettingsViewTests(TestCase):
             "tracking_alert_hours",
             "workflow_blockage_hours",
             "stale_drafts_age_days",
+            "pilotage_dispute_unassigned_hours",
+            "pilotage_workflow_blockage_unclaimed_hours",
+            "pilotage_queue_backlog_threshold",
+            "pilotage_planning_tension_pct",
+            "pilotage_planning_critical_pct",
             "email_queue_max_attempts",
             "email_queue_retry_base_seconds",
             "email_queue_retry_max_seconds",
             "email_queue_processing_timeout_seconds",
         ):
             self.assertIn(field_name, response.context["form"].errors)
+
+    def test_scan_settings_exposes_pilotage_presets(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pilotage tendu")
 
     def test_scan_settings_requires_change_note_when_values_change(self):
         self.client.force_login(self.superuser)
@@ -207,6 +285,63 @@ class ScanSettingsViewTests(TestCase):
             120,
         )
 
+    def test_scan_settings_apply_incident_sla_preset_prefills_thresholds_and_preview_counts(self):
+        self._create_tracking_alert_shipment(
+            reference="EXP-SLA-NEW",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=80,
+        )
+        self._create_tracking_alert_shipment(
+            reference="EXP-SLA-PERSISTENT",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=120,
+        )
+        self._create_tracking_alert_shipment(
+            reference="EXP-SLA-CRITICAL",
+            shipment_status=ShipmentStatus.PLANNED,
+            tracking_status=ShipmentTrackingStatus.PLANNED,
+            hours_ago=180,
+        )
+
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            {"action": "apply_preset", "preset": "incident_sla"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_preset"], "incident_sla")
+        self.assertEqual(response.context["preview"]["preset_label"], "Incident SLA")
+        self.assertEqual(response.context["form"].initial["tracking_alert_hours"], 48)
+        self.assertEqual(response.context["form"].initial["workflow_blockage_hours"], 48)
+        self.assertEqual(response.context["preview"]["sla_new_delay_count"], 1)
+        self.assertEqual(response.context["preview"]["sla_persistent_delay_count"], 1)
+        self.assertEqual(response.context["preview"]["sla_critical_delay_count"], 1)
+
+    def test_scan_settings_apply_pilotage_tendu_preset_prefills_planning_thresholds(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            {"action": "apply_preset", "preset": "pilotage_tendu"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_preset"], "pilotage_tendu")
+        self.assertEqual(response.context["preview"]["preset_label"], "Pilotage tendu")
+        self.assertEqual(response.context["form"].initial["tracking_alert_hours"], 24)
+        self.assertEqual(response.context["form"].initial["pilotage_planning_tension_pct"], 75)
+        self.assertEqual(response.context["form"].initial["pilotage_planning_critical_pct"], 90)
+
+    def test_scan_settings_preview_exposes_ops_escalation_counts(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("scan:scan_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Escalades pilotage")
+
     def test_scan_settings_save_creates_runtime_audit_entry(self):
         self.client.force_login(self.superuser)
         response = self.client.post(
@@ -238,6 +373,11 @@ class ScanSettingsEndToEndTests(TestCase):
             "tracking_alert_hours": 72,
             "workflow_blockage_hours": 72,
             "stale_drafts_age_days": 30,
+            "pilotage_dispute_unassigned_hours": 12,
+            "pilotage_workflow_blockage_unclaimed_hours": 12,
+            "pilotage_queue_backlog_threshold": 3,
+            "pilotage_planning_tension_pct": 80,
+            "pilotage_planning_critical_pct": 95,
             "email_queue_max_attempts": 5,
             "email_queue_retry_base_seconds": 60,
             "email_queue_retry_max_seconds": 3600,

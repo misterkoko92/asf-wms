@@ -721,6 +721,42 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(dashboard_order.order_status_display["label"], "Réservée")
         self.assertEqual(dashboard_order.shipment_status_display["label"], "Disponible")
 
+    def test_portal_dashboard_exposes_cockpit_kpis_and_next_step_guidance(self):
+        pending_order = self._order(review_status=OrderReviewStatus.PENDING)
+        changes_order = self._order(review_status=OrderReviewStatus.CHANGES_REQUESTED)
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name=self.profile.contact.name,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            status=ShipmentStatus.PLANNED,
+        )
+        shipped_order = self._order(review_status=OrderReviewStatus.APPROVED)
+        shipped_order.shipment = shipment
+        shipped_order.save(update_fields=["shipment"])
+
+        response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["dashboard_kpis"]["orders_total"], 3)
+        self.assertEqual(response.context["dashboard_kpis"]["orders_pending_review"], 1)
+        self.assertEqual(response.context["dashboard_kpis"]["orders_changes_requested"], 1)
+        self.assertEqual(response.context["dashboard_kpis"]["orders_with_shipment"], 1)
+
+        dashboard_orders = {order.id: order for order in response.context["orders"]}
+        self.assertEqual(
+            dashboard_orders[pending_order.id].next_step_label,
+            "Attendre la validation ASF",
+        )
+        self.assertEqual(
+            dashboard_orders[changes_order.id].next_step_label,
+            "Corriger la commande",
+        )
+        self.assertEqual(
+            dashboard_orders[shipped_order.id].next_step_label,
+            "Suivre l'expédition",
+        )
+
     def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
         AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()
         response = self.client.get(self.dashboard_url)

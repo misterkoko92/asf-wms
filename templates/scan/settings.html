@@ -78,6 +78,45 @@
         </div>
       </div>
 
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.pilotage_dispute_unassigned_hours.label_tag }}
+          {{ form.pilotage_dispute_unassigned_hours }}
+          {% if form.pilotage_dispute_unassigned_hours.errors %}<div class="scan-help">{{ form.pilotage_dispute_unassigned_hours.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_dispute_unassigned_hours.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.pilotage_workflow_blockage_unclaimed_hours.label_tag }}
+          {{ form.pilotage_workflow_blockage_unclaimed_hours }}
+          {% if form.pilotage_workflow_blockage_unclaimed_hours.errors %}<div class="scan-help">{{ form.pilotage_workflow_blockage_unclaimed_hours.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_workflow_blockage_unclaimed_hours.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.pilotage_queue_backlog_threshold.label_tag }}
+          {{ form.pilotage_queue_backlog_threshold }}
+          {% if form.pilotage_queue_backlog_threshold.errors %}<div class="scan-help">{{ form.pilotage_queue_backlog_threshold.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_queue_backlog_threshold.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.pilotage_planning_tension_pct.label_tag }}
+          {{ form.pilotage_planning_tension_pct }}
+          {% if form.pilotage_planning_tension_pct.errors %}<div class="scan-help">{{ form.pilotage_planning_tension_pct.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_planning_tension_pct.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.pilotage_planning_critical_pct.label_tag }}
+          {{ form.pilotage_planning_critical_pct }}
+          {% if form.pilotage_planning_critical_pct.errors %}<div class="scan-help">{{ form.pilotage_planning_critical_pct.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.pilotage_planning_critical_pct.help_text }}</div>
+        </div>
+      </div>
+
       <div class="scan-divider"></div>
 
       <h3>{% trans "Queue email" %}</h3>
@@ -162,10 +201,47 @@
       <ul class="scan-help">
         <li>{% blocktrans with days=preview.stale_drafts_age_days count=preview.stale_draft_count %}Brouillons temporaires stale (&lt; {{ days }}j): {{ count }}{% endblocktrans %}</li>
         <li>{% blocktrans with seconds=preview.queue_processing_timeout_seconds count=preview.queue_stale_processing_count %}Queue email bloquee (timeout {{ seconds }}s): {{ count }}{% endblocktrans %}</li>
+        <li>{% trans "Nouveaux retards SLA:" %} {{ preview.sla_new_delay_count }}</li>
+        <li>{% trans "Retards SLA persistants:" %} {{ preview.sla_persistent_delay_count }}</li>
+        <li>{% trans "Retards SLA critiques:" %} {{ preview.sla_critical_delay_count }}</li>
         <li>{% trans "Route legacy effective:" %} {% if preview.legacy_effective_enabled %}{% trans "active" %}{% else %}{% trans "inactive" %}{% endif %}</li>
+      </ul>
+      <h4>{% trans "Seuils actifs" %}</h4>
+      <p class="scan-help">{% trans "Preset actif:" %} {{ preview.pilotage_threshold_context.active_preset_label }}</p>
+      <ul class="scan-help">
+        {% for row in preview.pilotage_threshold_context.threshold_rows %}
+          <li>{{ row.label }}: {{ row.value }}</li>
+        {% endfor %}
+      </ul>
+      <ul class="scan-help">
+        {% for row in preview.pilotage_threshold_context.impact_rows %}
+          <li>{{ row.label }}: {{ row.value }}</li>
+        {% endfor %}
       </ul>
     </div>
   {% endif %}
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3>{% trans "Seuils actifs" %}</h3>
+    <p class="scan-help">{% trans "Preset actif:" %} {{ active_pilotage_threshold_context.active_preset_label }}</p>
+    <ul class="scan-help">
+      {% for row in active_pilotage_threshold_context.threshold_rows %}
+        <li>{{ row.label }}: {{ row.value }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3>{% trans "Escalades pilotage" %}</h3>
+    <ul class="scan-help">
+      <li>{% trans "Total estimé:" %} {{ ops_escalation_preview.total_count }}</li>
+      {% for category, count in ops_escalation_preview.category_counts.items %}
+        <li>{{ category }}: {{ count }}</li>
+      {% empty %}
+        <li>{% trans "Aucune escalade active sur le périmètre courant." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
 
   <div class="scan-card card border-0 ui-comp-card">
     <h3>{% trans "Historique recent" %}</h3>

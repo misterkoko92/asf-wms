@@ -28,9 +28,13 @@ from .local_document_helper import LOCAL_DOCUMENT_HELPER_ORIGIN
 from .models import (
     Carton,
     CartonStatus,
+    Destination,
     Document,
     DocumentType,
     Shipment,
+    ShipmentDisputeOwner,
+    ShipmentDisputeReason,
+    ShipmentDisputeStatus,
     ShipmentStatus,
 )
 from .pack_handlers import build_pack_defaults, handle_pack_post
@@ -88,11 +92,17 @@ from .views_scan_shipments_support import (
     ARCHIVE_STALE_DRAFTS_ACTION,
     CLOSE_SHIPMENT_ACTION,
     CLOSED_FILTER_EXCLUDE,
+    DISPUTE_FILTER_ALL,
+    DISPUTE_FILTER_OPEN,
+    DISPUTE_FILTER_OVERDUE,
+    DISPUTE_FILTER_UNASSIGNED,
     RETURN_TO_SHIPMENTS_DOSSIERS,
     RETURN_TO_SHIPMENTS_TRACKING,
     _build_shipments_tracking_queryset,
     _build_shipments_tracking_redirect_url,
     _normalize_closed_filter,
+    _normalize_destination_filter,
+    _normalize_dispute_filter,
     _normalize_return_to,
     _parse_planned_week,
     _return_to_url,
@@ -387,7 +397,7 @@ def _build_shipments_tracking_summary_cards(shipments):
                 if shipment.get("is_disputed") and not shipment.get("is_closed", False)
             ),
             "help": _("Dossiers en litige à traiter."),
-            "url": reverse("scan:scan_shipments_tracking"),
+            "url": f"{reverse('scan:scan_shipments_tracking')}?dispute=open",
             "tone": "danger",
         },
         {
@@ -427,6 +437,118 @@ def _build_shipments_tracking_summary_cards(shipments):
     ]
 
 
+def _format_datetime_local_value(value):
+    if not value:
+        return ""
+    localized = timezone.localtime(value) if timezone.is_aware(value) else value
+    return localized.strftime("%Y-%m-%dT%H:%M")
+
+
+def _build_dispute_form_context(request, shipment):
+    use_post_values = request.method == "POST" and (request.POST.get("action") or "").strip() in {
+        "set_disputed",
+        "resolve_dispute",
+    }
+
+    def _posted_or_current(field_name, current_value=""):
+        if not use_post_values:
+            return current_value
+        posted_value = request.POST.get(field_name)
+        if posted_value is None or posted_value == "":
+            return current_value
+        return posted_value
+
+    reason_value = _posted_or_current("dispute_reason", shipment.dispute_reason or "")
+    owner_value = _posted_or_current("dispute_owner", shipment.dispute_owner or "")
+    status_value = _posted_or_current(
+        "dispute_status",
+        shipment.dispute_status or ShipmentDisputeStatus.OPEN.value,
+    )
+    due_at_value = _posted_or_current(
+        "dispute_due_at",
+        _format_datetime_local_value(getattr(shipment, "dispute_due_at", None)),
+    )
+    resolution_notes = _posted_or_current(
+        "dispute_resolution_notes",
+        shipment.dispute_resolution_notes or "",
+    )
+
+    return {
+        "reason_value": reason_value,
+        "owner_value": owner_value,
+        "status_value": status_value,
+        "due_at_value": due_at_value,
+        "resolution_notes": resolution_notes,
+        "reason_options": ShipmentDisputeReason.choices,
+        "owner_options": ShipmentDisputeOwner.choices,
+        "status_options": [
+            ShipmentDisputeStatus.OPEN,
+            ShipmentDisputeStatus.IN_PROGRESS,
+            ShipmentDisputeStatus.WAITING_EXTERNAL,
+        ],
+    }
+
+
+def _build_dispute_summary(shipment):
+    has_dispute_data = any(
+        [
+            shipment.is_disputed,
+            getattr(shipment, "dispute_reason", ""),
+            getattr(shipment, "dispute_status", ""),
+            getattr(shipment, "dispute_owner", ""),
+            getattr(shipment, "dispute_resolution_notes", ""),
+            getattr(shipment, "dispute_opened_at", None),
+            getattr(shipment, "dispute_resolved_at", None),
+        ]
+    )
+    if not has_dispute_data:
+        return None
+    opened_at = getattr(shipment, "dispute_opened_at", None) or getattr(
+        shipment, "disputed_at", None
+    )
+    due_at = getattr(shipment, "dispute_due_at", None)
+    return {
+        "is_active": bool(shipment.is_disputed),
+        "reason_label": shipment.get_dispute_reason_display() or _("Non renseigné"),
+        "owner_label": shipment.get_dispute_owner_display() or _("Sans owner"),
+        "status_label": shipment.get_dispute_status_display()
+        or (ShipmentDisputeStatus.OPEN.label if shipment.is_disputed else ""),
+        "due_at": due_at,
+        "opened_at": opened_at,
+        "resolved_at": getattr(shipment, "dispute_resolved_at", None),
+        "resolution_notes": getattr(shipment, "dispute_resolution_notes", ""),
+        "is_overdue": bool(shipment.is_disputed and due_at and due_at < timezone.now()),
+    }
+
+
+def _build_dispute_timeline(dispute_summary):
+    if not dispute_summary:
+        return []
+    timeline = []
+    if dispute_summary["opened_at"]:
+        timeline.append(
+            {
+                "label": _("Litige ouvert"),
+                "at": dispute_summary["opened_at"],
+            }
+        )
+    if dispute_summary["due_at"]:
+        timeline.append(
+            {
+                "label": _("Échéance"),
+                "at": dispute_summary["due_at"],
+            }
+        )
+    if dispute_summary["resolved_at"]:
+        timeline.append(
+            {
+                "label": _("Litige résolu"),
+                "at": dispute_summary["resolved_at"],
+            }
+        )
+    return timeline
+
+
 def _render_shipment_tracking(
     request,
     *,
@@ -439,6 +561,7 @@ def _render_shipment_tracking(
 ):
     documents, carton_docs, additional_docs, events = _build_tracking_page_data(shipment)
     is_staff_user = bool(request.user.is_authenticated and request.user.is_staff)
+    dispute_summary = _build_dispute_summary(shipment)
     return render(
         request,
         TEMPLATE_SHIPMENT_TRACKING,
@@ -456,6 +579,9 @@ def _render_shipment_tracking(
             "show_back_to_list": is_staff_user,
             "back_to_url": back_to_url,
             "return_to": return_to,
+            "dispute_summary": dispute_summary,
+            "dispute_timeline": _build_dispute_timeline(dispute_summary),
+            "dispute_form": _build_dispute_form_context(request, shipment),
         },
     )
 
@@ -677,6 +803,11 @@ def scan_shipments_tracking(request):
     source = request.POST if request.method == "POST" else request.GET
     planned_week_value, week_start, week_end = _parse_planned_week(source.get("planned_week"))
     closed_filter = _normalize_closed_filter(source.get("closed"))
+    dispute_filter = _normalize_dispute_filter(source.get("dispute"))
+    destination_filter_value = _normalize_destination_filter(source.get("destination"))
+    selected_destination = None
+    if destination_filter_value:
+        selected_destination = Destination.objects.filter(pk=destination_filter_value).first()
 
     if request.method == "POST":
         if (request.POST.get("action") or "").strip() == CLOSE_SHIPMENT_ACTION:
@@ -690,12 +821,29 @@ def scan_shipments_tracking(request):
             _build_shipments_tracking_redirect_url(
                 planned_week_value=planned_week_value,
                 closed_filter=closed_filter,
+                dispute_filter=dispute_filter,
+                destination_value=(
+                    str(selected_destination.id)
+                    if selected_destination
+                    else destination_filter_value
+                ),
             )
         )
 
     shipments_qs = _build_shipments_tracking_queryset()
+    if selected_destination:
+        shipments_qs = shipments_qs.filter(destination=selected_destination)
     if closed_filter == CLOSED_FILTER_EXCLUDE:
         shipments_qs = shipments_qs.filter(closed_at__isnull=True)
+    if dispute_filter == DISPUTE_FILTER_OPEN:
+        shipments_qs = shipments_qs.filter(is_disputed=True)
+    elif dispute_filter == DISPUTE_FILTER_OVERDUE:
+        shipments_qs = shipments_qs.filter(
+            is_disputed=True,
+            dispute_due_at__lt=timezone.now(),
+        )
+    elif dispute_filter == DISPUTE_FILTER_UNASSIGNED:
+        shipments_qs = shipments_qs.filter(is_disputed=True, dispute_owner="")
     if planned_week_value and week_start and week_end:
         shipments_qs = shipments_qs.filter(
             planned_at__date__gte=week_start,
@@ -718,6 +866,11 @@ def scan_shipments_tracking(request):
             "summary_cards": summary_cards,
             "planned_week_value": planned_week_value,
             "closed_filter": closed_filter,
+            "dispute_filter": dispute_filter,
+            "destination_filter_value": str(selected_destination.id)
+            if selected_destination
+            else "",
+            "destination_filter_label": str(selected_destination) if selected_destination else "",
             "close_inactive_message": _("Il reste des étapes à valider, vérifier avant de clore"),
         },
     )

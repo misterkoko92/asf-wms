@@ -62,26 +62,115 @@
               <span class="ui-comp-status-pill is-error">{% trans "Litige en cours" %}</span>
             {% endif %}
           </div>
-          {% if can_manage_dispute %}
-            <div class="scan-inline scan-field-gap">
-              {% if shipment.is_disputed %}
-                <form method="post" class="ui-comp-form">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="resolve_dispute">
-                  <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Résoudre litige et remettre Prêt" %}</button>
-                </form>
-              {% else %}
-                <form method="post" class="ui-comp-form">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="set_disputed">
-                  <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn btn btn-warning">{% trans "Déclarer litige" %}</button>
-                </form>
+        </div>
+
+        {% if dispute_summary %}
+          <div class="scan-field">
+            <label class="form-label">{% trans "Litige" %}</label>
+          <div class="scan-help">
+              <span class="ui-comp-status-pill {% if dispute_summary.is_active %}is-error{% else %}is-success{% endif %}">
+                {% if dispute_summary.status_label %}{{ dispute_summary.status_label }}{% else %}{% trans "Sans statut" %}{% endif %}
+              </span>
+              {% if dispute_summary.is_overdue %}
+                <span class="ui-comp-status-pill is-error">{% trans "En retard" %}</span>
               {% endif %}
             </div>
-          {% endif %}
-        </div>
+            <div class="scan-help"><strong>{% trans "Motif du litige" %}</strong> : {{ dispute_summary.reason_label }}</div>
+            <div class="scan-help"><strong>{% trans "Owner" %}</strong> : {{ dispute_summary.owner_label }}</div>
+            {% if dispute_summary.due_at %}
+              <div class="scan-help"><strong>{% trans "Échéance" %}</strong> : {{ dispute_summary.due_at|date:"d/m/Y H\\hi" }}</div>
+            {% endif %}
+            {% if dispute_summary.resolution_notes %}
+              <div class="scan-help"><strong>{% trans "Notes de résolution" %}</strong> : {{ dispute_summary.resolution_notes }}</div>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if can_manage_dispute %}
+          <div class="scan-field">
+            <label class="form-label">{% trans "Gestion du litige" %}</label>
+            <form method="post" class="ui-comp-form">
+              {% csrf_token %}
+              <input type="hidden" name="return_to" value="{{ return_to }}">
+
+              <div class="scan-field">
+                <label class="form-label" for="id_dispute_reason">{% trans "Motif du litige" %}</label>
+                <select id="id_dispute_reason" name="dispute_reason" class="form-select">
+                  <option value="">{% trans "Sélectionner" %}</option>
+                  {% for value, label in dispute_form.reason_options %}
+                    <option value="{{ value }}" {% if dispute_form.reason_value == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="scan-field">
+                <label class="form-label" for="id_dispute_owner">{% trans "Owner" %}</label>
+                <select id="id_dispute_owner" name="dispute_owner" class="form-select">
+                  <option value="">{% trans "Sans owner" %}</option>
+                  {% for value, label in dispute_form.owner_options %}
+                    <option value="{{ value }}" {% if dispute_form.owner_value == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="scan-field">
+                <label class="form-label" for="id_dispute_status">{% trans "État du litige" %}</label>
+                <select id="id_dispute_status" name="dispute_status" class="form-select">
+                  {% for choice in dispute_form.status_options %}
+                    <option value="{{ choice.value }}" {% if dispute_form.status_value == choice.value %}selected{% endif %}>{{ choice.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="scan-field">
+                <label class="form-label" for="id_dispute_due_at">{% trans "Échéance" %}</label>
+                <input
+                  type="datetime-local"
+                  id="id_dispute_due_at"
+                  name="dispute_due_at"
+                  class="form-control"
+                  value="{{ dispute_form.due_at_value }}"
+                >
+              </div>
+
+              {% if shipment.is_disputed or dispute_summary %}
+                <div class="scan-field">
+                  <label class="form-label" for="id_dispute_resolution_notes">{% trans "Notes de résolution" %}</label>
+                  <textarea
+                    id="id_dispute_resolution_notes"
+                    name="dispute_resolution_notes"
+                    class="form-control"
+                    rows="3"
+                  >{{ dispute_form.resolution_notes }}</textarea>
+                </div>
+              {% endif %}
+
+              <div class="scan-inline scan-field-gap">
+                {% if shipment.is_disputed %}
+                  <button type="submit" name="action" value="set_disputed" class="scan-scan-btn btn btn-warning">{% trans "Mettre à jour le litige" %}</button>
+                  <button type="submit" name="action" value="resolve_dispute" class="scan-scan-btn btn btn-success">{% trans "Résoudre litige et remettre Prêt" %}</button>
+                {% else %}
+                  <button type="submit" name="action" value="set_disputed" class="scan-scan-btn btn btn-warning">{% trans "Déclarer litige" %}</button>
+                {% endif %}
+              </div>
+            </form>
+          </div>
+        {% endif %}
+
+        {% if dispute_summary %}
+          <div class="scan-field">
+            <label class="form-label">{% trans "Historique du litige" %}</label>
+            {% if dispute_timeline %}
+              <ul class="scan-help">
+                {% for item in dispute_timeline %}
+                  <li>{{ item.label }}{% if item.at %} · {{ item.at|date:"d/m/Y H\\hi" }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="scan-help">{% trans "Aucun jalon de litige." %}</div>
+            {% endif %}
+          </div>
+        {% endif %}
 
         <div class="scan-field">
           <label class="form-label">{% trans "Documents liés" %}</label>

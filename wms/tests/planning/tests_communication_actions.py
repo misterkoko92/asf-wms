@@ -5,6 +5,7 @@ from wms.models import (
     CommunicationDraft,
     PlanningAssignment,
     PlanningAssignmentSource,
+    PlanningCommunicationArtifact,
     PlanningFlightSnapshot,
     PlanningParameterSet,
     PlanningRun,
@@ -134,7 +135,9 @@ class PlanningCommunicationActionTests(TestCase):
         self.assertNotIn("subject", payload)
         self.assertEqual(payload["attachments"], [])
 
-    def test_build_draft_helper_action_payload_for_internal_emails_uses_excel_workbook(self):
+    def test_build_draft_helper_action_payload_for_internal_emails_is_blocked_when_pdf_is_not_ready(
+        self,
+    ):
         version = self.make_version()
         self.add_assignment(version)
         generate_version_drafts(version)
@@ -155,13 +158,66 @@ class PlanningCommunicationActionTests(TestCase):
                     payload["attachments"],
                     [
                         {
-                            "attachment_type": "excel_workbook",
+                            "attachment_type": "planning_pdf",
                             "version_id": version.pk,
-                            "filename": f"planning-v{version.number}.xlsx",
+                            "filename": f"planning-v{version.number}.pdf",
                             "optional": False,
                         }
                     ],
                 )
+                self.assertTrue(payload["blocked"])
+                self.assertEqual(payload["blocking_reason"], "planning_pdf_not_ready")
+
+    def test_planning_mail_prefers_latest_ready_pdf_artifact(self):
+        version = self.make_version()
+        self.add_assignment(version)
+        generate_version_drafts(version)
+        PlanningCommunicationArtifact.objects.create(
+            planning_version=version,
+            output_type="planning_pdf",
+            status="failed",
+            backend="excel_desktop",
+            file_name="planning-v1.pdf",
+            error_message="Excel indisponible",
+        )
+        PlanningCommunicationArtifact.objects.create(
+            planning_version=version,
+            output_type="planning_pdf",
+            status="ready",
+            backend="excel_desktop",
+            file_name="planning-v1.pdf",
+        )
+
+        payload = build_draft_helper_action_payload(
+            self.draft_for_family(version, CommunicationFamily.EMAIL_ASF)
+        )
+
+        self.assertEqual(payload["attachments"][0]["attachment_type"], "planning_pdf")
+        self.assertEqual(payload["attachments"][0]["artifact_status"], "ready")
+        self.assertEqual(payload["attachments"][0]["backend"], "excel_desktop")
+        self.assertFalse(payload["blocked"])
+        self.assertEqual(payload["blocking_reason"], "")
+
+    def test_planning_mail_payload_is_blocked_when_no_ready_pdf_exists(self):
+        version = self.make_version()
+        self.add_assignment(version)
+        generate_version_drafts(version)
+        PlanningCommunicationArtifact.objects.create(
+            planning_version=version,
+            output_type="planning_pdf",
+            status="failed",
+            backend="excel_desktop",
+            file_name="planning-v1.pdf",
+            error_message="Excel indisponible",
+        )
+
+        payload = build_family_helper_action_payload(
+            version=version,
+            family=CommunicationFamily.EMAIL_ASF,
+        )
+
+        self.assertTrue(payload["drafts"][0]["blocked"])
+        self.assertEqual(payload["drafts"][0]["blocking_reason"], "planning_pdf_not_ready")
 
     def test_build_draft_helper_action_payload_for_partner_emails_uses_current_shipments(self):
         version = self.make_version()

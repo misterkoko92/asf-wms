@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from .ui_views import (
     UiCartonsView,
     UiDashboardView,
+    UiDashboardWorkflowBlockageClaimView,
+    UiPilotageView,
     UiPortalAccountView,
     UiPortalDashboardView,
     UiPortalOrdersView,
@@ -35,6 +37,9 @@ from .views import (
     PackCartonView,
     ProductViewSet,
     ReceiveStockView,
+    WorkflowProjectionDestinationsView,
+    WorkflowProjectionDestinationWeeksView,
+    WorkflowProjectionShipmentsView,
 )
 
 router = DefaultRouter()
@@ -53,7 +58,28 @@ router.register("integrations/events", IntegrationEventViewSet, basename="integr
 urlpatterns = [
     path("stock/receive/", ReceiveStockView.as_view(), name="stock-receive"),
     path("pack/", PackCartonView.as_view(), name="pack"),
+    path(
+        "workflow-projections/shipments/",
+        WorkflowProjectionShipmentsView.as_view(),
+        name="workflow-projection-shipments",
+    ),
+    path(
+        "workflow-projections/destinations/",
+        WorkflowProjectionDestinationsView.as_view(),
+        name="workflow-projection-destinations",
+    ),
+    path(
+        "workflow-projections/destination-weeks/",
+        WorkflowProjectionDestinationWeeksView.as_view(),
+        name="workflow-projection-destination-weeks",
+    ),
     path("ui/dashboard/", UiDashboardView.as_view(), name="ui-dashboard"),
+    path("ui/pilotage/", UiPilotageView.as_view(), name="ui-pilotage"),
+    path(
+        "ui/dashboard/workflow-blockages/claims/",
+        UiDashboardWorkflowBlockageClaimView.as_view(),
+        name="ui-dashboard-workflow-blockage-claims",
+    ),
     path("ui/cartons/", UiCartonsView.as_view(), name="ui-cartons"),
     path("ui/stock/", UiStockView.as_view(), name="ui-stock"),
     path("ui/stock/update/", UiStockUpdateView.as_view(), name="ui-stock-update"),

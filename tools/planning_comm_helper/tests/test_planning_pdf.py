@@ -12,6 +12,9 @@ from tools.planning_comm_helper.planning_pdf import (
 
 
 class PlanningCommunicationHelperPlanningPdfTests(TestCase):
+    def test_pdf_backend_name_is_stable_for_pilotage(self):
+        self.assertEqual(excel_pdf.pdf_backend_name(), "excel_desktop")
+
     @mock.patch("tools.planning_comm_helper.planning_pdf.platform.system", return_value="Windows")
     @mock.patch("tools.planning_comm_helper.planning_pdf._convert_with_windows_excel")
     def test_convert_workbook_to_pdf_uses_windows_excel(
@@ -22,7 +25,16 @@ class PlanningCommunicationHelperPlanningPdfTests(TestCase):
         with tempfile.NamedTemporaryFile(suffix=".xlsx") as workbook:
             convert_with_windows_excel_mock.return_value = Path(workbook.name).with_suffix(".pdf")
 
-            pdf_path = convert_workbook_to_pdf(workbook.name)
+            with mock.patch(
+                "tools.planning_comm_helper.planning_pdf.excel_runtime.get_excel_runtime_status",
+                return_value={
+                    "backend": "excel_desktop",
+                    "status": "ready",
+                    "available": True,
+                    "detail": "",
+                },
+            ):
+                pdf_path = convert_workbook_to_pdf(workbook.name)
 
         convert_with_windows_excel_mock.assert_called_once()
         self.assertEqual(pdf_path.suffix, ".pdf")
@@ -33,7 +45,26 @@ class PlanningCommunicationHelperPlanningPdfTests(TestCase):
 
         self.assertIn("Workbook not found", str(error.exception))
 
-    def test_build_macos_excel_script_uses_file_reference_without_alias_prompt(self):
+    @mock.patch(
+        "tools.planning_comm_helper.planning_pdf.excel_runtime.get_excel_runtime_status",
+        return_value={
+            "backend": "excel_desktop",
+            "status": "excel_not_installed",
+            "available": False,
+            "detail": "Microsoft Excel is not installed.",
+        },
+    )
+    def test_convert_workbook_to_pdf_surfaces_runtime_unavailable_error_code(
+        self,
+        _runtime_status_mock,
+    ):
+        with tempfile.NamedTemporaryFile(suffix=".xlsx") as workbook:
+            with self.assertRaises(PlanningPdfConversionError) as error:
+                convert_workbook_to_pdf(workbook.name)
+
+        self.assertIn("excel_not_installed", str(error.exception))
+
+    def test_build_macos_excel_script_uses_hfs_alias_and_strict_first_sheet_export(self):
         script = excel_pdf._build_macos_excel_script(
             workbook_path=Path("/tmp/example.xlsx"),
             pdf_path=Path("/tmp/example.pdf"),
@@ -41,8 +72,10 @@ class PlanningCommunicationHelperPlanningPdfTests(TestCase):
         )
 
         self.assertIn('set workbookFile to POSIX file "/tmp/example.xlsx"', script)
-        self.assertIn("open workbook workbook file name workbookFile", script)
-        self.assertNotIn("as alias", script)
+        self.assertIn("set hfsPath to (workbookFile as alias as string)", script)
+        self.assertIn("open workbook workbook file name hfsPath", script)
+        self.assertIn('set valA to value of range "A1" of worksheet 1 of wb', script)
+        self.assertIn("repeat while (count of worksheets of wb) > 1", script)
 
     @mock.patch("tools.planning_comm_helper.planning_pdf.platform.system", return_value="Linux")
     def test_convert_workbook_to_pdf_rejects_unsupported_platform_without_libreoffice_message(

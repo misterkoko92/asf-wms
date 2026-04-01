@@ -156,6 +156,49 @@ Run the document scan worker regularly (cron/systemd timer):
 python manage.py process_document_scan_queue --limit=200
 ```
 
+Rebuild the shipment workflow projection read model after local calibration, fixture reseed, or when
+validating reporting payloads:
+
+```bash
+python manage.py rebuild_workflow_projections
+```
+
+Notes:
+
+- this command is safe to rerun
+- it recomputes from `Shipment` and `ShipmentTrackingEvent`, it does not parse workflow logs
+- use it in local V2 when you want `/api/v1/workflow-projections/shipments/` to reflect the current dataset immediately
+
+Capture and evaluate the local pilotage layers after reseed, settings calibration, or before reviewing
+the transverse cockpit:
+
+```bash
+python manage.py capture_ops_pilotage_snapshot
+python manage.py evaluate_ops_escalations
+python manage.py refresh_ops_pilotage
+```
+
+Notes:
+
+- `capture_ops_pilotage_snapshot` refreshes the daily metric store used by phase 2 pilotage
+- `evaluate_ops_escalations` persists the current anomaly set and resolves stale ones no longer present
+- `refresh_ops_pilotage` is the stable production entry point when you want one command for both steps
+- the local thresholds used by the evaluator are calibrated from `scan/settings`
+
+### Planning PDF runtime check
+
+Before a release or when investigating a planning export incident, validate the Excel backend explicitly:
+
+```bash
+python manage.py check_planning_pdf_runtime
+```
+
+Interpretation:
+
+- `backend=excel_desktop` and `status=ready` means the host is currently able to generate `Planning.pdf`
+- `excel_not_installed` means the workbook can still generate, but PDF generation is not production-ready
+- `excel_automation_unavailable` means the Excel automation bridge itself is missing or unusable
+
 ### 3.0) Tooling rollback
 
 If the standardized Python tooling blocks a release or hotfix:
@@ -210,8 +253,49 @@ Validate:
   - validate one tracking or close action on an existing shipment
 - Conditional smoke based on release scope:
   - if `portal` changed, validate portal login plus one nominal order or recipient update flow
-  - if `planning` changed, validate run-list attention cards, version cockpit access on an existing run, and artifact visibility/download when relevant
+  - if `planning` changed, validate run-list attention cards, version cockpit access on an existing run, strict `Planning.pdf` / `Planning.xlsx` artifact regeneration, and download when relevant
   - if `billing` changed, validate one nominal billing preview/export or payment/correction flow
+
+### Planning export artifact health
+
+For the local planning loop, the version cockpit now exposes the last workbook/PDF generation state directly inside the `Exports` block.
+
+Operational checks:
+
+- open `/planning/versions/<id>/`
+- inspect `Statut XLSX` and `Statut PDF`
+- confirm backend name, last attempt timestamp, and any visible error message
+- treat `Statut PDF = Echec` as a local pilotage signal even if the workbook still generated correctly
+
+Key interpretation rules:
+
+- `openpyxl` is the stable workbook backend
+- `excel_desktop` is the current PDF backend
+- a ready PDF remains the preferred attachment for internal planning email actions
+- if PDF generation fails, the workbook may still be usable for manual recovery and calibration
+
+Local remediation loop:
+
+```bash
+python manage.py shell -c "from wms.models import PlanningCommunicationArtifact; print(list(PlanningCommunicationArtifact.objects.order_by('-generated_at').values('planning_version_id','output_type','status','backend','file_name','error_message')[:20]))"
+```
+
+When the PDF backend fails locally:
+
+1. Regenerate from the version `Exports` block.
+2. Confirm that a fresh `planning_workbook` attempt is `ready`.
+3. If `planning_pdf` remains `failed`, inspect the local desktop Excel/runtime context.
+4. Re-run the pilotage loop so the cockpit and escalations use the latest artifact state:
+
+```bash
+python manage.py capture_ops_pilotage_snapshot
+python manage.py evaluate_ops_escalations
+```
+
+Phase 2 pilotage impact:
+
+- `planning_pdf_missing` still represents the planning communication risk to watch
+- the planning version cockpit is now the first place to diagnose whether the issue is backend-related or simply a missing export attempt
 
 ## 5) Email queue operations
 
@@ -305,12 +389,27 @@ Operational cards added for phase 3:
 
 - Queue email: pending, processing, failed, stale-processing timeout.
 - Blocages workflow (>72h): expéditions anciennes non sorties du flux, commandes validées sans expédition, dossiers livrés non clos, litiges ouverts.
+- File `Blocages workflow`:
+  - catégories stables `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
+  - chaque ligne expose owner, priorité, âge, CTA dossier, et état `À prendre` / `Pris en charge`
+  - les cinq premiers blocages non pris en charge remontent dans `À traiter maintenant`
 - SLA suivi:
   - Planifié -> OK mise à bord
   - OK mise à bord -> Reçu escale
   - Reçu escale -> Livré
   - Planifié -> Livré
   - each card displays `breaches / completed segments`.
+- Alertes SLA:
+  - `Nouveaux retards`, `Retards persistants`, `Retards critiques`
+  - detailed rows expose owner, segment, delay, age, and direct dossier access
+  - the top three SLA rows are promoted into `À traiter maintenant`
+
+Local calibration loop:
+
+- open `/scan/settings/`
+- use preset `Incident SLA` to tighten `tracking_alert_hours` and `workflow_blockage_hours`
+- inspect preview counters for `Nouveaux retards SLA`, `Retards SLA persistants`, `Retards SLA critiques`
+- validate the effect immediately on `/scan/dashboard/`
 
 ## 8) Structured workflow logs
 
@@ -356,16 +455,18 @@ If your platform supports log filtering, filter by logger name `wms.workflow` an
 ### E) Workflow blockages increasing (>72h)
 
 1. Open `/scan/dashboard/` and review "Blocages workflow".
-2. Resolve oldest "Cmd validées sans expédition >72h" from `/scan/orders/`.
-3. Resolve stale shipment drafts/picking from `/scan/shipments-ready/`.
-4. Review delivered-but-open cases in `/scan/shipments-tracking/` and close valid dossiers.
+2. Start with unclaimed rows in the `Blocages workflow` table and use `Prendre` to avoid duplicate work locally.
+3. Resolve oldest "Cmd validées sans expédition >72h" from `/scan/orders/`.
+4. Resolve stale shipment drafts/picking from `/scan/shipments-ready/`.
+5. Review delivered-but-open cases in `/scan/shipments-tracking/` and close valid dossiers.
 
 ### F) SLA breaches rising
 
-1. Open `/scan/dashboard/` and review "Suivi SLA" cards.
-2. Cross-check delayed shipments in `/scan/shipments-tracking/` (planned/shipped/received statuses).
-3. Prioritize shipments with no progression and open litiges.
-4. Export weekly ops review with breach counts by segment.
+1. Open `/scan/dashboard/` and review both "Suivi SLA" cards and the `Alertes SLA` table.
+2. Start with `Retards critiques`, then `Retards persistants`, then `Nouveaux retards`.
+3. Use `À traiter maintenant` or the `Blocages workflow` table to open the top dossiers directly from the dashboard.
+4. If the signal is too noisy or too weak locally, switch to `/scan/settings/`, load preset `Incident SLA`, and compare preview counts before saving.
+5. Cross-check delayed shipments in `/scan/shipments-tracking/` and open litiges only when the SLA issue becomes a real exception case.
 
 ## 10) Backup and restore basics
 

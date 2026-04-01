@@ -639,6 +639,79 @@ class ScanShipmentsViewsTests(TestCase):
             [1, 1, 1, 1],
         )
 
+    def test_scan_shipments_tracking_filters_by_destination_query_param(self):
+        correspondent_a = Contact.objects.create(
+            name="Correspondent ABJ",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        correspondent_b = Contact.objects.create(
+            name="Correspondent BZV",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination_a = Destination.objects.create(
+            city="ABJ",
+            iata_code="ABJ",
+            country="Cote d'Ivoire",
+            correspondent_contact=correspondent_a,
+            is_active=True,
+        )
+        destination_b = Destination.objects.create(
+            city="BZV",
+            iata_code="BZV",
+            country="Congo",
+            correspondent_contact=correspondent_b,
+            is_active=True,
+        )
+        shipment_a = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-TRACK-ABJ",
+            shipper_name="Sender A",
+            recipient_name="Recipient A",
+            destination=destination_a,
+            destination_address="1 Rue A",
+            destination_country=destination_a.country,
+            created_by=self.staff_user,
+        )
+        shipment_b = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-TRACK-BZV",
+            shipper_name="Sender B",
+            recipient_name="Recipient B",
+            destination=destination_b,
+            destination_address="1 Rue B",
+            destination_country=destination_b.country,
+            created_by=self.staff_user,
+        )
+
+        with mock.patch(
+            "wms.views_scan_shipments.render",
+            side_effect=self._render_stub,
+        ):
+            response = self.client.get(
+                reverse("scan:scan_shipments_tracking"),
+                {"destination": destination_b.id},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [row["reference"] for row in response.context_data["shipments"]],
+            [shipment_b.reference],
+        )
+        self.assertEqual(
+            response.context_data["destination_filter_value"],
+            str(destination_b.id),
+        )
+        self.assertEqual(
+            response.context_data["destination_filter_label"],
+            str(destination_b),
+        )
+        self.assertNotIn(
+            shipment_a.reference,
+            [row["reference"] for row in response.context_data["shipments"]],
+        )
+
     def test_build_shipments_tracking_rows_marks_dispute_with_primary_next_action(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,

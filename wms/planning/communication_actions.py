@@ -5,12 +5,18 @@ from urllib.parse import quote
 from django.core.exceptions import ValidationError
 
 from wms.models import CommunicationChannel, CommunicationDraft, PlanningVersion
+from wms.planning.artifact_health import (
+    latest_planning_artifact_health,
+    latest_ready_planning_artifact_health,
+)
 from wms.planning.communication_plan import build_version_communication_plan
 
 EXCEL_WORKBOOK_ATTACHMENT = "excel_workbook"
 PLANNING_WORKBOOK_ATTACHMENT = EXCEL_WORKBOOK_ATTACHMENT
 LEGACY_PLANNING_WORKBOOK_ATTACHMENT = "planning_workbook"
+PLANNING_PDF_ATTACHMENT = "planning_pdf"
 PACKING_LIST_ATTACHMENT = "packing_list_pdf"
+PLANNING_PDF_NOT_READY_BLOCKING_REASON = "planning_pdf_not_ready"
 
 
 def _plan_item_key(
@@ -46,15 +52,42 @@ def _assignments_for_draft(draft: CommunicationDraft):
     return plan_item.current_assignments or plan_item.previous_assignments
 
 
-def _planning_workbook_attachments(version: PlanningVersion) -> list[dict[str, object]]:
-    return [
-        {
-            "attachment_type": EXCEL_WORKBOOK_ATTACHMENT,
-            "version_id": version.pk,
-            "filename": f"planning-v{version.number}.xlsx",
-            "optional": False,
-        }
-    ]
+def _planning_pdf_attachments(version: PlanningVersion) -> list[dict[str, object]]:
+    attachment = {
+        "attachment_type": PLANNING_PDF_ATTACHMENT,
+        "version_id": version.pk,
+        "filename": f"planning-v{version.number}.pdf",
+        "optional": False,
+    }
+    latest_ready = latest_ready_planning_artifact_health(
+        version=version,
+        output_type=PLANNING_PDF_ATTACHMENT,
+    )
+    latest_any = latest_planning_artifact_health(
+        version=version,
+        output_type=PLANNING_PDF_ATTACHMENT,
+    )
+    health = latest_ready or latest_any
+    if health is not None:
+        attachment["artifact_status"] = health.status
+        attachment["backend"] = health.backend
+        if health.file_name:
+            attachment["filename"] = health.file_name
+    return [attachment]
+
+
+def _planning_pdf_delivery_state(version: PlanningVersion) -> dict[str, object]:
+    latest_ready = latest_ready_planning_artifact_health(
+        version=version,
+        output_type=PLANNING_PDF_ATTACHMENT,
+    )
+    return {
+        "attachments": _planning_pdf_attachments(version),
+        "blocked": latest_ready is None,
+        "blocking_reason": ""
+        if latest_ready is not None
+        else PLANNING_PDF_NOT_READY_BLOCKING_REASON,
+    }
 
 
 def _packing_list_attachments(draft: CommunicationDraft) -> list[dict[str, object]]:
@@ -80,7 +113,7 @@ def _packing_list_attachments(draft: CommunicationDraft) -> list[dict[str, objec
 
 def _attachments_for_draft(draft: CommunicationDraft) -> list[dict[str, object]]:
     if draft.family in {"email_asf", "email_airfrance"}:
-        return _planning_workbook_attachments(draft.version)
+        return _planning_pdf_attachments(draft.version)
     if draft.family in {"email_correspondant", "email_expediteur", "email_destinataire"}:
         return _packing_list_attachments(draft)
     return []
@@ -104,9 +137,11 @@ def build_draft_helper_action_payload(draft: CommunicationDraft) -> dict[str, ob
             "body": draft.body,
             "wa_url": _wa_me_url(draft.recipient_contact, draft.body),
             "attachments": [],
+            "blocked": False,
+            "blocking_reason": "",
         }
 
-    return {
+    payload = {
         "draft_id": draft.pk,
         "action": "email",
         "family": draft.family,
@@ -115,7 +150,12 @@ def build_draft_helper_action_payload(draft: CommunicationDraft) -> dict[str, ob
         "subject": draft.subject,
         "body_html": draft.body,
         "attachments": _attachments_for_draft(draft),
+        "blocked": False,
+        "blocking_reason": "",
     }
+    if draft.family in {"email_asf", "email_airfrance"}:
+        payload.update(_planning_pdf_delivery_state(draft.version))
+    return payload
 
 
 def build_family_helper_action_payload(

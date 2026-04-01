@@ -389,6 +389,14 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
         self.assertGreaterEqual(technical_cards["Queue email en échec"], 1)
         self.assertGreaterEqual(technical_cards["Queue email bloquée (timeout)"], 1)
 
+        document_scan_cards = {
+            card["label"]: card["value"] for card in response.context["document_scan_cards"]
+        }
+        self.assertGreaterEqual(document_scan_cards["Queue scan doc en attente"], 1)
+        self.assertGreaterEqual(document_scan_cards["Queue scan doc en traitement"], 1)
+        self.assertGreaterEqual(document_scan_cards["Queue scan doc en échec"], 1)
+        self.assertGreaterEqual(document_scan_cards["Queue scan doc bloquée (timeout)"], 1)
+
         workflow_cards = {
             card["label"]: card["value"] for card in response.context["workflow_blockage_cards"]
         }
@@ -398,6 +406,15 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
         self.assertGreaterEqual(workflow_cards["Dossiers en litige ouverts"], 1)
 
         self.assertTrue(response.context["low_stock_rows"])
+        self.assertTrue(response.context["action_queue_rows"])
+
+        portal_user = get_user_model().objects.get(username="portal-dashboard-a")
+        self.client.force_login(portal_user)
+        portal_response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(portal_response.status_code, 200)
+        self.assertIn("dashboard_kpis", portal_response.context)
+        self.assertContains(portal_response, "Étape suivante")
+        self.assertTrue(list(portal_response.context["orders"]))
 
     def test_command_creates_status_change_ready_orders_and_documents(self):
         call_command(

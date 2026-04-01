@@ -9,6 +9,71 @@
       </div>
     </div>
 
+    <div class="border rounded-3 p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+        <div>
+          <h3 class="h6 mb-1">Charge vols</h3>
+          <p class="text-muted mb-0">Lecture preventive des capacites avant edition des affectations.</p>
+        </div>
+      </div>
+      <div class="scan-table-wrap table-responsive">
+        <table
+          class="scan-table table table-sm table-hover align-middle mb-0"
+          data-planning-simple-table="1"
+          data-planning-flight-load-table="1"
+        >
+          <thead>
+            <tr>
+              <th>Vol</th>
+              <th>Destination</th>
+              <th>Capacite</th>
+              <th>Charge</th>
+              <th>Reste</th>
+              <th>Taux</th>
+              <th>Etat</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in dashboard.flight_capacity_rows %}
+              <tr data-planning-flight-load-row="1">
+                <td data-sort-value="{{ row.flight_number_label }} {{ row.departure_date_label }} {{ row.departure_time_label }}">
+                  <div class="d-flex flex-column">
+                    <strong>{{ row.flight_number_label }}</strong>
+                    <span class="text-muted small">
+                      {{ row.departure_date_label|default:"-" }}
+                      {% if row.departure_time_label %} · {{ row.departure_time_label }}{% endif %}
+                    </span>
+                  </div>
+                </td>
+                <td data-sort-value="{{ row.destination_iata|default:'-' }}">{{ row.destination_iata|default:"-" }}</td>
+                <td data-sort-value="{{ row.capacity_units|default_if_none:'-' }}">{{ row.capacity_label }}</td>
+                <td data-sort-value="{{ row.equivalent_total }}">{{ row.equivalent_total }}</td>
+                <td data-sort-value="{{ row.remaining_units|default_if_none:'-' }}">{{ row.remaining_label }}</td>
+                <td data-sort-value="{{ row.utilization_pct|default_if_none:'-' }}">{{ row.utilization_label }}</td>
+                <td data-sort-value="{{ row.load_state }}">
+                  {% if row.load_state == "overload" %}
+                    <span class="badge text-bg-danger">{{ row.load_state_label }}</span>
+                  {% elif row.load_state == "critical" %}
+                    <span class="badge text-bg-warning">{{ row.load_state_label }}</span>
+                  {% elif row.load_state == "tension" %}
+                    <span class="badge text-bg-primary">{{ row.load_state_label }}</span>
+                  {% elif row.load_state == "ok" %}
+                    <span class="badge text-bg-success">{{ row.load_state_label }}</span>
+                  {% else %}
+                    <span class="badge text-bg-light">{{ row.load_state_label }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="7" class="text-muted">Aucun vol.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="vstack gap-3">
       {% for group in dashboard.flight_groups %}
         <article class="border rounded-3 p-3" data-planning-flight-group="1">

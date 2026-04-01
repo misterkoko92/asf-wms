@@ -1,0 +1,254 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Pilotage{% endblock %}
+
+{% block content %}
+  <section id="scan-pilotage-page-header" class="scan-card card border-0 ui-comp-card scan-dashboard-page-header">
+    <div class="ui-comp-panel scan-dashboard-page-header-panel d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-start">
+      <div class="scan-dashboard-page-header-copy">
+        <h2 class="h4 mb-2 ui-comp-title">Cockpit pilotage</h2>
+        <p class="scan-help mb-0">Lecture transverse scan, portail et planning. Capture active: {{ snapshot_label }}.</p>
+      </div>
+      <div class="ui-comp-actions scan-dashboard-page-actions">
+        {% for action in page_actions %}
+          <a href="{{ action.url }}" class="btn {% if action.tone == 'primary' %}btn-primary{% else %}btn-tertiary{% endif %}">
+            {{ action.label }}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section id="scan-pilotage-summary" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Synthese</h2>
+        <p class="scan-help mb-0">Les cartes reprennent les signaux historises et les escalades encore ouvertes.</p>
+      </div>
+      <div class="scan-kpi-grid scan-dashboard-priority-grid">
+        {% for card in summary_cards %}
+          <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+            <span class="scan-kpi-label">{{ card.label }}</span>
+            <span class="scan-kpi-value">{{ card.value }}</span>
+            <span class="scan-kpi-help">{{ card.help }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section id="scan-pilotage-thresholds" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Seuils actifs</h2>
+        <p class="scan-help mb-0">Preset actif: {{ pilotage_threshold_context.active_preset_label }}.</p>
+      </div>
+      <div class="scan-kpi-grid scan-dashboard-priority-grid">
+        {% for row in pilotage_threshold_context.threshold_rows %}
+          <div class="scan-kpi-card">
+            <span class="scan-kpi-label">{{ row.label }}</span>
+            <span class="scan-kpi-value">{{ row.value }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <ul class="scan-help mt-3 mb-0">
+        {% for row in pilotage_threshold_context.impact_rows %}
+          <li>{{ row.label }}: {{ row.value }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+
+  <section id="scan-pilotage-priorities" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Priorites du jour</h2>
+        <p class="scan-help mb-0">Commence par les incidents ouverts et les dossiers qui vieillissent.</p>
+      </div>
+      {% if priority_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Reference</th>
+                <th>Owner</th>
+                <th>Criticite</th>
+                <th>Age</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in priority_rows %}
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.owner }}</td>
+                  <td>{{ row.severity }}</td>
+                  <td>{{ row.age_hours|floatformat:1 }}h</td>
+                  <td class="text-end"><a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">Aucune priorite ouverte sur la capture courante.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="scan-pilotage-escalations" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Escalades persistantes</h2>
+        <p class="scan-help mb-0">File locale persistante issue des seuils pilotage et des controles d export planning.</p>
+      </div>
+      {% if escalation_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Categorie</th>
+                <th>Reference</th>
+                <th>Owner</th>
+                <th>Severite</th>
+                <th>Etat</th>
+                <th>Age</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in escalation_rows %}
+                <tr>
+                  <td>{{ row.category_label }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.owner }}</td>
+                  <td>{{ row.severity_label }}</td>
+                  <td>{{ row.status_label }}</td>
+                  <td>{{ row.age_hours|floatformat:1 }}h</td>
+                  <td class="text-end"><a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">Aucune escalade persistante active.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="scan-pilotage-destination-trends" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Risques destination</h2>
+        <p class="scan-help mb-0">Lecture compacte des destinations qui se degradent entre la semaine ISO courante et la precedente.</p>
+      </div>
+      {% if destination_trend_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Destination</th>
+                <th>Semaine</th>
+                <th>S-1</th>
+                <th>Tendance</th>
+                <th>Litiges</th>
+                <th>Critiques</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in destination_trend_rows %}
+                <tr>
+                  <td>{{ row.destination_label }}</td>
+                  <td>{{ row.current_week_label }}: {{ row.current_week_score }}</td>
+                  <td>{{ row.previous_week_label }}: {{ row.previous_week_score }}</td>
+                  <td>{{ row.trend_label }}</td>
+                  <td>{{ row.open_dispute_count }}</td>
+                  <td>{{ row.critical_shipment_count }}</td>
+                  <td class="text-end"><a href="{{ row.url }}" class="btn btn-tertiary btn-sm">{{ row.cta_label }}</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">Aucun risque destination a afficher.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="scan-pilotage-portal-backlog" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Backlog portail</h2>
+        <p class="scan-help mb-0">Commandes creees par le portail encore sans expedition ni traitement complet.</p>
+      </div>
+      {% if portal_backlog_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Commande</th>
+                <th>Etat</th>
+                <th>Age</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in portal_backlog_rows %}
+                <tr>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.review_status_label }}</td>
+                  <td>{{ row.age_hours|floatformat:1 }}h</td>
+                  <td class="text-end"><a href="{{ row.url }}" class="btn btn-tertiary btn-sm">Ouvrir commandes</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">Aucun backlog portail ouvert.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="scan-pilotage-planning-exports" class="scan-dashboard-section">
+    <div class="scan-card card border-0 ui-comp-card scan-dashboard-section-card">
+      <div class="scan-dashboard-section-header">
+        <h2 class="ui-comp-title mb-1">Exports planning</h2>
+        <p class="scan-help mb-0">Etat des artefacts workbook et PDF issus de la derniere capture pilotage.</p>
+      </div>
+      {% if planning_export_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Run</th>
+                <th>Workbook</th>
+                <th>PDF</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in planning_export_rows %}
+                <tr>
+                  <td>{{ row.version_id }}</td>
+                  <td>{{ row.run_id }}</td>
+                  <td>{{ row.workbook_label }}</td>
+                  <td>{{ row.pdf_label }}</td>
+                  <td class="text-end"><a href="{{ row.url }}" class="btn btn-tertiary btn-sm">Ouvrir planning</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help mb-0">Aucune capture d export planning disponible.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}
