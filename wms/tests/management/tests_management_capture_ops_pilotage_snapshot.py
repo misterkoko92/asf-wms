@@ -1,8 +1,9 @@
 from datetime import date
 from io import StringIO
+from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from contacts.models import Contact
@@ -132,3 +133,27 @@ class CaptureOpsPilotageSnapshotCommandTests(TestCase):
 
         self.assertTrue(OpsPilotageSnapshot.objects.filter(snapshot_date=date(2026, 4, 1)).exists())
         self.assertIn("Captured", out.getvalue())
+
+    def test_capture_ops_pilotage_snapshot_rejects_invalid_snapshot_date(self):
+        with self.assertRaises(CommandError) as error:
+            call_command("capture_ops_pilotage_snapshot", snapshot_date="2026-99-99")
+
+        self.assertIn("snapshot-date", str(error.exception))
+
+    @mock.patch(
+        "wms.management.commands.capture_ops_pilotage_snapshot.capture_ops_pilotage_snapshots"
+    )
+    @mock.patch("wms.management.commands.capture_ops_pilotage_snapshot.timezone.localdate")
+    def test_capture_ops_pilotage_snapshot_uses_localdate_when_snapshot_date_is_missing(
+        self,
+        localdate_mock,
+        capture_mock,
+    ):
+        out = StringIO()
+        localdate_mock.return_value = date(2026, 4, 2)
+        capture_mock.return_value = 7
+
+        call_command("capture_ops_pilotage_snapshot", stdout=out)
+
+        capture_mock.assert_called_once_with(snapshot_date=date(2026, 4, 2))
+        self.assertIn("2026-04-02", out.getvalue())

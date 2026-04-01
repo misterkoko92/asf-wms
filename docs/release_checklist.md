@@ -28,6 +28,7 @@ Fallback if `uv` is blocked locally:
 - [ ] Confirm document scan env vars (`DOCUMENT_SCAN_BACKEND=clamav`, `DOCUMENT_SCAN_CLAMAV_COMMAND`, queue timeout settings).
 - [ ] Ensure ClamAV binary is available on host (`clamscan --version`).
 - [ ] Confirm `INTEGRATION_API_KEY` for integration endpoints.
+- [ ] Run `python manage.py check_planning_pdf_runtime` and confirm `backend=excel_desktop`, `status=ready`.
 - [ ] Confirm backup available (SQLite file or MySQL dump).
 - [ ] If scan frontend assets changed (`wms/static/scan/scan.js`, `wms/static/scan/scan.css`, manifest/icon), bump `CACHE_NAME` in `wms/views_scan_misc.py` (`wms-scan-vNN`).
 
@@ -54,9 +55,11 @@ Notes:
 - [ ] Conditional smoke: if dashboard scope changed, validate one `Blocages workflow` row opens the expected dossier and claim/release works once.
 - [ ] Conditional smoke: if pilotage/settings scope changed, validate `/scan/settings/`, `/scan/dashboard/`, and `/scan/pilotage/` all expose `Seuils actifs`, the expected active preset label, and coherent planning thresholds.
 - [ ] Conditional smoke: if portal scope changed, validate portal login plus one nominal order or recipient update flow.
-- [ ] Conditional smoke: if planning scope changed, validate run-list attention cards, cockpit access on an existing run/version, and strict `Planning.pdf` / `Planning.xlsx` artifact visibility, regeneration, or download if applicable.
+- [ ] Conditional smoke: if planning scope changed, validate run-list attention cards, cockpit access on an existing run/version, `Runtime PDF`, and strict `Planning.pdf` / `Planning.xlsx` artifact visibility, regeneration, or download if applicable.
+- [ ] Conditional smoke: if planning scope changed, validate one internal planning helper payload is blocked when no ready PDF exists and unblocked after a successful PDF export.
 - [ ] Conditional smoke: if billing scope changed, validate one nominal billing preview/export or payment/correction flow.
 - [ ] Run `python manage.py process_email_queue --limit=100`
+- [ ] Run `python manage.py refresh_ops_pilotage`
 - [ ] Check queue health (pending/failed counts)
 - [ ] Run `python manage.py process_document_scan_queue --limit=100`
 - [ ] Check document scan queue health (pending/failed/stale processing counts)

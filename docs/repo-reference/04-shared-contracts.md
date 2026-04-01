@@ -457,11 +457,15 @@ Current local contract:
 - `wms/planning/exports.py` owns the strict planning export contract and now vendors the workbook template from `data/planning_templates/Planning-maquette.xlsx`
 - stable planning artifact types in this local phase are `planning_workbook` and `planning_pdf`
 - `PlanningCommunicationArtifact` is the health/event layer for workbook and PDF generation attempts; it keeps `output_type`, `status`, `backend`, `file_name`, `generated_at`, `error_message`, `payload`
+- failed `planning_pdf` health payloads now keep stable local keys `error_code`, `runtime_status`, and `runtime_detail` when the backend is unavailable or the PDF export fails after runtime checks
 - `templates/planning/_version_exports_block.html` owns the regenerate/download affordances plus the last-known workbook/PDF health summary
 - `build_version_dashboard(version)` now exposes `exports.artifact_health` for `planning_workbook` and `planning_pdf`
+- `build_version_dashboard(version)` also exposes `exports.pdf_runtime` with `backend`, `status`, `status_label`, `available`, `detail`
 - stable local artifact-health statuses in this phase are `ready`, `failed`, and implicit UI fallback `missing`
 - internal planning email helper payloads now use `planning_pdf` and resolve through `planning:version_communication_pdf`
 - internal planning email helper payloads prefer the latest `planning_pdf` health row in `ready` status when available
+- when no ready `planning_pdf` exists, internal planning email helper payloads stay honest through `blocked=True` and `blocking_reason=planning_pdf_not_ready`
+- the production ops commands tied to this contract are `check_planning_pdf_runtime` and `refresh_ops_pilotage`
 
 Maintenance rule:
 

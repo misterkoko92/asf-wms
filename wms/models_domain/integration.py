@@ -95,7 +95,10 @@ class WorkflowBlockageClaim(models.Model):
     class Meta:
         ordering = ["-claimed_at", "-id"]
         indexes = [
-            models.Index(fields=["category", "claimed_at"]),
+            models.Index(
+                fields=["category", "claimed_at"],
+                name="wms_workflo_categor_25334f_idx",
+            ),
         ]
 
     def __str__(self) -> str:

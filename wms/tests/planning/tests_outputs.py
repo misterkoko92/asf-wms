@@ -21,6 +21,7 @@ from wms.models import (
     PlanningVersionStatus,
     PlanningVolunteerSnapshot,
 )
+from wms.planning.artifact_health import artifact_file_name
 from wms.planning.communications import generate_version_drafts
 from wms.planning.exports import PlanningExportError, export_version_pdf, export_version_workbook
 from wms.planning.legacy_communications import CommunicationFamily
@@ -204,6 +205,9 @@ class PlanningOutputTests(TestCase):
                 }
             ],
         )
+
+    def test_artifact_file_name_returns_empty_string_for_missing_path(self):
+        self.assertEqual(artifact_file_name(None), "")
 
     @mock.patch("wms.planning.exports.load_workbook")
     def test_export_version_workbook_closes_workbook_after_save(self, load_workbook_mock):

@@ -158,7 +158,7 @@ def _build_shipments_tracking_redirect_url(
     *,
     planned_week_value,
     closed_filter,
-    dispute_filter,
+    dispute_filter=DISPUTE_FILTER_ALL,
     destination_value="",
 ):
     query_items = {}

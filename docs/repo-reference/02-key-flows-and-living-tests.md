@@ -301,7 +301,10 @@ Also check whether the dashboard/runtime calibration loop changed:
 - the exports block now regenerates a strict planning workbook plus a derived planning PDF from the vendored `Planning-maquette.xlsx`
 - the planning PDF is the primary operator artifact; the workbook remains available for calibration and download
 - the exports block also exposes the latest workbook/PDF artifact health with backend, last attempt, and the last PDF error when present
+- the exports block exposes a distinct `Runtime PDF` state for the current host, separate from the last artifact attempt
 - internal planning communication drafts now expose `planning_pdf` attachments instead of the workbook
+- internal planning communication drafts are explicitly `blocked` with `blocking_reason=planning_pdf_not_ready` when no ready PDF artifact exists yet
+- the production-facing ops entry points for this flow are `python manage.py check_planning_pdf_runtime` and `python manage.py refresh_ops_pilotage`
 - flight-capacity indicators are read-only in this local phase and must not silently change assignment or publication rules
 
 ### Propagation warning

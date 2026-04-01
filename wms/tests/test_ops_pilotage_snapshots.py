@@ -1,7 +1,7 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from contacts.models import Contact
 from wms.document_scan_queue import DOCUMENT_SCAN_QUEUE_EVENT_TYPE, DOCUMENT_SCAN_QUEUE_SOURCE
@@ -161,3 +161,13 @@ class OpsPilotageSnapshotTests(TestCase):
             OpsPilotageSnapshot.objects.filter(snapshot_date=date(2026, 4, 1)).count(),
             len(rows),
         )
+
+    @override_settings(DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS="invalid")
+    def test_build_ops_pilotage_snapshots_falls_back_when_document_scan_timeout_is_invalid(self):
+        rows = build_ops_pilotage_snapshots(snapshot_date=date(2026, 4, 1))
+
+        queue_metrics = {
+            row["metric_key"]: row["metric_value"] for row in rows if row["scope_type"] == "queue"
+        }
+
+        self.assertIn("document_scan_failed_count", queue_metrics)

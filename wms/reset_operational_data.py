@@ -39,6 +39,10 @@ DELETE_BATCHES = (
         (
             "admin.LogEntry",
             "wms.IntegrationEvent",
+            "wms.WorkflowBlockageClaim",
+            "wms.ShipmentWorkflowProjection",
+            "wms.OpsPilotageSnapshot",
+            "wms.OpsEscalation",
             "wms.WmsRuntimeSettingsAudit",
             "wms.GeneratedPrintArtifactItem",
             "wms.GeneratedPrintArtifact",
@@ -54,6 +58,7 @@ DELETE_BATCHES = (
             "wms.PlanningShipmentSnapshot",
             "wms.PlanningVolunteerSnapshot",
             "wms.PlanningIssue",
+            "wms.PlanningCommunicationArtifact",
             "wms.PlanningArtifact",
             "wms.PlanningAssignment",
             "wms.PlanningVersion",

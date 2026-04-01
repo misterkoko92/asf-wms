@@ -306,6 +306,9 @@ class ResetOperationalDataCommandTests(TestCase):
             with self.assertRaisesMessage(ValueError, "references unknown model labels"):
                 _validate_configuration()
 
+    def test_validate_configuration_accepts_current_model_set(self):
+        _validate_configuration()
+
     def test_reset_operational_data_apply_raises_when_deleted_rows_remain(self):
         model_mock = mock.Mock()
 
