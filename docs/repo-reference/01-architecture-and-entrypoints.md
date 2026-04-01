@@ -85,6 +85,8 @@ Practical rule:
 - Current V3.1 extracted query sources:
   - `wms/application/scan/dashboard_queries.py` is the shared composition source for the legacy scan dashboard and `GET /api/v1/ui/dashboard/`
   - `wms/application/pilotage/pilotage_queries.py` is the shared composition source for the legacy pilotage cockpit and `GET /api/v1/ui/pilotage/`
+  - `wms/application/portal/dashboard_queries.py` is the shared composition source for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
+  - `wms/application/planning/version_detail_queries.py` is the shared GET composition source for `planning/version_detail`
 - Current V3.1 extracted policy sources:
   - `wms/policies/sla.py` owns shared SLA freshness and severity classification
   - `wms/policies/pilotage.py` owns planning-threshold normalization reused by runtime settings and pilotage previews

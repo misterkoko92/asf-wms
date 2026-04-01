@@ -125,6 +125,7 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 - `wms/views_portal_account.py`
 - `wms/views_portal_orders.py`
 - `wms/views_portal_billing.py`
+- `wms/application/portal/dashboard_queries.py`
 - `wms/portal_order_handlers.py`
 - `wms/portal_recipient_sync.py`
 - `wms/view_permissions.py`
@@ -271,6 +272,7 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `wms/planning/*`
 - `wms/planning/stats.py`
 - `wms/planning/version_dashboard.py`
+- `wms/application/planning/version_detail_queries.py`
 - `wms/management/commands/seed_planning_demo_data.py`
 - `wms/management/commands/planning_recipe_export.py`
 - `templates/planning/_version_stats_block.html`
