@@ -85,6 +85,11 @@ Practical rule:
 - Current V3.1 extracted query sources:
   - `wms/application/scan/dashboard_queries.py` is the shared composition source for the legacy scan dashboard and `GET /api/v1/ui/dashboard/`
   - `wms/application/pilotage/pilotage_queries.py` is the shared composition source for the legacy pilotage cockpit and `GET /api/v1/ui/pilotage/`
+- Current V3.1 extracted policy sources:
+  - `wms/policies/sla.py` owns shared SLA freshness and severity classification
+  - `wms/policies/pilotage.py` owns planning-threshold normalization reused by runtime settings and pilotage previews
+  - `wms/policies/planning.py` owns planning flight load-state ordering, labels, and classification
+  - `wms/policies/shipment_parties.py` owns shared shipment-party naming helpers such as the default recipient shipper label
 
 ### Shared contracts
 

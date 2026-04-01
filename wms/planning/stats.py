@@ -3,22 +3,11 @@ from __future__ import annotations
 from collections import defaultdict
 
 from wms.models import PlanningAssignmentSource, PlanningVersion
-
-FLIGHT_LOAD_STATE_ORDER = {
-    "overload": 0,
-    "critical": 1,
-    "tension": 2,
-    "ok": 3,
-    "unknown": 4,
-}
-
-FLIGHT_LOAD_STATE_LABELS = {
-    "overload": "En surcharge",
-    "critical": "Critique",
-    "tension": "En tension",
-    "ok": "OK",
-    "unknown": "A renseigner",
-}
+from wms.policies.planning import (
+    FLIGHT_LOAD_STATE_LABELS,
+    FLIGHT_LOAD_STATE_ORDER,
+    classify_planning_load_state,
+)
 
 
 def _build_flight_load_metrics(
@@ -29,24 +18,20 @@ def _build_flight_load_metrics(
     critical_pct: int = 95,
 ) -> dict[str, object]:
     if not capacity_units:
+        load_state = "unknown"
         return {
             "remaining_units": None,
             "utilization_pct": None,
-            "load_state": "unknown",
-            "load_state_label": FLIGHT_LOAD_STATE_LABELS["unknown"],
+            "load_state": load_state,
+            "load_state_label": FLIGHT_LOAD_STATE_LABELS[load_state],
         }
     utilization_pct = round((equivalent_total / capacity_units) * 100)
     remaining_units = capacity_units - equivalent_total
-    resolved_tension_pct = max(int(tension_pct or 0), 1)
-    resolved_critical_pct = max(int(critical_pct or 0), resolved_tension_pct)
-    if utilization_pct > 100:
-        load_state = "overload"
-    elif utilization_pct >= resolved_critical_pct:
-        load_state = "critical"
-    elif utilization_pct >= resolved_tension_pct:
-        load_state = "tension"
-    else:
-        load_state = "ok"
+    load_state = classify_planning_load_state(
+        utilization_pct,
+        tension_pct=tension_pct,
+        critical_pct=critical_pct,
+    )
     return {
         "remaining_units": remaining_units,
         "utilization_pct": utilization_pct,

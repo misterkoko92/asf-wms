@@ -72,6 +72,32 @@ Reference tests:
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 
+### V3 Extracted Policies Contract
+
+Primary runtime sources:
+
+- `wms/policies/sla.py`
+- `wms/policies/pilotage.py`
+- `wms/policies/planning.py`
+- `wms/policies/shipment_parties.py`
+
+Current V3.1 contract:
+
+- `wms/policies/sla.py` owns the shared SLA-delay freshness and alert classification reused by dashboard and API compositions
+- `wms/policies/pilotage.py` owns planning-threshold normalization and is the single place that enforces `critical >= tension`
+- `wms/policies/planning.py` owns planning flight `load_state` ordering, labels, and threshold-based classification
+- `wms/policies/shipment_parties.py` owns the canonical default recipient shipper display name derived from shipment-party setup constants
+
+Maintenance rule:
+
+- if a business-rule threshold, label, or classification is shared across multiple screens or adapters, extract or update it here first instead of reintroducing it directly into views, helpers, or API adapters
+- keep legacy adapters thin: `wms/scan_dashboard_sla.py`, `wms/planning/stats.py`, `wms/runtime_settings.py`, `wms/pilotage_runtime.py`, and `wms/default_shipper_bindings.py` should consume this layer rather than redefining the same rule locally
+
+Reference tests:
+
+- `wms/tests/core/tests_policies.py`
+- `wms/tests/core/tests_runtime_settings.py`
+
 ### Local Dashboard V2 API Contract
 
 Primary runtime sources:
@@ -101,6 +127,7 @@ Maintenance rule:
 
 - if dashboard action routing, workflow blockage categorization, SLA prioritization, destination-risk ranking, or ownership vocabulary changes, update the legacy dashboard, `scan/settings` if relevant, the shipment-tracking deep link, the UI API tests, and the repo-reference in the same work
 - `wms/views_scan_dashboard.py` and `api/v1/ui_views.py` should remain thin adapters over `wms/application/scan/dashboard_queries.py`; do not duplicate the full dashboard composition in both surfaces again during V3.1
+- shared SLA alert semantics should continue to resolve through `wms/policies/sla.py`, with `wms/scan_dashboard_sla.py` acting as the data adapter rather than the rule owner
 - keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
 
 Reference tests:
@@ -479,6 +506,7 @@ Current local contract:
 Maintenance rule:
 
 - if flight-capacity thresholds, row fields, cockpit ordering, planning export artifacts, or artifact-health semantics change, update the stats/export helpers, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
+- keep shared load-state ordering and threshold semantics in `wms/policies/planning.py` and `wms/policies/pilotage.py`; `wms/planning/stats.py` should remain the aggregator, not the rule-definition layer
 - keep this lot read-only during the local phase; do not smuggle mutation or validation rules into the capacity cockpit
 
 Reference tests:
