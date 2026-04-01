@@ -6,7 +6,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-EXCEL_PDF_BACKEND = "excel_desktop"
+from tools.planning_comm_helper import excel_runtime
+
+EXCEL_PDF_BACKEND = excel_runtime.EXCEL_RUNTIME_BACKEND
 
 
 class ExcelPdfConversionError(RuntimeError):
@@ -30,6 +32,9 @@ def convert_workbook_to_pdf(
     output_path = (
         Path(pdf_path).expanduser().resolve() if pdf_path else workbook.with_suffix(".pdf")
     )
+    runtime_status = excel_runtime.get_excel_runtime_status()
+    if not runtime_status["available"]:
+        raise ExcelPdfConversionError(excel_runtime.build_runtime_unavailable_message(runtime_status))
     system = platform.system()
     if system == "Windows":
         return _convert_with_windows_excel(workbook, output_path, strict=strict)
