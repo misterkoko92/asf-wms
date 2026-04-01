@@ -1,7 +1,7 @@
 from urllib.parse import urlencode
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import get_language
@@ -22,7 +22,13 @@ from .admin_contacts_crud import (
     handle_destination_submission,
 )
 from .kit_components import KitCycleError, get_unit_component_quantities
-from .models import Destination, Product
+from .models import (
+    Destination,
+    Product,
+    ShipmentRecipientOrganization,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
+)
 from .product_label_printing import (
     render_product_labels_response,
     render_product_qr_labels_response,
@@ -102,6 +108,17 @@ def _normalize_destination_filter(raw_value):
 
 
 def _build_contacts_redirect(*, query, contact_filter, destination_filter="", edit_id=None):
+    return redirect(
+        _build_contacts_url(
+            query=query,
+            contact_filter=contact_filter,
+            destination_filter=destination_filter,
+            edit_id=edit_id,
+        )
+    )
+
+
+def _build_contacts_url(*, query, contact_filter, destination_filter="", edit_id=None):
     params = {}
     if query:
         params["q"] = query
@@ -114,7 +131,61 @@ def _build_contacts_redirect(*, query, contact_filter, destination_filter="", ed
     url = reverse("scan:scan_admin_contacts")
     if params:
         url = f"{url}?{urlencode(params)}"
-    return redirect(url)
+    return url
+
+
+def _build_pending_recipient_validations(*, query, contact_filter, destination_filter):
+    pending_recipient_validations = (
+        ShipmentRecipientOrganization.objects.filter(
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+            organization__is_active=True,
+        )
+        .select_related("organization", "destination")
+        .prefetch_related(
+            Prefetch(
+                "shipper_links",
+                queryset=ShipmentShipperRecipientLink.objects.filter(
+                    is_active=True,
+                    shipper__is_active=True,
+                    shipper__organization__is_active=True,
+                )
+                .select_related("shipper__organization")
+                .order_by("shipper__organization__name", "id"),
+                to_attr="active_shipper_links",
+            )
+        )
+        .order_by("destination__city", "organization__name", "id")
+    )
+    rows = []
+    for recipient_validation in pending_recipient_validations:
+        rows.append(
+            {
+                "organization": recipient_validation.organization,
+                "destination": recipient_validation.destination,
+                "allowed_shipper_names": [
+                    link.shipper.organization.name
+                    for link in recipient_validation.active_shipper_links
+                ],
+                "verify_url": _build_contacts_url(
+                    query=query,
+                    contact_filter=contact_filter,
+                    destination_filter=destination_filter,
+                    edit_id=recipient_validation.organization_id,
+                ),
+            }
+        )
+    return rows
+
+
+def _editing_contact_requires_recipient_validation(contact):
+    if contact is None or contact.contact_type != ContactType.ORGANIZATION:
+        return False
+    return ShipmentRecipientOrganization.objects.filter(
+        organization=contact,
+        validation_status=ShipmentValidationStatus.PENDING,
+        is_active=True,
+    ).exists()
 
 
 def _apply_product_query(queryset, query):
@@ -318,6 +389,14 @@ def scan_admin_contacts(request):
             editing_structure_documents = list(
                 editing_structure_contact.recipient_structure_documents.order_by("-uploaded_at")
             )
+    pending_recipient_validations = _build_pending_recipient_validations(
+        query=query,
+        contact_filter=contact_filter,
+        destination_filter=destination_filter,
+    )
+    editing_contact_requires_recipient_validation = _editing_contact_requires_recipient_validation(
+        crud_context.get("editing_contact")
+    )
 
     return render(
         request,
@@ -330,6 +409,10 @@ def scan_admin_contacts(request):
             "contact_filter_choices": CONTACT_FILTER_CHOICES,
             "destination_filter_choices": list(
                 Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
+            ),
+            "pending_recipient_validations": pending_recipient_validations,
+            "editing_contact_requires_recipient_validation": (
+                editing_contact_requires_recipient_validation
             ),
             "contacts": contacts,
             "correspondents": correspondents,
