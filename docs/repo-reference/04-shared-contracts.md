@@ -98,6 +98,35 @@ Reference tests:
 - `wms/tests/core/tests_policies.py`
 - `wms/tests/core/tests_runtime_settings.py`
 
+### V3.2 Event Contract
+
+Primary runtime sources:
+
+- `wms/events/types.py`
+- `wms/events/publishers.py`
+
+Current V3.2 contract:
+
+- `RuntimeEvent` is the base immutable runtime event shape used by the signal bridge and future job/runtime handlers
+- the event shape is intentionally short during the first V3.2 slice: `event_type`, `scope_type`, `scope_id`, `payload`
+- the first explicit event constants are:
+  - `shipment.status_changed`
+  - `shipment_tracking.event_created`
+  - `order.status_changed`
+  - `workflow_projection.refresh_requested`
+  - `pilotage.refresh_requested`
+  - `planning.artifact_exported`
+- publisher helpers own the initial payload normalization and stringification of scope identifiers
+
+Maintenance rule:
+
+- if a new cross-surface runtime side effect is introduced during V3.2, define or update the event contract here before wiring handlers in `wms/signals.py` or `wms/jobs/*`
+- do not let signals invent ad-hoc payload dicts once the explicit event contract exists
+
+Reference tests:
+
+- `wms/tests/core/tests_event_types.py`
+
 ### Local Dashboard V2 API Contract
 
 Primary runtime sources:
