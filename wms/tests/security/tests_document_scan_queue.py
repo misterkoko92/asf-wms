@@ -45,6 +45,27 @@ class DocumentScanQueueTests(TestCase):
         self.assertEqual(event.payload["model"], "wms.AccountDocument")
         self.assertEqual(event.payload["pk"], document.id)
 
+    @mock.patch("wms.events.outbox.enqueue_integration_event", return_value=mock.Mock())
+    def test_queue_document_scan_uses_outbox_helper(self, enqueue_mock):
+        document = self._create_account_document()
+
+        queued = queue_document_scan(document)
+
+        self.assertTrue(queued)
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        enqueue_mock.assert_called_once_with(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={
+                "model": "wms.AccountDocument",
+                "pk": document.id,
+                "file_name": document.file.name,
+            },
+            status=IntegrationStatus.PENDING,
+        )
+
     def test_queue_document_scan_rejects_invalid_inputs(self):
         self.assertFalse(queue_document_scan(None))
         self.assertFalse(queue_document_scan(SimpleNamespace(pk=None, file=object())))

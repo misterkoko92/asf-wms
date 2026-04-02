@@ -70,6 +70,52 @@ class PublicOrderNotificationsQueueTests(TestCase):
         self.assertIn(("admin@example.com",), recipients)
         self.assertIn((contact.email,), recipients)
 
+    def test_send_public_order_notifications_uses_outbox_helper_for_queued_emails(self):
+        request = self.factory.get("/scan/public-order/")
+        link = PublicOrderLink.objects.create(label="Outbox link")
+        contact = Contact.objects.create(
+            name="Association Outbox",
+            email="association-outbox@example.com",
+            phone="+33123456789",
+        )
+        order = Order.objects.create(
+            public_link=link,
+            recipient_contact=contact,
+            shipper_name="Aviation Sans Frontieres",
+            recipient_name=contact.name,
+            destination_address="10 Rue Test\n75000 Paris\nFrance",
+            destination_country="France",
+        )
+        form_data = {
+            "association_name": contact.name,
+            "association_email": contact.email,
+            "association_phone": contact.phone,
+        }
+
+        with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+            with mock.patch(
+                "wms.events.outbox.enqueue_integration_event",
+                return_value=mock.Mock(),
+            ) as enqueue_mock:
+                send_public_order_notifications(
+                    request=request,
+                    token=link.token,
+                    order=order,
+                    form_data=form_data,
+                    contact=contact,
+                )
+
+        self.assertEqual(enqueue_mock.call_count, 2)
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        self.assertEqual(
+            {call.kwargs["source"] for call in enqueue_mock.call_args_list},
+            {"wms.email"},
+        )
+        self.assertEqual(
+            {call.kwargs["event_type"] for call in enqueue_mock.call_args_list},
+            {"send_email"},
+        )
+
     def test_send_public_order_notifications_uses_public_admin_template(self):
         request = self.factory.get("/scan/public-order/")
         link = PublicOrderLink.objects.create(label="Template link")
