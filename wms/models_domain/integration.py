@@ -263,6 +263,36 @@ class PlanningCommunicationArtifact(models.Model):
         return f"{self.planning_version_id}:{self.output_type}:{self.status}"
 
 
+class OperationalJobRun(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = "running", "Running"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+
+    job_key = models.CharField(max_length=80)
+    trigger_source = models.CharField(max_length=40, default="direct")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.RUNNING,
+    )
+    context_payload = models.JSONField(default=dict, blank=True)
+    result_summary = models.JSONField(default=dict, blank=True)
+    error_summary = models.JSONField(default=dict, blank=True)
+    started_at = models.DateTimeField(default=timezone.now)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-started_at", "job_key", "-id"]
+        indexes = [
+            models.Index(fields=["job_key", "-started_at"], name="wms_job_run_key_start_idx"),
+            models.Index(fields=["status", "-started_at"], name="wms_job_run_status_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.job_key}:{self.status}:{self.started_at.isoformat()}"
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)

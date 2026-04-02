@@ -114,7 +114,7 @@ class PrintPackSyncTests(TestCase):
     def test_management_command_delegates_to_processor(self):
         stdout = StringIO()
         with mock.patch(
-            "wms.management.commands.process_print_artifact_queue.process_print_artifact_queue",
+            "wms.management.commands.process_print_artifact_queue.run_print_artifact_queue_job",
             return_value={"selected": 2, "processed": 1, "failed": 0, "retried": 1},
         ) as process_mock:
             call_command(

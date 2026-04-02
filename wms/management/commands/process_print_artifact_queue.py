@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from wms.print_pack_sync import process_print_artifact_queue
+from wms.jobs.print_artifacts import run_print_artifact_queue_job
 
 
 class Command(BaseCommand):
@@ -26,7 +26,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        result = process_print_artifact_queue(
+        result = run_print_artifact_queue_job(
             limit=options["limit"],
             include_failed=options["include_failed"],
             max_attempts=options["max_attempts"],

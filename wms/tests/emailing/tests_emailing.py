@@ -357,20 +357,29 @@ class EmailQueueTests(TestCase):
 
 
 class ProcessEmailQueueCommandTests(TestCase):
-    @mock.patch("wms.emailing.send_email_safe")
-    def test_process_email_queue_command_processes_events(self, send_email_mock):
-        send_email_mock.return_value = True
-        enqueue_email_safe(
-            subject="Sujet commande",
-            message="Message commande",
-            recipient="dest@example.com",
-        )
+    @mock.patch(
+        "wms.management.commands.process_email_queue.run_email_queue_job",
+        return_value={
+            "selected": 1,
+            "processed": 1,
+            "failed": 0,
+            "retried": 0,
+            "deferred": 0,
+        },
+    )
+    def test_process_email_queue_command_processes_events(self, run_job_mock):
         out = StringIO()
 
         call_command("process_email_queue", "--limit=1", stdout=out)
 
-        event = IntegrationEvent.objects.get()
-        self.assertEqual(event.status, IntegrationStatus.PROCESSED)
+        run_job_mock.assert_called_once_with(
+            limit=1,
+            include_failed=False,
+            max_attempts=None,
+            retry_base_seconds=None,
+            retry_max_seconds=None,
+            processing_timeout_seconds=None,
+        )
         self.assertIn(
             "selected=1, processed=1, failed=0, retried=0, deferred=0",
             out.getvalue(),

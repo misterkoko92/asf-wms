@@ -127,6 +127,37 @@ Reference tests:
 
 - `wms/tests/core/tests_event_types.py`
 
+### V3.2 Operational Job Run Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/integration.py`
+- `wms/jobs/runtime_tracking.py`
+- `wms/jobs/email_queue.py`
+- `wms/jobs/document_scan.py`
+- `wms/jobs/print_artifacts.py`
+- `wms/jobs/workflow_projection.py`
+- `wms/jobs/pilotage.py`
+
+Current V3.2 contract:
+
+- `OperationalJobRun` is the persisted runtime trace for operational job wrappers under `wms/jobs/`
+- stable fields in this first slice are `job_key`, `trigger_source`, `status`, `started_at`, `finished_at`, `context_payload`, `result_summary`, `error_summary`
+- current stable statuses are `running`, `succeeded`, `failed`
+- job wrappers, not management commands, own run persistence
+- scalar job results are normalized to `result_summary={"result": ...}`
+- structured job results remain JSON summaries, with `date` and datetime-like values normalized through the runtime tracking helper
+
+Maintenance rule:
+
+- if a runtime wrapper is added under `wms/jobs/`, decide in the same work whether it should persist an `OperationalJobRun`
+- keep command modules thin; do not duplicate run persistence inside management commands once the job wrapper exists
+- if run status vocabulary or summary normalization changes, update the model helper, affected jobs, ops docs, and this section together
+
+Reference tests:
+
+- `wms/tests/test_job_runs.py`
+
 ### Local Dashboard V2 API Contract
 
 Primary runtime sources:
