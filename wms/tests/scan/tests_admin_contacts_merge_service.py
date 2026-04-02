@@ -855,7 +855,7 @@ class AdminContactsMergeServiceTests(TestCase):
             ShipmentRecipientContact.objects.filter(pk=source_recipient_contact.pk).exists()
         )
 
-    def test_merge_organization_rejects_recipients_on_different_destinations(self):
+    def test_merge_organization_keeps_recipient_scopes_on_different_destinations(self):
         source = Contact.objects.create(
             name="Source Org",
             contact_type=ContactType.ORGANIZATION,
@@ -886,5 +886,18 @@ class AdminContactsMergeServiceTests(TestCase):
             is_active=True,
         )
 
-        with self.assertRaises(ValidationError):
-            merge_contacts(source_contact=source, target_contact=target)
+        merged = merge_contacts(source_contact=source, target_contact=target)
+
+        source.refresh_from_db()
+        self.assertEqual(merged, target)
+        self.assertFalse(source.is_active)
+        self.assertFalse(ShipmentRecipientOrganization.objects.filter(organization=source).exists())
+        self.assertSetEqual(
+            set(
+                ShipmentRecipientOrganization.objects.filter(organization=target).values_list(
+                    "destination_id",
+                    flat=True,
+                )
+            ),
+            {self.destination.id, other_destination.id},
+        )
