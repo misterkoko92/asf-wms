@@ -127,6 +127,30 @@ Reference tests:
 
 - `wms/tests/core/tests_event_types.py`
 
+### V3.2 Durable Outbox Contract
+
+Primary runtime sources:
+
+- `wms/events/outbox.py`
+- `wms/emailing.py`
+- `wms/document_scan_queue.py`
+
+Current V3.2 contract:
+
+- `enqueue_integration_event(...)` is the explicit helper for durable `IntegrationEvent` creation in the first V3.2 outbox slice
+- this slice currently normalizes queue-backed email and document-scan producers without changing their source, target, event_type, payload, or initial status semantics
+- producers still own payload construction, while `wms/events/outbox.py` owns persisted row creation
+
+Maintenance rule:
+
+- if a queue-backed producer currently writes `IntegrationEvent.objects.create(...)` directly, decide whether it should move behind `wms/events/outbox.py` before adding more enqueue logic
+- do not broaden this helper into a second persistence model during V3.2; the contract is still a normalized boundary over `IntegrationEvent`
+
+Reference tests:
+
+- `wms/tests/emailing/tests_notifications_queue.py`
+- `wms/tests/security/tests_document_scan_queue.py`
+
 ### V3.2 Operational Job Run Contract
 
 Primary runtime sources:
