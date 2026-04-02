@@ -58,6 +58,11 @@ Practical rule:
   `wms/parties/invariants.py`, `wms/parties/sync.py`, `wms/parties/merge.py`, and
   `wms/application/parties/use_cases.py`, while portal views still route through
   legacy compatibility wrappers where needed
+- the first live V3.3 planning-artifact slice now exists through `wms/artifacts/planning.py`,
+  `wms/artifacts/attachments.py`, `wms/artifacts/proofs.py`, and
+  `wms/application/planning_artifacts/use_cases.py`, while `wms/planning/exports.py`,
+  `wms/planning/communication_actions.py`, and `wms/print_pack_sync.py` remain
+  compatibility adapters where needed
 
 ## 4. Main Runtime Clusters
 
@@ -131,6 +136,8 @@ Important cross-cutting domain modules:
 - workflow notifications and side effects: `wms/signals.py`
 - core orchestration services: `wms/services.py`
 - V3.3 target boundary for planning/document artifact lifecycle: `wms/artifacts/`
+- live V3.3 application entrypoint for planning artifact helper payloads:
+  `wms/application/planning_artifacts/use_cases.py`
 
 ## 6. Tests As Runtime Maps
 
@@ -165,6 +172,7 @@ If the ticket touches:
 - scan flow: `wms/scan_urls.py`, `wms/views_scan_*`, nearest `*_handlers.py`, `templates/scan/`, `wms/tests/views/`
 - portal flow: `wms/portal_urls.py`, `wms/views_portal_*`, `wms/portal_recipient_sync.py`, `templates/portal/`, `wms/tests/portal/`
 - shipment-party/contact rules: `wms/models_domain/shipment_parties.py`, `wms/models_domain/portal.py`, `wms/shipment_party_*`, `wms/portal_recipient_sync.py`
+- planning artifacts/runtime: `wms/planning/*`, `wms/artifacts/*`, `wms/application/planning_artifacts/use_cases.py`, `wms/tests/planning/`, `wms/tests/print/tests_print_pack_sync.py`
 - print/documents: `wms/shipment_document_handlers.py`, `wms/billing_document_handlers.py`, `templates/print/`, scan print views, print tests
 - shared UI: `wms/templatetags/wms_ui.py`, `templates/wms/components/`, `templates/scan/ui_lab.html`, bridge CSS files, bootstrap UI tests
 - release/operations: `docs/operations.md`, `docs/release_checklist.md`

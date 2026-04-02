@@ -340,6 +340,28 @@ Queue health snapshot:
 python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationDirection; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source='wms.email', event_type='send_email'); print({s: qs.filter(status=s).count() for s in ['pending','processing','processed','failed']})"
 ```
 
+### Print artifact proof sync runtime
+
+The generated print-artifact queue now builds its OneDrive/proof payload through `wms/artifacts/proofs.py` before transport.
+
+Operational checks:
+
+- run `python manage.py process_print_artifact_queue --limit=20`
+- inspect recent `OperationalJobRun` rows for `job_key=print_artifact_queue`
+- use `result_summary.proof_sync_preview` to confirm which artifact ids and OneDrive paths were processed, retried, or failed
+
+Suggested shell probe:
+
+```bash
+python manage.py shell -c "from wms.models import OperationalJobRun; print(list(OperationalJobRun.objects.filter(job_key='print_artifact_queue').order_by('-started_at').values('status','context_payload','result_summary','error_summary')[:10]))"
+```
+
+Interpretation:
+
+- `proof_sync_preview[*].result=processed` means the artifact sync path and upload completed
+- `proof_sync_preview[*].result=retried` means the artifact stayed pending and will be retried on the next queue run
+- `proof_sync_preview[*].result=failed` means the artifact hit the max-attempt policy and is now `sync_failed`
+
 Recent failed events:
 
 ```bash

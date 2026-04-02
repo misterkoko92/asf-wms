@@ -171,6 +171,8 @@ Current V3.2 contract:
 - job wrappers, not management commands, own run persistence
 - scalar job results are normalized to `result_summary={"result": ...}`
 - structured job results remain JSON summaries, with `date` and datetime-like values normalized through the runtime tracking helper
+- job wrappers may now provide a `result_summary_factory` when the persisted summary should stay smaller or more action-oriented than the raw runtime result
+- the print-artifact job persists a bounded `proof_sync_preview` rather than the full raw sync payload list when proof-level details are present
 
 Maintenance rule:
 
@@ -223,6 +225,44 @@ Reference tests:
 - `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+
+### V3.3 Artifacts Boundary Contract
+
+Primary runtime sources:
+
+- `wms/artifacts/planning.py`
+- `wms/artifacts/attachments.py`
+- `wms/artifacts/proofs.py`
+- `wms/application/planning_artifacts/use_cases.py`
+- `wms/planning/exports.py`
+- `wms/planning/communication_actions.py`
+- `wms/print_pack_sync.py`
+- `wms/jobs/print_artifacts.py`
+
+Current V3.3 contract:
+
+- `wms/artifacts/planning.py` is now the shared home for planning workbook/PDF export orchestration, persisted artifact health helpers, and artifact metadata summaries
+- `wms/planning/exports.py` remains a compatibility adapter and should not grow new export orchestration logic again
+- `wms/artifacts/attachments.py` now owns planning attachment resolution and PDF readiness/blocking semantics for communication helpers
+- `wms/application/planning_artifacts/use_cases.py` is now the application-facing entrypoint for helper payload composition that depends on planning artifact state
+- `wms/planning/communication_actions.py` remains a compatibility adapter and should not grow attachment-selection logic again
+- `wms/artifacts/proofs.py` now owns proof-path payloads for print artifact sync, including the canonical file name, relative directory, and OneDrive path
+- `wms/print_pack_sync.py` keeps transport and queue retry behavior, but should delegate proof-path construction to `wms/artifacts/proofs.py`
+- `process_print_artifact_queue(...)` now returns the legacy counters plus a `proof_sync` list, and `wms/jobs/print_artifacts.py` persists a bounded `proof_sync_preview` inside `OperationalJobRun.result_summary`
+
+Maintenance rule:
+
+- if planning workbook/PDF lifecycle, artifact health persistence, or communication attachment eligibility changes, update `wms/artifacts/planning.py` and `wms/artifacts/attachments.py` first, then keep planning adapters thin
+- if print artifact sync path construction changes, update `wms/artifacts/proofs.py` first, then keep `wms/print_pack_sync.py` focused on transport/retry behavior
+- if print artifact job summaries change, update `wms/jobs/print_artifacts.py`, `wms/jobs/runtime_tracking.py`, ops docs, and this section together
+
+Reference tests:
+
+- `wms/tests/planning/tests_artifact_services.py`
+- `wms/tests/planning/tests_outputs.py`
+- `wms/tests/planning/tests_communication_actions.py`
+- `wms/tests/print/tests_print_pack_sync.py`
+- `wms/tests/test_job_runs.py`
 
 ### Local Dashboard V2 API Contract
 

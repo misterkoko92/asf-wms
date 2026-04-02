@@ -11,19 +11,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 
-from tools.planning_comm_helper import excel_pdf, excel_runtime
-from tools.planning_comm_helper.planning_pdf import (
-    PlanningPdfConversionError,
-    convert_workbook_to_pdf,
-)
 from wms.models import PlanningArtifact, PlanningVersion
-from wms.planning.artifact_health import (
-    PLANNING_ARTIFACT_STATUS_FAILED,
-    PLANNING_ARTIFACT_STATUS_READY,
-    PLANNING_WORKBOOK_BACKEND,
-    artifact_file_name,
-    record_planning_artifact_result,
-)
 from wms.planning.legacy_communications import (
     format_be_number,
     format_heure_hh_mm,
@@ -104,16 +92,6 @@ _PLAN_MIDDLE_MOVES: tuple[tuple[int, int, int], ...] = (
     (141, 128, 156),
     (172, 159, 187),
     (203, 190, 218),
-)
-
-_EXPORT_PDF_ERRORS = (
-    PlanningPdfConversionError,
-    FileNotFoundError,
-    OSError,
-    PermissionError,
-    RuntimeError,
-    ValueError,
-    TypeError,
 )
 
 
@@ -473,138 +451,19 @@ def _upsert_artifact(
     return artifact
 
 
-def export_version_workbook(version: PlanningVersion) -> PlanningArtifact:
-    template_path = _planning_template_path()
-    output_path = _planning_output_dir() / f"{_planning_basename(version)}.xlsx"
-    workbook = load_workbook(template_path)
-    try:
-        try:
-            ws_plan = _planning_sheet(workbook)
-            _reset_planning_grid(ws_plan)
-            _write_metadata(ws_plan, version=version)
-            _populate_planning_sheet(ws_plan, rows=_build_export_rows(version))
-            _apply_planning_layout(ws_plan)
-            workbook.save(output_path)
-            artifact = _upsert_artifact(
-                version=version,
-                artifact_type=PLANNING_WORKBOOK_ARTIFACT,
-                label=_artifact_label(version, suffix="XLSX"),
-                file_path=output_path,
-            )
-            record_planning_artifact_result(
-                version=version,
-                output_type=PLANNING_WORKBOOK_ARTIFACT,
-                status=PLANNING_ARTIFACT_STATUS_READY,
-                backend=PLANNING_WORKBOOK_BACKEND,
-                file_name=artifact_file_name(output_path),
-                payload={"artifact_id": artifact.pk},
-            )
-            return artifact
-        except Exception as exc:
-            record_planning_artifact_result(
-                version=version,
-                output_type=PLANNING_WORKBOOK_ARTIFACT,
-                status=PLANNING_ARTIFACT_STATUS_FAILED,
-                backend=PLANNING_WORKBOOK_BACKEND,
-                file_name=artifact_file_name(output_path),
-                error_message=str(exc),
-            )
-            raise
-    finally:
-        workbook.close()
-
-
-def _export_pdf_artifact(
-    *,
-    version: PlanningVersion,
-    workbook_artifact: PlanningArtifact,
-) -> PlanningArtifact:
-    workbook_path = Path(workbook_artifact.file_path)
-    pdf_path = _planning_output_dir() / f"{_planning_basename(version)}.pdf"
-    runtime_status = excel_runtime.get_excel_runtime_status()
-    if not runtime_status["available"]:
-        runtime_message = excel_runtime.build_runtime_unavailable_message(runtime_status)
-        record_planning_artifact_result(
-            version=version,
-            output_type=PLANNING_PDF_ARTIFACT,
-            status=PLANNING_ARTIFACT_STATUS_FAILED,
-            backend=excel_pdf.pdf_backend_name(),
-            file_name=artifact_file_name(pdf_path),
-            error_message=runtime_message,
-            payload={
-                "workbook_artifact_id": workbook_artifact.pk,
-                "error_code": runtime_status["status"],
-                "runtime_status": runtime_status["status"],
-                "runtime_detail": runtime_status["detail"],
-            },
-        )
-        raise PlanningExportError("Planning PDF indisponible.")
-    try:
-        generated = Path(convert_workbook_to_pdf(workbook_path, pdf_path, strict=True))
-    except _EXPORT_PDF_ERRORS as exc:
-        error_code = runtime_status["status"]
-        if error_code == excel_runtime.EXCEL_RUNTIME_READY:
-            error_code = excel_runtime.EXCEL_RUNTIME_AUTOMATION_UNAVAILABLE
-        record_planning_artifact_result(
-            version=version,
-            output_type=PLANNING_PDF_ARTIFACT,
-            status=PLANNING_ARTIFACT_STATUS_FAILED,
-            backend=excel_pdf.pdf_backend_name(),
-            file_name=artifact_file_name(pdf_path),
-            error_message=str(exc),
-            payload={
-                "workbook_artifact_id": workbook_artifact.pk,
-                "error_code": error_code,
-                "runtime_status": runtime_status["status"],
-                "runtime_detail": runtime_status["detail"],
-            },
-        )
-        raise PlanningExportError("Planning PDF indisponible.") from exc
-    if not generated.exists():
-        record_planning_artifact_result(
-            version=version,
-            output_type=PLANNING_PDF_ARTIFACT,
-            status=PLANNING_ARTIFACT_STATUS_FAILED,
-            backend=excel_pdf.pdf_backend_name(),
-            file_name=artifact_file_name(pdf_path),
-            error_message="Generated PDF file is missing.",
-            payload={
-                "workbook_artifact_id": workbook_artifact.pk,
-                "error_code": excel_runtime.EXCEL_RUNTIME_AUTOMATION_UNAVAILABLE,
-                "runtime_status": runtime_status["status"],
-                "runtime_detail": runtime_status["detail"],
-            },
-        )
-        raise PlanningExportError("Planning PDF indisponible.")
-    artifact = _upsert_artifact(
-        version=version,
-        artifact_type=PLANNING_PDF_ARTIFACT,
-        label=_artifact_label(version, suffix="PDF"),
-        file_path=generated,
-    )
-    record_planning_artifact_result(
-        version=version,
-        output_type=PLANNING_PDF_ARTIFACT,
-        status=PLANNING_ARTIFACT_STATUS_READY,
-        backend=excel_pdf.pdf_backend_name(),
-        file_name=artifact_file_name(generated),
-        payload={
-            "artifact_id": artifact.pk,
-            "workbook_artifact_id": workbook_artifact.pk,
-        },
-    )
-    return artifact
-
-
 def export_version_pdf(version: PlanningVersion) -> PlanningArtifact:
-    workbook_artifact = export_version_workbook(version)
-    return _export_pdf_artifact(version=version, workbook_artifact=workbook_artifact)
+    from wms.artifacts.planning import export_planning_pdf
+
+    return export_planning_pdf(version)
 
 
 def export_version_artifacts(version: PlanningVersion) -> dict[str, PlanningArtifact]:
-    workbook_artifact = export_version_workbook(version)
-    pdf_artifact = _export_pdf_artifact(version=version, workbook_artifact=workbook_artifact)
-    return {
-        PLANNING_WORKBOOK_ARTIFACT: workbook_artifact,
-        PLANNING_PDF_ARTIFACT: pdf_artifact,
-    }
+    from wms.artifacts.planning import export_planning_artifacts
+
+    return export_planning_artifacts(version)
+
+
+def export_version_workbook(version: PlanningVersion) -> PlanningArtifact:
+    from wms.artifacts.planning import export_planning_workbook
+
+    return export_planning_workbook(version)

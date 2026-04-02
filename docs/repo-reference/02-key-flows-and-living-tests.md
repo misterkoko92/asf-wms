@@ -283,6 +283,10 @@ Document scan queue follows the same V3.2 durable-dispatch rule:
 - `wms/views_planning.py`
 - `wms/models_domain/planning.py`
 - `wms/planning/*`
+- `wms/artifacts/planning.py`
+- `wms/artifacts/attachments.py`
+- `wms/artifacts/proofs.py`
+- `wms/application/planning_artifacts/use_cases.py`
 - `wms/planning/stats.py`
 - `wms/planning/version_dashboard.py`
 - `wms/application/planning/version_detail_queries.py`
@@ -294,10 +298,13 @@ Document scan queue follows the same V3.2 durable-dispatch rule:
 ### Living reference tests
 
 - `wms/tests/planning/tests_smoke_planning_flow.py`
+- `wms/tests/planning/tests_artifact_services.py`
 - `wms/tests/planning/tests_outputs.py`
 - `wms/tests/planning/tests_communication_actions.py`
 - `wms/tests/planning/tests_run_preparation.py`
 - `wms/tests/planning/tests_version_dashboard.py`
+- `wms/tests/print/tests_print_pack_sync.py`
+- `wms/tests/test_job_runs.py`
 - `wms/tests/views/tests_views_planning.py`
 
 ### Docs that must stay aligned
@@ -319,6 +326,8 @@ Document scan queue follows the same V3.2 durable-dispatch rule:
 - the exports block exposes a distinct `Runtime PDF` state for the current host, separate from the last artifact attempt
 - internal planning communication drafts now expose `planning_pdf` attachments instead of the workbook
 - internal planning communication drafts are explicitly `blocked` with `blocking_reason=planning_pdf_not_ready` when no ready PDF artifact exists yet
+- the V3.3 artifact slice keeps `wms/planning/exports.py` and `wms/planning/communication_actions.py` as compatibility adapters over `wms/artifacts/*` and `wms/application/planning_artifacts/use_cases.py`
+- print artifact sync now builds its proof payload through `wms/artifacts/proofs.py`, and the persisted `OperationalJobRun` summary for `print_artifact_queue` now carries a bounded `proof_sync_preview`
 - the production-facing ops entry points for this flow are `python manage.py check_planning_pdf_runtime` and `python manage.py refresh_ops_pilotage`
 - flight-capacity indicators are read-only in this local phase and must not silently change assignment or publication rules
 
