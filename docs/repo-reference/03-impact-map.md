@@ -82,6 +82,8 @@ Run or inspect first:
 Always check:
 
 - `wms/portal_recipient_sync.py`
+- `wms/application/parties/` once the use-case layer exists
+- `wms/parties/` once selectors, sync, merge, and invariant checks start moving there
 - `wms/models_domain/portal.py`
 - `wms/models_domain/shipment_parties.py`
 - `wms/shipment_party_registry.py`
@@ -96,6 +98,7 @@ Ask yourself:
 
 - will scan shipment forms now show different shippers, recipients, or correspondents?
 - does a portal change also require an admin contacts cockpit change?
+- should this logic be moved into `wms/parties/` instead of staying duplicated in portal/admin adapters?
 - do structure compliance fields or uploaded recipient documents also need to appear on `scan/contacts`?
 - do linked/default authorizations still stay unique and active?
 - can admin merge flows preserve or deduplicate the same recipient compliance documents without losing them?
@@ -217,6 +220,7 @@ Always check:
 - `wms/views_planning.py`
 - `wms/models_domain/planning.py`
 - the matching shared query or use-case module under `wms/application/planning/` when the change is read-only cockpit composition
+- `wms/artifacts/` once artifact lifecycle orchestration starts moving there
 - the matching module in `wms/planning/`
 - planning commands under `wms/management/commands/`
 - `docs/operations.md`
@@ -226,6 +230,7 @@ Ask yourself:
 
 - does the seeded smoke flow still reach solve, publish, draft generation, export, and cockpit view?
 - did artifact names or visibility change?
+- should workbook rendering, PDF readiness, attachment selection, or proof logic move into `wms/artifacts/` instead of growing `wms/planning/exports.py` and communication adapters again?
 - should the GET cockpit composition move through `wms/application/planning/*` instead of growing `wms/views_planning.py` again?
 - should the post-deploy conditional smoke wording change?
 

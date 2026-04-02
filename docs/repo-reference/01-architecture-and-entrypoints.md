@@ -50,6 +50,10 @@ Practical rule:
   management commands remain the active entry adapters during the migration
 - V3.2 also introduces `OperationalJobRun` in `wms/models_domain/integration.py` as
   the persisted visibility layer for runtime job executions triggered through `wms/jobs/`
+- V3.3 introduces `wms/parties/` and `wms/artifacts/` as the next structural targets
+  for shipment-party graph behavior and planning/document artifact orchestration, while
+  `wms/portal_recipient_sync.py`, `wms/shipment_party_*`, and `wms/planning/*` remain
+  the active compatibility adapters during the migration
 
 ## 4. Main Runtime Clusters
 
@@ -117,8 +121,10 @@ Important cross-cutting domain modules:
 
 - portal recipient sync: `wms/portal_recipient_sync.py`
 - shipment-party registry and rules: `wms/shipment_party_registry.py`, `wms/shipment_party_setup.py`, `wms/shipment_party_rules.py`
+- V3.3 target boundary for shipment-party graph logic: `wms/parties/`
 - workflow notifications and side effects: `wms/signals.py`
 - core orchestration services: `wms/services.py`
+- V3.3 target boundary for planning/document artifact lifecycle: `wms/artifacts/`
 
 ## 6. Tests As Runtime Maps
 
