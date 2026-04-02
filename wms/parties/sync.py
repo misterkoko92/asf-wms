@@ -98,7 +98,7 @@ def _upsert_contact_address(*, contact, recipient, primary_phone, primary_email)
 def _ensure_shipment_shipper_for_association(association_contact):
     return ensure_shipment_shipper(
         association_contact,
-        validation_status=ShipmentValidationStatus.VALIDATED,
+        validation_status=str(ShipmentValidationStatus.VALIDATED),
     )
 
 

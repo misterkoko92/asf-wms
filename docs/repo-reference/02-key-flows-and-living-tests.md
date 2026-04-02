@@ -377,3 +377,42 @@ If a UI primitive or shared class changes, search beyond the current page. The s
 - `templates/benevole/`
 - `templates/admin/wms/`
 - `templates/print/`
+
+## 7. Structural Runtime Boundaries: Application / Events / Jobs / Parties / Artifacts
+
+### Main runtime files
+
+- `wms/application/`
+- `wms/events/`
+- `wms/jobs/`
+- `wms/parties/`
+- `wms/artifacts/`
+- `mypy.ini`
+- `pyrightconfig.json`
+- `Makefile`
+
+### Living reference tests
+
+- `wms/tests/core/tests_v33_contracts.py`
+- `wms/tests/core/tests_event_types.py`
+- `wms/tests/core/tests_parties_use_cases.py`
+- `wms/tests/core/tests_parties_merge.py`
+- `wms/tests/core/tests_parties_destination_scope.py`
+- `wms/tests/planning/tests_artifact_services.py`
+- `wms/tests/print/tests_print_pack_sync.py`
+- `wms/tests/test_job_runs.py`
+
+### Structural proof commands
+
+- `make typecheck-structural`
+- `make ruff-structural`
+- `./.venv/bin/python manage.py test wms.tests.core.tests_v33_contracts -v 2`
+
+### Current quality-gate split
+
+- `mypy.ini` now carries the broader structural proof over `wms/application`, `wms/events`, `wms/jobs`, `wms/parties`, and `wms/artifacts`
+- `pyrightconfig.json` intentionally locks only the public `__init__` facades for those boundaries, avoiding a false signal from unstubbed Django ORM internals while still guarding the exported import surface
+
+### Propagation warning
+
+If a new V3 boundary is introduced or a package root facade changes, update the package `__init__` export surface, the structural proof suite, and the typecheck scope together. Do not grow new runtime layers that are invisible to `mypy`, `pyright`, or the contract tests.

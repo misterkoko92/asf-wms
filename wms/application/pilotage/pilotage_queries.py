@@ -158,7 +158,7 @@ def _active_escalations():
 def _planning_export_rows(snapshot_date):
     if snapshot_date is None:
         return []
-    grouped = {}
+    grouped: dict[str, dict[str, object]] = {}
     for snapshot in OpsPilotageSnapshot.objects.filter(
         snapshot_date=snapshot_date,
         scope_type="planning_export",
@@ -298,7 +298,7 @@ def _priority_rows(escalation_rows, *, portal_backlog_rows):
 
 def build_scan_pilotage_payload(*, snapshot_date=None):
     runtime = get_runtime_config()
-    runtime_values = {
+    runtime_values: dict[str, object] = {
         "tracking_alert_hours": runtime.tracking_alert_hours,
         "workflow_blockage_hours": runtime.workflow_blockage_hours,
         "pilotage_dispute_unassigned_hours": runtime.pilotage_dispute_unassigned_hours,
