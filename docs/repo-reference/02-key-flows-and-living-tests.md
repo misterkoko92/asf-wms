@@ -126,8 +126,11 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 - `wms/views_portal_orders.py`
 - `wms/views_portal_billing.py`
 - `wms/application/portal/dashboard_queries.py`
+- `wms/application/parties/use_cases.py`
 - `wms/portal_order_handlers.py`
 - `wms/portal_recipient_sync.py`
+- `wms/parties/selectors.py`
+- `wms/parties/sync.py`
 - `wms/view_permissions.py`
 - `wms/shipment_party_registry.py`
 - `wms/shipment_party_setup.py`

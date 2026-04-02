@@ -54,6 +54,10 @@ Practical rule:
   for shipment-party graph behavior and planning/document artifact orchestration, while
   `wms/portal_recipient_sync.py`, `wms/shipment_party_*`, and `wms/planning/*` remain
   the active compatibility adapters during the migration
+- the first live V3.3 shipment-party slice now exists through `wms/parties/selectors.py`,
+  `wms/parties/invariants.py`, `wms/parties/sync.py`, and
+  `wms/application/parties/use_cases.py`, while portal views still route through
+  legacy compatibility wrappers where needed
 
 ## 4. Main Runtime Clusters
 
@@ -122,6 +126,7 @@ Important cross-cutting domain modules:
 - portal recipient sync: `wms/portal_recipient_sync.py`
 - shipment-party registry and rules: `wms/shipment_party_registry.py`, `wms/shipment_party_setup.py`, `wms/shipment_party_rules.py`
 - V3.3 target boundary for shipment-party graph logic: `wms/parties/`
+- live V3.3 application entrypoint for portal shipment-party sync: `wms/application/parties/use_cases.py`
 - workflow notifications and side effects: `wms/signals.py`
 - core orchestration services: `wms/services.py`
 - V3.3 target boundary for planning/document artifact lifecycle: `wms/artifacts/`

@@ -182,6 +182,36 @@ Reference tests:
 
 - `wms/tests/test_job_runs.py`
 
+### V3.3 Parties Boundary Contract
+
+Primary runtime sources:
+
+- `wms/parties/selectors.py`
+- `wms/parties/invariants.py`
+- `wms/parties/sync.py`
+- `wms/application/parties/use_cases.py`
+- `wms/portal_recipient_sync.py`
+
+Current V3.3 contract:
+
+- `wms/parties/selectors.py` is now the shared home for validated and active shipment-party selectors previously duplicated across registry and rules modules
+- `wms/parties/invariants.py` owns graph-level destination-scope checks that future sync and merge flows can reuse
+- `wms/parties/sync.py` now owns the portal-recipient sync orchestration and shipment-party contact resolution runtime
+- `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync and recipient-contact resolution
+- `wms/portal_recipient_sync.py` remains a compatibility adapter and should not grow new orchestration logic again
+
+Maintenance rule:
+
+- if a portal recipient sync change affects graph orchestration, destination reuse, or recipient-contact resolution, update `wms/parties/sync.py` or `wms/application/parties/use_cases.py` first, then keep compatibility wrappers thin
+- do not reintroduce validated/active selector duplication back into `wms/shipment_party_registry.py` or `wms/shipment_party_rules.py`
+
+Reference tests:
+
+- `wms/tests/core/tests_parties_selectors.py`
+- `wms/tests/core/tests_parties_use_cases.py`
+- `wms/tests/portal/tests_portal_recipient_sync.py`
+- `wms/tests/portal/tests_portal_shipment_parties.py`
+
 ### Local Dashboard V2 API Contract
 
 Primary runtime sources:
