@@ -616,7 +616,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.delivery_recipient = self._create_delivery_recipient(self.profile)
         sync_association_recipient_to_contact(self.delivery_recipient)
         shipment_recipient = ShipmentRecipientOrganization.objects.get(
-            organization=self.delivery_recipient.synced_contact
+            organization=self.delivery_recipient.synced_contact,
+            destination=self.delivery_recipient.destination,
         )
         shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
         shipment_recipient.save(update_fields=["validation_status"])
@@ -974,7 +975,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         sync_association_recipient_to_contact(blocked_recipient)
         blocked_shipment_recipient = ShipmentRecipientOrganization.objects.get(
-            organization=blocked_recipient.synced_contact
+            organization=blocked_recipient.synced_contact,
+            destination=blocked_recipient.destination,
         )
         blocked_shipment_recipient.validation_status = ShipmentValidationStatus.PENDING
         blocked_shipment_recipient.save(update_fields=["validation_status"])
@@ -1013,7 +1015,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         sync_association_recipient_to_contact(blocked_recipient)
         blocked_shipment_recipient = ShipmentRecipientOrganization.objects.get(
-            organization=blocked_recipient.synced_contact
+            organization=blocked_recipient.synced_contact,
+            destination=blocked_recipient.destination,
         )
         blocked_shipment_recipient.validation_status = ShipmentValidationStatus.PENDING
         blocked_shipment_recipient.save(update_fields=["validation_status"])
@@ -1118,7 +1121,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         line_items = [(self.product, 1)]
         sync_association_recipient_to_contact(blocked_recipient)
         blocked_shipment_recipient = ShipmentRecipientOrganization.objects.get(
-            organization=blocked_recipient.synced_contact
+            organization=blocked_recipient.synced_contact,
+            destination=blocked_recipient.destination,
         )
         blocked_shipment_recipient.validation_status = ShipmentValidationStatus.PENDING
         blocked_shipment_recipient.save(update_fields=["validation_status"])
@@ -1165,7 +1169,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         fake_order = SimpleNamespace(id=456)
         sync_association_recipient_to_contact(recipient)
         shipment_recipient = ShipmentRecipientOrganization.objects.get(
-            organization=recipient.synced_contact
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
         )
         shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
         shipment_recipient.save(update_fields=["validation_status"])
@@ -1231,7 +1236,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         fake_order = SimpleNamespace(id=457)
         sync_association_recipient_to_contact(recipient)
         shipment_recipient = ShipmentRecipientOrganization.objects.get(
-            organization=recipient.synced_contact
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
         )
         shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
         shipment_recipient.save(update_fields=["validation_status"])
@@ -2015,7 +2021,10 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         synced_contact = recipient.synced_contact
         self.assertIsNotNone(synced_contact)
         shipper = ShipmentShipper.objects.get(organization=self.profile.contact)
-        shipment_recipient = ShipmentRecipientOrganization.objects.get(organization=synced_contact)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=synced_contact,
+            destination=recipient.destination,
+        )
         self.assertTrue(
             ShipmentShipperRecipientLink.objects.filter(
                 shipper=shipper,

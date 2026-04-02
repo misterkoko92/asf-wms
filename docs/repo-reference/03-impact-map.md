@@ -103,6 +103,7 @@ Ask yourself:
 - do structure compliance fields or uploaded recipient documents also need to appear on `scan/contacts`?
 - do linked/default authorizations still stay unique and active?
 - can admin merge flows preserve or deduplicate the same recipient compliance documents without losing them?
+- do any organization-only recipient runtime lookups now need `(organization, destination)` scope instead?
 - are existing portal tests still the right contract, or did the business rule itself change?
 
 Run or inspect first:

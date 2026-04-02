@@ -9,11 +9,17 @@ def recipient_organization_matches_destination(recipient_organization, destinati
     return recipient_organization.destination_id == getattr(destination, "id", None)
 
 
+def recipient_organization_for_destination(*, organization, destination):
+    if organization is None or destination is None:
+        return None
+    return ShipmentRecipientOrganization.objects.filter(
+        organization=organization,
+        destination=destination,
+    ).first()
+
+
 def organization_can_be_reused_for_destination(organization, destination) -> bool:
-    if organization is None:
-        return False
-    existing = ShipmentRecipientOrganization.objects.filter(organization=organization).first()
-    return existing is None or recipient_organization_matches_destination(existing, destination)
+    return organization is not None and destination is not None
 
 
 def recipient_organizations_share_destination(left, right) -> bool:

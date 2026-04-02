@@ -201,6 +201,8 @@ Current V3.3 contract:
 - `wms/parties/invariants.py` owns graph-level destination-scope checks that future sync and merge flows can reuse
 - `wms/parties/sync.py` now owns the portal-recipient sync orchestration and shipment-party contact resolution runtime
 - `wms/parties/merge.py` now owns the contact-graph and recipient-organization merge runtime used by scan admin and shipment-party cockpit adapters
+- `ShipmentRecipientOrganization` is now uniquely scoped by `(organization, destination)`; organization-only runtime assumptions are no longer a valid shared contract
+- portal recipient destination changes now keep the same synced structure contact when possible and create or reuse a destination-scoped recipient runtime row instead of forcing a second synced organization contact
 - `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync and recipient-contact resolution
 - `wms/portal_recipient_sync.py` remains a compatibility adapter and should not grow new orchestration logic again
 - `wms/admin_contacts_merge_service.py` remains a compatibility adapter and should not grow graph mutation logic again
@@ -210,12 +212,14 @@ Maintenance rule:
 
 - if a portal recipient sync change affects graph orchestration, destination reuse, or recipient-contact resolution, update `wms/parties/sync.py` or `wms/application/parties/use_cases.py` first, then keep compatibility wrappers thin
 - if an admin contact merge or shipment-party cockpit merge changes graph mutation semantics, update `wms/parties/merge.py` first, then keep scan/admin wrappers thin
+- if a caller resolves or mutates `ShipmentRecipientOrganization`, prefer destination-aware helpers or explicit `(organization, destination)` filters over organization-only lookups
 - do not reintroduce validated/active selector duplication back into `wms/shipment_party_registry.py` or `wms/shipment_party_rules.py`
 
 Reference tests:
 
 - `wms/tests/core/tests_parties_selectors.py`
 - `wms/tests/core/tests_parties_merge.py`
+- `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`

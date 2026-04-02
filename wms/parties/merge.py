@@ -221,20 +221,17 @@ def _merge_shippers(source: Contact, target: Contact):
 
 
 def _merge_recipient_organizations_for_contacts(source: Contact, target: Contact):
-    target_recipient_org = ShipmentRecipientOrganization.objects.filter(organization=target).first()
     for recipient_org in ShipmentRecipientOrganization.objects.filter(organization=source).order_by(
         "id"
     ):
+        target_recipient_org = ShipmentRecipientOrganization.objects.filter(
+            organization=target,
+            destination=recipient_org.destination,
+        ).first()
         if target_recipient_org is None:
             recipient_org.organization = target
             recipient_org.save(update_fields=["organization"])
-            target_recipient_org = recipient_org
             continue
-
-        if target_recipient_org.destination_id != recipient_org.destination_id:
-            raise ValidationError(
-                "Les structures destinataires fusionnées doivent rester sur la même destination."
-            )
 
         updated_fields = []
         if recipient_org.is_correspondent and not target_recipient_org.is_correspondent:

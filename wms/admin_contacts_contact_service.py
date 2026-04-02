@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from contacts.capabilities import ContactCapabilityType, ensure_contact_capability
+from contacts.capabilities import ensure_contact_capability
 from contacts.models import Contact, ContactAddress, ContactType
 
 from .admin_contacts_duplicate_detection import find_similar_contacts
@@ -24,11 +24,11 @@ from .shipment_party_setup import (
 def _primary_entity_type(cleaned_data) -> str:
     business_type = (cleaned_data.get("business_type") or "").strip()
     if business_type in {"shipper", "recipient", "correspondent"}:
-        return ContactType.ORGANIZATION
+        return "organization"
     if business_type == "volunteer":
-        return ContactType.PERSON
+        return "person"
     entity_type = (cleaned_data.get("entity_type") or "").strip()
-    return entity_type or ContactType.ORGANIZATION
+    return entity_type or "organization"
 
 
 def build_contact_duplicate_candidates(cleaned_data, *, exclude_contact_id=None):
@@ -221,8 +221,8 @@ def _ensure_recipient_runtime(*, organization, referent, cleaned_data, is_corres
 
     recipient_org, _created = ShipmentRecipientOrganization.objects.update_or_create(
         organization=organization,
+        destination=destination,
         defaults={
-            "destination": destination,
             "validation_status": ShipmentValidationStatus.VALIDATED,
             "is_correspondent": is_correspondent,
             "is_active": bool(cleaned_data.get("is_active")),
@@ -259,9 +259,9 @@ def _ensure_recipient_runtime(*, organization, referent, cleaned_data, is_corres
 
 def _ensure_capability(contact, business_type: str):
     capability_map = {
-        "donor": ContactCapabilityType.DONOR,
-        "transporter": ContactCapabilityType.TRANSPORTER,
-        "volunteer": ContactCapabilityType.VOLUNTEER,
+        "donor": "donor",
+        "transporter": "transporter",
+        "volunteer": "volunteer",
     }
     capability = capability_map.get(business_type)
     if capability:

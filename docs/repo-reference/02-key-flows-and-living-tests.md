@@ -149,12 +149,14 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 - shipper/recipient authorization chain
 - order creation from portal
 - downstream readiness for shipment creation
+- destination-scoped recipient runtimes keyed by `(organization, destination)` even when the same synced structure is reused across multiple stopovers
 
 ### Living reference tests
 
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_portal_workflow_recipients_account_and_order`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+- `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
@@ -175,6 +177,7 @@ If you change recipient fields, validation, shipment-party eligibility, default 
 - the portal UI API endpoints
 
 Also inspect the shipment-party registry and sync layers. A portal-only change is often not portal-only in practice.
+When a recipient structure can now exist on multiple destinations, avoid organization-only runtime lookups and assertions.
 
 ## 3. Orders: Public / Portal / Admin Side Effects
 

@@ -127,6 +127,7 @@ Important cross-cutting domain modules:
 - shipment-party registry and rules: `wms/shipment_party_registry.py`, `wms/shipment_party_setup.py`, `wms/shipment_party_rules.py`
 - V3.3 target boundary for shipment-party graph logic: `wms/parties/`
 - live V3.3 application entrypoint for portal shipment-party sync: `wms/application/parties/use_cases.py`
+- `ShipmentRecipientOrganization` is now scoped by `(organization, destination)` rather than by organization globally, so destination-aware lookups are the default contract for portal and admin shipment-party flows
 - workflow notifications and side effects: `wms/signals.py`
 - core orchestration services: `wms/services.py`
 - V3.3 target boundary for planning/document artifact lifecycle: `wms/artifacts/`

@@ -13,6 +13,7 @@ from wms.models import (
 )
 from wms.parties.invariants import (
     organization_can_be_reused_for_destination,
+    recipient_organization_for_destination,
     recipient_organization_matches_destination,
 )
 from wms.shipment_party_registry import default_recipient_contact_for_link
@@ -108,7 +109,10 @@ def _can_reuse_synced_contact_for_destination(contact, destination):
 def _find_existing_recipient_organization(recipient, *, prefer_existing_structure=True):
     synced_contact = get_synced_contact(recipient)
     if synced_contact is not None and synced_contact.contact_type == ContactType.ORGANIZATION:
-        existing = ShipmentRecipientOrganization.objects.filter(organization=synced_contact).first()
+        existing = recipient_organization_for_destination(
+            organization=synced_contact,
+            destination=recipient.destination,
+        )
         if recipient_organization_matches_destination(existing, recipient.destination):
             return existing
 
@@ -130,10 +134,9 @@ def _find_existing_recipient_organization(recipient, *, prefer_existing_structur
         and synced_contact.contact_type == ContactType.ORGANIZATION
         and _can_reuse_synced_contact_for_destination(synced_contact, recipient.destination)
     ):
-        return (
-            ShipmentRecipientOrganization.objects.select_related("organization")
-            .filter(organization=synced_contact)
-            .first()
+        return recipient_organization_for_destination(
+            organization=synced_contact,
+            destination=recipient.destination,
         )
     return None
 
@@ -207,8 +210,8 @@ def _upsert_recipient_structure_contact(
 def _ensure_recipient_organization(*, contact, recipient):
     recipient_organization, created = ShipmentRecipientOrganization.objects.get_or_create(
         organization=contact,
+        destination=recipient.destination,
         defaults={
-            "destination": recipient.destination,
             "validation_status": ShipmentValidationStatus.PENDING,
             "is_correspondent": False,
             "is_active": True,
@@ -218,13 +221,6 @@ def _ensure_recipient_organization(*, contact, recipient):
         return recipient_organization
 
     updated_fields = []
-    if (
-        recipient.destination_id
-        and recipient_organization.destination_id != recipient.destination_id
-        and not recipient_organization.is_active
-    ):
-        recipient_organization.destination = recipient.destination
-        updated_fields.append("destination")
     if not recipient_organization.is_active:
         recipient_organization.is_active = True
         updated_fields.append("is_active")
@@ -400,17 +396,16 @@ def resolve_portal_recipient_party_contact(recipient):
     if synced_contact is None:
         return None
 
-    recipient_organization = (
-        ShipmentRecipientOrganization.objects.filter(
-            organization=synced_contact,
-            destination=recipient.destination,
-        )
-        .select_related("organization")
-        .first()
-        or ShipmentRecipientOrganization.objects.filter(organization=synced_contact)
-        .select_related("organization")
-        .first()
+    recipient_organization = recipient_organization_for_destination(
+        organization=synced_contact,
+        destination=recipient.destination,
     )
+    if recipient_organization is None:
+        result = sync_portal_recipient_graph(
+            recipient,
+            set_as_default=False,
+        )
+        recipient_organization = result["recipient_organization"] if result is not None else None
     if recipient_organization is None:
         return synced_contact
 
