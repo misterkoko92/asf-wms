@@ -4,12 +4,13 @@
 
 This roadmap complements the global V3 design.
 
-It keeps:
+It now keeps:
 
-- a detailed implementation plan only for `V3.1`
-- lighter execution guidance for `V3.2` and `V3.3`
+- a completed detailed implementation plan for `V3.1`
+- a detailed implementation plan for `V3.2`
+- a readiness plan, not yet a full implementation plan, for `V3.3`
 
-That balance is intentional. The later waves depend on structural choices made in `V3.1`, so they should not be overspecified too early.
+That balance remains intentional. `V3.2` is now specific enough to execute because `V3.1` is complete. `V3.3` still depends on structural decisions that V3.2 must lock first.
 
 ## Wave Summary
 
@@ -30,148 +31,59 @@ Goal:
 
 - replace implicit orchestration with explicit event and job boundaries
 
+Design:
+
+- `docs/plans/2026-04-01-asf-wms-v3-wave2-design.md`
+
+Detailed implementation plan:
+
+- `docs/plans/2026-04-01-asf-wms-v3-wave2-implementation-plan.md`
+
 ### V3.3 Domain and Runtime Simplification
 
 Goal:
 
 - simplify cross-surface domain complexity and reduce legacy runtime cost
 
-## Lightweight Execution Plan: V3.2
+Readiness plan:
 
-### V3.2.1 Event Catalog
+- `docs/plans/2026-04-01-asf-wms-v3-wave3-readiness-plan.md`
 
-Deliverables:
+## Detailed Execution Plan: V3.2
 
-- a catalog of domain events emitted by shipment, order, portal recipient, planning artifact, and pilotage flows
-- a first event taxonomy doc and runtime map
+The detailed slice sequencing now lives in:
 
-Prerequisites:
+- `docs/plans/2026-04-01-asf-wms-v3-wave2-implementation-plan.md`
 
-- `V3.1` query and policy extraction must already clarify where decisions happen
+The wave is executed in this order:
 
-Exit criteria:
+1. event scaffolding and runtime map
+2. explicit event contracts
+3. notification handlers
+4. projection and sync handlers
+5. job layer
+6. job-run visibility
+7. durable outbox normalization
 
-- event producers and consumers are identified
-- `wms/signals.py` responsibilities are grouped by concern
+## Readiness Plan: V3.3
 
-### V3.2.2 Signal Bridge
+The current V3.3 guidance lives in:
 
-Deliverables:
+- `docs/plans/2026-04-01-asf-wms-v3-wave3-readiness-plan.md`
 
-- Django signals reduced to bridging logic
-- side-effect code moved into event handlers
-
-Prerequisites:
-
-- `V3.2.1`
-
-Exit criteria:
-
-- signal modules no longer contain heavy branching and orchestration logic
-
-### V3.2.3 Job Layer
-
-Deliverables:
-
-- `wms/jobs/` modules for queue processors, projections, snapshots, escalations, and artifact checks
-- management commands wrapped around job modules
-
-Prerequisites:
-
-- `V3.1` application extraction for the most critical reads
-
-Exit criteria:
-
-- job execution can be tested without shelling through management commands
-
-### V3.2.4 Outbox and Run Visibility
-
-Deliverables:
-
-- durable outbox or equivalent local dispatch boundary
-- job run and result visibility for retries, failures, and timeouts
-
-Prerequisites:
-
-- `V3.2.2` and `V3.2.3`
-
-Exit criteria:
-
-- notification and projection side effects are traceable and replayable
-
-## Lightweight Execution Plan: V3.3
-
-### V3.3.1 Parties and Contacts Simplification
-
-Deliverables:
-
-- clearer orchestration between portal recipients, shipment recipients, shipment shippers, and authorized contacts
-- fewer implicit sync paths
-
-Prerequisites:
-
-- `V3.1` application layer around portal and scan forms
-- `V3.2` event boundaries for sync side effects
-
-Exit criteria:
-
-- shipment-party behavior is easier to explain through one runtime map
-
-### V3.3.2 Document and Export Runtime
-
-Deliverables:
-
-- cleaner separation between workbook generation, PDF readiness, proof of diffusion, and email attachment selection
-
-Prerequisites:
-
-- `V3.2` job layer
-
-Exit criteria:
-
-- artifact handling is observable, replayable, and less tightly coupled to UI actions
-
-### V3.3.3 Legacy Frontend Modularization
-
-Deliverables:
-
-- `scan.js` and large CSS split by surface or concern
-- less shared accidental coupling across scan pages
-
-Prerequisites:
-
-- stable application/query contracts so UI changes do not need to reshape business logic
-
-Exit criteria:
-
-- page-level UI changes no longer require touching one monolithic JS or CSS file
-
-### V3.3.4 Quality Gate Expansion
-
-Deliverables:
-
-- broader static-check coverage
-- stronger contract tests for application, policy, and event boundaries
-
-Prerequisites:
-
-- `V3.1` and early `V3.2` modules in place
-
-Exit criteria:
-
-- the highest-risk modules are inside the type and contract safety perimeter
+This is intentionally not a full implementation plan yet.
 
 ## Recommended Order
 
 1. Deliver `V3.1`
-2. Start `V3.2.1`, `V3.2.2`, and `V3.2.3`
-3. Only then detail the exact implementation plan for `V3.2.4`
-4. Open `V3.3.1` once `V3.2` clarifies orchestration ownership
-5. Finish with `V3.3.2`, `V3.3.3`, and `V3.3.4`
+2. Execute `V3.2` in full
+3. Re-check the runtime map after `V3.2` job and outbox stabilization
+4. Only then freeze the detailed implementation plan for `V3.3.1`
+5. Finish the rest of `V3.3`
 
 ## Decision Rule
 
 If a future structural change can be handled inside `V3.1` through shared queries and policies, do not pull it forward into `V3.2` or `V3.3`.
 
-Use `V3.2` only for orchestration/runtime boundaries.
+Use `V3.2` only for orchestration and runtime boundaries.
 Use `V3.3` only for domain or legacy simplification that becomes safe after those boundaries exist.
