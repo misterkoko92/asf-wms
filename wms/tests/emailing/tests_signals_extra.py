@@ -95,6 +95,22 @@ class SignalsExtraTests(SimpleTestCase):
             source="shipment_post_save_signal",
         )
 
+    def test_notify_shipment_status_change_delegates_to_event_handler(self):
+        instance = SimpleNamespace(
+            _previous_status="draft",
+            status="packed",
+            id=3,
+            reference="SHP-003",
+            destination=None,
+            destination_address="1 Rue Test",
+            get_tracking_url=lambda: "/track/SHP-003",
+        )
+        with mock.patch(
+            "wms.events.handlers_notifications.handle_shipment_status_changed_event"
+        ) as handler_mock:
+            _notify_shipment_status_change(None, instance, created=False)
+        handler_mock.assert_called_once()
+
     def test_notify_tracking_event_ignorés_non_created_events(self):
         with mock.patch("wms.signals.get_admin_emails") as emails_mock:
             _notify_tracking_event(None, SimpleNamespace(), created=False)
@@ -129,3 +145,19 @@ class SignalsExtraTests(SimpleTestCase):
             tracking_event=fake_event,
             user=None,
         )
+
+    def test_notify_tracking_event_delegates_to_event_handler(self):
+        fake_event = SimpleNamespace(
+            shipment=SimpleNamespace(id=1, reference="SHP-011", get_tracking_url=lambda: "/track"),
+            shipment_id=1,
+            created_by=None,
+            status="planned",
+            actor_name="Agent",
+            actor_structure="ASF",
+            comments="",
+        )
+        with mock.patch(
+            "wms.events.handlers_notifications.handle_tracking_event_created_event"
+        ) as handler_mock:
+            _notify_tracking_event(None, fake_event, created=True)
+        handler_mock.assert_called_once()
