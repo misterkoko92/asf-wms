@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from wms.document_scan_queue import process_document_scan_queue
+from wms.jobs.document_scan import run_document_scan_queue_job
 
 
 class Command(BaseCommand):
@@ -26,7 +26,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        result = process_document_scan_queue(
+        result = run_document_scan_queue_job(
             limit=options["limit"],
             include_failed=options["include_failed"],
             processing_timeout_seconds=options["processing_timeout_seconds"],

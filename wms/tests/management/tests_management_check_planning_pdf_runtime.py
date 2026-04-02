@@ -7,7 +7,7 @@ from django.test import TestCase
 
 class CheckPlanningPdfRuntimeCommandTests(TestCase):
     @mock.patch(
-        "wms.management.commands.check_planning_pdf_runtime.excel_runtime.get_excel_runtime_status",
+        "wms.management.commands.check_planning_pdf_runtime.get_planning_pdf_runtime_status",
         return_value={
             "backend": "excel_desktop",
             "status": "ready",
@@ -26,7 +26,7 @@ class CheckPlanningPdfRuntimeCommandTests(TestCase):
         self.assertIn("Planning PDF runtime ready", out.getvalue())
 
     @mock.patch(
-        "wms.management.commands.check_planning_pdf_runtime.excel_runtime.get_excel_runtime_status",
+        "wms.management.commands.check_planning_pdf_runtime.get_planning_pdf_runtime_status",
         return_value={
             "backend": "excel_desktop",
             "status": "excel_not_installed",

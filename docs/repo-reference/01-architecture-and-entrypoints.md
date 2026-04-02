@@ -45,6 +45,11 @@ Practical rule:
 - V3 introduces `wms/application/` and `wms/policies/` as the preferred structural target
   for shared query composition and business rule classification, while legacy views and
   API endpoints remain the active delivery adapters during the migration
+- V3.2 introduces `wms/events/` and `wms/jobs/` as the preferred runtime target for
+  explicit side-effect bridging and operational execution, while Django signals and
+  management commands remain the active entry adapters during the migration
+- V3.2 also introduces `OperationalJobRun` in `wms/models_domain/integration.py` as
+  the persisted visibility layer for runtime job executions triggered through `wms/jobs/`
 
 ## 4. Main Runtime Clusters
 

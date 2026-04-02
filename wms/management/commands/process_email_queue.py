@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from wms.emailing import process_email_queue
+from wms.jobs.email_queue import run_email_queue_job
 
 
 class Command(BaseCommand):
@@ -44,7 +44,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        result = process_email_queue(
+        result = run_email_queue_job(
             limit=options["limit"],
             include_failed=options["include_failed"],
             max_attempts=options["max_attempts"],

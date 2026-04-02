@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .document_scan import DocumentScanStatus
+from .events import outbox
 from .models import IntegrationDirection, IntegrationEvent, IntegrationStatus
 
 DOCUMENT_SCAN_QUEUE_SOURCE = "wms.document_scan"
@@ -144,13 +145,13 @@ def queue_document_scan(document_obj):
         "pk": int(document_obj.pk),
         "file_name": str(getattr(file_field, "name", "") or ""),
     }
-    IntegrationEvent.objects.create(
-        direction=IntegrationDirection.OUTBOUND,
+    outbox.enqueue_integration_event(
+        direction=str(IntegrationDirection.OUTBOUND),
         source=DOCUMENT_SCAN_QUEUE_SOURCE,
         target=DOCUMENT_SCAN_QUEUE_TARGET,
         event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
         payload=payload,
-        status=IntegrationStatus.PENDING,
+        status=str(IntegrationStatus.PENDING),
     )
     return True
 

@@ -98,6 +98,90 @@ Reference tests:
 - `wms/tests/core/tests_policies.py`
 - `wms/tests/core/tests_runtime_settings.py`
 
+### V3.2 Event Contract
+
+Primary runtime sources:
+
+- `wms/events/types.py`
+- `wms/events/publishers.py`
+
+Current V3.2 contract:
+
+- `RuntimeEvent` is the base immutable runtime event shape used by the signal bridge and future job/runtime handlers
+- the event shape is intentionally short during the first V3.2 slice: `event_type`, `scope_type`, `scope_id`, `payload`
+- the first explicit event constants are:
+  - `shipment.status_changed`
+  - `shipment_tracking.event_created`
+  - `order.status_changed`
+  - `workflow_projection.refresh_requested`
+  - `pilotage.refresh_requested`
+  - `planning.artifact_exported`
+- publisher helpers own the initial payload normalization and stringification of scope identifiers
+
+Maintenance rule:
+
+- if a new cross-surface runtime side effect is introduced during V3.2, define or update the event contract here before wiring handlers in `wms/signals.py` or `wms/jobs/*`
+- do not let signals invent ad-hoc payload dicts once the explicit event contract exists
+
+Reference tests:
+
+- `wms/tests/core/tests_event_types.py`
+
+### V3.2 Durable Outbox Contract
+
+Primary runtime sources:
+
+- `wms/events/outbox.py`
+- `wms/emailing.py`
+- `wms/document_scan_queue.py`
+
+Current V3.2 contract:
+
+- `enqueue_integration_event(...)` is the explicit helper for durable `IntegrationEvent` creation in the first V3.2 outbox slice
+- this slice currently normalizes queue-backed email and document-scan producers without changing their source, target, event_type, payload, or initial status semantics
+- producers still own payload construction, while `wms/events/outbox.py` owns persisted row creation
+
+Maintenance rule:
+
+- if a queue-backed producer currently writes `IntegrationEvent.objects.create(...)` directly, decide whether it should move behind `wms/events/outbox.py` before adding more enqueue logic
+- do not broaden this helper into a second persistence model during V3.2; the contract is still a normalized boundary over `IntegrationEvent`
+
+Reference tests:
+
+- `wms/tests/emailing/tests_notifications_queue.py`
+- `wms/tests/security/tests_document_scan_queue.py`
+
+### V3.2 Operational Job Run Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/integration.py`
+- `wms/jobs/runtime_tracking.py`
+- `wms/jobs/email_queue.py`
+- `wms/jobs/document_scan.py`
+- `wms/jobs/print_artifacts.py`
+- `wms/jobs/workflow_projection.py`
+- `wms/jobs/pilotage.py`
+
+Current V3.2 contract:
+
+- `OperationalJobRun` is the persisted runtime trace for operational job wrappers under `wms/jobs/`
+- stable fields in this first slice are `job_key`, `trigger_source`, `status`, `started_at`, `finished_at`, `context_payload`, `result_summary`, `error_summary`
+- current stable statuses are `running`, `succeeded`, `failed`
+- job wrappers, not management commands, own run persistence
+- scalar job results are normalized to `result_summary={"result": ...}`
+- structured job results remain JSON summaries, with `date` and datetime-like values normalized through the runtime tracking helper
+
+Maintenance rule:
+
+- if a runtime wrapper is added under `wms/jobs/`, decide in the same work whether it should persist an `OperationalJobRun`
+- keep command modules thin; do not duplicate run persistence inside management commands once the job wrapper exists
+- if run status vocabulary or summary normalization changes, update the model helper, affected jobs, ops docs, and this section together
+
+Reference tests:
+
+- `wms/tests/test_job_runs.py`
+
 ### Local Dashboard V2 API Contract
 
 Primary runtime sources:

@@ -60,6 +60,7 @@ Notes:
 - [ ] Conditional smoke: if billing scope changed, validate one nominal billing preview/export or payment/correction flow.
 - [ ] Run `python manage.py process_email_queue --limit=100`
 - [ ] Run `python manage.py refresh_ops_pilotage`
+- [ ] If runtime/jobs scope changed, inspect recent `OperationalJobRun` rows for `email_queue`, `document_scan_queue`, `workflow_projection_rebuild`, and `ops_pilotage_refresh`.
 - [ ] Check queue health (pending/failed counts)
 - [ ] Run `python manage.py process_document_scan_queue --limit=100`
 - [ ] Check document scan queue health (pending/failed/stale processing counts)

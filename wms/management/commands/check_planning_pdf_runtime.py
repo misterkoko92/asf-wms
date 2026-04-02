@@ -1,15 +1,18 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from tools.planning_comm_helper import excel_runtime
+from wms.jobs.runtime_checks import (
+    build_planning_pdf_runtime_unavailable_message,
+    get_planning_pdf_runtime_status,
+)
 
 
 class Command(BaseCommand):
     help = "Vérifie la readiness runtime pour la génération du planning PDF."
 
     def handle(self, *args, **options):
-        runtime_status = excel_runtime.get_excel_runtime_status()
+        runtime_status = get_planning_pdf_runtime_status()
         if not runtime_status["available"]:
-            raise CommandError(excel_runtime.build_runtime_unavailable_message(runtime_status))
+            raise CommandError(build_planning_pdf_runtime_unavailable_message(runtime_status))
         self.stdout.write(
             self.style.SUCCESS(
                 "Planning PDF runtime ready: "

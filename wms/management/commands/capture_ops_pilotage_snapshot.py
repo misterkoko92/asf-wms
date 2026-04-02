@@ -3,7 +3,7 @@ from datetime import date
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from wms.ops_pilotage_snapshots import capture_ops_pilotage_snapshots
+from wms.jobs.pilotage import run_capture_ops_pilotage_snapshot_job
 
 
 class Command(BaseCommand):
@@ -26,7 +26,7 @@ class Command(BaseCommand):
                 raise CommandError("snapshot-date doit etre au format YYYY-MM-DD.") from exc
         else:
             snapshot_date = timezone.localdate()
-        captured_count = capture_ops_pilotage_snapshots(snapshot_date=snapshot_date)
+        captured_count = run_capture_ops_pilotage_snapshot_job(snapshot_date=snapshot_date)
         self.stdout.write(
             self.style.SUCCESS(
                 f"Captured {captured_count} ops pilotage snapshots for {snapshot_date.isoformat()}."

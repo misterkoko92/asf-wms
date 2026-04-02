@@ -43,6 +43,7 @@ DELETE_BATCHES = (
             "wms.ShipmentWorkflowProjection",
             "wms.OpsPilotageSnapshot",
             "wms.OpsEscalation",
+            "wms.OperationalJobRun",
             "wms.WmsRuntimeSettingsAudit",
             "wms.GeneratedPrintArtifactItem",
             "wms.GeneratedPrintArtifact",

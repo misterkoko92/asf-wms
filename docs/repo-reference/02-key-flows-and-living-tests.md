@@ -211,6 +211,7 @@ If order creation or status transitions change, inspect:
 ### Main runtime files
 
 - `wms/emailing.py`
+- `wms/events/outbox.py`
 - `wms/models_domain/integration.py`
 - `wms/management/commands/process_email_queue.py`
 - `wms/runtime_settings.py`
@@ -239,6 +240,7 @@ If order creation or status transitions change, inspect:
 If you change recipients, status-triggered notifications, delivery mode, or queue behavior, update all of these together:
 
 - producer code
+- `wms/events/outbox.py` when `IntegrationEvent` enqueue semantics change
 - queue/runtime docs
 - targeted matrices
 - operations/release docs if the operational behavior changed
@@ -257,6 +259,11 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `api/v1/ui/dashboard/`
 - `api/v1/ui/pilotage/`
 - `docs/operations.md`
+
+Document scan queue follows the same V3.2 durable-dispatch rule:
+
+- enqueue paths should use `wms/events/outbox.py` rather than creating `IntegrationEvent` rows ad hoc
+- reference tests live in `wms/tests/security/tests_document_scan_queue.py` and `wms/tests/management/tests_management_check_document_scan_runtime.py`
 
 ## 5. Planning: Seed -> Solve -> Publish -> Communications -> Cockpit
 

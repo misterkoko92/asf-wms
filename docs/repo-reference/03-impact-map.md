@@ -114,6 +114,7 @@ Run or inspect first:
 Always check:
 
 - `wms/emailing.py`
+- `wms/events/outbox.py`
 - `wms/signals.py`
 - `wms/account_request_handlers.py`
 - `wms/admin_account_request_approval.py`
@@ -127,6 +128,7 @@ Always check:
 Ask yourself:
 
 - is the producer changing, or only the queue transport?
+- is durable enqueue still routed through `wms/events/outbox.py`, or did a direct `IntegrationEvent.objects.create(...)` sneak back in?
 - are recipient groups, env vars, or retry semantics changing?
 - do release or runtime checks now need different wording?
 - does a signal side effect impact admin, public, portal, shipment, or volunteer flows too?
