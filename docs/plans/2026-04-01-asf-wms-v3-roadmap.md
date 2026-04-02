@@ -8,9 +8,9 @@ It now keeps:
 
 - a completed detailed implementation plan for `V3.1`
 - a detailed implementation plan for `V3.2`
-- a readiness plan, not yet a full implementation plan, for `V3.3`
+- a detailed design and implementation plan for `V3.3`
 
-That balance remains intentional. `V3.2` is now specific enough to execute because `V3.1` is complete. `V3.3` still depends on structural decisions that V3.2 must lock first.
+That balance remains intentional. `V3.2` is now specific enough to execute because `V3.1` is complete. `V3.3` is now detailed enough to execute because the runtime boundaries introduced by `V3.2` are explicit.
 
 ## Wave Summary
 
@@ -45,9 +45,13 @@ Goal:
 
 - simplify cross-surface domain complexity and reduce legacy runtime cost
 
-Readiness plan:
+Detailed design:
 
-- `docs/plans/2026-04-01-asf-wms-v3-wave3-readiness-plan.md`
+- `docs/plans/2026-04-02-asf-wms-v3-wave3-design.md`
+
+Detailed implementation plan:
+
+- `docs/plans/2026-04-02-asf-wms-v3-wave3-implementation-plan.md`
 
 ## Detailed Execution Plan: V3.2
 
@@ -65,21 +69,74 @@ The wave is executed in this order:
 6. job-run visibility
 7. durable outbox normalization
 
-## Readiness Plan: V3.3
+## Detailed Execution Plan: V3.3
 
-The current V3.3 guidance lives in:
+### V3.3.1 Parties and Contacts Simplification
 
-- `docs/plans/2026-04-01-asf-wms-v3-wave3-readiness-plan.md`
+Deliverables:
 
-This is intentionally not a full implementation plan yet.
+- clearer orchestration between portal recipients, shipment recipients, shipment shippers, and authorized contacts
+- fewer implicit sync paths
+
+Prerequisites:
+
+- `V3.1` application layer around portal and scan forms
+- `V3.2` event boundaries for sync side effects
+
+Exit criteria:
+
+- shipment-party behavior is easier to explain through one runtime map
+
+### V3.3.2 Document and Export Runtime
+
+Deliverables:
+
+- cleaner separation between workbook generation, PDF readiness, proof of diffusion, and email attachment selection
+
+Prerequisites:
+
+- `V3.2` job layer
+
+Exit criteria:
+
+- artifact handling is observable, replayable, and less tightly coupled to UI actions
+
+### V3.3.3 Legacy Frontend Modularization
+
+Deliverables:
+
+- `scan.js` and large CSS split by surface or concern
+- less shared accidental coupling across scan pages
+
+Prerequisites:
+
+- stable application/query contracts so UI changes do not need to reshape business logic
+
+Exit criteria:
+
+- page-level UI changes no longer require touching one monolithic JS or CSS file
+
+### V3.3.4 Quality Gate Expansion
+
+Deliverables:
+
+- broader static-check coverage
+- stronger contract tests for application, policy, and event boundaries
+
+Prerequisites:
+
+- `V3.1` and early `V3.2` modules in place
+
+Exit criteria:
+
+- the highest-risk modules are inside the type and contract safety perimeter
 
 ## Recommended Order
 
 1. Deliver `V3.1`
 2. Execute `V3.2` in full
-3. Re-check the runtime map after `V3.2` job and outbox stabilization
-4. Only then freeze the detailed implementation plan for `V3.3.1`
-5. Finish the rest of `V3.3`
+3. Start `V3.3.1` on the stabilized structural stack
+4. Continue with artifacts, frontend modularization, and quality gates
 
 ## Decision Rule
 
