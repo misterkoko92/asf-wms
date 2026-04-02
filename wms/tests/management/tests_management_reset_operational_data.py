@@ -14,6 +14,7 @@ from wms.models import (
     CartonSequence,
     Destination,
     Location,
+    OperationalJobRun,
     PlanningDestinationRule,
     PlanningParameterSet,
     PublicAccountRequest,
@@ -224,6 +225,7 @@ class ResetOperationalDataCommandTests(TestCase):
 
     def test_apply_deletes_operational_models_and_preserves_reference_models(self):
         stdout = StringIO()
+        OperationalJobRun.objects.create(job_key="ops-refresh")
 
         call_command("reset_operational_data", "--apply", stdout=stdout)
 
@@ -243,6 +245,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(PlanningDestinationRule.objects.exists())
         self.assertFalse(ReceiptDonorSequence.objects.exists())
         self.assertFalse(CartonSequence.objects.exists())
+        self.assertFalse(OperationalJobRun.objects.exists())
         self.assertTrue(Warehouse.objects.filter(pk=self.warehouse.pk).exists())
         self.assertTrue(Location.objects.filter(pk=self.location.pk).exists())
         self.assertTrue(WmsRuntimeSettings.objects.filter(pk=self.runtime_settings.pk).exists())
