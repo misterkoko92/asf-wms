@@ -1,10 +1,20 @@
+from types import SimpleNamespace
+from unittest import mock
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from wms.application.planning.version_detail_queries import (
+    _attach_operator_options,
     build_planning_version_detail_payload,
 )
-from wms.models import PlanningParameterSet, PlanningRun, PlanningRunStatus, PlanningVersion
+from wms.models import (
+    PlanningParameterSet,
+    PlanningRun,
+    PlanningRunStatus,
+    PlanningVersion,
+    PlanningVersionStatus,
+)
 
 
 class PlanningVersionDetailQueriesTests(TestCase):
@@ -32,3 +42,27 @@ class PlanningVersionDetailQueriesTests(TestCase):
 
         self.assertIn("dashboard", payload)
         self.assertIn("priority_cards", payload)
+
+
+class PlanningVersionDetailQueryHelpersTests(SimpleTestCase):
+    @mock.patch("wms.application.planning.version_detail_queries.build_operator_option_context")
+    def test_attach_operator_options_skips_rows_missing_runtime_objects(self, context_mock):
+        context_mock.return_value = {"context": "ok"}
+        version = SimpleNamespace(
+            status=PlanningVersionStatus.DRAFT,
+            assignments=SimpleNamespace(select_related=lambda *args: []),
+            run=SimpleNamespace(
+                shipment_snapshots=SimpleNamespace(all=lambda: []),
+            ),
+        )
+        dashboard = {
+            "planning_rows": [{"assignment_id": 1}],
+            "flight_groups": [{"assignments": [{"assignment_id": 2}]}],
+            "unassigned_shipments": [{"shipment_snapshot_id": 3}],
+        }
+
+        _attach_operator_options(version, dashboard)
+
+        self.assertNotIn("editor_options", dashboard["planning_rows"][0])
+        self.assertNotIn("editor_options", dashboard["flight_groups"][0]["assignments"][0])
+        self.assertNotIn("editor_options", dashboard["unassigned_shipments"][0])

@@ -3,8 +3,14 @@ from unittest import mock
 
 from django.test import TestCase
 
+from wms.jobs.document_scan import run_document_scan_queue_job
 from wms.jobs.email_queue import run_email_queue_job
-from wms.jobs.pilotage import run_refresh_ops_pilotage_job
+from wms.jobs.pilotage import (
+    run_capture_ops_pilotage_snapshot_job,
+    run_evaluate_ops_escalations_job,
+    run_refresh_ops_pilotage_job,
+)
+from wms.jobs.print_artifacts import run_print_artifact_queue_job
 from wms.jobs.workflow_projection import run_rebuild_workflow_projection_job
 from wms.models import OperationalJobRun
 
@@ -74,6 +80,69 @@ class OperationalJobRunTests(TestCase):
         self.assertEqual(run.result_summary["snapshot_date"], "2026-04-02")
         self.assertEqual(run.result_summary["captured_count"], 4)
         self.assertEqual(run.result_summary["open_count"], 2)
+
+    @mock.patch("wms.jobs.pilotage.capture_ops_pilotage_snapshots", return_value=6)
+    def test_run_capture_ops_pilotage_snapshot_job_persists_scalar_summary(self, capture_mock):
+        result = run_capture_ops_pilotage_snapshot_job(snapshot_date=date(2026, 4, 3))
+
+        self.assertEqual(result, 6)
+        capture_mock.assert_called_once_with(snapshot_date=date(2026, 4, 3))
+        run = OperationalJobRun.objects.get(job_key="ops_pilotage_snapshot_capture")
+        self.assertEqual(run.status, OperationalJobRun.Status.SUCCEEDED)
+        self.assertEqual(run.result_summary, {"result": 6})
+
+    @mock.patch(
+        "wms.jobs.pilotage.sync_ops_escalations",
+        return_value={"open_count": 4, "resolved_count": 1},
+    )
+    def test_run_evaluate_ops_escalations_job_persists_summary(self, evaluate_mock):
+        result = run_evaluate_ops_escalations_job(now="2026-04-03T10:00:00")
+
+        self.assertEqual(result["open_count"], 4)
+        evaluate_mock.assert_called_once_with(now="2026-04-03T10:00:00")
+        run = OperationalJobRun.objects.get(job_key="ops_escalation_evaluation")
+        self.assertEqual(run.status, OperationalJobRun.Status.SUCCEEDED)
+        self.assertEqual(run.result_summary["open_count"], 4)
+
+    @mock.patch(
+        "wms.jobs.document_scan.process_document_scan_queue",
+        return_value={"selected": 1, "processed": 1, "failed": 0},
+    )
+    def test_run_document_scan_queue_job_persists_summary(self, process_queue_mock):
+        result = run_document_scan_queue_job(
+            limit=4,
+            include_failed=True,
+            processing_timeout_seconds=120,
+        )
+
+        self.assertEqual(result["processed"], 1)
+        process_queue_mock.assert_called_once_with(
+            limit=4,
+            include_failed=True,
+            processing_timeout_seconds=120,
+        )
+        run = OperationalJobRun.objects.get(job_key="document_scan_queue")
+        self.assertEqual(run.status, OperationalJobRun.Status.SUCCEEDED)
+        self.assertEqual(run.context_payload["limit"], 4)
+        self.assertEqual(run.result_summary["processed"], 1)
+
+    @mock.patch(
+        "wms.jobs.print_artifacts.process_print_artifact_queue",
+        return_value={"selected": 2, "processed": 1, "failed": 1, "retried": 0},
+    )
+    def test_run_print_artifact_queue_job_persists_summary(self, process_queue_mock):
+        result = run_print_artifact_queue_job(limit=3, include_failed=True, max_attempts=4)
+
+        self.assertEqual(result["processed"], 1)
+        process_queue_mock.assert_called_once_with(
+            limit=3,
+            include_failed=True,
+            max_attempts=4,
+        )
+        run = OperationalJobRun.objects.get(job_key="print_artifact_queue")
+        self.assertEqual(run.status, OperationalJobRun.Status.SUCCEEDED)
+        self.assertEqual(run.context_payload["max_attempts"], 4)
+        self.assertEqual(run.result_summary["failed"], 1)
 
     @mock.patch(
         "wms.jobs.email_queue.process_email_queue",

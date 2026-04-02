@@ -36,5 +36,14 @@ class PoliciesTests(SimpleTestCase):
             (90, 90),
         )
 
+    def test_normalize_planning_thresholds_falls_back_for_invalid_values(self):
+        self.assertEqual(
+            normalize_planning_thresholds(
+                tension_pct="invalid",
+                critical_pct=None,
+            ),
+            (80, 95),
+        )
+
     def test_default_recipient_shipper_name_uses_uppercase_priority_shipper(self):
         self.assertEqual(default_recipient_shipper_name(), PRIORITY_SHIPPER_NAME.upper())
