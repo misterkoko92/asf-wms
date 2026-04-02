@@ -55,7 +55,7 @@ Practical rule:
   `wms/portal_recipient_sync.py`, `wms/shipment_party_*`, and `wms/planning/*` remain
   the active compatibility adapters during the migration
 - the first live V3.3 shipment-party slice now exists through `wms/parties/selectors.py`,
-  `wms/parties/invariants.py`, `wms/parties/sync.py`, and
+  `wms/parties/invariants.py`, `wms/parties/sync.py`, `wms/parties/merge.py`, and
   `wms/application/parties/use_cases.py`, while portal views still route through
   legacy compatibility wrappers where needed
 

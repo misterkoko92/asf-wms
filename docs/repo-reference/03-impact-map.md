@@ -90,8 +90,9 @@ Always check:
 - `wms/shipment_party_setup.py`
 - `wms/shipment_party_rules.py`
 - `wms/view_permissions.py`
-- `wms/scan_admin_contacts_cockpit.py`
-- `wms/admin_contacts_merge_service.py` when recipient organizations can be merged or deduplicated
+- `wms/scan_admin_contacts_cockpit.py` as the compatibility adapter for shipment-party cockpit mutations
+- `wms/admin_contacts_merge_service.py` as the compatibility adapter for admin contact merge flows
+- `wms/parties/merge.py` when recipient organizations or contact graphs can be merged, deduplicated, or re-scoped
 - `wms/views_scan_admin.py` and `templates/scan/includes/admin_contacts_contact_form.html` when admin must review the same recipient data
 
 Ask yourself:
