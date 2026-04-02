@@ -1,4 +1,5 @@
 from io import StringIO
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -43,3 +44,15 @@ class RebuildWorkflowProjectionsCommandTests(TestCase):
         projection = ShipmentWorkflowProjection.objects.get(shipment=shipment)
         self.assertEqual(projection.reference, shipment.reference)
         self.assertIn("Projected 1 shipment workflow rows.", out.getvalue())
+
+    @mock.patch(
+        "wms.management.commands.rebuild_workflow_projections.run_rebuild_workflow_projection_job",
+        return_value=4,
+    )
+    def test_rebuild_workflow_projections_delegates_to_job_layer(self, rebuild_job_mock):
+        out = StringIO()
+
+        call_command("rebuild_workflow_projections", stdout=out)
+
+        rebuild_job_mock.assert_called_once_with()
+        self.assertIn("Projected 4 shipment workflow rows.", out.getvalue())

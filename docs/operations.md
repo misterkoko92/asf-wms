@@ -185,6 +185,26 @@ Notes:
 - `refresh_ops_pilotage` is the stable production entry point when you want one command for both steps
 - the local thresholds used by the evaluator are calibrated from `scan/settings`
 
+### Operational job runs
+
+V3.2 runtime jobs now persist one row per execution in `OperationalJobRun`.
+
+Use this model when diagnosing:
+
+- queue processors that silently fail outside stdout history
+- repeated pilotage refreshes with inconsistent summaries
+- rebuilds or sync jobs that appear to run but do not change downstream state
+
+Minimum fields recorded per run:
+
+- `job_key`
+- `trigger_source`
+- `status`
+- `started_at` / `finished_at`
+- `context_payload`
+- `result_summary`
+- `error_summary`
+
 ### Planning PDF runtime check
 
 Before a release or when investigating a planning export incident, validate the Excel backend explicitly:

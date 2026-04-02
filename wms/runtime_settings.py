@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db.utils import OperationalError, ProgrammingError
 
 from .models import WmsRuntimeSettings
+from .policies.pilotage import normalize_planning_thresholds
 
 
 def _safe_int(value, *, default, minimum):
@@ -90,6 +91,12 @@ def get_runtime_config() -> RuntimeConfig:
         runtime = get_runtime_settings_instance()
     except (ProgrammingError, OperationalError):
         return fallback
+    planning_tension_pct, planning_critical_pct = normalize_planning_thresholds(
+        runtime.pilotage_planning_tension_pct,
+        runtime.pilotage_planning_critical_pct,
+        default_tension=fallback.pilotage_planning_tension_pct,
+        default_critical=fallback.pilotage_planning_critical_pct,
+    )
     retry_base_seconds = _safe_int(
         runtime.email_queue_retry_base_seconds,
         default=fallback.email_queue_retry_base_seconds,
@@ -137,21 +144,14 @@ def get_runtime_config() -> RuntimeConfig:
             minimum=1,
         ),
         pilotage_planning_tension_pct=_safe_int(
-            runtime.pilotage_planning_tension_pct,
+            planning_tension_pct,
             default=fallback.pilotage_planning_tension_pct,
             minimum=1,
         ),
-        pilotage_planning_critical_pct=max(
-            _safe_int(
-                runtime.pilotage_planning_tension_pct,
-                default=fallback.pilotage_planning_tension_pct,
-                minimum=1,
-            ),
-            _safe_int(
-                runtime.pilotage_planning_critical_pct,
-                default=fallback.pilotage_planning_critical_pct,
-                minimum=1,
-            ),
+        pilotage_planning_critical_pct=_safe_int(
+            planning_critical_pct,
+            default=fallback.pilotage_planning_critical_pct,
+            minimum=1,
         ),
         email_queue_max_attempts=_safe_int(
             runtime.email_queue_max_attempts,

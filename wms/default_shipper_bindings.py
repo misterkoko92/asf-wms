@@ -12,8 +12,8 @@ from .models import (
     ShipmentShipper,
     ShipmentValidationStatus,
 )
+from .policies.shipment_parties import default_recipient_shipper_name
 from .shipment_party_setup import (
-    PRIORITY_SHIPPER_NAME,
     ensure_authorized_recipient_contact,
     ensure_shipment_recipient_link,
     ensure_shipment_shipper,
@@ -23,7 +23,7 @@ _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED = ContextVar(
     "default_shipper_binding_sync_enabled",
     default=True,
 )
-DEFAULT_RECIPIENT_SHIPPER_NAME = PRIORITY_SHIPPER_NAME.upper()
+DEFAULT_RECIPIENT_SHIPPER_NAME = default_recipient_shipper_name()
 
 
 def default_shipper_binding_sync_enabled() -> bool:

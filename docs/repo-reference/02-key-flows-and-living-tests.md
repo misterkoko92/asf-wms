@@ -125,6 +125,7 @@ If you change shipment sequencing, status rules, draft behavior, closure rules, 
 - `wms/views_portal_account.py`
 - `wms/views_portal_orders.py`
 - `wms/views_portal_billing.py`
+- `wms/application/portal/dashboard_queries.py`
 - `wms/portal_order_handlers.py`
 - `wms/portal_recipient_sync.py`
 - `wms/view_permissions.py`
@@ -210,6 +211,7 @@ If order creation or status transitions change, inspect:
 ### Main runtime files
 
 - `wms/emailing.py`
+- `wms/events/outbox.py`
 - `wms/models_domain/integration.py`
 - `wms/management/commands/process_email_queue.py`
 - `wms/runtime_settings.py`
@@ -238,6 +240,7 @@ If order creation or status transitions change, inspect:
 If you change recipients, status-triggered notifications, delivery mode, or queue behavior, update all of these together:
 
 - producer code
+- `wms/events/outbox.py` when `IntegrationEvent` enqueue semantics change
 - queue/runtime docs
 - targeted matrices
 - operations/release docs if the operational behavior changed
@@ -257,6 +260,11 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `api/v1/ui/pilotage/`
 - `docs/operations.md`
 
+Document scan queue follows the same V3.2 durable-dispatch rule:
+
+- enqueue paths should use `wms/events/outbox.py` rather than creating `IntegrationEvent` rows ad hoc
+- reference tests live in `wms/tests/security/tests_document_scan_queue.py` and `wms/tests/management/tests_management_check_document_scan_runtime.py`
+
 ## 5. Planning: Seed -> Solve -> Publish -> Communications -> Cockpit
 
 ### Main entry points
@@ -271,6 +279,7 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `wms/planning/*`
 - `wms/planning/stats.py`
 - `wms/planning/version_dashboard.py`
+- `wms/application/planning/version_detail_queries.py`
 - `wms/management/commands/seed_planning_demo_data.py`
 - `wms/management/commands/planning_recipe_export.py`
 - `templates/planning/_version_stats_block.html`

@@ -9,6 +9,9 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from tools.planning_comm_helper import excel_runtime
+from wms.application.planning.version_detail_queries import (
+    build_planning_version_detail_payload,
+)
 from wms.helper_install import build_helper_install_context
 from wms.models import (
     PlanningAssignment,
@@ -804,6 +807,29 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, 'href="#planning-version-planning"')
         self.assertContains(response, 'href="#planning-version-non-affectes"')
         self.assertContains(response, 'href="#planning-version-communications"')
+
+    def test_version_detail_uses_shared_payload_for_get(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+        payload = build_planning_version_detail_payload(version=data["version"])
+
+        with (
+            mock.patch(
+                "wms.views_planning.build_planning_version_detail_payload",
+                return_value=payload,
+            ),
+            mock.patch(
+                "wms.views_planning._build_helper_install_context",
+                return_value={"status": "ready"},
+            ),
+        ):
+            response = self.client.get(
+                reverse("planning:version_detail", args=[data["version"].pk])
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["priority_cards"], payload["priority_cards"])
+        self.assertEqual(response.context["dashboard"]["header"], payload["dashboard"]["header"])
 
     def test_version_detail_renders_flight_groups_as_primary_planning_block(self):
         data = self.make_operator_version()

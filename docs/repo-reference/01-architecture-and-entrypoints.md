@@ -42,6 +42,14 @@ Practical rule:
 
 - when routing or tests import `wms.views`, do not assume the logic is there
 - `wms/views.py` is mostly a re-export layer
+- V3 introduces `wms/application/` and `wms/policies/` as the preferred structural target
+  for shared query composition and business rule classification, while legacy views and
+  API endpoints remain the active delivery adapters during the migration
+- V3.2 introduces `wms/events/` and `wms/jobs/` as the preferred runtime target for
+  explicit side-effect bridging and operational execution, while Django signals and
+  management commands remain the active entry adapters during the migration
+- V3.2 also introduces `OperationalJobRun` in `wms/models_domain/integration.py` as
+  the persisted visibility layer for runtime job executions triggered through `wms/jobs/`
 
 ## 4. Main Runtime Clusters
 
@@ -79,6 +87,16 @@ Practical rule:
 - URL roots: `api/urls.py`, `api/v1/urls.py`
 - UI API layer: `api/v1/ui_views.py`
 - Integration/business API layer: `api/v1/views.py`, serializers and routers
+- Current V3.1 extracted query sources:
+  - `wms/application/scan/dashboard_queries.py` is the shared composition source for the legacy scan dashboard and `GET /api/v1/ui/dashboard/`
+  - `wms/application/pilotage/pilotage_queries.py` is the shared composition source for the legacy pilotage cockpit and `GET /api/v1/ui/pilotage/`
+  - `wms/application/portal/dashboard_queries.py` is the shared composition source for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
+  - `wms/application/planning/version_detail_queries.py` is the shared GET composition source for `planning/version_detail`
+- Current V3.1 extracted policy sources:
+  - `wms/policies/sla.py` owns shared SLA freshness and severity classification
+  - `wms/policies/pilotage.py` owns planning-threshold normalization reused by runtime settings and pilotage previews
+  - `wms/policies/planning.py` owns planning flight load-state ordering, labels, and classification
+  - `wms/policies/shipment_parties.py` owns shared shipment-party naming helpers such as the default recipient shipper label
 
 ### Shared contracts
 

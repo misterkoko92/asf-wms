@@ -1,8 +1,9 @@
 from datetime import date
 
-from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+
+from wms.jobs.pilotage import run_refresh_ops_pilotage_job
 
 
 class Command(BaseCommand):
@@ -26,12 +27,7 @@ class Command(BaseCommand):
         else:
             snapshot_date = timezone.localdate()
 
-        call_command(
-            "capture_ops_pilotage_snapshot",
-            snapshot_date=snapshot_date.isoformat(),
-            stdout=self.stdout,
-        )
-        call_command("evaluate_ops_escalations", stdout=self.stdout)
+        run_refresh_ops_pilotage_job(snapshot_date=snapshot_date)
         self.stdout.write(
             self.style.SUCCESS(f"Refreshed ops pilotage for {snapshot_date.isoformat()}.")
         )

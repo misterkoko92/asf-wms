@@ -4,6 +4,7 @@ from django.db.models import Max, Q
 from django.utils import timezone
 
 from .models import ShipmentStatus, ShipmentTrackingStatus
+from .policies.sla import build_sla_alert_classification
 
 OPEN_SLA_SEGMENTS = (
     {
@@ -124,26 +125,6 @@ def build_sla_rows(shipments_with_tracking, *, tracking_alert_hours):
     return sla_rows
 
 
-def _classify_alert(age_hours, *, tracking_alert_hours):
-    if age_hours > tracking_alert_hours * 3:
-        return {
-            "freshness": "persistent",
-            "severity": "critical",
-            "priority": "high",
-        }
-    if age_hours > tracking_alert_hours * 2:
-        return {
-            "freshness": "persistent",
-            "severity": "high",
-            "priority": "high",
-        }
-    return {
-        "freshness": "new",
-        "severity": "high",
-        "priority": "medium",
-    }
-
-
 def build_sla_alert_rows(shipments_with_tracking, *, tracking_alert_hours):
     now = timezone.now()
     cutoff = now - timedelta(hours=tracking_alert_hours)
@@ -167,9 +148,9 @@ def build_sla_alert_rows(shipments_with_tracking, *, tracking_alert_hours):
             started_at = row[segment["start"]]
             age_hours = round(_hours_between(started_at, now) or 0.0, 1)
             delay_hours = round(max(age_hours - tracking_alert_hours, 0.0), 1)
-            classification = _classify_alert(
-                age_hours,
-                tracking_alert_hours=tracking_alert_hours,
+            classification = build_sla_alert_classification(
+                delay_hours,
+                threshold_hours=tracking_alert_hours,
             )
             alert_rows.append(
                 {
