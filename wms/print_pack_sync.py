@@ -3,6 +3,12 @@ from urllib import error, parse, request
 
 from django.conf import settings
 
+from .artifacts.proofs import (
+    build_print_artifact_proof_payload,
+    build_print_artifact_sync_summary,
+    print_artifact_filename,
+    print_artifact_relative_dir,
+)
 from .models import GeneratedPrintArtifact, GeneratedPrintArtifactStatus
 from .print_pack_graph import get_client_credentials_token
 
@@ -46,32 +52,15 @@ def _validate_https_url(url):
 
 
 def _artifact_filename(artifact):
-    filename = os.path.basename((artifact.pdf_file.name or "").strip())
-    if not filename:
-        filename = f"print-pack-{artifact.pack_code}-{artifact.id}.pdf"
-    if not filename.lower().endswith(".pdf"):
-        filename = f"{filename}.pdf"
-    return filename
+    return print_artifact_filename(artifact)
 
 
 def _artifact_relative_dir(artifact):
-    base_dir = (getattr(settings, "GRAPH_WORK_DIR", "") or "").strip().strip("/")
-    parts = [base_dir] if base_dir else []
-    if artifact.shipment and artifact.shipment.reference:
-        parts.extend(["shipments", artifact.shipment.reference])
-    elif artifact.carton and artifact.carton.code:
-        parts.extend(["cartons", artifact.carton.code])
-    else:
-        parts.extend(["packs", (artifact.pack_code or "unknown").strip() or "unknown"])
-    return "/".join(part for part in parts if part)
+    return print_artifact_relative_dir(artifact)
 
 
 def _artifact_onedrive_path(artifact):
-    relative_dir = _artifact_relative_dir(artifact)
-    filename = _artifact_filename(artifact)
-    if relative_dir:
-        return f"{relative_dir}/{filename}"
-    return filename
+    return str(build_print_artifact_proof_payload(artifact)["onedrive_path"])
 
 
 def _upload_artifact_pdf_to_onedrive(*, artifact, timeout):
@@ -82,7 +71,8 @@ def _upload_artifact_pdf_to_onedrive(*, artifact, timeout):
         raise PrintArtifactSyncError("Artifact has no PDF file to upload.")
 
     token = get_client_credentials_token(timeout=timeout)
-    onedrive_path = _artifact_onedrive_path(artifact)
+    proof_payload = build_print_artifact_proof_payload(artifact)
+    onedrive_path = str(proof_payload["onedrive_path"])
     encoded_path = parse.quote(onedrive_path, safe="/")
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{encoded_path}:/content"
     _validate_https_url(url)
@@ -168,6 +158,7 @@ def process_print_artifact_queue(
         PROCESS_RESULT_PROCESSED: 0,
         PROCESS_RESULT_FAILED: 0,
         PROCESS_RESULT_RETRIED: 0,
+        "proof_sync": [],
     }
     for artifact in artifacts:
         result[PROCESS_RESULT_SELECTED] += 1
@@ -183,8 +174,22 @@ def process_print_artifact_queue(
                 max_attempts=resolved_max_attempts,
             )
             result[outcome] += 1
+            result["proof_sync"].append(
+                build_print_artifact_sync_summary(
+                    artifact=artifact,
+                    result=outcome,
+                    error_message=str(exc),
+                )
+            )
             continue
 
         _apply_sync_success(artifact=artifact, onedrive_path=onedrive_path)
         result[PROCESS_RESULT_PROCESSED] += 1
+        result["proof_sync"].append(
+            build_print_artifact_sync_summary(
+                artifact=artifact,
+                result=PROCESS_RESULT_PROCESSED,
+                onedrive_path=onedrive_path,
+            )
+        )
     return result

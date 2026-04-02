@@ -28,6 +28,7 @@ def record_job_run(
     runner: Callable[[], T],
     trigger_source: str = "direct",
     context_payload: dict | None = None,
+    result_summary_factory: Callable[[T], object] | None = None,
 ) -> T:
     run = OperationalJobRun.objects.create(
         job_key=job_key,
@@ -52,6 +53,7 @@ def record_job_run(
 
     run.status = OperationalJobRun.Status.SUCCEEDED
     run.finished_at = timezone.now()
-    run.result_summary = _normalize_summary(result)
+    summary_value = result_summary_factory(result) if result_summary_factory else result
+    run.result_summary = _normalize_summary(summary_value)
     run.save(update_fields=["status", "finished_at", "result_summary"])
     return result

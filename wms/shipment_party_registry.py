@@ -9,32 +9,25 @@ from .models import (
     ShipmentShipper,
     ShipmentValidationStatus,
 )
+from .parties.selectors import (
+    validated_active_recipient_organization_filters,
+    validated_recipient_organizations_for_destination,
+    validated_shippers,
+)
 
 
 def _validated_active_shippers() -> QuerySet[ShipmentShipper]:
-    return ShipmentShipper.objects.filter(
-        is_active=True,
-        validation_status=ShipmentValidationStatus.VALIDATED,
-        organization__is_active=True,
-    )
+    return validated_shippers()
 
 
 def _validated_active_recipient_organization_filters(*, prefix: str = "") -> dict[str, object]:
-    return {
-        f"{prefix}is_active": True,
-        f"{prefix}validation_status": ShipmentValidationStatus.VALIDATED,
-        f"{prefix}organization__is_active": True,
-        f"{prefix}destination__is_active": True,
-    }
+    return validated_active_recipient_organization_filters(prefix=prefix)
 
 
 def _validated_active_recipient_organizations(
     *, destination
 ) -> QuerySet[ShipmentRecipientOrganization]:
-    return ShipmentRecipientOrganization.objects.filter(
-        destination=destination,
-        **_validated_active_recipient_organization_filters(),
-    )
+    return validated_recipient_organizations_for_destination(destination)
 
 
 def eligible_shippers_for_stopover(destination) -> QuerySet[ShipmentShipper]:

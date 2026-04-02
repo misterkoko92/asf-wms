@@ -145,6 +145,40 @@ class OperationalJobRunTests(TestCase):
         self.assertEqual(run.result_summary["failed"], 1)
 
     @mock.patch(
+        "wms.jobs.print_artifacts.process_print_artifact_queue",
+        return_value={
+            "selected": 1,
+            "processed": 0,
+            "failed": 1,
+            "retried": 0,
+            "proof_sync": [
+                {
+                    "artifact_id": 42,
+                    "file_name": "proof.pdf",
+                    "relative_dir": "packs/B",
+                    "onedrive_path": "packs/B/proof.pdf",
+                    "result": "failed",
+                    "error_message": "upload failed",
+                }
+            ],
+        },
+    )
+    def test_run_print_artifact_queue_job_persists_proof_sync_preview(self, process_queue_mock):
+        result = run_print_artifact_queue_job(limit=1)
+
+        self.assertEqual(result["failed"], 1)
+        process_queue_mock.assert_called_once_with(
+            limit=1,
+            include_failed=False,
+            max_attempts=None,
+        )
+        run = OperationalJobRun.objects.get(job_key="print_artifact_queue")
+        self.assertEqual(run.status, OperationalJobRun.Status.SUCCEEDED)
+        self.assertNotIn("proof_sync", run.result_summary)
+        self.assertEqual(run.result_summary["proof_sync_preview"][0]["artifact_id"], 42)
+        self.assertEqual(run.result_summary["proof_sync_preview"][0]["result"], "failed")
+
+    @mock.patch(
         "wms.jobs.email_queue.process_email_queue",
         side_effect=RuntimeError("boom"),
     )

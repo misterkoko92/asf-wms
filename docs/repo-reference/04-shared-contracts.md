@@ -71,6 +71,43 @@ Reference tests:
 
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_imports.py`
+
+### V3.3 Legacy Scan Asset Facade Contract
+
+Primary runtime sources:
+
+- `templates/scan/base.html`
+- `templates/portal/base.html`
+- `templates/planning/base.html`
+- `wms/static/scan/scan.js`
+- `wms/static/scan/scan.css`
+- `wms/static/scan/scan-bootstrap.css`
+- `wms/static/scan/modules/`
+- `wms/static/scan/css/partials/`
+
+Current V3.3 contract:
+
+- `scan.js`, `scan.css`, and `scan-bootstrap.css` remain the stable shared filenames consumed by scan, portal, planning, and public/auth surfaces
+- `templates/scan/base.html` keeps `scan.js` plus `scan/modules/core.js` as the shared scan script facade
+- page-local scan scripts now extend the shell through the `extra_scripts` block instead of growing `templates/scan/base.html` directly
+- `templates/portal/base.html` and `templates/planning/base.html` keep consuming the stable shared scan CSS entrypoints and expose the same extension block for future page-local scripts
+- the first V3.3 script slices now live in `wms/static/scan/modules/core.js`, `dashboard.js`, and `shipments.js`
+- the first V3.3 style slices now live in `wms/static/scan/css/partials/foundation.css`, `ops.css`, and `auth-public.css`
+- when extracting more JS/CSS, prefer moving code behind these module/partial facades instead of changing the shared entrypoint filenames or inlining more asset tags into templates
+
+Maintenance rule:
+
+- keep `scan.js`, `scan.css`, and `scan-bootstrap.css` present unless the consuming templates and bootstrap regression tests move together
+- if a new page-local script is needed on scan, load it through `templates/scan/base.html`'s `extra_scripts` block instead of broadening the shared shell for every page
+- if portal or planning still depend on a shared scan stylesheet selector, do not move or rename that selector without checking their templates and bootstrap tests
+- when extracting styles, keep the stable entrypoint files as facades and move only clearly scoped concerns into `wms/static/scan/css/partials/`
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_imports.py`
 
 ### V3 Extracted Policies Contract
 
@@ -171,6 +208,8 @@ Current V3.2 contract:
 - job wrappers, not management commands, own run persistence
 - scalar job results are normalized to `result_summary={"result": ...}`
 - structured job results remain JSON summaries, with `date` and datetime-like values normalized through the runtime tracking helper
+- job wrappers may now provide a `result_summary_factory` when the persisted summary should stay smaller or more action-oriented than the raw runtime result
+- the print-artifact job persists a bounded `proof_sync_preview` rather than the full raw sync payload list when proof-level details are present
 
 Maintenance rule:
 
@@ -181,6 +220,120 @@ Maintenance rule:
 Reference tests:
 
 - `wms/tests/test_job_runs.py`
+
+### V3.3 Parties Boundary Contract
+
+Primary runtime sources:
+
+- `wms/parties/selectors.py`
+- `wms/parties/invariants.py`
+- `wms/parties/sync.py`
+- `wms/parties/merge.py`
+- `wms/application/parties/use_cases.py`
+- `wms/portal_recipient_sync.py`
+- `wms/admin_contacts_merge_service.py`
+- `wms/scan_admin_contacts_cockpit.py`
+
+Current V3.3 contract:
+
+- `wms/parties/selectors.py` is now the shared home for validated and active shipment-party selectors previously duplicated across registry and rules modules
+- `wms/parties/invariants.py` owns graph-level destination-scope checks that future sync and merge flows can reuse
+- `wms/parties/sync.py` now owns the portal-recipient sync orchestration and shipment-party contact resolution runtime
+- `wms/parties/merge.py` now owns the contact-graph and recipient-organization merge runtime used by scan admin and shipment-party cockpit adapters
+- `ShipmentRecipientOrganization` is now uniquely scoped by `(organization, destination)`; organization-only runtime assumptions are no longer a valid shared contract
+- portal recipient destination changes now keep the same synced structure contact when possible and create or reuse a destination-scoped recipient runtime row instead of forcing a second synced organization contact
+- `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync and recipient-contact resolution
+- `wms/portal_recipient_sync.py` remains a compatibility adapter and should not grow new orchestration logic again
+- `wms/admin_contacts_merge_service.py` remains a compatibility adapter and should not grow graph mutation logic again
+- `wms/scan_admin_contacts_cockpit.py` keeps forms and user-facing validation/messages, but delegates merge mutations to `wms/parties/merge.py`
+
+Maintenance rule:
+
+- if a portal recipient sync change affects graph orchestration, destination reuse, or recipient-contact resolution, update `wms/parties/sync.py` or `wms/application/parties/use_cases.py` first, then keep compatibility wrappers thin
+- if an admin contact merge or shipment-party cockpit merge changes graph mutation semantics, update `wms/parties/merge.py` first, then keep scan/admin wrappers thin
+- if a caller resolves or mutates `ShipmentRecipientOrganization`, prefer destination-aware helpers or explicit `(organization, destination)` filters over organization-only lookups
+- do not reintroduce validated/active selector duplication back into `wms/shipment_party_registry.py` or `wms/shipment_party_rules.py`
+
+Reference tests:
+
+- `wms/tests/core/tests_parties_selectors.py`
+- `wms/tests/core/tests_parties_merge.py`
+- `wms/tests/core/tests_parties_destination_scope.py`
+- `wms/tests/core/tests_parties_use_cases.py`
+- `wms/tests/portal/tests_portal_recipient_sync.py`
+- `wms/tests/portal/tests_portal_shipment_parties.py`
+
+### V3.3 Artifacts Boundary Contract
+
+Primary runtime sources:
+
+- `wms/artifacts/planning.py`
+- `wms/artifacts/attachments.py`
+- `wms/artifacts/proofs.py`
+- `wms/application/planning_artifacts/use_cases.py`
+- `wms/planning/exports.py`
+- `wms/planning/communication_actions.py`
+- `wms/print_pack_sync.py`
+- `wms/jobs/print_artifacts.py`
+
+Current V3.3 contract:
+
+- `wms/artifacts/planning.py` is now the shared home for planning workbook/PDF export orchestration, persisted artifact health helpers, and artifact metadata summaries
+- `wms/planning/exports.py` remains a compatibility adapter and should not grow new export orchestration logic again
+- `wms/artifacts/attachments.py` now owns planning attachment resolution and PDF readiness/blocking semantics for communication helpers
+- `wms/application/planning_artifacts/use_cases.py` is now the application-facing entrypoint for helper payload composition that depends on planning artifact state
+- `wms/planning/communication_actions.py` remains a compatibility adapter and should not grow attachment-selection logic again
+- `wms/artifacts/proofs.py` now owns proof-path payloads for print artifact sync, including the canonical file name, relative directory, and OneDrive path
+- `wms/print_pack_sync.py` keeps transport and queue retry behavior, but should delegate proof-path construction to `wms/artifacts/proofs.py`
+- `process_print_artifact_queue(...)` now returns the legacy counters plus a `proof_sync` list, and `wms/jobs/print_artifacts.py` persists a bounded `proof_sync_preview` inside `OperationalJobRun.result_summary`
+
+Maintenance rule:
+
+- if planning workbook/PDF lifecycle, artifact health persistence, or communication attachment eligibility changes, update `wms/artifacts/planning.py` and `wms/artifacts/attachments.py` first, then keep planning adapters thin
+- if print artifact sync path construction changes, update `wms/artifacts/proofs.py` first, then keep `wms/print_pack_sync.py` focused on transport/retry behavior
+- if print artifact job summaries change, update `wms/jobs/print_artifacts.py`, `wms/jobs/runtime_tracking.py`, ops docs, and this section together
+
+Reference tests:
+
+- `wms/tests/planning/tests_artifact_services.py`
+- `wms/tests/planning/tests_outputs.py`
+- `wms/tests/planning/tests_communication_actions.py`
+- `wms/tests/print/tests_print_pack_sync.py`
+- `wms/tests/test_job_runs.py`
+
+### V3.3 Structural Facade Contract
+
+Primary runtime sources:
+
+- `wms/application/__init__.py`
+- `wms/application/parties/__init__.py`
+- `wms/application/planning_artifacts/__init__.py`
+- `wms/events/__init__.py`
+- `wms/jobs/__init__.py`
+- `wms/parties/__init__.py`
+- `wms/artifacts/__init__.py`
+- `mypy.ini`
+- `pyrightconfig.json`
+- `Makefile`
+
+Current V3.3 contract:
+
+- the package-root `__init__` modules above are now the stable public import facades for the structural layers introduced across V3.1 to V3.3
+- `mypy.ini` is the broad structural type gate and covers the internal modules under `wms/application`, `wms/events`, `wms/jobs`, `wms/parties`, and `wms/artifacts`
+- `pyrightconfig.json` is intentionally narrower and validates the package-root public facades rather than the full Django ORM-heavy internals
+- `make typecheck-structural` is the repeatable proof command for the combined mypy + pyright structural gate
+- `make ruff-structural` is the repeatable lint proof command for those same structural packages
+- `wms/tests/core/tests_v33_contracts.py` is the runtime contract guard proving those facades expose the expected V3 entry points
+
+Maintenance rule:
+
+- if a structural package adds, removes, or renames a public entry point, update the relevant package `__init__`, the contract test, and the structural typecheck config in the same work
+- do not point `pyrightconfig.json` at ORM-heavy internal modules unless the repo also adopts the stubs and typing discipline needed to keep that signal green
+- do not reintroduce hidden cross-package imports when the boundary can be expressed through the package-root facade
+
+Reference tests:
+
+- `wms/tests/core/tests_v33_contracts.py`
 
 ### Local Dashboard V2 API Contract
 

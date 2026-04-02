@@ -20,10 +20,11 @@ UV_EXPORT_ARGS ?= --frozen --no-header --no-annotate --no-hashes
 DEPLOY_ENV_FILE ?= .env.deploy.example
 FORMAT_SCOPE ?= asf_wms api contacts wms manage.py
 FORMAT_EXCLUDES ?=
+STRUCTURAL_QUALITY_SCOPE ?= wms/application wms/events wms/jobs wms/parties wms/artifacts
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev sync sync-no-dev lock export-requirements deps-check install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
+.PHONY: install install-dev sync sync-no-dev lock export-requirements deps-check install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright typecheck-structural ruff-structural bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -98,6 +99,11 @@ typecheck:
 typecheck-pyright:
 	@command -v $(PYRIGHT) >/dev/null 2>&1 || (echo "Missing pyright. Install dev deps first with: uv sync --frozen or make install-dev" >&2; exit 1)
 	$(PYRIGHT) -p $(PYRIGHT_CONFIG)
+
+typecheck-structural: typecheck typecheck-pyright
+
+ruff-structural:
+	$(RUFF) check $(STRUCTURAL_QUALITY_SCOPE)
 
 bandit:
 	$(BANDIT) -r asf_wms api contacts wms -x "$(BANDIT_EXCLUDES)"

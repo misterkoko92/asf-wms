@@ -9,6 +9,9 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 from contacts.models import Contact, ContactType
+from wms.parties.merge import (
+    merge_recipient_organizations as merge_recipient_organizations_graph,
+)
 
 from .forms_scan_admin_contacts_cockpit import (
     ShipmentAuthorizedRecipientDefaultForm,
@@ -232,150 +235,10 @@ def merge_shipment_recipient_organizations(*, data) -> tuple[bool, str]:
     if source.destination_id != target.destination_id:
         return False, _("La fusion doit rester sur la meme escale.")
 
-    duplicate_contact_ids_to_delete = []
-    duplicate_link_ids_to_delete = []
-
-    with transaction.atomic():
-        contact_map = {}
-        source_recipient_contacts = list(
-            ShipmentRecipientContact.objects.select_related("contact")
-            .filter(recipient_organization=source)
-            .order_by("id")
-        )
-        for source_recipient_contact in source_recipient_contacts:
-            person = source_recipient_contact.contact
-            if person.organization_id != target.organization_id:
-                person.organization = target.organization
-                person.save(update_fields=["organization"])
-
-            target_recipient_contact = (
-                ShipmentRecipientContact.objects.filter(
-                    recipient_organization=target,
-                    contact=person,
-                )
-                .exclude(pk=source_recipient_contact.pk)
-                .first()
-            )
-            if target_recipient_contact is None:
-                source_recipient_contact.recipient_organization = target
-                source_recipient_contact.save(update_fields=["recipient_organization"])
-                target_recipient_contact = source_recipient_contact
-            else:
-                if source_recipient_contact.is_active and not target_recipient_contact.is_active:
-                    target_recipient_contact.is_active = True
-                    target_recipient_contact.save(update_fields=["is_active"])
-                duplicate_contact_ids_to_delete.append(source_recipient_contact.pk)
-            contact_map[source_recipient_contact.pk] = target_recipient_contact
-
-        link_map = {}
-        target_link_default_exists = {}
-        source_links = list(
-            ShipmentShipperRecipientLink.objects.filter(recipient_organization=source).order_by(
-                "id"
-            )
-        )
-        for source_link in source_links:
-            target_link = (
-                ShipmentShipperRecipientLink.objects.filter(
-                    shipper=source_link.shipper,
-                    recipient_organization=target,
-                )
-                .exclude(pk=source_link.pk)
-                .first()
-            )
-            if target_link is None:
-                source_link.recipient_organization = target
-                source_link.save(update_fields=["recipient_organization"])
-                target_link = source_link
-            else:
-                if source_link.is_active and not target_link.is_active:
-                    target_link.is_active = True
-                    target_link.save(update_fields=["is_active"])
-                duplicate_link_ids_to_delete.append(source_link.pk)
-            link_map[source_link.pk] = target_link
-            target_link_default_exists[target_link.pk] = (
-                ShipmentAuthorizedRecipientContact.objects.filter(
-                    link=target_link,
-                    is_default=True,
-                    is_active=True,
-                ).exists()
-            )
-
-        source_authorizations = list(
-            ShipmentAuthorizedRecipientContact.objects.select_related("recipient_contact")
-            .filter(link_id__in=link_map.keys())
-            .order_by("id")
-        )
-        for authorization in source_authorizations:
-            target_link = link_map[authorization.link_id]
-            target_recipient_contact = contact_map[authorization.recipient_contact_id]
-            desired_default = (
-                authorization.is_default
-                and authorization.is_active
-                and not target_link_default_exists.get(target_link.pk, False)
-            )
-
-            target_authorization = (
-                ShipmentAuthorizedRecipientContact.objects.filter(
-                    link=target_link,
-                    recipient_contact=target_recipient_contact,
-                )
-                .exclude(pk=authorization.pk)
-                .first()
-            )
-            if target_authorization is None:
-                update_fields = []
-                if authorization.link_id != target_link.pk:
-                    authorization.link = target_link
-                    update_fields.append("link")
-                if authorization.recipient_contact_id != target_recipient_contact.pk:
-                    authorization.recipient_contact = target_recipient_contact
-                    update_fields.append("recipient_contact")
-                if authorization.is_default != desired_default:
-                    authorization.is_default = desired_default
-                    update_fields.append("is_default")
-                if update_fields:
-                    authorization.save(update_fields=update_fields)
-                if desired_default:
-                    target_link_default_exists[target_link.pk] = True
-                continue
-
-            updated_fields = []
-            if authorization.is_active and not target_authorization.is_active:
-                target_authorization.is_active = True
-                updated_fields.append("is_active")
-            if desired_default and not target_authorization.is_default:
-                ShipmentAuthorizedRecipientContact.objects.filter(
-                    link=target_link,
-                    is_default=True,
-                ).exclude(pk=target_authorization.pk).update(is_default=False)
-                target_authorization.is_default = True
-                updated_fields.append("is_default")
-                target_link_default_exists[target_link.pk] = True
-            if updated_fields:
-                target_authorization.save(update_fields=updated_fields)
-            authorization.delete()
-
-        if duplicate_link_ids_to_delete:
-            ShipmentShipperRecipientLink.objects.filter(
-                id__in=duplicate_link_ids_to_delete
-            ).delete()
-        if duplicate_contact_ids_to_delete:
-            ShipmentRecipientContact.objects.filter(id__in=duplicate_contact_ids_to_delete).delete()
-
-        if source.is_correspondent and not target.is_correspondent:
-            ShipmentRecipientOrganization.objects.filter(
-                destination=target.destination,
-                is_correspondent=True,
-            ).exclude(pk=target.pk).update(is_correspondent=False)
-            target.is_correspondent = True
-            target.save(update_fields=["is_correspondent"])
-
-        source.is_active = False
-        source.is_correspondent = False
-        source.save(update_fields=["is_active", "is_correspondent"])
-        source.organization.is_active = False
-        source.organization.save(update_fields=["is_active"])
+    try:
+        merge_recipient_organizations_graph(source=source, target=target)
+    except ValidationError as exc:
+        return False, _validation_message(exc)
 
     return True, _("Structures destinataires fusionnees.")
 

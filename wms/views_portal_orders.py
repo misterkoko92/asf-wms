@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
+from .application.parties.use_cases import resolve_portal_recipient_party_contact
 from .application.portal.dashboard_queries import (
     build_portal_dashboard_payload,
     decorate_portal_dashboard_order,
@@ -38,7 +39,6 @@ from .portal_helpers import (
     get_default_carton_format,
 )
 from .portal_order_handlers import create_portal_order
-from .portal_recipient_sync import resolve_association_recipient_party_contact
 from .scan_helpers import build_product_selection_data
 from .scan_helpers import parse_int as parse_int_safe
 from .services import StockError
@@ -176,8 +176,7 @@ def _allowed_recipient_option_ids(*, selected_destination, allowed_destination_i
 
 def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
     recipient_contact_by_id = {
-        recipient.id: resolve_association_recipient_party_contact(recipient)
-        for recipient in recipients
+        recipient.id: resolve_portal_recipient_party_contact(recipient) for recipient in recipients
     }
     allowed_destination_ids_by_recipient = {str(recipient.id): set() for recipient in recipients}
     shipper = shipment_shipper_from_contact(profile.contact)
@@ -257,7 +256,7 @@ def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_de
             "destination_address": "",
         }
 
-    recipient_contact = resolve_association_recipient_party_contact(recipient)
+    recipient_contact = resolve_portal_recipient_party_contact(recipient)
     recipient_address = get_contact_address(recipient_contact) or get_contact_address(
         getattr(recipient, "synced_contact", None)
     )

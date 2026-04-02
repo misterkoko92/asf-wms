@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% trans "WMS Scan - Tableau de bord" %}{% endblock %}
 
@@ -438,4 +438,8 @@
       </div>
     </div>
   </section>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'scan/modules/dashboard.js' %}"></script>
 {% endblock %}

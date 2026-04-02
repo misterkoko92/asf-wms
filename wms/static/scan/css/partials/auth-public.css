@@ -1,0 +1,239 @@
+.scan-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 20px var(--shadow);
+}
+
+.scan-card + .scan-card {
+  margin-top: 16px;
+}
+
+.scan-card h2 {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+
+.scan-field {
+  margin-bottom: 14px;
+}
+
+.scan-hidden {
+  display: none !important;
+}
+
+.scan-field.scan-field-gap {
+  margin-top: 16px;
+}
+
+.scan-field label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.scan-field input,
+.scan-field select,
+.scan-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  font-size: 15px;
+  background: var(--input-bg);
+}
+
+.scan-field textarea { resize: vertical; }
+
+.scan-inline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.scan-inline-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.scan-select-stack {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.scan-select-stack input,
+.scan-select-stack select {
+  width: 100%;
+}
+
+.scan-inline.scan-inline-equal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scan-inline.scan-inline-top {
+  align-items: start;
+}
+
+.scan-inline.scan-inline-equal.scan-inline-top {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scan-inline.scan-inline-gap {
+  margin-top: 8px;
+}
+
+.scan-docs {
+  display: grid;
+  gap: 6px;
+}
+
+.scan-doc-menu {
+  display: inline-block;
+}
+
+.scan-doc-menu-toggle {
+  list-style: none;
+  min-width: auto;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.scan-doc-menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.scan-doc-menu-toggle::after {
+  content: "▾";
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.scan-doc-menu[open] .scan-doc-menu-toggle::after {
+  content: "▴";
+}
+
+.scan-doc-menu-list {
+  display: none;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.scan-doc-menu[open] .scan-doc-menu-list {
+  display: grid;
+}
+
+.scan-doc-menu-list .scan-doc-btn {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.scan-doc-btn {
+  min-width: auto;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.scan-scan-btn {
+  border: 2px solid var(--accent);
+  background: var(--scan-btn-bg);
+  color: var(--accent);
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 90px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-submit {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: 0;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scan-submit.scan-submit-inline {
+  width: auto;
+}
+
+.scan-submit.secondary {
+  background: var(--accent-2);
+  color: var(--accent-2-ink);
+}
+
+.scan-messages {
+  margin-bottom: 12px;
+}
+
+.scan-sync-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-accent);
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.scan-sync-banner.active {
+  display: flex;
+  animation: fade-in 0.2s ease-out;
+}
+
+.scan-sync-banner button {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.scan-message {
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.scan-message.success {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+}
+
+.scan-message.error {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--danger);
+}
+
+.scan-message.warning {
+  background: var(--bg-accent);
+  border: 1px solid var(--border-strong);
+  color: var(--accent-2-ink);
+}
+
+.scan-help {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}

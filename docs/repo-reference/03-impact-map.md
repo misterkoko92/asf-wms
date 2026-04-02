@@ -25,6 +25,8 @@ Ask yourself:
 
 - does the same rule exist in the UI API under `api/v1/ui/`?
 - if the HTML page and UI API mirror the same cockpit, should both adapters read the same `wms/application/*` payload instead of recomposing the data separately?
+- if this is a legacy scan asset change, do `templates/scan/base.html`, `templates/portal/base.html`, and `templates/planning/base.html` still agree on the stable shared scan CSS entrypoints and extension blocks?
+- if this is a JS/CSS extraction, did the behavior move behind `wms/static/scan/modules/` or `wms/static/scan/css/partials/` without breaking the stable entrypoint filenames consumed elsewhere?
 - if this is a carton-list change, does `scan_carton_edit` still carry the operational actions and lock states?
 - does the same operation appear in print/document endpoints?
 - if bulk carton actions or grouped documents change, do `scan_carton_picking`, `scan_cartons_picking`, `scan_carton_document`, and grouped bundle routes still match?
@@ -82,23 +84,31 @@ Run or inspect first:
 Always check:
 
 - `wms/portal_recipient_sync.py`
+- `wms/application/parties/` once the use-case layer exists
+- `wms/parties/` once selectors, sync, merge, and invariant checks start moving there
 - `wms/models_domain/portal.py`
 - `wms/models_domain/shipment_parties.py`
 - `wms/shipment_party_registry.py`
 - `wms/shipment_party_setup.py`
 - `wms/shipment_party_rules.py`
 - `wms/view_permissions.py`
-- `wms/scan_admin_contacts_cockpit.py`
-- `wms/admin_contacts_merge_service.py` when recipient organizations can be merged or deduplicated
+- `wms/scan_admin_contacts_cockpit.py` as the compatibility adapter for shipment-party cockpit mutations
+- `wms/admin_contacts_merge_service.py` as the compatibility adapter for admin contact merge flows
+- `wms/parties/merge.py` when recipient organizations or contact graphs can be merged, deduplicated, or re-scoped
 - `wms/views_scan_admin.py` and `templates/scan/includes/admin_contacts_contact_form.html` when admin must review the same recipient data
 
 Ask yourself:
 
 - will scan shipment forms now show different shippers, recipients, or correspondents?
 - does a portal change also require an admin contacts cockpit change?
+- should this logic be moved into `wms/parties/` instead of staying duplicated in portal/admin adapters?
+- if the public shipment-party import surface changed, did `wms/parties/__init__.py`,
+  `wms/application/parties/__init__.py`, and `wms/tests/core/tests_v33_contracts.py`
+  move with it?
 - do structure compliance fields or uploaded recipient documents also need to appear on `scan/contacts`?
 - do linked/default authorizations still stay unique and active?
 - can admin merge flows preserve or deduplicate the same recipient compliance documents without losing them?
+- do any organization-only recipient runtime lookups now need `(organization, destination)` scope instead?
 - are existing portal tests still the right contract, or did the business rule itself change?
 
 Run or inspect first:
@@ -202,6 +212,8 @@ Ask yourself:
 - is the API mirroring an existing legacy page or becoming the de facto contract?
 - do HTML and API still agree on validation, permissions, and sequencing?
 - does the shared application payload need to change first so both adapters stay aligned?
+- if a V3 package boundary changed, did the package-root `__init__` facade, `mypy.ini`,
+  `pyrightconfig.json`, and `wms/tests/core/tests_v33_contracts.py` stay aligned?
 - does the release smoke subset still name the right test?
 
 Run or inspect first:
@@ -217,6 +229,7 @@ Always check:
 - `wms/views_planning.py`
 - `wms/models_domain/planning.py`
 - the matching shared query or use-case module under `wms/application/planning/` when the change is read-only cockpit composition
+- `wms/artifacts/` once artifact lifecycle orchestration starts moving there
 - the matching module in `wms/planning/`
 - planning commands under `wms/management/commands/`
 - `docs/operations.md`
@@ -226,6 +239,10 @@ Ask yourself:
 
 - does the seeded smoke flow still reach solve, publish, draft generation, export, and cockpit view?
 - did artifact names or visibility change?
+- should workbook rendering, PDF readiness, attachment selection, or proof logic move into `wms/artifacts/` instead of growing `wms/planning/exports.py` and communication adapters again?
+- if the artifact lifecycle import surface changed, did `wms/artifacts/__init__.py`,
+  `wms/application/planning_artifacts/__init__.py`, and `wms/tests/core/tests_v33_contracts.py`
+  move with it?
 - should the GET cockpit composition move through `wms/application/planning/*` instead of growing `wms/views_planning.py` again?
 - should the post-deploy conditional smoke wording change?
 

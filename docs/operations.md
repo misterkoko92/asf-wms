@@ -24,7 +24,9 @@ make ci
 Tooling roles:
 
 - `make typecheck` is the blocking type gate.
-- `make typecheck-pyright` is an informational shadow signal.
+- `make typecheck-structural` is the structural-layer proof for the V3 packages and now combines the wider mypy scope with the facade-only pyright scope.
+- `make typecheck-pyright` is an informational shadow signal over the public structural facades, not the full Django ORM internals.
+- `make ruff-structural` is the lint companion for the V3 structural packages.
 - `make export-requirements` regenerates `requirements.txt` and `requirements-dev.txt` from `uv.lock`.
 - `SKIP=<hook-id> git commit ...` is acceptable only as a temporary local escape hatch while fixing a false positive; do not remove the hook from CI without investigation.
 - Keep `mypy` as the release gate even if `pyright` becomes noisy.
@@ -111,7 +113,9 @@ make ci
 
 `make ci` is the global verification gate for local release readiness.
 `make typecheck` is intentionally scoped to selected core modules defined in `mypy.ini` and remains blocking.
-`make typecheck-pyright` mirrors this critical-module scope through `pyrightconfig.json` and remains informational until a longer green period proves it is stable.
+`make typecheck-structural` is the dedicated proof for the extracted V3 packages and should be run whenever `wms/application`, `wms/events`, `wms/jobs`, `wms/parties`, or `wms/artifacts` change.
+`make typecheck-pyright` now validates only the public structural facades listed in `pyrightconfig.json` and remains informational until a longer green period proves it is stable.
+`make ruff-structural` is the matching lint proof for those extracted V3 packages.
 `make coverage` is the source of truth for the coverage gate (`COVERAGE_FAIL_UNDER`, default `93`) and excludes paused Next/frontend tags by default.
 `make deploy-check-prod-like` sources `.env.deploy.example` (or `DEPLOY_ENV_FILE=...`) to run a reproducible local deploy check profile.
 
@@ -339,6 +343,28 @@ Queue health snapshot:
 ```bash
 python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationDirection; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source='wms.email', event_type='send_email'); print({s: qs.filter(status=s).count() for s in ['pending','processing','processed','failed']})"
 ```
+
+### Print artifact proof sync runtime
+
+The generated print-artifact queue now builds its OneDrive/proof payload through `wms/artifacts/proofs.py` before transport.
+
+Operational checks:
+
+- run `python manage.py process_print_artifact_queue --limit=20`
+- inspect recent `OperationalJobRun` rows for `job_key=print_artifact_queue`
+- use `result_summary.proof_sync_preview` to confirm which artifact ids and OneDrive paths were processed, retried, or failed
+
+Suggested shell probe:
+
+```bash
+python manage.py shell -c "from wms.models import OperationalJobRun; print(list(OperationalJobRun.objects.filter(job_key='print_artifact_queue').order_by('-started_at').values('status','context_payload','result_summary','error_summary')[:10]))"
+```
+
+Interpretation:
+
+- `proof_sync_preview[*].result=processed` means the artifact sync path and upload completed
+- `proof_sync_preview[*].result=retried` means the artifact stayed pending and will be retried on the next queue run
+- `proof_sync_preview[*].result=failed` means the artifact hit the max-attempt policy and is now `sync_failed`
 
 Recent failed events:
 

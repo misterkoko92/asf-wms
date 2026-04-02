@@ -170,9 +170,15 @@ class PortalRecipientSyncTests(TestCase):
         updated.refresh_from_db()
         recipient.refresh_from_db()
 
-        self.assertNotEqual(updated.id, synced.id)
+        self.assertEqual(updated.id, synced.id)
         self.assertEqual(recipient.synced_contact_id, updated.id)
         self.assertEqual(updated.name, "A.S.L.A.V Congo Update")
+        self.assertEqual(
+            ShipmentRecipientOrganization.objects.filter(
+                organization=updated,
+            ).count(),
+            2,
+        )
         self.assertTrue(
             ShipmentRecipientOrganization.objects.filter(
                 organization=updated,
@@ -200,7 +206,10 @@ class PortalRecipientSyncTests(TestCase):
         self.assertEqual(updated.id, synced.id)
         self.assertEqual(recipient.synced_contact_id, synced.id)
         shipper = ShipmentShipper.objects.get(organization=self.association)
-        recipient_org = ShipmentRecipientOrganization.objects.get(organization=updated)
+        recipient_org = ShipmentRecipientOrganization.objects.get(
+            organization=updated,
+            destination=recipient.destination,
+        )
         link = ShipmentShipperRecipientLink.objects.get(
             shipper=shipper,
             recipient_organization=recipient_org,
@@ -232,7 +241,10 @@ class PortalRecipientSyncTests(TestCase):
 
         self.assertEqual(updated.id, synced.id)
         shipper = ShipmentShipper.objects.get(organization=self.association)
-        recipient_org = ShipmentRecipientOrganization.objects.get(organization=updated)
+        recipient_org = ShipmentRecipientOrganization.objects.get(
+            organization=updated,
+            destination=recipient.destination,
+        )
         link = ShipmentShipperRecipientLink.objects.get(
             shipper=shipper,
             recipient_organization=recipient_org,

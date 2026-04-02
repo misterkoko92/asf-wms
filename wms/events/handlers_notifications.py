@@ -8,6 +8,10 @@ def _shipment_status_label(signal_helpers, raw_status):
         return raw_status
 
 
+def _tracking_status_label(signal_helpers, raw_status):
+    return dict(signal_helpers.ShipmentTrackingStatus.choices).get(raw_status, raw_status)
+
+
 def handle_shipment_status_changed_event(*, event: RuntimeEvent, shipment) -> None:
     from wms import signals as signal_helpers
 
@@ -59,7 +63,10 @@ def handle_shipment_status_changed_event(*, event: RuntimeEvent, shipment) -> No
             shipment=shipment,
             old_label=old_label,
             new_label=new_label,
-            tracking_status_label=signal_helpers.ShipmentTrackingStatus.PLANNED.label,
+            tracking_status_label=_tracking_status_label(
+                signal_helpers,
+                signal_helpers.ShipmentTrackingStatus.PLANNED,
+            ),
         )
     if shipment.status == signal_helpers.ShipmentStatus.DELIVERED:
         signal_helpers._notify_shipment_delivery(shipment)
