@@ -112,6 +112,7 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-bootstrap.css")
+        self.assertContains(response, "scan/modules/core.js")
         self.assertContains(response, "bootstrap@5.3.3")
         self.assertContains(response, "family=DM+Sans")
         self.assertContains(response, "family=Nunito+Sans")
@@ -127,6 +128,21 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'id="theme-toggle"')
         self.assertNotContains(response, 'id="ui-reset-default"')
         self.assertNotContains(response, "Essayer interface Next")
+
+    def test_scan_templates_load_targeted_modules_only_on_needed_pages(self):
+        stock_response = self.client.get(reverse("scan:scan_stock"))
+        dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
+        shipment_response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(stock_response.status_code, 200)
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertEqual(shipment_response.status_code, 200)
+
+        self.assertNotContains(stock_response, "scan/modules/dashboard.js")
+        self.assertNotContains(stock_response, "scan/modules/shipments.js")
+        self.assertContains(dashboard_response, "scan/modules/dashboard.js")
+        self.assertNotContains(dashboard_response, "scan/modules/shipments.js")
+        self.assertContains(shipment_response, "scan/modules/shipments.js")
 
     def test_scan_stock_uses_bootstrap_layout_and_keeps_table_tools(self):
         response = self.client.get(reverse("scan:scan_stock"))

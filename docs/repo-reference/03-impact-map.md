@@ -25,6 +25,8 @@ Ask yourself:
 
 - does the same rule exist in the UI API under `api/v1/ui/`?
 - if the HTML page and UI API mirror the same cockpit, should both adapters read the same `wms/application/*` payload instead of recomposing the data separately?
+- if this is a legacy scan asset change, do `templates/scan/base.html`, `templates/portal/base.html`, and `templates/planning/base.html` still agree on the stable shared scan CSS entrypoints and extension blocks?
+- if this is a JS/CSS extraction, did the behavior move behind `wms/static/scan/modules/` or `wms/static/scan/css/partials/` without breaking the stable entrypoint filenames consumed elsewhere?
 - if this is a carton-list change, does `scan_carton_edit` still carry the operational actions and lock states?
 - does the same operation appear in print/document endpoints?
 - if bulk carton actions or grouped documents change, do `scan_carton_picking`, `scan_cartons_picking`, `scan_carton_document`, and grouped bundle routes still match?

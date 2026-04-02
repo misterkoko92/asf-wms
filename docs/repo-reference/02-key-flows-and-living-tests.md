@@ -42,6 +42,11 @@ Use it when you need to answer:
 - `templates/scan/`
 - `templates/print/`
 - `wms/static/scan/`
+- `templates/scan/base.html`
+- `wms/static/scan/modules/core.js`
+- `wms/static/scan/modules/dashboard.js`
+- `wms/static/scan/modules/shipments.js`
+- `wms/static/scan/css/partials/`
 - `api/v1/ui_views.py`
 - `api/v1/views.py`
 
@@ -58,6 +63,9 @@ Use it when you need to answer:
 - daily ops cockpit under `/scan/pilotage/` as the transverse read surface for snapshots, escalations, destination trends, portal backlog, and planning exports
 - UI API mirror under `/api/v1/ui/pilotage/`
 - scan settings preset-based calibration, including local `incident_sla` preview
+- stable legacy asset entrypoints where `scan.js`, `scan.css`, and `scan-bootstrap.css`
+  remain the shared facades while `wms/static/scan/modules/` and
+  `wms/static/scan/css/partials/` carry the first V3.3 modular slices
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - shipment creation or draft/edit
 - carton status progression
@@ -85,6 +93,7 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_views_imports.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`
 - `wms/tests/test_workflow_projection.py`
 - `wms/tests/management/tests_management_rebuild_workflow_projections.py`

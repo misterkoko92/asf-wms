@@ -58,5 +58,9 @@
       {% endfor %}
     </datalist>
   </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'scan/modules/shipments.js' %}"></script>
   <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}

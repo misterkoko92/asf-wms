@@ -63,6 +63,10 @@ Practical rule:
   `wms/application/planning_artifacts/use_cases.py`, while `wms/planning/exports.py`,
   `wms/planning/communication_actions.py`, and `wms/print_pack_sync.py` remain
   compatibility adapters where needed
+- the first live V3.3 legacy asset slice now exists through `wms/static/scan/modules/`
+  and `wms/static/scan/css/partials/`, while `wms/static/scan/scan.js`,
+  `wms/static/scan/scan.css`, and `wms/static/scan/scan-bootstrap.css` remain the
+  stable shared entrypoints consumed by scan, portal, planning, and public/auth surfaces
 
 ## 4. Main Runtime Clusters
 
@@ -73,6 +77,11 @@ Practical rule:
 - Main runtime modules: `wms/views_scan_stock.py`, `wms/views_scan_shipments.py`, `wms/views_scan_shipments_support.py`, `wms/views_scan_receipts.py`, `wms/views_scan_orders.py`, `wms/views_scan_admin.py`, `wms/views_scan_dashboard.py`, `wms/views_scan_billing.py`, `wms/views_scan_misc.py`
 - Templates: `templates/scan/`
 - Static assets: `wms/static/scan/`
+- Stable scan asset facade: `templates/scan/base.html` keeps `scan.js` and `scan/modules/core.js`
+  as the shared script entrypoints, while page-local scripts now attach through the
+  `extra_scripts` block and the first modular slices live in `wms/static/scan/modules/`
+- Stable shared style facade: `scan.css` and `scan-bootstrap.css` stay as the public
+  filenames, while first extracted partials now live under `wms/static/scan/css/partials/`
 
 ### Portal / association
 

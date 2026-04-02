@@ -71,6 +71,43 @@ Reference tests:
 
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_imports.py`
+
+### V3.3 Legacy Scan Asset Facade Contract
+
+Primary runtime sources:
+
+- `templates/scan/base.html`
+- `templates/portal/base.html`
+- `templates/planning/base.html`
+- `wms/static/scan/scan.js`
+- `wms/static/scan/scan.css`
+- `wms/static/scan/scan-bootstrap.css`
+- `wms/static/scan/modules/`
+- `wms/static/scan/css/partials/`
+
+Current V3.3 contract:
+
+- `scan.js`, `scan.css`, and `scan-bootstrap.css` remain the stable shared filenames consumed by scan, portal, planning, and public/auth surfaces
+- `templates/scan/base.html` keeps `scan.js` plus `scan/modules/core.js` as the shared scan script facade
+- page-local scan scripts now extend the shell through the `extra_scripts` block instead of growing `templates/scan/base.html` directly
+- `templates/portal/base.html` and `templates/planning/base.html` keep consuming the stable shared scan CSS entrypoints and expose the same extension block for future page-local scripts
+- the first V3.3 script slices now live in `wms/static/scan/modules/core.js`, `dashboard.js`, and `shipments.js`
+- the first V3.3 style slices now live in `wms/static/scan/css/partials/foundation.css`, `ops.css`, and `auth-public.css`
+- when extracting more JS/CSS, prefer moving code behind these module/partial facades instead of changing the shared entrypoint filenames or inlining more asset tags into templates
+
+Maintenance rule:
+
+- keep `scan.js`, `scan.css`, and `scan-bootstrap.css` present unless the consuming templates and bootstrap regression tests move together
+- if a new page-local script is needed on scan, load it through `templates/scan/base.html`'s `extra_scripts` block instead of broadening the shared shell for every page
+- if portal or planning still depend on a shared scan stylesheet selector, do not move or rename that selector without checking their templates and bootstrap tests
+- when extracting styles, keep the stable entrypoint files as facades and move only clearly scoped concerns into `wms/static/scan/css/partials/`
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_imports.py`
 
 ### V3 Extracted Policies Contract
 
