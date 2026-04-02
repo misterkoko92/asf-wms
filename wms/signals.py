@@ -10,23 +10,21 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from contacts.correspondent_recipient_promotion import (
-    ensure_destination_correspondent_recipient_ready,
-)
 from contacts.models import Contact
 
 from .auth_session import apply_remember_me_session_policy
-from .default_shipper_bindings import (
-    default_shipper_binding_sync_enabled,
-    ensure_default_shipper_links_for_destination_id,
-    ensure_default_shipper_links_for_recipient_organization_id,
-)
+from .default_shipper_bindings import default_shipper_binding_sync_enabled
 from .emailing import (
     get_admin_emails,
     get_group_emails,
     send_or_enqueue_email_safe,
 )
-from .events import handlers_notifications, publishers
+from .events import (
+    handlers_notifications,
+    handlers_projections,
+    handlers_sync,
+    publishers,
+)
 from .models import (
     AssociationProfile,
     AssociationRecipient,
@@ -46,7 +44,6 @@ from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
 )
-from .workflow_projection import schedule_shipment_workflow_projection_refresh
 
 SHIPMENT_STATUS_UPDATE_GROUP_DEFAULT = "Shipment_Status_Update"
 SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT = "Shipment_Status_Update_Correspondant"
@@ -372,7 +369,10 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
 def _refresh_workflow_projection_on_shipment_save(sender, instance, **kwargs) -> None:
     shipment_id = getattr(instance, "pk", None)
     if shipment_id:
-        schedule_shipment_workflow_projection_refresh(shipment_id)
+        event = publishers.build_workflow_projection_refresh_requested_event(
+            shipment_id=shipment_id
+        )
+        handlers_projections.handle_workflow_projection_refresh_requested_event(event=event)
 
 
 def _refresh_workflow_projection_on_tracking_event(sender, instance, created, **kwargs) -> None:
@@ -380,7 +380,10 @@ def _refresh_workflow_projection_on_tracking_event(sender, instance, created, **
         return
     shipment_id = getattr(instance, "shipment_id", None)
     if shipment_id:
-        schedule_shipment_workflow_projection_refresh(shipment_id)
+        event = publishers.build_workflow_projection_refresh_requested_event(
+            shipment_id=shipment_id
+        )
+        handlers_projections.handle_workflow_projection_refresh_requested_event(event=event)
 
 
 def _capture_order_state(sender, instance, **kwargs) -> None:
@@ -531,9 +534,10 @@ def _sync_default_shipper_links_for_recipient_organization(
         return
     if not instance.is_active:
         return
-    transaction.on_commit(
-        lambda: ensure_default_shipper_links_for_recipient_organization_id(instance.id)
+    event = publishers.build_default_shipper_links_for_recipient_organization_event(
+        recipient_organization_id=instance.id
     )
+    handlers_sync.handle_default_shipper_links_for_recipient_organization_event(event=event)
 
 
 def _sync_default_shipper_links_for_destination(sender, instance, created, **kwargs) -> None:
@@ -541,9 +545,8 @@ def _sync_default_shipper_links_for_destination(sender, instance, created, **kwa
         return
     if not instance.is_active:
         return
-
-    destination_id = instance.id
-    transaction.on_commit(lambda: ensure_default_shipper_links_for_destination_id(destination_id))
+    event = publishers.build_default_shipper_links_for_destination_event(destination_id=instance.id)
+    handlers_sync.handle_default_shipper_links_for_destination_event(event=event)
 
 
 def _sync_destination_correspondent_recipient_support(sender, instance, created, **kwargs) -> None:
@@ -553,20 +556,10 @@ def _sync_destination_correspondent_recipient_support(sender, instance, created,
         return
     if not instance.correspondent_contact_id:
         return
-
-    destination_id = instance.id
-
-    def _sync() -> None:
-        destination = (
-            Destination.objects.filter(pk=destination_id)
-            .select_related("correspondent_contact")
-            .first()
-        )
-        if destination is None:
-            return
-        ensure_destination_correspondent_recipient_ready(destination)
-
-    transaction.on_commit(_sync)
+    event = publishers.build_destination_correspondent_recipient_support_event(
+        destination_id=instance.id
+    )
+    handlers_sync.handle_destination_correspondent_recipient_support_event(event=event)
 
 
 def _apply_login_session_policy(sender, request, user, **kwargs) -> None:

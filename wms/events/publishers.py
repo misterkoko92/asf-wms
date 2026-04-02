@@ -1,4 +1,7 @@
 from wms.events.types import (
+    EVENT_DEFAULT_SHIPPER_LINKS_FOR_DESTINATION,
+    EVENT_DEFAULT_SHIPPER_LINKS_FOR_RECIPIENT_ORGANIZATION,
+    EVENT_DESTINATION_CORRESPONDENT_RECIPIENT_SUPPORT,
     EVENT_ORDER_STATUS_CHANGED,
     EVENT_PILOTAGE_REFRESH_REQUESTED,
     EVENT_PLANNING_ARTIFACT_EXPORTED,
@@ -57,6 +60,35 @@ def build_workflow_projection_refresh_requested_event(*, shipment_id: int) -> Ru
         scope_type="shipment",
         scope_id=str(shipment_id),
         payload={"shipment_id": shipment_id},
+    )
+
+
+def build_default_shipper_links_for_recipient_organization_event(
+    *, recipient_organization_id: int
+) -> RuntimeEvent:
+    return RuntimeEvent(
+        event_type=EVENT_DEFAULT_SHIPPER_LINKS_FOR_RECIPIENT_ORGANIZATION,
+        scope_type="recipient_organization",
+        scope_id=str(recipient_organization_id),
+        payload={"recipient_organization_id": recipient_organization_id},
+    )
+
+
+def build_default_shipper_links_for_destination_event(*, destination_id: int) -> RuntimeEvent:
+    return RuntimeEvent(
+        event_type=EVENT_DEFAULT_SHIPPER_LINKS_FOR_DESTINATION,
+        scope_type="destination",
+        scope_id=str(destination_id),
+        payload={"destination_id": destination_id},
+    )
+
+
+def build_destination_correspondent_recipient_support_event(*, destination_id: int) -> RuntimeEvent:
+    return RuntimeEvent(
+        event_type=EVENT_DESTINATION_CORRESPONDENT_RECIPIENT_SUPPORT,
+        scope_type="destination",
+        scope_id=str(destination_id),
+        payload={"destination_id": destination_id},
     )
 
 

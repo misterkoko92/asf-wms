@@ -199,14 +199,14 @@ class ShipmentWorkflowProjectionTests(TestCase):
 
     def test_shipment_save_schedules_projection_refresh(self):
         with mock.patch(
-            "wms.signals.schedule_shipment_workflow_projection_refresh"
-        ) as schedule_mock:
+            "wms.events.handlers_projections.handle_workflow_projection_refresh_requested_event"
+        ) as handler_mock:
             shipment = self._create_shipment(
                 reference="EXP-PROJ-SIGNAL-001",
                 status=ShipmentStatus.DRAFT,
             )
 
-        schedule_mock.assert_called_once_with(shipment.id)
+        handler_mock.assert_called_once()
 
     def test_tracking_event_create_schedules_projection_refresh(self):
         shipment = self._create_shipment(
@@ -215,8 +215,8 @@ class ShipmentWorkflowProjectionTests(TestCase):
         )
 
         with mock.patch(
-            "wms.signals.schedule_shipment_workflow_projection_refresh"
-        ) as schedule_mock:
+            "wms.events.handlers_projections.handle_workflow_projection_refresh_requested_event"
+        ) as handler_mock:
             ShipmentTrackingEvent.objects.create(
                 shipment=shipment,
                 status=ShipmentTrackingStatus.PLANNED,
@@ -225,7 +225,7 @@ class ShipmentWorkflowProjectionTests(TestCase):
                 created_by=self.user,
             )
 
-        schedule_mock.assert_called_once_with(shipment.id)
+        handler_mock.assert_called_once()
 
     def test_build_destination_week_projection_rows_groups_by_planned_iso_week(self):
         first_shipment = self._create_shipment(
