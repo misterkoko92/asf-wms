@@ -58,6 +58,10 @@ Practical rule:
   `wms/parties/invariants.py`, `wms/parties/sync.py`, `wms/parties/merge.py`, and
   `wms/application/parties/use_cases.py`, while portal views still route through
   legacy compatibility wrappers where needed
+- the public package facades for these slices now live in `wms/application/__init__.py`,
+  `wms/application/parties/__init__.py`, `wms/events/__init__.py`, `wms/jobs/__init__.py`,
+  `wms/parties/__init__.py`, and `wms/artifacts/__init__.py`; use them when you need
+  the stable import surface rather than an internal module
 - the first live V3.3 planning-artifact slice now exists through `wms/artifacts/planning.py`,
   `wms/artifacts/attachments.py`, `wms/artifacts/proofs.py`, and
   `wms/application/planning_artifacts/use_cases.py`, while `wms/planning/exports.py`,
@@ -141,12 +145,16 @@ Important cross-cutting domain modules:
 - shipment-party registry and rules: `wms/shipment_party_registry.py`, `wms/shipment_party_setup.py`, `wms/shipment_party_rules.py`
 - V3.3 target boundary for shipment-party graph logic: `wms/parties/`
 - live V3.3 application entrypoint for portal shipment-party sync: `wms/application/parties/use_cases.py`
+- stable V3.3 package-root import surface for shipment-party orchestration:
+  `wms/parties/__init__.py` and `wms/application/parties/__init__.py`
 - `ShipmentRecipientOrganization` is now scoped by `(organization, destination)` rather than by organization globally, so destination-aware lookups are the default contract for portal and admin shipment-party flows
 - workflow notifications and side effects: `wms/signals.py`
 - core orchestration services: `wms/services.py`
 - V3.3 target boundary for planning/document artifact lifecycle: `wms/artifacts/`
 - live V3.3 application entrypoint for planning artifact helper payloads:
   `wms/application/planning_artifacts/use_cases.py`
+- stable V3.3 package-root import surface for artifact lifecycle helpers:
+  `wms/artifacts/__init__.py` and `wms/application/planning_artifacts/__init__.py`
 
 ## 6. Tests As Runtime Maps
 
@@ -161,6 +169,13 @@ Main test clusters:
 - `wms/tests/planning/`: planning domain and smoke flow
 - `wms/tests/core/`: cross-domain contracts and sanity flows
 - `api/tests/`: API contracts and UI API end-to-end flows
+
+Structural gate note:
+
+- `mypy.ini` is now the broader structural type gate for `wms/application`, `wms/events`,
+  `wms/jobs`, `wms/parties`, and `wms/artifacts`
+- `pyrightconfig.json` intentionally validates the public `__init__` facades for those
+  layers rather than the full unstubbed Django ORM internals
 
 ## 7. Docs That Define Current Expected Behavior
 

@@ -102,6 +102,9 @@ Ask yourself:
 - will scan shipment forms now show different shippers, recipients, or correspondents?
 - does a portal change also require an admin contacts cockpit change?
 - should this logic be moved into `wms/parties/` instead of staying duplicated in portal/admin adapters?
+- if the public shipment-party import surface changed, did `wms/parties/__init__.py`,
+  `wms/application/parties/__init__.py`, and `wms/tests/core/tests_v33_contracts.py`
+  move with it?
 - do structure compliance fields or uploaded recipient documents also need to appear on `scan/contacts`?
 - do linked/default authorizations still stay unique and active?
 - can admin merge flows preserve or deduplicate the same recipient compliance documents without losing them?
@@ -209,6 +212,8 @@ Ask yourself:
 - is the API mirroring an existing legacy page or becoming the de facto contract?
 - do HTML and API still agree on validation, permissions, and sequencing?
 - does the shared application payload need to change first so both adapters stay aligned?
+- if a V3 package boundary changed, did the package-root `__init__` facade, `mypy.ini`,
+  `pyrightconfig.json`, and `wms/tests/core/tests_v33_contracts.py` stay aligned?
 - does the release smoke subset still name the right test?
 
 Run or inspect first:
@@ -235,6 +240,9 @@ Ask yourself:
 - does the seeded smoke flow still reach solve, publish, draft generation, export, and cockpit view?
 - did artifact names or visibility change?
 - should workbook rendering, PDF readiness, attachment selection, or proof logic move into `wms/artifacts/` instead of growing `wms/planning/exports.py` and communication adapters again?
+- if the artifact lifecycle import surface changed, did `wms/artifacts/__init__.py`,
+  `wms/application/planning_artifacts/__init__.py`, and `wms/tests/core/tests_v33_contracts.py`
+  move with it?
 - should the GET cockpit composition move through `wms/application/planning/*` instead of growing `wms/views_planning.py` again?
 - should the post-deploy conditional smoke wording change?
 

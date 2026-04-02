@@ -10,7 +10,9 @@ Use this checklist for each production release.
 - [ ] `make ci`
 - [ ] Keep the CI smoke subset small and deterministic. Current cross-domain smoke guards are `api.tests.tests_ui_e2e_workflows`, `wms.tests.emailing.tests_notifications_queue`, `wms.tests.emailing.tests_order_status_notifications`, and `wms.tests.planning.tests_smoke_planning_flow`.
 - [ ] `make typecheck` is green and remains the blocking type gate.
-- [ ] `make typecheck-pyright` reviewed as informational only.
+- [ ] If V3 structural layers changed, `make typecheck-structural` is green.
+- [ ] If V3 structural layers changed, `make ruff-structural` is green.
+- [ ] `make typecheck-pyright` reviewed as informational only and interpreted as the public structural-facade signal, not full ORM coverage.
 - [ ] `make export-requirements` re-run after any dependency change.
 
 Fallback if `uv` is blocked locally:

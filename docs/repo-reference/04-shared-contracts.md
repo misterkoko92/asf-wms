@@ -301,6 +301,40 @@ Reference tests:
 - `wms/tests/print/tests_print_pack_sync.py`
 - `wms/tests/test_job_runs.py`
 
+### V3.3 Structural Facade Contract
+
+Primary runtime sources:
+
+- `wms/application/__init__.py`
+- `wms/application/parties/__init__.py`
+- `wms/application/planning_artifacts/__init__.py`
+- `wms/events/__init__.py`
+- `wms/jobs/__init__.py`
+- `wms/parties/__init__.py`
+- `wms/artifacts/__init__.py`
+- `mypy.ini`
+- `pyrightconfig.json`
+- `Makefile`
+
+Current V3.3 contract:
+
+- the package-root `__init__` modules above are now the stable public import facades for the structural layers introduced across V3.1 to V3.3
+- `mypy.ini` is the broad structural type gate and covers the internal modules under `wms/application`, `wms/events`, `wms/jobs`, `wms/parties`, and `wms/artifacts`
+- `pyrightconfig.json` is intentionally narrower and validates the package-root public facades rather than the full Django ORM-heavy internals
+- `make typecheck-structural` is the repeatable proof command for the combined mypy + pyright structural gate
+- `make ruff-structural` is the repeatable lint proof command for those same structural packages
+- `wms/tests/core/tests_v33_contracts.py` is the runtime contract guard proving those facades expose the expected V3 entry points
+
+Maintenance rule:
+
+- if a structural package adds, removes, or renames a public entry point, update the relevant package `__init__`, the contract test, and the structural typecheck config in the same work
+- do not point `pyrightconfig.json` at ORM-heavy internal modules unless the repo also adopts the stubs and typing discipline needed to keep that signal green
+- do not reintroduce hidden cross-package imports when the boundary can be expressed through the package-root facade
+
+Reference tests:
+
+- `wms/tests/core/tests_v33_contracts.py`
+
 ### Local Dashboard V2 API Contract
 
 Primary runtime sources:

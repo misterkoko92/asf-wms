@@ -24,7 +24,9 @@ make ci
 Tooling roles:
 
 - `make typecheck` is the blocking type gate.
-- `make typecheck-pyright` is an informational shadow signal.
+- `make typecheck-structural` is the structural-layer proof for the V3 packages and now combines the wider mypy scope with the facade-only pyright scope.
+- `make typecheck-pyright` is an informational shadow signal over the public structural facades, not the full Django ORM internals.
+- `make ruff-structural` is the lint companion for the V3 structural packages.
 - `make export-requirements` regenerates `requirements.txt` and `requirements-dev.txt` from `uv.lock`.
 - `SKIP=<hook-id> git commit ...` is acceptable only as a temporary local escape hatch while fixing a false positive; do not remove the hook from CI without investigation.
 - Keep `mypy` as the release gate even if `pyright` becomes noisy.
@@ -111,7 +113,9 @@ make ci
 
 `make ci` is the global verification gate for local release readiness.
 `make typecheck` is intentionally scoped to selected core modules defined in `mypy.ini` and remains blocking.
-`make typecheck-pyright` mirrors this critical-module scope through `pyrightconfig.json` and remains informational until a longer green period proves it is stable.
+`make typecheck-structural` is the dedicated proof for the extracted V3 packages and should be run whenever `wms/application`, `wms/events`, `wms/jobs`, `wms/parties`, or `wms/artifacts` change.
+`make typecheck-pyright` now validates only the public structural facades listed in `pyrightconfig.json` and remains informational until a longer green period proves it is stable.
+`make ruff-structural` is the matching lint proof for those extracted V3 packages.
 `make coverage` is the source of truth for the coverage gate (`COVERAGE_FAIL_UNDER`, default `93`) and excludes paused Next/frontend tags by default.
 `make deploy-check-prod-like` sources `.env.deploy.example` (or `DEPLOY_ENV_FILE=...`) to run a reproducible local deploy check profile.
 
