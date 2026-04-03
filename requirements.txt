@@ -25,7 +25,7 @@ pypdf==6.9.2
 pypdfium2==5.5.0
 pypng==0.20220715.0
 python-dateutil==2.9.0.post0
-qrcode==7.4.2
+qrcode==8.2
 six==1.17.0
 sqlparse==0.5.5
 typing-extensions==4.15.0
