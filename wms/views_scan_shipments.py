@@ -132,6 +132,11 @@ ACTIVE_PREPARE_KITS = "prepare_kits"
 ACTIVE_PACK = "pack"
 LOCAL_DOCUMENT_HELPER_APP_LABEL = "asf-wms"
 LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE = "scan:scan_local_document_helper_installer"
+EDITABLE_CARTON_ASSIGNMENT_SHIPMENT_STATUSES = (
+    ShipmentStatus.DRAFT,
+    ShipmentStatus.PICKING,
+    ShipmentStatus.PACKED,
+)
 
 EDIT_BLOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.PLANNED,
@@ -181,6 +186,29 @@ def _build_local_document_helper_context(request):
         ),
         "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
     }
+
+
+def _build_carton_assignment_shipment_options():
+    shipments = (
+        Shipment.objects.filter(
+            status__in=EDITABLE_CARTON_ASSIGNMENT_SHIPMENT_STATUSES,
+            is_disputed=False,
+            archived_at__isnull=True,
+        )
+        .select_related("destination")
+        .order_by("-reference", "-id")
+    )
+    options = []
+    for shipment in shipments:
+        destination = getattr(shipment, "destination", None)
+        destination_label = str(destination) if destination is not None else ""
+        if not destination_label:
+            destination_label = shipment.destination_country or ""
+        label = shipment.reference
+        if destination_label:
+            label = f"{label} - {destination_label}"
+        options.append({"id": shipment.id, "label": label, "reference": shipment.reference})
+    return options
 
 
 def _render_pack_page(
@@ -629,6 +657,7 @@ def scan_cartons_ready(request):
         {
             "active": ACTIVE_CARTONS_READY,
             "cartons": cartons,
+            "editable_shipments": _build_carton_assignment_shipment_options(),
             "carton_status_choices": sorted_choices(
                 [
                     (CartonStatus.DRAFT, CartonStatus.DRAFT.label),
@@ -1069,7 +1098,7 @@ def scan_shipment_create(request):
         if response:
             return response
     else:
-        carton_count = form.initial.get("carton_count", 1)
+        carton_count = form.initial.get("carton_count", 0) or 0
         line_values = build_shipment_line_values(carton_count)
 
     return _render_shipment_form(

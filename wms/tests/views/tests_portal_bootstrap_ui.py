@@ -173,6 +173,28 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, "btn btn-primary")
 
+    def test_portal_order_create_keeps_destination_optgroups_and_shared_select_classes(self):
+        correspondent = Contact.objects.create(
+            name="Correspondant Optgroup",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="Mali",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        response = self.client.get(reverse("portal:portal_order_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Autres destinations")
+        self.assertContains(response, "<optgroup", html=False)
+        self.assertContains(response, 'id="destination_id"')
+        self.assertContains(response, "ui-select--lg")
+        self.assertContains(response, "ui-select--sm")
+
     def test_portal_order_create_breaks_into_named_workflow_sections(self):
         response = self.client.get(reverse("portal:portal_order_create"))
 
@@ -200,6 +222,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="portal-account-form"')
         self.assertContains(response, "form-control")
         self.assertContains(response, "form-select")
+        self.assertContains(response, "ui-select--md")
         self.assertContains(response, "btn btn-primary")
 
     def test_portal_account_breaks_into_named_workflow_sections(self):
@@ -264,6 +287,15 @@ class PortalBootstrapUiTests(TestCase):
             masthead_bottom.index('id="portal-order-create-cta"'),
             masthead_bottom.index('id="portal-primary-nav"'),
         )
+
+    def test_portal_shell_exposes_history_navigation_buttons(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-history-back"')
+        self.assertContains(response, 'id="portal-history-forward"')
+        self.assertContains(response, "window.history.back()")
+        self.assertContains(response, "window.history.forward()")
 
     def test_portal_billing_pages_use_bootstrap_tables(self):
         billing_document = BillingDocument.objects.create(
@@ -332,6 +364,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, "form-control")
         self.assertContains(response, "form-select")
+        self.assertContains(response, "ui-select--lg")
+        self.assertContains(response, "ui-select--md")
         self.assertContains(response, "btn btn-primary")
 
     def test_portal_recipients_uses_bootstrap_switch_controls(self):

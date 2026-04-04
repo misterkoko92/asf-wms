@@ -52,7 +52,7 @@ def _build_token_field(spec):
             choices=spec["choices"],
             label=label,
             help_text=help_text,
-            widget=forms.Select(attrs={"class": "form-select"}),
+            widget=forms.Select(attrs={"class": "form-select ui-select--md"}),
         )
 
     if kind == "int":
@@ -204,7 +204,7 @@ class ScanDesignSettingsForm(forms.ModelForm):
         base_choice_values = {value for value, _label in base_choices}
         for field_name in self.FONT_FIELDS:
             self.fields[field_name].widget = forms.Select(
-                choices=base_choices, attrs={"class": "form-select"}
+                choices=base_choices, attrs={"class": "form-select ui-select--md"}
             )
 
         if self.instance and getattr(self.instance, "pk", None):

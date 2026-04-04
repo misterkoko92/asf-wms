@@ -13,7 +13,7 @@
         </div>
         <div class="scan-field col-12 col-md-6 col-lg-3">
             <label class="form-label" for="scan-admin-contacts-type">{% trans "Type de contact" %}</label>
-            <select id="scan-admin-contacts-type" name="contact_type" class="form-select">
+            <select id="scan-admin-contacts-type" name="contact_type" class="form-select ui-select--md">
                 {% for value, label in contact_filter_choices %}
                     <option value="{{ value }}"
                             {% if contact_filter == value %}selected{% endif %}>{{ label }}</option>
@@ -22,7 +22,7 @@
         </div>
         <div class="scan-field col-12 col-md-6 col-lg-4">
             <label class="form-label" for="scan-admin-contacts-destination">{% trans "Destination" %}</label>
-            <select id="scan-admin-contacts-destination" name="destination_id" class="form-select">
+            <select id="scan-admin-contacts-destination" name="destination_id" class="form-select ui-select--lg">
                 <option value="">{% trans "Toutes destinations" %}</option>
                 {% for destination in destination_filter_choices %}
                     <option value="{{ destination.id }}"

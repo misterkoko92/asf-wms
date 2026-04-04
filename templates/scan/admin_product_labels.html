@@ -40,7 +40,7 @@
           <label class="form-label" for="scan-product-selection-mode">{% trans "Mode" %}</label>
           <select
             id="scan-product-selection-mode"
-            class="form-select"
+            class="form-select ui-select--md"
             name="selection_mode"
           >
             <option value="{{ selection_mode_selection }}"{% if selection_mode == selection_mode_selection %} selected{% endif %}>{% trans "Selection manuelle" %}</option>

@@ -53,11 +53,14 @@ Stable primitives currently documented:
 - `ui-comp-card`
 - `ui-comp-panel`
 - `ui-comp-actions`
+- shared select contract (`form-select` + `ui-select--sm|md|lg|xl`)
+- shared masthead history navigation include (`templates/includes/history_nav_buttons.html`)
 
 Surfaces that already reuse these contracts:
 
 - `templates/scan/`
 - `templates/portal/`
+- `templates/planning/`
 - `templates/benevole/`
 - custom admin templates
 - `templates/scan/ui_lab.html`
@@ -65,13 +68,43 @@ Surfaces that already reuse these contracts:
 Maintenance rule:
 
 - if a primitive changes semantics, update the UI Lab and bootstrap regression tests
+- if the shared select contract changes, keep `wms/view_utils.py`, Django form/widget sorting, and scan/portal/planning/benevole select templates aligned in the same work
+- if the shared masthead history navigation changes, keep scan/portal/planning/benevole shells aligned in the same work
 - if a pattern is still local, do not prematurely promote it into a shared primitive
 
 Reference tests:
 
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_planning.py`
+- `wms/tests/views/tests_views_volunteer.py`
 - `wms/tests/views/tests_views_imports.py`
+
+### Shared Select Contract
+
+Primary runtime sources:
+
+- `wms/view_utils.py`
+- `wms/forms.py`
+- `wms/static/scan/scan-bootstrap.css`
+- `templates/scan/ui_lab.html`
+- manual select templates under `templates/scan/`, `templates/portal/`, `templates/planning/`, `templates/benevole/`
+
+Current contract:
+
+- selects use native `<select>` controls with `form-select`
+- fixed-width sizing uses `ui-select--sm`, `ui-select--md`, `ui-select--lg`, or `ui-select--xl`
+- the right-side caret is provided by shared CSS with extra right padding so labels never overlap it
+- select widths stay stable and do not resize based on the selected label
+- default ordering is alphabetical by rendered label
+- placeholder options such as `---------` stay at the top
+- grouped choices keep their group structure while sorting the options inside each group
+- explicit per-select exceptions are allowed when business order matters, for example descending shipment selection on `scan/cartons`
+
+Maintenance rule:
+
+- when changing select ordering or sizing, update both the backend choice builders and the rendered template/widget classes in the same work
+- keep documented exceptions explicit and local; do not silently drift into mixed ordering rules
 
 ### V3.3 Legacy Scan Asset Facade Contract
 

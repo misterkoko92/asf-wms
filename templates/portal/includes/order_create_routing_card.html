@@ -10,7 +10,7 @@
 
   <div class="scan-field">
     <label class="form-label" for="destination_id">{% trans "Destination" %}</label>
-    <select class="form-select" id="destination_id" name="destination_id" required>
+    <select class="form-select ui-select--lg" id="destination_id" name="destination_id" required>
       <option value="">---------</option>
       {% if destination_options %}
         <optgroup label="{% trans "Destinations disponibles" %}">
@@ -35,7 +35,7 @@
 
   <div class="scan-field">
     <label class="form-label" for="recipient_id">{% trans "Destinataire" %}</label>
-    <select class="form-select" id="recipient_id" name="recipient_id" required>
+    <select class="form-select ui-select--lg" id="recipient_id" name="recipient_id" required>
       <option value="">---------</option>
       {% for option in recipient_options %}
         <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.recipient_id %}selected{% endif %}>
@@ -60,16 +60,16 @@
   <div class="scan-field">
     <label class="form-label">{% trans "Filtrer produits" %}</label>
     <div id="portal-category-filters" class="scan-filter-actions ui-comp-actions">
-      <select class="form-select form-select-sm" id="portal-filter-category-l1" data-filter-level="0">
+      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l1" data-filter-level="0">
         <option value="">{% trans "Toutes catégories" %}</option>
       </select>
-      <select class="form-select form-select-sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
+      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
         <option value="">{% trans "Toutes sous-catégories (L2)" %}</option>
       </select>
-      <select class="form-select form-select-sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
+      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
         <option value="">{% trans "Toutes sous-catégories (L3)" %}</option>
       </select>
-      <select class="form-select form-select-sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
+      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
         <option value="">{% trans "Toutes sous-catégories (L4)" %}</option>
       </select>
     </div>

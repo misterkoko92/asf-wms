@@ -169,7 +169,7 @@
 
     <div class="scan-field" data-file-options="excel">
       <label class="form-label" for="listing_sheet_name">{% trans "Feuille Excel" %}</label>
-      <select id="listing_sheet_name" name="listing_sheet_name">
+      <select id="listing_sheet_name" name="listing_sheet_name" class="form-select ui-select--lg">
         <option value="">{% trans "Premiere feuille" %}</option>
         {% for sheet in listing_sheet_names %}
           <option value="{{ sheet }}" {% if sheet == listing_sheet_name %}selected{% endif %}>

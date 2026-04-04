@@ -52,7 +52,8 @@ Notes:
 
 - [ ] Always-on smoke: `GET /`, `/admin/login/`, `/scan/`, `/scan/shipments-ready/`, `/scan/shipments-tracking/`, `/api/v1/products/`
 - [ ] Always-on smoke: validate shipment create sequencing (destination -> expéditeur -> destinataire/correspondant -> détails).
-- [ ] Always-on smoke: validate draft flow so "Enregistrer en brouillon" creates `EXP-TEMP-XX` and the draft is visible in Vue Expéditions.
+- [ ] Always-on smoke: validate document-first shipment creation so destination + 3 contacts creates a shipment with a final reference even when carton count is empty.
+- [ ] Always-on smoke: if carton batch scope changed, validate Vue Colis batch assignment plus grouped picking / packing-list outputs.
 - [ ] Always-on smoke: validate one shipment tracking or close action on an existing shipment.
 - [ ] Conditional smoke: if dashboard scope changed, validate one `Blocages workflow` row opens the expected dossier and claim/release works once.
 - [ ] Conditional smoke: if pilotage/settings scope changed, validate `/scan/settings/`, `/scan/dashboard/`, and `/scan/pilotage/` all expose `Seuils actifs`, the expected active preset label, and coherent planning thresholds.

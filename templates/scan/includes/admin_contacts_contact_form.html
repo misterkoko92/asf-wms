@@ -377,7 +377,7 @@
                         </label>
                         <select id="{{ contact_form.duplicate_action.id_for_label }}"
                                 name="duplicate_action"
-                                class="form-select"
+                                class="form-select ui-select--md"
                                 data-duplicate-action="1">
                             {% for value, label in contact_form.fields.duplicate_action.choices %}
                                 <option value="{{ value }}"
@@ -392,7 +392,7 @@
                         </label>
                         <select id="scan-admin-contact-duplicate-target"
                                 name="duplicate_target_id"
-                                class="form-select">
+                                class="form-select ui-select--lg">
                             <option value="">{% trans "Choisir..." %}</option>
                             {% for candidate in contact_duplicate_candidates %}
                                 <option value="{{ candidate.id }}"

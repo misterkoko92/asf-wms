@@ -26,7 +26,7 @@
         {% trans "Créer des colis multi-produits" %}
       </a>
     {% else %}
-      <button type="submit" name="action" value="save_draft_pack" class="scan-scan-btn btn btn-secondary">
+      <button type="submit" name="action" value="create_pack" class="scan-scan-btn btn btn-secondary">
         {% trans "Créer des colis multi-produits" %}
       </button>
     {% endif %}
@@ -36,11 +36,6 @@
   </div>
 
   <div id="shipment-details-actions" class="ui-comp-actions">
-    {% if not is_edit %}
-      <button type="submit" name="action" value="save_draft" class="scan-submit secondary btn btn-secondary mt-2">
-        {% if LANGUAGE_CODE|slice:":2" == "en" %}Save draft{% else %}Enregistrer un brouillon{% endif %}
-      </button>
-    {% endif %}
     <button type="submit" class="scan-submit btn btn-primary">
       {% if is_edit %}
         {% if LANGUAGE_CODE|slice:":2" == "en" %}Save changes{% else %}{% trans "Enregistrer modifications" %}{% endif %}

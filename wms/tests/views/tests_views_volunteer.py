@@ -315,6 +315,15 @@ class VolunteerProfileViewTests(TestCase):
         self.assertIn(reverse("volunteer:availability_recap"), nav_content)
         self.assertNotIn(reverse("volunteer:logout"), nav_content)
 
+    def test_dashboard_exposes_history_navigation_buttons(self):
+        response = self.client.get(reverse("volunteer:dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="volunteer-history-back"')
+        self.assertContains(response, 'id="volunteer-history-forward"')
+        self.assertContains(response, "window.history.back()")
+        self.assertContains(response, "window.history.forward()")
+
     def test_profile_update_persists_changes(self):
         response = self.client.post(
             reverse("volunteer:profile"),
@@ -533,6 +542,17 @@ class VolunteerAvailabilityViewTests(TestCase):
         self.assertNotContains(response, 'value="09:10"')
         self.assertContains(response, "volunteer-week-picker")
 
+    def test_availability_create_uses_fixed_width_select_classes_without_inline_resize(self):
+        response = self.client.get(
+            reverse("volunteer:availability_create"),
+            {"week": "11", "year": "2026"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ui-select--lg")
+        self.assertContains(response, "ui-select--md")
+        self.assertNotContains(response, 'style="min-width: 16rem;"')
+
     def test_update_availability_persists_changes(self):
         availability = VolunteerAvailability.objects.create(
             volunteer=self.profile,
@@ -597,3 +617,12 @@ class VolunteerAvailabilityViewTests(TestCase):
         self.assertContains(response, 'id="volunteer-availability-recap-intro"')
         self.assertContains(response, 'id="volunteer-availability-recap-actions"')
         self.assertNotContains(response, "justify-content-between align-items-start gap-3")
+
+    def test_recap_uses_fixed_width_week_select(self):
+        response = self.client.get(
+            reverse("volunteer:availability_recap"),
+            {"week": "11", "year": "2026"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ui-select--lg")

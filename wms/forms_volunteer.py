@@ -13,6 +13,14 @@ from .models import (
 TIME_INPUT_WIDGET = forms.TimeInput(attrs={"type": "time", "step": "900", "class": "form-control"})
 
 
+def _append_widget_class(widget, css_class):
+    existing_class = widget.attrs.get("class", "").strip()
+    classes = [item for item in existing_class.split() if item]
+    if css_class not in classes:
+        classes.append(css_class)
+    widget.attrs["class"] = " ".join(classes)
+
+
 def _quarter_hour_choices():
     choices = [("", "---------")]
     for hour in range(24):
@@ -23,10 +31,12 @@ def _quarter_hour_choices():
 
 
 def _quarter_hour_select_widget():
-    return forms.Select(
+    widget = forms.Select(
         choices=_quarter_hour_choices(),
-        attrs={"class": "form-select"},
     )
+    _append_widget_class(widget, "form-select")
+    _append_widget_class(widget, "ui-select--md")
+    return widget
 
 
 class VolunteerAccountForm(forms.ModelForm):

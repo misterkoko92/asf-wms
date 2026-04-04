@@ -51,8 +51,8 @@ class DestinationCrudForm(forms.Form):
                 continue
             else:
                 widget.attrs.setdefault("class", "form-control")
-        self.fields["correspondent_contact_id"].widget.attrs["class"] = "form-select"
-        self.fields["duplicate_action"].widget.attrs["class"] = "form-select"
+        self.fields["correspondent_contact_id"].widget.attrs["class"] = "form-select ui-select--lg"
+        self.fields["duplicate_action"].widget.attrs["class"] = "form-select ui-select--md"
 
     def clean_city(self):
         return (self.cleaned_data.get("city") or "").strip()

@@ -94,7 +94,7 @@
 
       <div class="scan-field">
         <label class="form-label" for="destination_id">{% trans "Escale de livraison" %}</label>
-        <select class="form-select" id="destination_id" name="destination_id" required>
+        <select class="form-select ui-select--lg" id="destination_id" name="destination_id" required>
           <option value="">---------</option>
           {% for destination in destinations %}
             <option value="{{ destination.id }}" {% if form_data.destination_id == destination.id|stringformat:"s" %}selected{% endif %}>
@@ -110,7 +110,7 @@
         </div>
         <div class="scan-field">
           <label class="form-label" for="legal_form">{% trans "Forme juridique" %}</label>
-          <select class="form-select" id="legal_form" name="legal_form" required>
+          <select class="form-select ui-select--md" id="legal_form" name="legal_form" required>
             <option value="">---------</option>
             {% for value, label in legal_form_choices %}
               <option value="{{ value }}" {% if form_data.legal_form == value %}selected{% endif %}>{{ label }}</option>
@@ -158,7 +158,7 @@
         </div>
         <div class="scan-field">
           <label class="form-label" for="country">{% trans "Pays" %}</label>
-          <select class="form-select" id="country" name="country">
+          <select class="form-select ui-select--md" id="country" name="country">
             {% for value, label in country_choices %}
               <option value="{{ value }}" {% if form_data.country == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}

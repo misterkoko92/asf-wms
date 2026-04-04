@@ -41,6 +41,7 @@ from .shipment_helpers import (
     shipment_link_for_recipient_contact,
     shipment_shipper_from_contact,
 )
+from .view_utils import sorted_choices
 
 
 def _contact_label(contact):
@@ -48,7 +49,7 @@ def _contact_label(contact):
 
 
 def _sorted_choices(choices):
-    return sorted(choices, key=lambda choice: str(choice[1] or "").lower())
+    return sorted_choices(choices)
 
 
 def _active_donor_organizations():
@@ -478,9 +479,10 @@ class ScanShipmentForm(forms.Form):
     )
     carton_count = forms.IntegerField(
         label=_("Nombre de colis"),
-        min_value=1,
-        initial=1,
-        widget=forms.NumberInput(attrs={"min": 1}),
+        min_value=0,
+        required=False,
+        initial=None,
+        widget=forms.NumberInput(attrs={"min": 0}),
     )
 
     def __init__(self, *args, destination_id=None, **kwargs):

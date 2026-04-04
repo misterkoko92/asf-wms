@@ -68,7 +68,7 @@ Always check:
 
 Ask yourself:
 
-- does draft behavior still match `EXP-TEMP-XX` expectations?
+- does document-first creation still create a final shipment reference with zero cartons allowed?
 - do carton state transitions still agree with shipment state transitions?
 - do tracking and close endpoints still expose the same availability rules?
 - do `docs/mvp_spec.md`, `docs/operations.md`, and `docs/release_checklist.md` still describe reality?
@@ -189,6 +189,7 @@ Ask yourself:
 
 - is this a local page pattern or a shared contract?
 - does the same primitive exist on `scan`, `portal`, `admin`, and `benevole`?
+- if this touches select controls, did you keep alphabetical sorting, grouped-option ordering, right-side caret spacing, fixed-width classes, and any explicit exceptions aligned across surfaces?
 - does the UI Lab still document the current contract?
 - do the governance docs still match the implementation?
 

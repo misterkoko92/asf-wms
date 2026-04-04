@@ -95,8 +95,18 @@ def _get_active_destinations():
     return list(Destination.objects.filter(is_active=True).order_by("city", "country", "iata_code"))
 
 
+def _sorted_option_dicts(options, *, order="asc"):
+    return sorted(
+        options,
+        key=lambda item: str(item.get("label") or "").lower(),
+        reverse=order == "desc",
+    )
+
+
 def _build_destination_options(destinations):
-    return [{"id": str(destination.id), "label": str(destination)} for destination in destinations]
+    return _sorted_option_dicts(
+        [{"id": str(destination.id), "label": str(destination)} for destination in destinations]
+    )
 
 
 def _split_destination_options_by_availability(destination_options, *, available_destination_ids):
@@ -108,7 +118,7 @@ def _split_destination_options_by_availability(destination_options, *, available
             available_options.append(option)
         else:
             disabled_options.append(option)
-    return available_options, disabled_options
+    return _sorted_option_dicts(available_options), _sorted_option_dicts(disabled_options)
 
 
 def _build_portal_recipient_option_label(recipient):
@@ -145,7 +155,7 @@ def _build_recipient_options(
         }
         for recipient in recipients
     ]
-    return sorted(options, key=lambda item: str(item["label"] or "").lower())
+    return _sorted_option_dicts(options)
 
 
 def _filter_recipient_options(recipient_options, destination_id, *, allowed_recipient_ids=None):

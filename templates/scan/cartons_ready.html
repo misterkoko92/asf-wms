@@ -40,12 +40,22 @@
           <button type="submit" name="bulk_document" value="picking" class="scan-scan-btn btn btn-outline-success">
             Picking
           </button>
-          <select name="bulk_action" class="form-select form-select-sm w-auto scan-carton-bulk-action-select">
+          <select name="bulk_action" class="form-select form-select-sm ui-select--sm scan-carton-bulk-action-select">
             <option value="">{% trans "Changer le statut" %}</option>
+            <option value="bulk_assign_cartons_shipment">{% trans "Affecter à une expédition" %}</option>
             <option value="bulk_update_cartons_picking">{% trans "Marquer en préparation" %}</option>
             <option value="bulk_update_cartons_packed">{% trans "Marquer prêt / disponible" %}</option>
             <option value="bulk_mark_cartons_labeled">{% trans "Marquer étiqueté" %}</option>
             <option value="bulk_mark_cartons_assigned">{% trans "Marquer affecté" %}</option>
+          </select>
+          <select
+            name="bulk_shipment_id"
+            class="form-select form-select-sm ui-select--xl scan-carton-bulk-shipment-select"
+          >
+            <option value="">{% trans "Choisir une expédition" %}</option>
+            {% for shipment in editable_shipments %}
+              <option value="{{ shipment.id }}">{{ shipment.label }}</option>
+            {% endfor %}
           </select>
           <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
         </div>

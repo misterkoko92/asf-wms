@@ -127,15 +127,17 @@ class ContactCrudForm(forms.Form):
             elif isinstance(widget, forms.HiddenInput):
                 continue
             elif isinstance(widget, forms.SelectMultiple):
-                widget.attrs.setdefault("class", "form-select")
+                widget.attrs.setdefault("class", "form-select ui-select--xl")
                 widget.attrs.setdefault("size", "6")
             elif isinstance(widget, forms.Select):
-                widget.attrs.setdefault("class", "form-select")
+                widget.attrs.setdefault("class", "form-select ui-select--md")
             elif isinstance(widget, forms.Textarea):
                 widget.attrs.setdefault("class", "form-control")
                 widget.attrs.setdefault("rows", "3")
             else:
                 widget.attrs.setdefault("class", "form-control")
+        self.fields["destination_id"].widget.attrs["class"] = "form-select ui-select--lg"
+        self.fields["allowed_shipper_ids"].widget.attrs["class"] = "form-select ui-select--xl"
 
     def _current_country_value(self):
         if self.is_bound:

@@ -227,6 +227,15 @@ class ScanAdminViewTests(TestCase):
             r'<select[^>]+(?:id="id_country"[^>]+name="country"|name="country"[^>]+id="id_country")',
         )
 
+    def test_scan_admin_contacts_exposes_shared_select_size_classes(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ui-select--md")
+        self.assertContains(response, "ui-select--lg")
+
     def test_scan_admin_contacts_edit_shows_structure_compliance_fields_and_documents(self):
         self.client.force_login(self.superuser)
         contact = Contact.objects.create(

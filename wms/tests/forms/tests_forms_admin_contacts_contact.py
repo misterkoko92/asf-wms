@@ -174,3 +174,10 @@ class ContactCrudFormTests(TestCase):
             form.fields["allowed_shipper_ids"].queryset.values_list("name", flat=True)
         )
         self.assertEqual(queryset_names, ["ASF Active", "Aviation Sans Frontieres"])
+
+    def test_select_widgets_use_shared_select_size_classes(self):
+        form = ContactCrudForm()
+
+        self.assertIn("ui-select--md", form.fields["business_type"].widget.attrs["class"])
+        self.assertIn("ui-select--lg", form.fields["destination_id"].widget.attrs["class"])
+        self.assertIn("ui-select--xl", form.fields["allowed_shipper_ids"].widget.attrs["class"])

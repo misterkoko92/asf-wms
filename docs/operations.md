@@ -273,7 +273,8 @@ Validate:
 - Shipment views load for staff users after authentication.
 - Always-on authenticated smoke:
   - validate shipment create sequencing (`destination -> expéditeur -> destinataire/correspondant -> détails`)
-  - validate "Enregistrer en brouillon" and confirm the `EXP-TEMP-XX` draft appears in Vue Expéditions
+  - validate document-first shipment creation with destination + 3 contacts only, and confirm the shipment gets a final reference even when carton count is empty
+  - if carton batch scope changed, validate one batch assignment from Vue Colis and both grouped packing-list print formats
   - validate one tracking or close action on an existing shipment
 - Conditional smoke based on release scope:
   - if `portal` changed, validate portal login plus one nominal order or recipient update flow
@@ -573,7 +574,7 @@ Monthly:
 
 ### Shipment statuses
 
-- `draft` (Creation): initial state, including temporary drafts (`EXP-TEMP-XX`).
+- `draft` (Creation): initial documentary state, including shipments created without cartons.
 - `picking` (En cours): not all cartons are labeled yet.
 - `packed` (Pret): all cartons are labeled.
 - `planned` (Planifie): planning locked state.
@@ -594,7 +595,7 @@ Monthly:
   - `received_correspondent` => shipment `received_correspondent`
   - `received_recipient` => shipment `delivered`
 - Once `planned`, carton modifications are locked.
-- Temporary references (`EXP-TEMP-XX`) are automatically promoted to final references when shipment leaves `draft`.
+- Shipment references are final from creation time, including document-first shipments created without cartons.
 
 ### Dispute overlay (`is_disputed`)
 

@@ -821,6 +821,63 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             [str(unavailable_destination.id)],
         )
 
+    def test_portal_order_create_sorts_destination_options_within_each_group(self):
+        self._create_delivery_recipient(
+            self.profile,
+            city="Abidjan",
+            country="Cote d'Ivoire",
+            structure_name="Hopital Abidjan",
+        )
+        self._create_destination(city="Bamako", country="Mali")
+        self._create_destination(city="Lome", country="Togo")
+
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 200)
+        available_labels = [option["label"] for option in response.context["destination_options"]]
+        disabled_labels = [
+            option["label"] for option in response.context["disabled_destination_options"]
+        ]
+        self.assertEqual(available_labels, sorted(available_labels, key=str.lower))
+        self.assertEqual(disabled_labels, sorted(disabled_labels, key=str.lower))
+
+    def test_portal_account_get_sorts_billing_and_contact_title_choices(self):
+        response = self.client.get(reverse("portal:portal_account"))
+
+        self.assertEqual(response.status_code, 200)
+        billing_frequency_labels = [
+            str(label) for _value, label in response.context["billing_frequency_choices"]
+        ]
+        billing_grouping_labels = [
+            str(label) for _value, label in response.context["billing_grouping_mode_choices"]
+        ]
+        contact_title_labels = [
+            str(label) for _value, label in response.context["contact_title_choices"]
+        ]
+        self.assertEqual(billing_frequency_labels, sorted(billing_frequency_labels, key=str.lower))
+        self.assertEqual(billing_grouping_labels, sorted(billing_grouping_labels, key=str.lower))
+        self.assertEqual(contact_title_labels, sorted(contact_title_labels, key=str.lower))
+
+    def test_portal_recipients_get_sorts_destination_and_structure_choices(self):
+        self._create_destination(city="Zurich", country="Suisse")
+        self._create_destination(city="Abidjan", country="Cote d'Ivoire")
+
+        response = self.client.get(reverse("portal:portal_recipients"))
+
+        self.assertEqual(response.status_code, 200)
+        destination_labels = [str(destination) for destination in response.context["destinations"]]
+        legal_form_labels = [str(label) for _value, label in response.context["legal_form_choices"]]
+        contact_title_labels = [
+            str(label) for _value, label in response.context["contact_title_choices"]
+        ]
+        self.assertEqual(destination_labels, sorted(destination_labels, key=str.lower))
+        self.assertEqual(legal_form_labels, sorted(legal_form_labels, key=str.lower))
+        self.assertEqual(contact_title_labels, sorted(contact_title_labels, key=str.lower))
+
     def test_portal_order_create_prefers_portal_recipient_fields_for_option_label(self):
         recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,

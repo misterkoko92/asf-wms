@@ -8,7 +8,7 @@ This document reflects the implemented product behavior as of **February 19, 202
 - Lot-level stock with FEFO consumption, quarantine states, and movement traceability.
 - Structured storage (`Warehouse` + `Location`).
 - Carton preparation and assignment to shipments.
-- Shipment creation with destination-driven contact filtering and draft support.
+- Shipment creation with destination-driven contact filtering and document-first support.
 - Public shipment tracking page (token URL) with step-based updates.
 - Shipment tracking board for planned+ shipments, with case closure workflow.
 - Printable shipment documents and labels.
@@ -83,16 +83,17 @@ This document reflects the implemented product behavior as of **February 19, 202
 2. Shipper list is filtered by validated shipment-party eligibility on the selected destination.
 3. Recipient list is filtered by active shipment-party links and authorized recipient contacts for the selected shipper and destination.
 4. Correspondent list is destination-scoped and forced to the destination configured correspondent; if destination has no configured correspondent, the list is empty.
-5. Details section appears only after destination + shipper + recipient + correspondent are selected.
-6. User can:
-   - create final shipment immediately
-   - save draft (`EXP-TEMP-XX`)
-   - save draft and jump to multi-product packing.
+5. The minimum required data to create a shipment is destination + shipper + recipient + correspondent.
+6. Details section appears after those four fields are selected.
+7. User can create a shipment with zero cartons and complete the physical part later.
+8. The shipment receives its final reference immediately at creation time, including the document-first flow.
+9. User can jump directly to multi-product packing after creation; this still starts from the final shipment reference.
 
-Draft behavior:
+Creation behavior:
 
-- Draft reference format: `EXP-TEMP-XX`.
-- When shipment leaves `draft`, temporary reference is automatically promoted to a final reference.
+- `carton_count` and total weight can stay empty at creation time.
+- When no carton is linked yet, shipment status stays `draft` (`Creation`) with a final reference.
+- Carton count and total weight are derived from linked cartons once cartons are added.
 
 ## Status and lock rules
 

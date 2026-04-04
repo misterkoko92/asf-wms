@@ -44,6 +44,7 @@
             </a>
           </div>
           <div id="portal-masthead-utility" class="portal-masthead-utility ui-comp-actions" aria-label="{% trans "Navigation utilitaire portail" %}">
+            {% include "includes/history_nav_buttons.html" with history_nav_prefix="portal" %}
             <a
               id="portal-account-link"
               class="portal-utility-link{% if current == 'portal_account' %} is-active{% endif %}"

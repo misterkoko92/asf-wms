@@ -182,7 +182,7 @@
           </div>
           <div class="scan-field ui-comp-filter">
             <label class="form-label" for="ui-lab-toolbar-status">{% trans "État" %}</label>
-            <select class="form-select" id="ui-lab-toolbar-status">
+            <select class="form-select ui-select--sm" id="ui-lab-toolbar-status">
               <option>{% trans "Tous" %}</option>
               <option>{% trans "Prêt" %}</option>
             </select>
@@ -203,7 +203,7 @@
         <h4>{{ shipment_workflow_label }}</h4>
         <div class="scan-field ui-comp-panel">
           <label class="form-label" for="ui-lab-shipment-destination">{% trans "Destination" %}</label>
-          <select class="form-select" id="ui-lab-shipment-destination">
+          <select class="form-select ui-select--lg" id="ui-lab-shipment-destination">
             <option>{% trans "Nouakchott (NKC)" %}</option>
           </select>
           <p class="scan-help ui-comp-note">{{ shipment_prepare_help }}</p>

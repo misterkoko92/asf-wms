@@ -24,7 +24,7 @@
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
           <label class="form-label" for="settings-preset">{% trans "Preset" %}</label>
-          <select id="settings-preset" name="preset">
+          <select id="settings-preset" name="preset" class="form-select ui-select--md">
             <option value="">{% trans "-- Selectionner --" %}</option>
             {% for option in preset_options %}
               <option value="{{ option.key }}" {% if selected_preset == option.key %}selected{% endif %}>

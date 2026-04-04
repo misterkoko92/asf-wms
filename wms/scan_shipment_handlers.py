@@ -8,13 +8,7 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
-from .models import (
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
-    Carton,
-    CartonStatus,
-    Shipment,
-    ShipmentStatus,
-)
+from .models import TEMP_SHIPMENT_REFERENCE_PREFIX, Carton, CartonStatus, Shipment, ShipmentStatus
 from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_helpers import (
@@ -38,6 +32,7 @@ LOCKED_SHIPMENT_STATUSES = {
 }
 SAVE_DRAFT_ACTION = "save_draft"
 SAVE_DRAFT_PACK_ACTION = "save_draft_pack"
+CREATE_PACK_ACTION = "create_pack"
 TEMP_SHIPMENT_REFERENCE_RE = re.compile(r"^EXP-TEMP-(\d+)$")
 TEMP_SHIPMENT_REFERENCE_MAX_RETRIES = 5
 logger = logging.getLogger(__name__)
@@ -45,19 +40,19 @@ logger = logging.getLogger(__name__)
 
 def _parse_carton_count(raw_value):
     try:
-        return max(1, int(raw_value))
+        return max(0, int(raw_value))
     except (TypeError, ValueError):
-        return 1
+        return 0
 
 
 def _get_carton_count(form, request):
     if form.is_valid():
-        return form.cleaned_data["carton_count"]
-    return _parse_carton_count(request.POST.get("carton_count", 1))
+        return _parse_carton_count(form.cleaned_data.get("carton_count", 0))
+    return _parse_carton_count(request.POST.get("carton_count", 0))
 
 
 def _get_carton_count_from_post(request):
-    return _parse_carton_count(request.POST.get("carton_count", 1))
+    return _parse_carton_count(request.POST.get("carton_count", 0))
 
 
 def _is_save_draft_action(request):
@@ -69,6 +64,10 @@ def _is_save_draft_action(request):
 
 def _is_save_draft_pack_action(request):
     return (request.POST.get("action") or "").strip() == SAVE_DRAFT_PACK_ACTION
+
+
+def _is_create_pack_action(request):
+    return (request.POST.get("action") or "").strip() == CREATE_PACK_ACTION
 
 
 def _next_temp_shipment_reference():
@@ -263,12 +262,16 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
         )
         return response, carton_count, line_values, {}
 
-    carton_count = _get_carton_count(form, request)
-    line_values, line_items, line_errors = parse_shipment_lines(
-        carton_count=carton_count,
-        data=request.POST,
-        allowed_carton_ids=available_carton_ids,
-    )
+    create_pack = _is_create_pack_action(request)
+    carton_count = 0 if create_pack else _get_carton_count(form, request)
+    if carton_count > 0:
+        line_values, line_items, line_errors = parse_shipment_lines(
+            carton_count=carton_count,
+            data=request.POST,
+            allowed_carton_ids=available_carton_ids,
+        )
+    else:
+        line_values, line_items, line_errors = [], [], {}
     response = None
     if form.is_valid() and not line_errors:
         try:
@@ -304,58 +307,62 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                     created_by=request.user,
                     **party_payload,
                 )
-                for item in line_items:
-                    carton_id = item.get("carton_id")
-                    if carton_id:
-                        carton_query = Carton.objects.filter(
-                            id=carton_id,
-                            status=CartonStatus.PACKED,
-                            shipment__isnull=True,
-                        ).select_related("preassigned_destination")
-                        if connection.features.has_select_for_update:
-                            carton_query = carton_query.select_for_update()
-                        carton = carton_query.first()
-                        if carton is None:
-                            raise StockError(_("Carton indisponible."))
-                        _validate_carton_preassignment(
-                            carton=carton,
-                            destination=destination,
-                            mismatch_confirmed=item.get(
-                                "preassigned_destination_confirmed",
-                                False,
-                            ),
-                        )
-                        carton.shipment = shipment
-                        carton.preassigned_destination = None
-                        set_carton_status(
-                            carton=carton,
-                            new_status=CartonStatus.ASSIGNED,
-                            update_fields=["shipment", "preassigned_destination"],
-                            reason="shipment_create_assign",
-                            user=getattr(request, "user", None),
-                        )
-                    else:
-                        carton = pack_carton(
-                            user=request.user,
-                            product=item["product"],
-                            quantity=item["quantity"],
-                            carton=None,
-                            carton_code=None,
-                            shipment=shipment,
-                            display_expires_on=item.get("expires_on"),
-                        )
-                        set_carton_status(
-                            carton=carton,
-                            new_status=CartonStatus.ASSIGNED,
-                            reason="shipment_create_pack_assign",
-                            user=getattr(request, "user", None),
-                        )
+                if not create_pack:
+                    for item in line_items:
+                        carton_id = item.get("carton_id")
+                        if carton_id:
+                            carton_query = Carton.objects.filter(
+                                id=carton_id,
+                                status=CartonStatus.PACKED,
+                                shipment__isnull=True,
+                            ).select_related("preassigned_destination")
+                            if connection.features.has_select_for_update:
+                                carton_query = carton_query.select_for_update()
+                            carton = carton_query.first()
+                            if carton is None:
+                                raise StockError(_("Carton indisponible."))
+                            _validate_carton_preassignment(
+                                carton=carton,
+                                destination=destination,
+                                mismatch_confirmed=item.get(
+                                    "preassigned_destination_confirmed",
+                                    False,
+                                ),
+                            )
+                            carton.shipment = shipment
+                            carton.preassigned_destination = None
+                            set_carton_status(
+                                carton=carton,
+                                new_status=CartonStatus.ASSIGNED,
+                                update_fields=["shipment", "preassigned_destination"],
+                                reason="shipment_create_assign",
+                                user=getattr(request, "user", None),
+                            )
+                        else:
+                            carton = pack_carton(
+                                user=request.user,
+                                product=item["product"],
+                                quantity=item["quantity"],
+                                carton=None,
+                                carton_code=None,
+                                shipment=shipment,
+                                display_expires_on=item.get("expires_on"),
+                            )
+                            set_carton_status(
+                                carton=carton,
+                                new_status=CartonStatus.ASSIGNED,
+                                reason="shipment_create_pack_assign",
+                                user=getattr(request, "user", None),
+                            )
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
                 _("Expédition créée: %(reference)s.") % {"reference": shipment.reference},
             )
-            response = redirect("scan:scan_shipment_create")
+            if create_pack:
+                response = redirect(_build_pack_redirect_url(shipment_reference=shipment.reference))
+            else:
+                response = redirect("scan:scan_shipment_create")
         except StockError as exc:
             form.add_error(None, str(exc))
         except IntegrityError:

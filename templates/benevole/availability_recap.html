@@ -17,7 +17,7 @@
     <form id="volunteer-availability-recap-actions" method="get" class="volunteer-page-actions volunteer-page-actions-form ui-comp-actions">
       <div>
         <label class="form-label" for="id_week">{% trans "Semaine" %}</label>
-        <select id="id_week" name="week" class="form-select form-select-sm">
+        <select id="id_week" name="week" class="form-select form-select-sm ui-select--lg">
           {% for option in week_options %}
             <option value="{{ option.week }}" {% if option.week == week_number %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}

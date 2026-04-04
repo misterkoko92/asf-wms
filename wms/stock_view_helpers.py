@@ -13,9 +13,62 @@ from django.db.models.functions import Coalesce
 
 from .models import Product, ProductCategory, ProductLot, StockMovement, Warehouse
 
+CATEGORY_FILTER_MAX_LEVELS = 4
+
 
 def _parse_bool_query_param(value):
     return (value or "").strip().lower() in {"1", "true", "on", "yes", "oui"}
+
+
+def _build_category_path_ids(category):
+    path = []
+    current = category
+    visited_ids = set()
+    while current is not None:
+        current_id = getattr(current, "id", None)
+        if current_id is None or current_id in visited_ids:
+            break
+        visited_ids.add(current_id)
+        path.append(str(current_id))
+        current = getattr(current, "parent", None)
+    path.reverse()
+    return path[-CATEGORY_FILTER_MAX_LEVELS:]
+
+
+def _build_category_filter_context(*, selected_category_id):
+    categories = list(
+        ProductCategory.objects.select_related(
+            "parent",
+            "parent__parent",
+            "parent__parent__parent",
+        ).order_by("name", "id")
+    )
+    category_labels_by_id = {}
+    category_paths_by_id = {}
+    for category in categories:
+        category_id = str(category.id)
+        category_labels_by_id[category_id] = category.name
+        category_paths_by_id[category_id] = _build_category_path_ids(category)
+
+    selected_category_key = str(selected_category_id or "").strip()
+    selected_category_path = category_paths_by_id.get(selected_category_key, [])
+    descendant_category_ids = [
+        int(category_id)
+        for category_id, path in category_paths_by_id.items()
+        if selected_category_path and path[: len(selected_category_path)] == selected_category_path
+    ]
+    category_filter_max_depth = min(
+        max((len(path) for path in category_paths_by_id.values()), default=0),
+        CATEGORY_FILTER_MAX_LEVELS,
+    )
+    return {
+        "categories": categories,
+        "category_labels_by_id": category_labels_by_id,
+        "category_paths_by_id": category_paths_by_id,
+        "category_filter_max_depth": category_filter_max_depth,
+        "selected_category_path": selected_category_path,
+        "descendant_category_ids": descendant_category_ids,
+    }
 
 
 def build_stock_context(request):
@@ -24,6 +77,7 @@ def build_stock_context(request):
     warehouse_id = (request.GET.get("warehouse") or "").strip()
     sort = (request.GET.get("sort") or "name").strip()
     include_zero = _parse_bool_query_param(request.GET.get("include_zero"))
+    category_filter_context = _build_category_filter_context(selected_category_id=category_id)
 
     products = Product.objects.filter(is_active=True).select_related("category")
     if query:
@@ -33,8 +87,10 @@ def build_stock_context(request):
             | Q(barcode__icontains=query)
             | Q(brand__icontains=query)
         )
-    if category_id:
-        products = products.filter(category_id=category_id)
+    if category_filter_context["descendant_category_ids"]:
+        products = products.filter(
+            category_id__in=category_filter_context["descendant_category_ids"]
+        )
 
     available_expr = ExpressionWrapper(
         F("quantity_on_hand") - F("quantity_reserved"),
@@ -78,13 +134,16 @@ def build_stock_context(request):
     }
     products = products.order_by(sort_map.get(sort, "name"), "name")
 
-    categories = ProductCategory.objects.all().order_by("name")
     warehouses = Warehouse.objects.all().order_by("name")
 
     return {
         "active": "stock",
         "products": products,
-        "categories": categories,
+        "categories": category_filter_context["categories"],
+        "category_labels_by_id": category_filter_context["category_labels_by_id"],
+        "category_paths_by_id": category_filter_context["category_paths_by_id"],
+        "category_filter_max_depth": category_filter_context["category_filter_max_depth"],
+        "selected_category_path": category_filter_context["selected_category_path"],
         "warehouses": warehouses,
         "query": query,
         "category_id": category_id,

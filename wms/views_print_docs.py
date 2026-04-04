@@ -17,7 +17,7 @@ from .local_document_helper import (
     is_local_helper_job_request,
 )
 from .models import Carton, Shipment
-from .prepare_kits_helpers import _parse_carton_ids, build_prepare_kits_picking_context
+from .prepare_kits_helpers import _parse_carton_ids
 from .print_context import (
     build_carton_contact_label_context,
     build_carton_document_context,
@@ -57,6 +57,7 @@ TEMPLATE_CARTON_PRINT_BUNDLE_LOT = "scan/carton_print_bundle_lot.html"
 TEMPLATE_SHIPMENT_BUNDLE_A4 = "print/shipment_bundle_a4.html"
 TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP = "print/shipment_bundle_a5_two_up.html"
 TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP = "print/shipment_carton_lists_a4_four_up.html"
+TEMPLATE_CARTON_PACKING_LISTS_CONTINUOUS = "print/carton_packing_lists_bundle.html"
 
 SHIPMENT_VIEW_DOCUMENT_CONFIG = {
     "shipment_note": {
@@ -193,6 +194,17 @@ def _ordered_shipment_cartons(shipment):
     return list(shipment.carton_set.all().order_by("code"))
 
 
+def _selected_cartons(carton_ids):
+    return list(
+        Carton.objects.filter(id__in=carton_ids)
+        .prefetch_related(
+            "cartonitem_set__product_lot__product",
+            "cartonitem_set__product_lot__location",
+        )
+        .order_by("code", "id")
+    )
+
+
 def _chunked(items, chunk_size):
     chunks = []
     for index in range(0, len(items), chunk_size):
@@ -205,6 +217,22 @@ def _build_shipment_carton_list_a4_pages(shipment):
         build_carton_document_context(shipment, carton)
         for carton in _ordered_shipment_cartons(shipment)
     ]
+    return _chunked(carton_contexts, 4)
+
+
+def _build_cartons_picking_context(carton_ids):
+    cartons = _selected_cartons(carton_ids)
+    if not cartons:
+        return None
+    return {
+        "carton_ids": [carton.id for carton in cartons],
+        "carton_codes": [carton.code for carton in cartons],
+        "carton_blocks": [build_carton_picking_context(carton) for carton in cartons],
+    }
+
+
+def _build_standalone_carton_list_pages(cartons):
+    carton_contexts = [_build_standalone_carton_context(carton) for carton in cartons]
     return _chunked(carton_contexts, 4)
 
 
@@ -796,7 +824,7 @@ def scan_carton_picking(request, carton_id):
 @require_http_methods(["GET"])
 def scan_cartons_picking(request):
     carton_ids = _parse_carton_ids(request.GET.get("carton_ids"))
-    context = build_prepare_kits_picking_context(carton_ids)
+    context = _build_cartons_picking_context(carton_ids)
     if context is None:
         raise Http404(_("Aucun picking disponible."))
     return render(
@@ -813,18 +841,48 @@ def scan_cartons_picking(request):
 @require_http_methods(["GET"])
 def scan_cartons_view_bundle(request, bundle_key):
     carton_ids = _parse_carton_ids(request.GET.get("carton_ids"))
-    cartons = list(Carton.objects.filter(id__in=carton_ids).order_by("code", "id"))
+    cartons = _selected_cartons(carton_ids)
     if not cartons:
         raise Http404(_("Aucun carton sélectionné."))
     normalized_bundle_key = (bundle_key or "").strip()
     if normalized_bundle_key != "packing_lists":
         raise Http404(_("Lot de documents introuvable."))
+    bundle_format = (request.GET.get("format") or "").strip()
+    if bundle_format == "continuous":
+        return render(
+            request,
+            TEMPLATE_CARTON_PACKING_LISTS_CONTINUOUS,
+            {
+                "bundle_title": _("Lot listes colisage"),
+                "carton_contexts": [_build_standalone_carton_context(carton) for carton in cartons],
+            },
+        )
+    if bundle_format == "a4_4up":
+        return render(
+            request,
+            TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP,
+            {
+                "bundle_title": _("Lot listes colisage A4"),
+                "carton_pages": _build_standalone_carton_list_pages(cartons),
+            },
+        )
+    carton_ids_value = ",".join(str(carton_id) for carton_id in carton_ids)
     return render(
         request,
         TEMPLATE_CARTON_PRINT_BUNDLE_LOT,
         {
             "bundle_id": "carton-packing-lists-bundle",
             "bundle_title": _("Lot listes colisage"),
+            "bundle_actions": [
+                _shipment_bundle_action(
+                    _("Imprimer toutes les listes (rouleau continu)"),
+                    f"{reverse('scan:scan_cartons_view_bundle', args=['packing_lists'])}?carton_ids={carton_ids_value}&format=continuous",
+                ),
+                _shipment_bundle_action(
+                    _("Imprimer toutes les listes (4 par page)"),
+                    f"{reverse('scan:scan_cartons_view_bundle', args=['packing_lists'])}?carton_ids={carton_ids_value}&format=a4_4up",
+                ),
+            ],
             "bundle_rows": [
                 {
                     "code": carton.code,
