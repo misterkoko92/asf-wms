@@ -64,14 +64,14 @@ class ScanBootstrapUiTests(TestCase):
             aisle="01",
             shelf="001",
         )
-        product = Product.objects.create(
+        self.product = Product.objects.create(
             sku="BOOT-001",
             name="Produit Bootstrap",
             default_location=location,
             qr_code_image="qr_codes/test.png",
         )
         ProductLot.objects.create(
-            product=product,
+            product=self.product,
             lot_code="LOT-BOOT-001",
             received_on=date(2026, 1, 1),
             status=ProductLotStatus.AVAILABLE,
@@ -195,6 +195,21 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="scan-stock-category-l1"')
         self.assertContains(response, "ui-select--md")
         self.assertContains(response, "ui-select--sm")
+
+    def test_scan_stock_shows_product_open_action_for_superuser(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<th>Actions</th>", html=True)
+        self.assertContains(
+            response,
+            '<a class="scan-scan-btn btn btn-tertiary btn-sm" href="'
+            + reverse("admin:wms_product_change", args=[self.product.id])
+            + '" target="_blank" rel="noopener">Ouvrir</a>',
+            html=True,
+        )
 
     def test_scan_admin_products_keeps_filter_and_row_action_contract(self):
         self.client.force_login(self.superuser)
