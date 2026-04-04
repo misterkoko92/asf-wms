@@ -10,7 +10,9 @@ Use this checklist for each production release.
 - [ ] `make ci`
 - [ ] Keep the CI smoke subset small and deterministic. Current cross-domain smoke guards are `api.tests.tests_ui_e2e_workflows`, `wms.tests.emailing.tests_notifications_queue`, `wms.tests.emailing.tests_order_status_notifications`, and `wms.tests.planning.tests_smoke_planning_flow`.
 - [ ] `make typecheck` is green and remains the blocking type gate.
-- [ ] `make typecheck-pyright` reviewed as informational only.
+- [ ] If V3 structural layers changed, `make typecheck-structural` is green.
+- [ ] If V3 structural layers changed, `make ruff-structural` is green.
+- [ ] `make typecheck-pyright` reviewed as informational only and interpreted as the public structural-facade signal, not full ORM coverage.
 - [ ] `make export-requirements` re-run after any dependency change.
 
 Fallback if `uv` is blocked locally:
@@ -61,6 +63,8 @@ Notes:
 - [ ] Conditional smoke: if billing scope changed, validate one nominal billing preview/export or payment/correction flow.
 - [ ] Run `python manage.py process_email_queue --limit=100`
 - [ ] Run `python manage.py refresh_ops_pilotage`
+- [ ] If runtime/jobs scope changed, inspect recent `OperationalJobRun` rows for `email_queue`, `document_scan_queue`, `workflow_projection_rebuild`, `ops_pilotage_refresh`, and `print_artifact_queue`.
+- [ ] If print artifact sync changed, verify `print_artifact_queue.result_summary.proof_sync_preview` exposes coherent artifact ids, outcomes, and OneDrive paths for the latest run.
 - [ ] Check queue health (pending/failed counts)
 - [ ] Run `python manage.py process_document_scan_queue --limit=100`
 - [ ] Check document scan queue health (pending/failed/stale processing counts)

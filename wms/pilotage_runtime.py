@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from .models import PlanningVersion
 from .ops_escalations import evaluate_ops_escalations
 from .planning.stats import build_version_stats
+from .policies.pilotage import normalize_planning_thresholds
 
 SCAN_SETTINGS_PRESETS = {
     "standard": {
@@ -67,14 +68,6 @@ SCAN_SETTINGS_PRESETS = {
 _CUSTOM_PRESET_LABEL = _("Personnalise")
 
 
-def _coerce_int(value, *, minimum=1, fallback=1):
-    try:
-        resolved = int(value)
-    except (TypeError, ValueError):
-        return fallback
-    return max(minimum, resolved)
-
-
 def resolve_active_scan_settings_preset(values: dict[str, object]) -> dict[str, object]:
     best_match = None
     best_score = -1
@@ -110,10 +103,11 @@ def _latest_planning_versions():
 
 
 def _planning_capacity_impact(values: dict[str, object]) -> dict[str, int]:
-    tension_pct = _coerce_int(values.get("pilotage_planning_tension_pct"), fallback=80)
-    critical_pct = max(
-        tension_pct,
-        _coerce_int(values.get("pilotage_planning_critical_pct"), fallback=95),
+    tension_pct, critical_pct = normalize_planning_thresholds(
+        values.get("pilotage_planning_tension_pct"),
+        values.get("pilotage_planning_critical_pct"),
+        default_tension=80,
+        default_critical=95,
     )
     counts = {"tension": 0, "critical": 0, "overload": 0}
     for version in _latest_planning_versions():
@@ -131,10 +125,11 @@ def _planning_capacity_impact(values: dict[str, object]) -> dict[str, int]:
 
 def build_pilotage_threshold_context(values: dict[str, object]) -> dict[str, object]:
     active_preset = resolve_active_scan_settings_preset(values)
-    tension_pct = _coerce_int(values.get("pilotage_planning_tension_pct"), fallback=80)
-    critical_pct = max(
-        tension_pct,
-        _coerce_int(values.get("pilotage_planning_critical_pct"), fallback=95),
+    tension_pct, critical_pct = normalize_planning_thresholds(
+        values.get("pilotage_planning_tension_pct"),
+        values.get("pilotage_planning_critical_pct"),
+        default_tension=80,
+        default_critical=95,
     )
     escalation_count = len(evaluate_ops_escalations(now=timezone.now(), config=values))
     planning_impact = _planning_capacity_impact(

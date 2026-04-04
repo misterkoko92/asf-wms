@@ -141,7 +141,7 @@ class CaptureOpsPilotageSnapshotCommandTests(TestCase):
         self.assertIn("snapshot-date", str(error.exception))
 
     @mock.patch(
-        "wms.management.commands.capture_ops_pilotage_snapshot.capture_ops_pilotage_snapshots"
+        "wms.management.commands.capture_ops_pilotage_snapshot.run_capture_ops_pilotage_snapshot_job"
     )
     @mock.patch("wms.management.commands.capture_ops_pilotage_snapshot.timezone.localdate")
     def test_capture_ops_pilotage_snapshot_uses_localdate_when_snapshot_date_is_missing(

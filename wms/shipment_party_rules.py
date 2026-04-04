@@ -12,6 +12,11 @@ from .models import (
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
 )
+from .parties.selectors import (
+    active_recipient_contact_links,
+    validated_recipient_organizations,
+    validated_shippers,
+)
 from .shipment_party_registry import (
     eligible_recipient_organizations_for_shipper,
     eligible_shippers_for_stopover,
@@ -52,39 +57,21 @@ def _active_contacts_for_ids(contact_ids) -> QuerySet[Contact]:
 
 
 def _validated_active_shipper_queryset() -> QuerySet[ShipmentShipper]:
-    return ShipmentShipper.objects.filter(
-        is_active=True,
-        validation_status=ShipmentValidationStatus.VALIDATED,
-        organization__is_active=True,
-    ).select_related("organization", "default_contact", "default_contact__organization")
+    return validated_shippers().select_related(
+        "organization",
+        "default_contact",
+        "default_contact__organization",
+    )
 
 
 def _validated_active_recipient_organization_queryset(
     *, destination=None
 ) -> QuerySet[ShipmentRecipientOrganization]:
-    queryset = ShipmentRecipientOrganization.objects.filter(
-        is_active=True,
-        validation_status=ShipmentValidationStatus.VALIDATED,
-        organization__is_active=True,
-        destination__is_active=True,
-    ).select_related("organization", "destination")
-    if destination is not None:
-        queryset = queryset.filter(destination=destination)
-    return queryset
+    return validated_recipient_organizations(destination=destination)
 
 
 def _active_recipient_contact_queryset(*, destination=None) -> QuerySet[ShipmentRecipientContact]:
-    queryset = ShipmentRecipientContact.objects.filter(
-        is_active=True,
-        contact__is_active=True,
-        recipient_organization__is_active=True,
-        recipient_organization__validation_status=ShipmentValidationStatus.VALIDATED,
-        recipient_organization__organization__is_active=True,
-        recipient_organization__destination__is_active=True,
-    ).select_related("contact", "contact__organization", "recipient_organization")
-    if destination is not None:
-        queryset = queryset.filter(recipient_organization__destination=destination)
-    return queryset
+    return active_recipient_contact_links(destination=destination)
 
 
 def active_shipper_contacts() -> QuerySet[Contact]:

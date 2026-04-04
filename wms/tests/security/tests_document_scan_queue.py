@@ -45,6 +45,27 @@ class DocumentScanQueueTests(TestCase):
         self.assertEqual(event.payload["model"], "wms.AccountDocument")
         self.assertEqual(event.payload["pk"], document.id)
 
+    @mock.patch("wms.events.outbox.enqueue_integration_event", return_value=mock.Mock())
+    def test_queue_document_scan_uses_outbox_helper(self, enqueue_mock):
+        document = self._create_account_document()
+
+        queued = queue_document_scan(document)
+
+        self.assertTrue(queued)
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        enqueue_mock.assert_called_once_with(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.document_scan",
+            target="antivirus",
+            event_type="scan_document",
+            payload={
+                "model": "wms.AccountDocument",
+                "pk": document.id,
+                "file_name": document.file.name,
+            },
+            status=IntegrationStatus.PENDING,
+        )
+
     def test_queue_document_scan_rejects_invalid_inputs(self):
         self.assertFalse(queue_document_scan(None))
         self.assertFalse(queue_document_scan(SimpleNamespace(pk=None, file=object())))
@@ -291,5 +312,14 @@ class DocumentScanQueueTests(TestCase):
 
     def test_process_document_scan_queue_command_reports_summary(self):
         out = StringIO()
-        call_command("process_document_scan_queue", "--limit=1", stdout=out)
+        with mock.patch(
+            "wms.management.commands.process_document_scan_queue.run_document_scan_queue_job",
+            return_value={"selected": 1, "processed": 1, "infected": 0, "failed": 0},
+        ) as run_job_mock:
+            call_command("process_document_scan_queue", "--limit=1", stdout=out)
+        run_job_mock.assert_called_once_with(
+            limit=1,
+            include_failed=False,
+            processing_timeout_seconds=None,
+        )
         self.assertIn("Document scan queue processed:", out.getvalue())

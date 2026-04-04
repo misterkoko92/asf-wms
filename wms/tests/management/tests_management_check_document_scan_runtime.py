@@ -33,7 +33,7 @@ class CheckDocumentScanRuntimeCommandTests(TestCase):
         DOCUMENT_SCAN_CLAMAV_COMMAND="clamscan",
     )
     @mock.patch(
-        "wms.management.commands.check_document_scan_runtime.shutil.which",
+        "wms.jobs.runtime_checks.shutil.which",
         return_value="/usr/bin/clamscan",
     )
     def test_command_passes_with_clamav_and_healthy_queue(self, _which_mock):
@@ -55,7 +55,7 @@ class CheckDocumentScanRuntimeCommandTests(TestCase):
         DOCUMENT_SCAN_CLAMAV_COMMAND="clamscan",
     )
     @mock.patch(
-        "wms.management.commands.check_document_scan_runtime.shutil.which",
+        "wms.jobs.runtime_checks.shutil.which",
         return_value=None,
     )
     def test_command_fails_when_clamav_command_is_unavailable(self, _which_mock):
@@ -64,7 +64,7 @@ class CheckDocumentScanRuntimeCommandTests(TestCase):
 
     @override_settings(DOCUMENT_SCAN_BACKEND="noop")
     @mock.patch(
-        "wms.management.commands.check_document_scan_runtime.shutil.which",
+        "wms.jobs.runtime_checks.shutil.which",
         return_value=None,
     )
     def test_command_rejects_noop_backend_without_allow_noop(self, _which_mock):
@@ -73,7 +73,7 @@ class CheckDocumentScanRuntimeCommandTests(TestCase):
 
     @override_settings(DOCUMENT_SCAN_BACKEND="noop")
     @mock.patch(
-        "wms.management.commands.check_document_scan_runtime.shutil.which",
+        "wms.jobs.runtime_checks.shutil.which",
         return_value=None,
     )
     def test_command_accepts_noop_backend_with_allow_noop(self, _which_mock):
@@ -86,7 +86,7 @@ class CheckDocumentScanRuntimeCommandTests(TestCase):
         DOCUMENT_SCAN_CLAMAV_COMMAND="clamscan",
     )
     @mock.patch(
-        "wms.management.commands.check_document_scan_runtime.shutil.which",
+        "wms.jobs.runtime_checks.shutil.which",
         return_value="/usr/bin/clamscan",
     )
     def test_command_enforces_pending_failed_and_stale_thresholds(self, _which_mock):
@@ -112,9 +112,40 @@ class CheckDocumentScanRuntimeCommandTests(TestCase):
         DOCUMENT_SCAN_CLAMAV_COMMAND="clamscan",
     )
     @mock.patch(
-        "wms.management.commands.check_document_scan_runtime.shutil.which",
+        "wms.jobs.runtime_checks.shutil.which",
         return_value="/usr/bin/clamscan",
     )
     def test_command_rejects_negative_thresholds(self, _which_mock):
         with self.assertRaisesMessage(CommandError, "--max-failed doit etre >= 0"):
             call_command("check_document_scan_runtime", "--max-failed=-1")
+
+    @mock.patch(
+        "wms.management.commands.check_document_scan_runtime.run_document_scan_runtime_check",
+        return_value={
+            "backend": "clamav",
+            "clamav_command": "clamscan",
+            "clamav_available": True,
+            "counts": {
+                IntegrationStatus.PENDING: 0,
+                IntegrationStatus.PROCESSING: 0,
+                IntegrationStatus.FAILED: 0,
+                IntegrationStatus.PROCESSED: 0,
+            },
+            "stale_processing": 0,
+            "timeout_seconds": 900,
+            "issues": [],
+        },
+    )
+    def test_command_delegates_runtime_check_to_job_layer(self, runtime_check_mock):
+        out = StringIO()
+
+        call_command("check_document_scan_runtime", stdout=out)
+
+        runtime_check_mock.assert_called_once_with(
+            allow_noop=False,
+            max_pending=None,
+            max_failed=0,
+            max_stale_processing=0,
+            processing_timeout_seconds=None,
+        )
+        self.assertIn("Runtime check scan documentaire: OK.", out.getvalue())

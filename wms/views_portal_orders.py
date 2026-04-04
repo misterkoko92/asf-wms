@@ -1,11 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import DateTimeField, F, Max, Q, Value
-from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
+from .application.parties.use_cases import resolve_portal_recipient_party_contact
+from .application.portal.dashboard_queries import (
+    build_portal_dashboard_payload,
+    decorate_portal_dashboard_order,
+)
 from .contact_labels import build_shipment_recipient_select_label
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
@@ -19,7 +22,6 @@ from .models import (
     OrderDocumentType,
     OrderReviewStatus,
     ProductCategory,
-    ShipmentTrackingStatus,
 )
 from .order_helpers import (
     build_carton_format_data,
@@ -31,29 +33,18 @@ from .order_helpers import (
     split_ready_rows_into_kits,
 )
 from .order_notifications import send_portal_order_notifications
-from .portal_dashboard_helpers import (
-    build_portal_dashboard_kpis,
-    portal_order_next_step_label,
-    portal_order_next_step_tone,
-)
 from .portal_helpers import (
     build_destination_address,
     get_contact_address,
     get_default_carton_format,
 )
 from .portal_order_handlers import create_portal_order
-from .portal_recipient_sync import resolve_association_recipient_party_contact
 from .scan_helpers import build_product_selection_data
 from .scan_helpers import parse_int as parse_int_safe
 from .services import StockError
 from .shipment_helpers import (
     shipment_link_for_recipient_contact,
     shipment_shipper_from_contact,
-)
-from .status_presenters import (
-    present_order_review_status,
-    present_order_shipment_status,
-    present_order_status,
 )
 from .upload_utils import validate_upload
 from .view_permissions import association_required
@@ -82,50 +73,6 @@ ERROR_ORDER_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 MESSAGE_ORDER_SENT = _("Order sent.")
 MESSAGE_ORDER_DOCUMENT_ADDED = _("Document ajouté.")
 MESSAGE_ORDER_DOCUMENTS_ADDED = _("Documents ajoutés.")
-
-
-def _decorate_order_status_displays(order):
-    order.order_status_display = present_order_status(order)
-    order.review_status_display = present_order_review_status(order)
-    order.shipment_status_display = present_order_shipment_status(order)
-    order.next_step_label = portal_order_next_step_label(order)
-    order.next_step_tone = portal_order_next_step_tone(order)
-    return order
-
-
-def _get_dashboard_orders(profile):
-    return (
-        Order.objects.filter(association_contact=profile.contact)
-        .select_related("shipment__destination")
-        .annotate(
-            escale_label=Coalesce(
-                "shipment__destination__city",
-                "destination_city",
-                Value(""),
-            ),
-            shipped_at=Coalesce(
-                Max(
-                    "shipment__tracking_events__created_at",
-                    filter=Q(shipment__tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
-                ),
-                F("shipment__created_at"),
-                output_field=DateTimeField(),
-            ),
-            received_correspondent_at=Max(
-                "shipment__tracking_events__created_at",
-                filter=Q(
-                    shipment__tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
-                ),
-            ),
-            received_recipient_at=Max(
-                "shipment__tracking_events__created_at",
-                filter=Q(
-                    shipment__tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT
-                ),
-            ),
-        )
-        .order_by("-created_at")
-    )
 
 
 def _get_active_recipients(profile):
@@ -239,8 +186,7 @@ def _allowed_recipient_option_ids(*, selected_destination, allowed_destination_i
 
 def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
     recipient_contact_by_id = {
-        recipient.id: resolve_association_recipient_party_contact(recipient)
-        for recipient in recipients
+        recipient.id: resolve_portal_recipient_party_contact(recipient) for recipient in recipients
     }
     allowed_destination_ids_by_recipient = {str(recipient.id): set() for recipient in recipients}
     shipper = shipment_shipper_from_contact(profile.contact)
@@ -320,7 +266,7 @@ def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_de
             "destination_address": "",
         }
 
-    recipient_contact = resolve_association_recipient_party_contact(recipient)
+    recipient_contact = resolve_portal_recipient_party_contact(recipient)
     recipient_address = get_contact_address(recipient_contact) or get_contact_address(
         getattr(recipient, "synced_contact", None)
     )
@@ -548,7 +494,7 @@ def _handle_order_document_uploads(request, order):
 
 
 def _build_order_detail_context(order):
-    _decorate_order_status_displays(order)
+    decorate_portal_dashboard_order(order)
     carton_format = get_default_carton_format()
     line_rows, total_estimated_cartons = build_order_line_estimates(
         order.lines.select_related("product"),
@@ -572,13 +518,13 @@ def _build_order_detail_context(order):
 @require_http_methods(["GET"])
 def portal_dashboard(request):
     profile = request.association_profile
-    orders = [_decorate_order_status_displays(order) for order in _get_dashboard_orders(profile)]
+    dashboard_payload = build_portal_dashboard_payload(profile=profile)
     return render(
         request,
         TEMPLATE_PORTAL_DASHBOARD,
         {
-            "orders": orders,
-            "dashboard_kpis": build_portal_dashboard_kpis(orders),
+            "orders": dashboard_payload["orders"],
+            "dashboard_kpis": dashboard_payload["dashboard_kpis"],
         },
     )
 

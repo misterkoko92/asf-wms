@@ -209,7 +209,7 @@ class PlanningOutputTests(TestCase):
     def test_artifact_file_name_returns_empty_string_for_missing_path(self):
         self.assertEqual(artifact_file_name(None), "")
 
-    @mock.patch("wms.planning.exports.load_workbook")
+    @mock.patch("wms.artifacts.planning.legacy_exports.load_workbook")
     def test_export_version_workbook_closes_workbook_after_save(self, load_workbook_mock):
         version = self.make_published_version()
         workbook = mock.MagicMock()
@@ -227,7 +227,7 @@ class PlanningOutputTests(TestCase):
         workbook.close.assert_called_once_with()
 
     @mock.patch(
-        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        "wms.artifacts.planning.excel_runtime.get_excel_runtime_status",
         return_value={
             "backend": "excel_desktop",
             "status": "ready",
@@ -235,7 +235,7 @@ class PlanningOutputTests(TestCase):
             "detail": "",
         },
     )
-    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    @mock.patch("wms.artifacts.planning.convert_workbook_to_pdf")
     def test_export_version_pdf_creates_pdf_artifact(
         self,
         convert_workbook_to_pdf_mock,
@@ -258,7 +258,7 @@ class PlanningOutputTests(TestCase):
         self.assertTrue(Path(artifact.file_path).exists())
 
     @mock.patch(
-        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        "wms.artifacts.planning.excel_runtime.get_excel_runtime_status",
         return_value={
             "backend": "excel_desktop",
             "status": "ready",
@@ -266,7 +266,7 @@ class PlanningOutputTests(TestCase):
             "detail": "",
         },
     )
-    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    @mock.patch("wms.artifacts.planning.convert_workbook_to_pdf")
     def test_planning_export_records_pdf_artifact_health(
         self,
         convert_workbook_to_pdf_mock,
@@ -293,7 +293,7 @@ class PlanningOutputTests(TestCase):
         self.assertTrue(health.file_name.endswith(".pdf"))
 
     @mock.patch(
-        "wms.planning.exports.excel_runtime.get_excel_runtime_status",
+        "wms.artifacts.planning.excel_runtime.get_excel_runtime_status",
         return_value={
             "backend": "excel_desktop",
             "status": "excel_not_installed",
@@ -301,7 +301,7 @@ class PlanningOutputTests(TestCase):
             "detail": "Microsoft Excel is not installed.",
         },
     )
-    @mock.patch("wms.planning.exports.convert_workbook_to_pdf")
+    @mock.patch("wms.artifacts.planning.convert_workbook_to_pdf")
     def test_planning_export_records_runtime_failure_code_when_excel_is_unavailable(
         self,
         convert_workbook_to_pdf_mock,

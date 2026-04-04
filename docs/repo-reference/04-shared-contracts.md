@@ -78,6 +78,7 @@ Reference tests:
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/views/tests_views_planning.py`
 - `wms/tests/views/tests_views_volunteer.py`
+- `wms/tests/views/tests_views_imports.py`
 
 ### Shared Select Contract
 
@@ -105,14 +106,279 @@ Maintenance rule:
 - when changing select ordering or sizing, update both the backend choice builders and the rendered template/widget classes in the same work
 - keep documented exceptions explicit and local; do not silently drift into mixed ordering rules
 
+### V3.3 Legacy Scan Asset Facade Contract
+
+Primary runtime sources:
+
+- `templates/scan/base.html`
+- `templates/portal/base.html`
+- `templates/planning/base.html`
+- `wms/static/scan/scan.js`
+- `wms/static/scan/scan.css`
+- `wms/static/scan/scan-bootstrap.css`
+- `wms/static/scan/modules/`
+- `wms/static/scan/css/partials/`
+
+Current V3.3 contract:
+
+- `scan.js`, `scan.css`, and `scan-bootstrap.css` remain the stable shared filenames consumed by scan, portal, planning, and public/auth surfaces
+- `templates/scan/base.html` keeps `scan.js` plus `scan/modules/core.js` as the shared scan script facade
+- page-local scan scripts now extend the shell through the `extra_scripts` block instead of growing `templates/scan/base.html` directly
+- `templates/portal/base.html` and `templates/planning/base.html` keep consuming the stable shared scan CSS entrypoints and expose the same extension block for future page-local scripts
+- the first V3.3 script slices now live in `wms/static/scan/modules/core.js`, `dashboard.js`, and `shipments.js`
+- the first V3.3 style slices now live in `wms/static/scan/css/partials/foundation.css`, `ops.css`, and `auth-public.css`
+- when extracting more JS/CSS, prefer moving code behind these module/partial facades instead of changing the shared entrypoint filenames or inlining more asset tags into templates
+
+Maintenance rule:
+
+- keep `scan.js`, `scan.css`, and `scan-bootstrap.css` present unless the consuming templates and bootstrap regression tests move together
+- if a new page-local script is needed on scan, load it through `templates/scan/base.html`'s `extra_scripts` block instead of broadening the shared shell for every page
+- if portal or planning still depend on a shared scan stylesheet selector, do not move or rename that selector without checking their templates and bootstrap tests
+- when extracting styles, keep the stable entrypoint files as facades and move only clearly scoped concerns into `wms/static/scan/css/partials/`
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_imports.py`
+
+### V3 Extracted Policies Contract
+
+Primary runtime sources:
+
+- `wms/policies/sla.py`
+- `wms/policies/pilotage.py`
+- `wms/policies/planning.py`
+- `wms/policies/shipment_parties.py`
+
+Current V3.1 contract:
+
+- `wms/policies/sla.py` owns the shared SLA-delay freshness and alert classification reused by dashboard and API compositions
+- `wms/policies/pilotage.py` owns planning-threshold normalization and is the single place that enforces `critical >= tension`
+- `wms/policies/planning.py` owns planning flight `load_state` ordering, labels, and threshold-based classification
+- `wms/policies/shipment_parties.py` owns the canonical default recipient shipper display name derived from shipment-party setup constants
+
+Maintenance rule:
+
+- if a business-rule threshold, label, or classification is shared across multiple screens or adapters, extract or update it here first instead of reintroducing it directly into views, helpers, or API adapters
+- keep legacy adapters thin: `wms/scan_dashboard_sla.py`, `wms/planning/stats.py`, `wms/runtime_settings.py`, `wms/pilotage_runtime.py`, and `wms/default_shipper_bindings.py` should consume this layer rather than redefining the same rule locally
+
+Reference tests:
+
+- `wms/tests/core/tests_policies.py`
+- `wms/tests/core/tests_runtime_settings.py`
+
+### V3.2 Event Contract
+
+Primary runtime sources:
+
+- `wms/events/types.py`
+- `wms/events/publishers.py`
+
+Current V3.2 contract:
+
+- `RuntimeEvent` is the base immutable runtime event shape used by the signal bridge and future job/runtime handlers
+- the event shape is intentionally short during the first V3.2 slice: `event_type`, `scope_type`, `scope_id`, `payload`
+- the first explicit event constants are:
+  - `shipment.status_changed`
+  - `shipment_tracking.event_created`
+  - `order.status_changed`
+  - `workflow_projection.refresh_requested`
+  - `pilotage.refresh_requested`
+  - `planning.artifact_exported`
+- publisher helpers own the initial payload normalization and stringification of scope identifiers
+
+Maintenance rule:
+
+- if a new cross-surface runtime side effect is introduced during V3.2, define or update the event contract here before wiring handlers in `wms/signals.py` or `wms/jobs/*`
+- do not let signals invent ad-hoc payload dicts once the explicit event contract exists
+
+Reference tests:
+
+- `wms/tests/core/tests_event_types.py`
+
+### V3.2 Durable Outbox Contract
+
+Primary runtime sources:
+
+- `wms/events/outbox.py`
+- `wms/emailing.py`
+- `wms/document_scan_queue.py`
+
+Current V3.2 contract:
+
+- `enqueue_integration_event(...)` is the explicit helper for durable `IntegrationEvent` creation in the first V3.2 outbox slice
+- this slice currently normalizes queue-backed email and document-scan producers without changing their source, target, event_type, payload, or initial status semantics
+- producers still own payload construction, while `wms/events/outbox.py` owns persisted row creation
+
+Maintenance rule:
+
+- if a queue-backed producer currently writes `IntegrationEvent.objects.create(...)` directly, decide whether it should move behind `wms/events/outbox.py` before adding more enqueue logic
+- do not broaden this helper into a second persistence model during V3.2; the contract is still a normalized boundary over `IntegrationEvent`
+
+Reference tests:
+
+- `wms/tests/emailing/tests_notifications_queue.py`
+- `wms/tests/security/tests_document_scan_queue.py`
+
+### V3.2 Operational Job Run Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/integration.py`
+- `wms/jobs/runtime_tracking.py`
+- `wms/jobs/email_queue.py`
+- `wms/jobs/document_scan.py`
+- `wms/jobs/print_artifacts.py`
+- `wms/jobs/workflow_projection.py`
+- `wms/jobs/pilotage.py`
+
+Current V3.2 contract:
+
+- `OperationalJobRun` is the persisted runtime trace for operational job wrappers under `wms/jobs/`
+- stable fields in this first slice are `job_key`, `trigger_source`, `status`, `started_at`, `finished_at`, `context_payload`, `result_summary`, `error_summary`
+- current stable statuses are `running`, `succeeded`, `failed`
+- job wrappers, not management commands, own run persistence
+- scalar job results are normalized to `result_summary={"result": ...}`
+- structured job results remain JSON summaries, with `date` and datetime-like values normalized through the runtime tracking helper
+- job wrappers may now provide a `result_summary_factory` when the persisted summary should stay smaller or more action-oriented than the raw runtime result
+- the print-artifact job persists a bounded `proof_sync_preview` rather than the full raw sync payload list when proof-level details are present
+
+Maintenance rule:
+
+- if a runtime wrapper is added under `wms/jobs/`, decide in the same work whether it should persist an `OperationalJobRun`
+- keep command modules thin; do not duplicate run persistence inside management commands once the job wrapper exists
+- if run status vocabulary or summary normalization changes, update the model helper, affected jobs, ops docs, and this section together
+
+Reference tests:
+
+- `wms/tests/test_job_runs.py`
+
+### V3.3 Parties Boundary Contract
+
+Primary runtime sources:
+
+- `wms/parties/selectors.py`
+- `wms/parties/invariants.py`
+- `wms/parties/sync.py`
+- `wms/parties/merge.py`
+- `wms/application/parties/use_cases.py`
+- `wms/portal_recipient_sync.py`
+- `wms/admin_contacts_merge_service.py`
+- `wms/scan_admin_contacts_cockpit.py`
+
+Current V3.3 contract:
+
+- `wms/parties/selectors.py` is now the shared home for validated and active shipment-party selectors previously duplicated across registry and rules modules
+- `wms/parties/invariants.py` owns graph-level destination-scope checks that future sync and merge flows can reuse
+- `wms/parties/sync.py` now owns the portal-recipient sync orchestration and shipment-party contact resolution runtime
+- `wms/parties/merge.py` now owns the contact-graph and recipient-organization merge runtime used by scan admin and shipment-party cockpit adapters
+- `ShipmentRecipientOrganization` is now uniquely scoped by `(organization, destination)`; organization-only runtime assumptions are no longer a valid shared contract
+- portal recipient destination changes now keep the same synced structure contact when possible and create or reuse a destination-scoped recipient runtime row instead of forcing a second synced organization contact
+- `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync and recipient-contact resolution
+- `wms/portal_recipient_sync.py` remains a compatibility adapter and should not grow new orchestration logic again
+- `wms/admin_contacts_merge_service.py` remains a compatibility adapter and should not grow graph mutation logic again
+- `wms/scan_admin_contacts_cockpit.py` keeps forms and user-facing validation/messages, but delegates merge mutations to `wms/parties/merge.py`
+
+Maintenance rule:
+
+- if a portal recipient sync change affects graph orchestration, destination reuse, or recipient-contact resolution, update `wms/parties/sync.py` or `wms/application/parties/use_cases.py` first, then keep compatibility wrappers thin
+- if an admin contact merge or shipment-party cockpit merge changes graph mutation semantics, update `wms/parties/merge.py` first, then keep scan/admin wrappers thin
+- if a caller resolves or mutates `ShipmentRecipientOrganization`, prefer destination-aware helpers or explicit `(organization, destination)` filters over organization-only lookups
+- do not reintroduce validated/active selector duplication back into `wms/shipment_party_registry.py` or `wms/shipment_party_rules.py`
+
+Reference tests:
+
+- `wms/tests/core/tests_parties_selectors.py`
+- `wms/tests/core/tests_parties_merge.py`
+- `wms/tests/core/tests_parties_destination_scope.py`
+- `wms/tests/core/tests_parties_use_cases.py`
+- `wms/tests/portal/tests_portal_recipient_sync.py`
+- `wms/tests/portal/tests_portal_shipment_parties.py`
+
+### V3.3 Artifacts Boundary Contract
+
+Primary runtime sources:
+
+- `wms/artifacts/planning.py`
+- `wms/artifacts/attachments.py`
+- `wms/artifacts/proofs.py`
+- `wms/application/planning_artifacts/use_cases.py`
+- `wms/planning/exports.py`
+- `wms/planning/communication_actions.py`
+- `wms/print_pack_sync.py`
+- `wms/jobs/print_artifacts.py`
+
+Current V3.3 contract:
+
+- `wms/artifacts/planning.py` is now the shared home for planning workbook/PDF export orchestration, persisted artifact health helpers, and artifact metadata summaries
+- `wms/planning/exports.py` remains a compatibility adapter and should not grow new export orchestration logic again
+- `wms/artifacts/attachments.py` now owns planning attachment resolution and PDF readiness/blocking semantics for communication helpers
+- `wms/application/planning_artifacts/use_cases.py` is now the application-facing entrypoint for helper payload composition that depends on planning artifact state
+- `wms/planning/communication_actions.py` remains a compatibility adapter and should not grow attachment-selection logic again
+- `wms/artifacts/proofs.py` now owns proof-path payloads for print artifact sync, including the canonical file name, relative directory, and OneDrive path
+- `wms/print_pack_sync.py` keeps transport and queue retry behavior, but should delegate proof-path construction to `wms/artifacts/proofs.py`
+- `process_print_artifact_queue(...)` now returns the legacy counters plus a `proof_sync` list, and `wms/jobs/print_artifacts.py` persists a bounded `proof_sync_preview` inside `OperationalJobRun.result_summary`
+
+Maintenance rule:
+
+- if planning workbook/PDF lifecycle, artifact health persistence, or communication attachment eligibility changes, update `wms/artifacts/planning.py` and `wms/artifacts/attachments.py` first, then keep planning adapters thin
+- if print artifact sync path construction changes, update `wms/artifacts/proofs.py` first, then keep `wms/print_pack_sync.py` focused on transport/retry behavior
+- if print artifact job summaries change, update `wms/jobs/print_artifacts.py`, `wms/jobs/runtime_tracking.py`, ops docs, and this section together
+
+Reference tests:
+
+- `wms/tests/planning/tests_artifact_services.py`
+- `wms/tests/planning/tests_outputs.py`
+- `wms/tests/planning/tests_communication_actions.py`
+- `wms/tests/print/tests_print_pack_sync.py`
+- `wms/tests/test_job_runs.py`
+
+### V3.3 Structural Facade Contract
+
+Primary runtime sources:
+
+- `wms/application/__init__.py`
+- `wms/application/parties/__init__.py`
+- `wms/application/planning_artifacts/__init__.py`
+- `wms/events/__init__.py`
+- `wms/jobs/__init__.py`
+- `wms/parties/__init__.py`
+- `wms/artifacts/__init__.py`
+- `mypy.ini`
+- `pyrightconfig.json`
+- `Makefile`
+
+Current V3.3 contract:
+
+- the package-root `__init__` modules above are now the stable public import facades for the structural layers introduced across V3.1 to V3.3
+- `mypy.ini` is the broad structural type gate and covers the internal modules under `wms/application`, `wms/events`, `wms/jobs`, `wms/parties`, and `wms/artifacts`
+- `pyrightconfig.json` is intentionally narrower and validates the package-root public facades rather than the full Django ORM-heavy internals
+- `make typecheck-structural` is the repeatable proof command for the combined mypy + pyright structural gate
+- `make ruff-structural` is the repeatable lint proof command for those same structural packages
+- `wms/tests/core/tests_v33_contracts.py` is the runtime contract guard proving those facades expose the expected V3 entry points
+
+Maintenance rule:
+
+- if a structural package adds, removes, or renames a public entry point, update the relevant package `__init__`, the contract test, and the structural typecheck config in the same work
+- do not point `pyrightconfig.json` at ORM-heavy internal modules unless the repo also adopts the stubs and typing discipline needed to keep that signal green
+- do not reintroduce hidden cross-package imports when the boundary can be expressed through the package-root facade
+
+Reference tests:
+
+- `wms/tests/core/tests_v33_contracts.py`
+
 ### Local Dashboard V2 API Contract
 
-Primary runtime source:
+Primary runtime sources:
 
 - `api/v1/ui_views.py` via `GET /api/v1/ui/dashboard/`
+- `wms/application/scan/dashboard_queries.py`
 
 Phase 1 local contract:
 
+- `wms/application/scan/dashboard_queries.py` is the shared composition layer for both the legacy dashboard HTML and `GET /api/v1/ui/dashboard/`
+- shared dashboard payload keys now include `kpis` and `timeline` in addition to the existing card and row contracts
 - `pending_actions[]` items expose `type`, `reference`, `label`, `priority`, `owner`, `url`, `age_hours`
 - allowed `owner` values are `magasin`, `qualite`, `admin`, `portal`
 - allowed `priority` values are `high`, `medium`, `low`
@@ -132,6 +398,9 @@ Phase 1 local contract:
 Maintenance rule:
 
 - if dashboard action routing, workflow blockage categorization, SLA prioritization, destination-risk ranking, or ownership vocabulary changes, update the legacy dashboard, `scan/settings` if relevant, the shipment-tracking deep link, the UI API tests, and the repo-reference in the same work
+- `wms/views_scan_dashboard.py` and `api/v1/ui_views.py` should remain thin adapters over `wms/application/scan/dashboard_queries.py`; do not duplicate the full dashboard composition in both surfaces again during V3.1
+- GET rendering in both adapters must rely only on the public shared payload; query-internal fields such as `shipments_scope`, `shipments_with_tracking`, `workflow_blockage_base_rows`, `status_map`, and raw snapshot objects stay private to the query layer or POST-only adapter needs
+- shared SLA alert semantics should continue to resolve through `wms/policies/sla.py`, with `wms/scan_dashboard_sla.py` acting as the data adapter rather than the rule owner
 - keep this contract intentionally short and stable during the local V2 phase; add new keys only when both HTML and API consumers need them
 
 Reference tests:
@@ -144,6 +413,7 @@ Reference tests:
 
 Primary runtime sources:
 
+- `wms/application/portal/dashboard_queries.py`
 - `wms/views_portal_orders.py`
 - `wms/portal_dashboard_helpers.py`
 - `templates/portal/dashboard.html`
@@ -151,6 +421,7 @@ Primary runtime sources:
 
 Current contract:
 
+- `wms/application/portal/dashboard_queries.py` is the shared composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
 - `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
 - portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
 - the HTML table and the UI API must stay aligned on the meaning of "next step" for pending review, correction, preparation, and tracked shipment states
@@ -158,6 +429,7 @@ Current contract:
 Maintenance rule:
 
 - if the association-facing dossier guidance changes, update the helper logic, the portal template, and the portal UI API in the same work
+- keep `wms/views_portal_orders.py` and `api/v1/ui_views.py` thin over `wms/application/portal/dashboard_queries.py`; do not let the two surfaces drift back to separate query composition during V3.1
 - keep KPI naming stable while phase 1 stays local, so seed data and operator feedback can be compared across runs
 
 Reference tests:
@@ -309,6 +581,7 @@ Reference tests:
 
 Primary runtime sources:
 
+- `wms/application/pilotage/pilotage_queries.py`
 - `wms/scan_pilotage.py`
 - `wms/views_scan_pilotage.py`
 - `templates/scan/pilotage.html`
@@ -316,7 +589,7 @@ Primary runtime sources:
 
 Current local contract:
 
-- `build_scan_pilotage_payload()` is the shared adapter for both the legacy HTML cockpit and the UI API mirror
+- `build_scan_pilotage_payload()` from `wms/application/pilotage/pilotage_queries.py` is the shared adapter for both the legacy HTML cockpit and the UI API mirror
 - the cockpit is intentionally read-only in this local phase and consumes:
   - the latest `OpsPilotageSnapshot` capture for summary cards and planning export health
   - active `OpsEscalation` rows for `priority_rows[]` and `escalation_rows[]`
@@ -329,6 +602,7 @@ Current local contract:
 Maintenance rule:
 
 - if pilotage section ordering, payload keys, escalation-to-CTA routing, or planning-export health semantics change, update the shared adapter, the HTML cockpit, the UI API mirror, and this repo-reference section in the same work
+- `wms/scan_pilotage.py` is only a compatibility wrapper during V3.1; new pilotage query composition belongs under `wms/application/pilotage/`
 - keep this surface orchestration-only: it should link operators back to the underlying working screens instead of introducing a second workflow engine
 
 Reference tests:
@@ -474,6 +748,7 @@ Historical drift to watch:
 
 Primary runtime sources:
 
+- `wms/application/planning/version_detail_queries.py`
 - `wms/planning/stats.py`
 - `wms/planning/version_dashboard.py`
 - `wms/planning/artifact_health.py`
@@ -483,6 +758,7 @@ Primary runtime sources:
 
 Current local contract:
 
+- `wms/application/planning/version_detail_queries.py` is the V3.1 shared GET composition layer for `planning/version_detail`
 - `build_version_stats(version)` now keeps `flight_load_breakdown[]` as the flight-capacity source of truth for the planning cockpit
 - one `flight_load_breakdown[]` row represents one `PlanningFlightSnapshot` from the run, even when no shipment is assigned yet
 - stable row fields in this local phase are `flight_snapshot_id`, `flight_number`, `departure_date`, `departure_time`, `destination_iata`, `capacity_units`, `assignment_count`, `carton_total`, `equivalent_total`, `remaining_units`, `utilization_pct`, `load_state`, `load_state_label`
@@ -508,6 +784,8 @@ Current local contract:
 Maintenance rule:
 
 - if flight-capacity thresholds, row fields, cockpit ordering, planning export artifacts, or artifact-health semantics change, update the stats/export helpers, the dashboard adapter, the planning templates, the repo-reference, and the planning tests in the same work
+- keep `wms/views_planning.py` thin for the GET cockpit path: `dashboard` and `priority_cards` should continue to come from `wms/application/planning/version_detail_queries.py` instead of being recomposed in the view
+- keep shared load-state ordering and threshold semantics in `wms/policies/planning.py` and `wms/policies/pilotage.py`; `wms/planning/stats.py` should remain the aggregator, not the rule-definition layer
 - keep this lot read-only during the local phase; do not smuggle mutation or validation rules into the capacity cockpit
 
 Reference tests:

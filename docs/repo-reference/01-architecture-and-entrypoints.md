@@ -42,6 +42,35 @@ Practical rule:
 
 - when routing or tests import `wms.views`, do not assume the logic is there
 - `wms/views.py` is mostly a re-export layer
+- V3 introduces `wms/application/` and `wms/policies/` as the preferred structural target
+  for shared query composition and business rule classification, while legacy views and
+  API endpoints remain the active delivery adapters during the migration
+- V3.2 introduces `wms/events/` and `wms/jobs/` as the preferred runtime target for
+  explicit side-effect bridging and operational execution, while Django signals and
+  management commands remain the active entry adapters during the migration
+- V3.2 also introduces `OperationalJobRun` in `wms/models_domain/integration.py` as
+  the persisted visibility layer for runtime job executions triggered through `wms/jobs/`
+- V3.3 introduces `wms/parties/` and `wms/artifacts/` as the next structural targets
+  for shipment-party graph behavior and planning/document artifact orchestration, while
+  `wms/portal_recipient_sync.py`, `wms/shipment_party_*`, and `wms/planning/*` remain
+  the active compatibility adapters during the migration
+- the first live V3.3 shipment-party slice now exists through `wms/parties/selectors.py`,
+  `wms/parties/invariants.py`, `wms/parties/sync.py`, `wms/parties/merge.py`, and
+  `wms/application/parties/use_cases.py`, while portal views still route through
+  legacy compatibility wrappers where needed
+- the public package facades for these slices now live in `wms/application/__init__.py`,
+  `wms/application/parties/__init__.py`, `wms/events/__init__.py`, `wms/jobs/__init__.py`,
+  `wms/parties/__init__.py`, and `wms/artifacts/__init__.py`; use them when you need
+  the stable import surface rather than an internal module
+- the first live V3.3 planning-artifact slice now exists through `wms/artifacts/planning.py`,
+  `wms/artifacts/attachments.py`, `wms/artifacts/proofs.py`, and
+  `wms/application/planning_artifacts/use_cases.py`, while `wms/planning/exports.py`,
+  `wms/planning/communication_actions.py`, and `wms/print_pack_sync.py` remain
+  compatibility adapters where needed
+- the first live V3.3 legacy asset slice now exists through `wms/static/scan/modules/`
+  and `wms/static/scan/css/partials/`, while `wms/static/scan/scan.js`,
+  `wms/static/scan/scan.css`, and `wms/static/scan/scan-bootstrap.css` remain the
+  stable shared entrypoints consumed by scan, portal, planning, and public/auth surfaces
 
 ## 4. Main Runtime Clusters
 
@@ -52,6 +81,11 @@ Practical rule:
 - Main runtime modules: `wms/views_scan_stock.py`, `wms/views_scan_shipments.py`, `wms/views_scan_shipments_support.py`, `wms/views_scan_receipts.py`, `wms/views_scan_orders.py`, `wms/views_scan_admin.py`, `wms/views_scan_dashboard.py`, `wms/views_scan_billing.py`, `wms/views_scan_misc.py`
 - Templates: `templates/scan/`
 - Static assets: `wms/static/scan/`
+- Stable scan asset facade: `templates/scan/base.html` keeps `scan.js` and `scan/modules/core.js`
+  as the shared script entrypoints, while page-local scripts now attach through the
+  `extra_scripts` block and the first modular slices live in `wms/static/scan/modules/`
+- Stable shared style facade: `scan.css` and `scan-bootstrap.css` stay as the public
+  filenames, while first extracted partials now live under `wms/static/scan/css/partials/`
 
 ### Portal / association
 
@@ -79,6 +113,16 @@ Practical rule:
 - URL roots: `api/urls.py`, `api/v1/urls.py`
 - UI API layer: `api/v1/ui_views.py`
 - Integration/business API layer: `api/v1/views.py`, serializers and routers
+- Current V3.1 extracted query sources:
+  - `wms/application/scan/dashboard_queries.py` is the shared composition source for the legacy scan dashboard and `GET /api/v1/ui/dashboard/`
+  - `wms/application/pilotage/pilotage_queries.py` is the shared composition source for the legacy pilotage cockpit and `GET /api/v1/ui/pilotage/`
+  - `wms/application/portal/dashboard_queries.py` is the shared composition source for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
+  - `wms/application/planning/version_detail_queries.py` is the shared GET composition source for `planning/version_detail`
+- Current V3.1 extracted policy sources:
+  - `wms/policies/sla.py` owns shared SLA freshness and severity classification
+  - `wms/policies/pilotage.py` owns planning-threshold normalization reused by runtime settings and pilotage previews
+  - `wms/policies/planning.py` owns planning flight load-state ordering, labels, and classification
+  - `wms/policies/shipment_parties.py` owns shared shipment-party naming helpers such as the default recipient shipper label
 
 ### Shared contracts
 
@@ -99,8 +143,18 @@ Important cross-cutting domain modules:
 
 - portal recipient sync: `wms/portal_recipient_sync.py`
 - shipment-party registry and rules: `wms/shipment_party_registry.py`, `wms/shipment_party_setup.py`, `wms/shipment_party_rules.py`
+- V3.3 target boundary for shipment-party graph logic: `wms/parties/`
+- live V3.3 application entrypoint for portal shipment-party sync: `wms/application/parties/use_cases.py`
+- stable V3.3 package-root import surface for shipment-party orchestration:
+  `wms/parties/__init__.py` and `wms/application/parties/__init__.py`
+- `ShipmentRecipientOrganization` is now scoped by `(organization, destination)` rather than by organization globally, so destination-aware lookups are the default contract for portal and admin shipment-party flows
 - workflow notifications and side effects: `wms/signals.py`
 - core orchestration services: `wms/services.py`
+- V3.3 target boundary for planning/document artifact lifecycle: `wms/artifacts/`
+- live V3.3 application entrypoint for planning artifact helper payloads:
+  `wms/application/planning_artifacts/use_cases.py`
+- stable V3.3 package-root import surface for artifact lifecycle helpers:
+  `wms/artifacts/__init__.py` and `wms/application/planning_artifacts/__init__.py`
 
 ## 6. Tests As Runtime Maps
 
@@ -115,6 +169,13 @@ Main test clusters:
 - `wms/tests/planning/`: planning domain and smoke flow
 - `wms/tests/core/`: cross-domain contracts and sanity flows
 - `api/tests/`: API contracts and UI API end-to-end flows
+
+Structural gate note:
+
+- `mypy.ini` is now the broader structural type gate for `wms/application`, `wms/events`,
+  `wms/jobs`, `wms/parties`, and `wms/artifacts`
+- `pyrightconfig.json` intentionally validates the public `__init__` facades for those
+  layers rather than the full unstubbed Django ORM internals
 
 ## 7. Docs That Define Current Expected Behavior
 
@@ -135,6 +196,7 @@ If the ticket touches:
 - scan flow: `wms/scan_urls.py`, `wms/views_scan_*`, nearest `*_handlers.py`, `templates/scan/`, `wms/tests/views/`
 - portal flow: `wms/portal_urls.py`, `wms/views_portal_*`, `wms/portal_recipient_sync.py`, `templates/portal/`, `wms/tests/portal/`
 - shipment-party/contact rules: `wms/models_domain/shipment_parties.py`, `wms/models_domain/portal.py`, `wms/shipment_party_*`, `wms/portal_recipient_sync.py`
+- planning artifacts/runtime: `wms/planning/*`, `wms/artifacts/*`, `wms/application/planning_artifacts/use_cases.py`, `wms/tests/planning/`, `wms/tests/print/tests_print_pack_sync.py`
 - print/documents: `wms/shipment_document_handlers.py`, `wms/billing_document_handlers.py`, `templates/print/`, scan print views, print tests
 - shared UI: `wms/templatetags/wms_ui.py`, `templates/wms/components/`, `templates/scan/ui_lab.html`, bridge CSS files, bootstrap UI tests
 - release/operations: `docs/operations.md`, `docs/release_checklist.md`

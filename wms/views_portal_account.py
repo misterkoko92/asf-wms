@@ -12,6 +12,7 @@ from django.views.decorators.http import require_http_methods
 from contacts.models import RecipientLegalForm
 
 from .account_request_handlers import handle_account_request_form
+from .application.parties.use_cases import sync_portal_recipient
 from .country_choices import DEFAULT_COUNTRY, build_country_choices, is_known_country
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
@@ -33,7 +34,6 @@ from .models import (
     ShipmentValidationStatus,
 )
 from .portal_helpers import get_contact_address
-from .portal_recipient_sync import sync_association_recipient_to_contact
 from .scan_helpers import parse_int
 from .upload_utils import validate_upload
 from .view_permissions import (
@@ -318,8 +318,8 @@ def _create_recipient(profile, form_data, *, uploaded_by=None, files=None):
             association_contact=profile.contact,
             **payload,
         )
-        sync_association_recipient_to_contact(
-            recipient,
+        sync_portal_recipient(
+            recipient=recipient,
             prefer_existing_structure=form_data["reuse_existing_structure"],
         )
         _create_recipient_structure_documents(
@@ -335,8 +335,8 @@ def _update_recipient(recipient, form_data):
     for field_name, value in payload.items():
         setattr(recipient, field_name, value)
     recipient.save(update_fields=list(payload.keys()))
-    sync_association_recipient_to_contact(
-        recipient,
+    sync_portal_recipient(
+        recipient=recipient,
         prefer_existing_structure=form_data["reuse_existing_structure"],
     )
     return recipient

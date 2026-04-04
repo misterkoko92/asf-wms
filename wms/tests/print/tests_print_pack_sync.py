@@ -43,9 +43,14 @@ class PrintPackSyncTests(TestCase):
             result = process_print_artifact_queue(limit=5)
 
         artifact.refresh_from_db()
+        self.assertEqual(result["selected"], 1)
+        self.assertEqual(result["processed"], 1)
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["retried"], 0)
+        self.assertEqual(result["proof_sync"][0]["result"], "processed")
         self.assertEqual(
-            result,
-            {"selected": 1, "processed": 1, "failed": 0, "retried": 0},
+            result["proof_sync"][0]["onedrive_path"],
+            "prints/shipments/SHP-001/artifact.pdf",
         )
         self.assertEqual(artifact.status, GeneratedPrintArtifactStatus.SYNCED)
         self.assertEqual(artifact.sync_attempts, 1)
@@ -76,9 +81,13 @@ class PrintPackSyncTests(TestCase):
 
         retry_artifact.refresh_from_db()
         fail_artifact.refresh_from_db()
+        self.assertEqual(result["selected"], 2)
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["retried"], 1)
         self.assertEqual(
-            result,
-            {"selected": 2, "processed": 0, "failed": 1, "retried": 1},
+            {entry["result"] for entry in result["proof_sync"]},
+            {"retried", "failed"},
         )
         self.assertEqual(retry_artifact.status, GeneratedPrintArtifactStatus.SYNC_PENDING)
         self.assertEqual(retry_artifact.sync_attempts, 1)
@@ -103,18 +112,23 @@ class PrintPackSyncTests(TestCase):
             result_retry = process_print_artifact_queue(limit=5, include_failed=True)
 
         artifact.refresh_from_db()
-        self.assertEqual(result, {"selected": 0, "processed": 0, "failed": 0, "retried": 0})
-        self.assertEqual(
-            result_retry,
-            {"selected": 1, "processed": 1, "failed": 0, "retried": 0},
-        )
+        self.assertEqual(result["selected"], 0)
+        self.assertEqual(result["processed"], 0)
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(result["retried"], 0)
+        self.assertEqual(result["proof_sync"], [])
+        self.assertEqual(result_retry["selected"], 1)
+        self.assertEqual(result_retry["processed"], 1)
+        self.assertEqual(result_retry["failed"], 0)
+        self.assertEqual(result_retry["retried"], 0)
+        self.assertEqual(result_retry["proof_sync"][0]["result"], "processed")
         self.assertEqual(artifact.status, GeneratedPrintArtifactStatus.SYNCED)
         upload_mock.assert_called_once()
 
     def test_management_command_delegates_to_processor(self):
         stdout = StringIO()
         with mock.patch(
-            "wms.management.commands.process_print_artifact_queue.process_print_artifact_queue",
+            "wms.management.commands.process_print_artifact_queue.run_print_artifact_queue_job",
             return_value={"selected": 2, "processed": 1, "failed": 0, "retried": 1},
         ) as process_mock:
             call_command(
@@ -226,6 +240,47 @@ class PrintPackSyncTests(TestCase):
             req.full_url,
         )
         self.assertEqual(urlopen_mock.call_args.kwargs["timeout"], 9)
+
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_upload_artifact_pdf_to_onedrive_uses_proof_payload(self):
+        artifact = self._create_artifact(filename="uploads/final-label.pdf", pack_code="L")
+        response = mock.Mock()
+        response.read.return_value = b""
+        response.status = 201
+        cm = mock.MagicMock()
+        cm.__enter__.return_value = response
+        cm.__exit__.return_value = False
+        proof_payload = {
+            "artifact_id": artifact.id,
+            "file_name": "custom-proof.pdf",
+            "relative_dir": "exports/packs/L",
+            "onedrive_path": "exports/packs/L/custom-proof.pdf",
+            "source": "print_pack_sync",
+        }
+
+        with (
+            mock.patch(
+                "wms.print_pack_sync.build_print_artifact_proof_payload",
+                return_value=proof_payload,
+            ) as proof_mock,
+            mock.patch(
+                "wms.print_pack_sync.get_client_credentials_token",
+                return_value="token-abc",
+            ),
+            mock.patch(
+                "wms.print_pack_sync.request.urlopen",
+                return_value=cm,
+            ) as urlopen_mock,
+        ):
+            onedrive_path = _upload_artifact_pdf_to_onedrive(artifact=artifact, timeout=9)
+
+        self.assertEqual(onedrive_path, proof_payload["onedrive_path"])
+        proof_mock.assert_called_once_with(artifact)
+        req = urlopen_mock.call_args.args[0]
+        self.assertIn(
+            "/drives/drive-123/root:/exports/packs/L/custom-proof.pdf:/content",
+            req.full_url,
+        )
 
     @override_settings(GRAPH_DRIVE_ID="")
     def test_upload_artifact_pdf_to_onedrive_fails_without_drive_id(self):

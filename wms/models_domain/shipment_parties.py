@@ -101,8 +101,8 @@ class ShipmentRecipientOrganization(models.Model):
         ordering = ["destination__city", "organization__name", "id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["organization"],
-                name="wms_shipment_recipient_org_unique_organization",
+                fields=["organization", "destination"],
+                name="wms_shipment_recipient_org_unique_org_destination",
             ),
             models.UniqueConstraint(
                 fields=["destination"],

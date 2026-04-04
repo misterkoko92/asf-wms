@@ -42,6 +42,11 @@ Use it when you need to answer:
 - `templates/scan/`
 - `templates/print/`
 - `wms/static/scan/`
+- `templates/scan/base.html`
+- `wms/static/scan/modules/core.js`
+- `wms/static/scan/modules/dashboard.js`
+- `wms/static/scan/modules/shipments.js`
+- `wms/static/scan/css/partials/`
 - `api/v1/ui_views.py`
 - `api/v1/views.py`
 
@@ -58,6 +63,9 @@ Use it when you need to answer:
 - daily ops cockpit under `/scan/pilotage/` as the transverse read surface for snapshots, escalations, destination trends, portal backlog, and planning exports
 - UI API mirror under `/api/v1/ui/pilotage/`
 - scan settings preset-based calibration, including local `incident_sla` preview
+- stable legacy asset entrypoints where `scan.js`, `scan.css`, and `scan-bootstrap.css`
+  remain the shared facades while `wms/static/scan/modules/` and
+  `wms/static/scan/css/partials/` carry the first V3.3 modular slices
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - shipment creation/edit, including document-first creation without cartons
 - carton status progression
@@ -86,6 +94,7 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_views_imports.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`
 - `wms/tests/test_workflow_projection.py`
 - `wms/tests/management/tests_management_rebuild_workflow_projections.py`
@@ -126,8 +135,12 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/views_portal_account.py`
 - `wms/views_portal_orders.py`
 - `wms/views_portal_billing.py`
+- `wms/application/portal/dashboard_queries.py`
+- `wms/application/parties/use_cases.py`
 - `wms/portal_order_handlers.py`
 - `wms/portal_recipient_sync.py`
+- `wms/parties/selectors.py`
+- `wms/parties/sync.py`
 - `wms/view_permissions.py`
 - `wms/shipment_party_registry.py`
 - `wms/shipment_party_setup.py`
@@ -146,12 +159,14 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - shipper/recipient authorization chain
 - order creation from portal
 - downstream readiness for shipment creation
+- destination-scoped recipient runtimes keyed by `(organization, destination)` even when the same synced structure is reused across multiple stopovers
 
 ### Living reference tests
 
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_portal_workflow_recipients_account_and_order`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+- `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
@@ -172,6 +187,7 @@ If you change recipient fields, validation, shipment-party eligibility, default 
 - the portal UI API endpoints
 
 Also inspect the shipment-party registry and sync layers. A portal-only change is often not portal-only in practice.
+When a recipient structure can now exist on multiple destinations, avoid organization-only runtime lookups and assertions.
 
 ## 3. Orders: Public / Portal / Admin Side Effects
 
@@ -211,6 +227,7 @@ If order creation or status transitions change, inspect:
 ### Main runtime files
 
 - `wms/emailing.py`
+- `wms/events/outbox.py`
 - `wms/models_domain/integration.py`
 - `wms/management/commands/process_email_queue.py`
 - `wms/runtime_settings.py`
@@ -239,6 +256,7 @@ If order creation or status transitions change, inspect:
 If you change recipients, status-triggered notifications, delivery mode, or queue behavior, update all of these together:
 
 - producer code
+- `wms/events/outbox.py` when `IntegrationEvent` enqueue semantics change
 - queue/runtime docs
 - targeted matrices
 - operations/release docs if the operational behavior changed
@@ -258,6 +276,11 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `api/v1/ui/pilotage/`
 - `docs/operations.md`
 
+Document scan queue follows the same V3.2 durable-dispatch rule:
+
+- enqueue paths should use `wms/events/outbox.py` rather than creating `IntegrationEvent` rows ad hoc
+- reference tests live in `wms/tests/security/tests_document_scan_queue.py` and `wms/tests/management/tests_management_check_document_scan_runtime.py`
+
 ## 5. Planning: Seed -> Solve -> Publish -> Communications -> Cockpit
 
 ### Main entry points
@@ -270,8 +293,13 @@ Also check whether the dashboard/runtime calibration loop changed:
 - `wms/views_planning.py`
 - `wms/models_domain/planning.py`
 - `wms/planning/*`
+- `wms/artifacts/planning.py`
+- `wms/artifacts/attachments.py`
+- `wms/artifacts/proofs.py`
+- `wms/application/planning_artifacts/use_cases.py`
 - `wms/planning/stats.py`
 - `wms/planning/version_dashboard.py`
+- `wms/application/planning/version_detail_queries.py`
 - `wms/management/commands/seed_planning_demo_data.py`
 - `wms/management/commands/planning_recipe_export.py`
 - `templates/planning/_version_stats_block.html`
@@ -280,10 +308,13 @@ Also check whether the dashboard/runtime calibration loop changed:
 ### Living reference tests
 
 - `wms/tests/planning/tests_smoke_planning_flow.py`
+- `wms/tests/planning/tests_artifact_services.py`
 - `wms/tests/planning/tests_outputs.py`
 - `wms/tests/planning/tests_communication_actions.py`
 - `wms/tests/planning/tests_run_preparation.py`
 - `wms/tests/planning/tests_version_dashboard.py`
+- `wms/tests/print/tests_print_pack_sync.py`
+- `wms/tests/test_job_runs.py`
 - `wms/tests/views/tests_views_planning.py`
 
 ### Docs that must stay aligned
@@ -305,6 +336,8 @@ Also check whether the dashboard/runtime calibration loop changed:
 - the exports block exposes a distinct `Runtime PDF` state for the current host, separate from the last artifact attempt
 - internal planning communication drafts now expose `planning_pdf` attachments instead of the workbook
 - internal planning communication drafts are explicitly `blocked` with `blocking_reason=planning_pdf_not_ready` when no ready PDF artifact exists yet
+- the V3.3 artifact slice keeps `wms/planning/exports.py` and `wms/planning/communication_actions.py` as compatibility adapters over `wms/artifacts/*` and `wms/application/planning_artifacts/use_cases.py`
+- print artifact sync now builds its proof payload through `wms/artifacts/proofs.py`, and the persisted `OperationalJobRun` summary for `print_artifact_queue` now carries a bounded `proof_sync_preview`
 - the production-facing ops entry points for this flow are `python manage.py check_planning_pdf_runtime` and `python manage.py refresh_ops_pilotage`
 - flight-capacity indicators are read-only in this local phase and must not silently change assignment or publication rules
 
@@ -345,3 +378,42 @@ If a UI primitive or shared class changes, search beyond the current page. The s
 - `templates/benevole/`
 - `templates/admin/wms/`
 - `templates/print/`
+
+## 7. Structural Runtime Boundaries: Application / Events / Jobs / Parties / Artifacts
+
+### Main runtime files
+
+- `wms/application/`
+- `wms/events/`
+- `wms/jobs/`
+- `wms/parties/`
+- `wms/artifacts/`
+- `mypy.ini`
+- `pyrightconfig.json`
+- `Makefile`
+
+### Living reference tests
+
+- `wms/tests/core/tests_v33_contracts.py`
+- `wms/tests/core/tests_event_types.py`
+- `wms/tests/core/tests_parties_use_cases.py`
+- `wms/tests/core/tests_parties_merge.py`
+- `wms/tests/core/tests_parties_destination_scope.py`
+- `wms/tests/planning/tests_artifact_services.py`
+- `wms/tests/print/tests_print_pack_sync.py`
+- `wms/tests/test_job_runs.py`
+
+### Structural proof commands
+
+- `make typecheck-structural`
+- `make ruff-structural`
+- `./.venv/bin/python manage.py test wms.tests.core.tests_v33_contracts -v 2`
+
+### Current quality-gate split
+
+- `mypy.ini` now carries the broader structural proof over `wms/application`, `wms/events`, `wms/jobs`, `wms/parties`, and `wms/artifacts`
+- `pyrightconfig.json` intentionally locks only the public `__init__` facades for those boundaries, avoiding a false signal from unstubbed Django ORM internals while still guarding the exported import surface
+
+### Propagation warning
+
+If a new V3 boundary is introduced or a package root facade changes, update the package `__init__` export surface, the structural proof suite, and the typecheck scope together. Do not grow new runtime layers that are invisible to `mypy`, `pyright`, or the contract tests.

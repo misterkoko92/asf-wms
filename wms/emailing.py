@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from .events import outbox
 from .models import (
     IntegrationDirection,
     IntegrationEvent,
@@ -222,7 +223,7 @@ def _compute_retry_delay_seconds(*, attempts, retry_base_seconds, retry_max_seco
 
 def _base_email_queue_queryset():
     return IntegrationEvent.objects.filter(
-        direction=IntegrationDirection.OUTBOUND,
+        direction=str(IntegrationDirection.OUTBOUND),
         source=EMAIL_QUEUE_SOURCE,
         event_type=EMAIL_QUEUE_EVENT_TYPE,
     )
@@ -495,13 +496,13 @@ def enqueue_email_safe(*, subject, message, recipient, html_message=None, tags=N
         tags=tags,
     )
     _set_queue_meta(payload, attempts=0, next_attempt_at=None)
-    IntegrationEvent.objects.create(
+    outbox.enqueue_integration_event(
         direction=IntegrationDirection.OUTBOUND,
         source=EMAIL_QUEUE_SOURCE,
         target=EMAIL_QUEUE_TARGET,
         event_type=EMAIL_QUEUE_EVENT_TYPE,
         payload=payload,
-        status=IntegrationStatus.PENDING,
+        status=str(IntegrationStatus.PENDING),
     )
     return True
 

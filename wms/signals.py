@@ -10,21 +10,20 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from contacts.correspondent_recipient_promotion import (
-    ensure_destination_correspondent_recipient_ready,
-)
 from contacts.models import Contact
 
 from .auth_session import apply_remember_me_session_policy
-from .default_shipper_bindings import (
-    default_shipper_binding_sync_enabled,
-    ensure_default_shipper_links_for_destination_id,
-    ensure_default_shipper_links_for_recipient_organization_id,
-)
+from .default_shipper_bindings import default_shipper_binding_sync_enabled
 from .emailing import (
     get_admin_emails,
     get_group_emails,
     send_or_enqueue_email_safe,
+)
+from .events import (
+    handlers_notifications,
+    handlers_projections,
+    handlers_sync,
+    publishers,
 )
 from .models import (
     AssociationProfile,
@@ -45,7 +44,6 @@ from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
 )
-from .workflow_projection import schedule_shipment_workflow_projection_refresh
 
 SHIPMENT_STATUS_UPDATE_GROUP_DEFAULT = "Shipment_Status_Update"
 SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT = "Shipment_Status_Update_Correspondant"
@@ -346,120 +344,35 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
     previous_status = getattr(instance, "_previous_status", None)
     if not previous_status or previous_status == instance.status:
         return
-    log_shipment_status_transition(
-        shipment=instance,
-        previous_status=previous_status,
+    event = publishers.build_shipment_status_changed_event(
+        shipment_id=instance.id,
+        old_status=previous_status,
         new_status=instance.status,
-        source="shipment_post_save_signal",
     )
-    admin_recipients = _shipment_status_admin_recipients()
-    if admin_recipients:
-        try:
-            old_label = ShipmentStatus(previous_status).label
-        except ValueError:
-            old_label = previous_status
-        try:
-            new_label = ShipmentStatus(instance.status).label
-        except ValueError:
-            new_label = instance.status
-        admin_url = _build_site_url(reverse("admin:wms_shipment_change", args=[instance.id]))
-        message = render_to_string(
-            "emails/shipment_status_admin_notification.txt",
-            {
-                "shipment_reference": instance.reference,
-                "old_status": old_label,
-                "new_status": new_label,
-                "destination_label": str(instance.destination)
-                if instance.destination
-                else instance.destination_address,
-                "changed_at": timezone.localtime(timezone.now()),
-                "tracking_url": instance.get_tracking_url(),
-                "admin_url": admin_url,
-            },
-        )
-        transaction.on_commit(
-            lambda: send_or_enqueue_email_safe(
-                subject=_("ASF WMS - Expédition %(reference)s : statut mis à jour")
-                % {"reference": instance.reference},
-                message=message,
-                recipient=admin_recipients,
-            )
-        )
-    else:
-        try:
-            old_label = ShipmentStatus(previous_status).label
-        except ValueError:
-            old_label = previous_status
-        try:
-            new_label = ShipmentStatus(instance.status).label
-        except ValueError:
-            new_label = instance.status
-    if instance.status in SHIPMENT_CONTACT_NOTIFICATION_STATUSES:
-        _queue_shipment_party_notification(
-            shipment=instance,
-            old_label=old_label,
-            new_label=new_label,
-        )
-    if instance.status == ShipmentStatus.PLANNED:
-        _queue_shipment_correspondant_notification(
-            shipment=instance,
-            old_label=old_label,
-            new_label=new_label,
-            tracking_status_label=ShipmentTrackingStatus.PLANNED.label,
-        )
-    if instance.status == ShipmentStatus.DELIVERED:
-        _notify_shipment_delivery(instance)
+    handlers_notifications.handle_shipment_status_changed_event(event=event, shipment=instance)
 
 
 def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
     if not created:
         return
-    log_shipment_tracking_event(
-        tracking_event=instance,
-        user=getattr(instance, "created_by", None),
+    shipment = getattr(instance, "shipment", None)
+    shipment_id = getattr(instance, "shipment_id", None) or getattr(shipment, "id", None)
+    if not shipment_id:
+        return
+    event = publishers.build_tracking_event_created_event(
+        shipment_id=shipment_id,
+        tracking_event_id=getattr(instance, "id", 0) or 0,
     )
-    shipment = instance.shipment
-    recipients = get_admin_emails()
-    if recipients:
-        admin_url = _build_site_url(reverse("admin:wms_shipment_change", args=[shipment.id]))
-        message = render_to_string(
-            "emails/shipment_tracking_admin_notification.txt",
-            {
-                "shipment_reference": shipment.reference,
-                "status": instance.get_status_display(),
-                "actor_name": instance.actor_name,
-                "actor_structure": instance.actor_structure,
-                "comments": instance.comments or "-",
-                "event_time": timezone.localtime(instance.created_at),
-                "tracking_url": shipment.get_tracking_url(),
-                "admin_url": admin_url,
-            },
-        )
-        transaction.on_commit(
-            lambda: send_or_enqueue_email_safe(
-                subject=_("ASF WMS - Suivi expédition %(reference)s")
-                % {"reference": shipment.reference},
-                message=message,
-                recipient=recipients,
-            )
-        )
-    tracking_status = getattr(instance, "status", "")
-    if tracking_status in SHIPMENT_CORRESPONDANT_TRACKING_STATUSES:
-        tracking_status_label = tracking_status
-        if hasattr(instance, "get_status_display"):
-            tracking_status_label = instance.get_status_display()
-        _queue_shipment_correspondant_notification(
-            shipment=shipment,
-            old_label="-",
-            new_label=tracking_status_label,
-            tracking_status_label=tracking_status_label,
-        )
+    handlers_notifications.handle_tracking_event_created_event(event=event, tracking_event=instance)
 
 
 def _refresh_workflow_projection_on_shipment_save(sender, instance, **kwargs) -> None:
     shipment_id = getattr(instance, "pk", None)
     if shipment_id:
-        schedule_shipment_workflow_projection_refresh(shipment_id)
+        event = publishers.build_workflow_projection_refresh_requested_event(
+            shipment_id=shipment_id
+        )
+        handlers_projections.handle_workflow_projection_refresh_requested_event(event=event)
 
 
 def _refresh_workflow_projection_on_tracking_event(sender, instance, created, **kwargs) -> None:
@@ -467,7 +380,10 @@ def _refresh_workflow_projection_on_tracking_event(sender, instance, created, **
         return
     shipment_id = getattr(instance, "shipment_id", None)
     if shipment_id:
-        schedule_shipment_workflow_projection_refresh(shipment_id)
+        event = publishers.build_workflow_projection_refresh_requested_event(
+            shipment_id=shipment_id
+        )
+        handlers_projections.handle_workflow_projection_refresh_requested_event(event=event)
 
 
 def _capture_order_state(sender, instance, **kwargs) -> None:
@@ -618,9 +534,10 @@ def _sync_default_shipper_links_for_recipient_organization(
         return
     if not instance.is_active:
         return
-    transaction.on_commit(
-        lambda: ensure_default_shipper_links_for_recipient_organization_id(instance.id)
+    event = publishers.build_default_shipper_links_for_recipient_organization_event(
+        recipient_organization_id=instance.id
     )
+    handlers_sync.handle_default_shipper_links_for_recipient_organization_event(event=event)
 
 
 def _sync_default_shipper_links_for_destination(sender, instance, created, **kwargs) -> None:
@@ -628,9 +545,8 @@ def _sync_default_shipper_links_for_destination(sender, instance, created, **kwa
         return
     if not instance.is_active:
         return
-
-    destination_id = instance.id
-    transaction.on_commit(lambda: ensure_default_shipper_links_for_destination_id(destination_id))
+    event = publishers.build_default_shipper_links_for_destination_event(destination_id=instance.id)
+    handlers_sync.handle_default_shipper_links_for_destination_event(event=event)
 
 
 def _sync_destination_correspondent_recipient_support(sender, instance, created, **kwargs) -> None:
@@ -640,20 +556,10 @@ def _sync_destination_correspondent_recipient_support(sender, instance, created,
         return
     if not instance.correspondent_contact_id:
         return
-
-    destination_id = instance.id
-
-    def _sync() -> None:
-        destination = (
-            Destination.objects.filter(pk=destination_id)
-            .select_related("correspondent_contact")
-            .first()
-        )
-        if destination is None:
-            return
-        ensure_destination_correspondent_recipient_ready(destination)
-
-    transaction.on_commit(_sync)
+    event = publishers.build_destination_correspondent_recipient_support_event(
+        destination_id=instance.id
+    )
+    handlers_sync.handle_destination_correspondent_recipient_support_event(event=event)
 
 
 def _apply_login_session_policy(sender, request, user, **kwargs) -> None:

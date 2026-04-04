@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from contacts.models import Contact
+from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.models import (
     Carton,
     CartonItem,
@@ -40,6 +41,25 @@ from wms.models import (
 
 
 class ScanDashboardViewTests(TestCase):
+    DASHBOARD_QUERY_ONLY_KEYS = {
+        "workflow_blockage_base_rows",
+        "shipments_scope",
+        "shipments_with_tracking",
+        "status_map",
+        "stock_snapshot",
+        "email_queue_snapshot",
+        "document_scan_snapshot",
+        "workflow_blockage_snapshot",
+        "period_start",
+        "week_start",
+        "week_end",
+        "pending_actions",
+        "queue_processing_timeout_seconds",
+        "document_scan_processing_timeout_seconds",
+        "shipment_chart_rows",
+        "shipments_total",
+    }
+
     def setUp(self):
         self.staff_user = get_user_model().objects.create_user(
             username="scan-dashboard-staff",
@@ -726,6 +746,27 @@ class ScanDashboardViewTests(TestCase):
         self.assertContains(response, "magasin")
         self.assertContains(response, "qualite")
         self.assertTrue(any(row["cta_label"] for row in action_rows))
+
+    def test_scan_dashboard_get_uses_public_query_payload_only(self):
+        full_payload = build_scan_dashboard_payload(user=self.staff_user, params={})
+        public_payload = {
+            key: value
+            for key, value in full_payload.items()
+            if key not in self.DASHBOARD_QUERY_ONLY_KEYS
+        }
+
+        with mock.patch(
+            "wms.views_scan_dashboard.build_scan_dashboard_payload",
+            return_value=public_payload,
+        ) as mocked_builder:
+            response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        mocked_builder.assert_called_once()
+        self.assertEqual(
+            len(response.context["action_queue_rows"]),
+            len(public_payload["action_queue_rows"]),
+        )
 
     def test_scan_dashboard_exposes_sla_alert_summary_cards_and_rows(self):
         persistent = self._create_shipment(

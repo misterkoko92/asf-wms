@@ -4,12 +4,13 @@
 
 This roadmap complements the global V3 design.
 
-It keeps:
+It now keeps:
 
-- a detailed implementation plan only for `V3.1`
-- lighter execution guidance for `V3.2` and `V3.3`
+- a completed detailed implementation plan for `V3.1`
+- a detailed implementation plan for `V3.2`
+- a detailed design and implementation plan for `V3.3`
 
-That balance is intentional. The later waves depend on structural choices made in `V3.1`, so they should not be overspecified too early.
+That balance remains intentional. `V3.2` is now specific enough to execute because `V3.1` is complete. `V3.3` is now detailed enough to execute because the runtime boundaries introduced by `V3.2` are explicit.
 
 ## Wave Summary
 
@@ -30,76 +31,45 @@ Goal:
 
 - replace implicit orchestration with explicit event and job boundaries
 
+Design:
+
+- `docs/plans/2026-04-01-asf-wms-v3-wave2-design.md`
+
+Detailed implementation plan:
+
+- `docs/plans/2026-04-01-asf-wms-v3-wave2-implementation-plan.md`
+
 ### V3.3 Domain and Runtime Simplification
 
 Goal:
 
 - simplify cross-surface domain complexity and reduce legacy runtime cost
 
-## Lightweight Execution Plan: V3.2
+Detailed design:
 
-### V3.2.1 Event Catalog
+- `docs/plans/2026-04-02-asf-wms-v3-wave3-design.md`
 
-Deliverables:
+Detailed implementation plan:
 
-- a catalog of domain events emitted by shipment, order, portal recipient, planning artifact, and pilotage flows
-- a first event taxonomy doc and runtime map
+- `docs/plans/2026-04-02-asf-wms-v3-wave3-implementation-plan.md`
 
-Prerequisites:
+## Detailed Execution Plan: V3.2
 
-- `V3.1` query and policy extraction must already clarify where decisions happen
+The detailed slice sequencing now lives in:
 
-Exit criteria:
+- `docs/plans/2026-04-01-asf-wms-v3-wave2-implementation-plan.md`
 
-- event producers and consumers are identified
-- `wms/signals.py` responsibilities are grouped by concern
+The wave is executed in this order:
 
-### V3.2.2 Signal Bridge
+1. event scaffolding and runtime map
+2. explicit event contracts
+3. notification handlers
+4. projection and sync handlers
+5. job layer
+6. job-run visibility
+7. durable outbox normalization
 
-Deliverables:
-
-- Django signals reduced to bridging logic
-- side-effect code moved into event handlers
-
-Prerequisites:
-
-- `V3.2.1`
-
-Exit criteria:
-
-- signal modules no longer contain heavy branching and orchestration logic
-
-### V3.2.3 Job Layer
-
-Deliverables:
-
-- `wms/jobs/` modules for queue processors, projections, snapshots, escalations, and artifact checks
-- management commands wrapped around job modules
-
-Prerequisites:
-
-- `V3.1` application extraction for the most critical reads
-
-Exit criteria:
-
-- job execution can be tested without shelling through management commands
-
-### V3.2.4 Outbox and Run Visibility
-
-Deliverables:
-
-- durable outbox or equivalent local dispatch boundary
-- job run and result visibility for retries, failures, and timeouts
-
-Prerequisites:
-
-- `V3.2.2` and `V3.2.3`
-
-Exit criteria:
-
-- notification and projection side effects are traceable and replayable
-
-## Lightweight Execution Plan: V3.3
+## Detailed Execution Plan: V3.3
 
 ### V3.3.1 Parties and Contacts Simplification
 
@@ -164,14 +134,13 @@ Exit criteria:
 ## Recommended Order
 
 1. Deliver `V3.1`
-2. Start `V3.2.1`, `V3.2.2`, and `V3.2.3`
-3. Only then detail the exact implementation plan for `V3.2.4`
-4. Open `V3.3.1` once `V3.2` clarifies orchestration ownership
-5. Finish with `V3.3.2`, `V3.3.3`, and `V3.3.4`
+2. Execute `V3.2` in full
+3. Start `V3.3.1` on the stabilized structural stack
+4. Continue with artifacts, frontend modularization, and quality gates
 
 ## Decision Rule
 
 If a future structural change can be handled inside `V3.1` through shared queries and policies, do not pull it forward into `V3.2` or `V3.3`.
 
-Use `V3.2` only for orchestration/runtime boundaries.
+Use `V3.2` only for orchestration and runtime boundaries.
 Use `V3.3` only for domain or legacy simplification that becomes safe after those boundaries exist.
