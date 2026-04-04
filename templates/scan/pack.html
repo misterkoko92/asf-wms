@@ -171,7 +171,7 @@
                         <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
                       </select>
                       {% if not request.scan_is_preparateur %}
-                        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
+                        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_carton_formats' %}" target="_blank" rel="noopener">
                           {% trans "Ajouter format" %}
                         </a>
                       {% endif %}
@@ -211,7 +211,7 @@
                 <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
               </select>
               {% if not request.scan_is_preparateur %}
-                <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
+                <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_carton_formats' %}" target="_blank" rel="noopener">
                   {% trans "Ajouter format" %}
                 </a>
               {% endif %}

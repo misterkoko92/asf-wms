@@ -8,6 +8,7 @@
 {% endblock %}
 
 {% block content %}
+  {% url 'scan:scan_admin_contacts' as scan_admin_contacts_url %}
   {% get_current_language as current_language %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">
@@ -69,7 +70,7 @@
 
         <div class="scan-filter-actions scan-stock-update-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
           <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
-          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
             {% trans "Ajouter contact" %}
           </a>
         </div>

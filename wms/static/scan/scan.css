@@ -836,6 +836,15 @@
   max-width: 100%;
 }
 
+.scan-switch-leading .scan-switch-label {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.scan-switch-leading .scan-switch-control {
+  margin-left: 0;
+}
+
 .ui-comp-file-input {
   width: 100%;
 }

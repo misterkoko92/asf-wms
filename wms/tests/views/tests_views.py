@@ -1048,6 +1048,59 @@ class ScanViewTests(TestCase):
         self.assertContains(response, "--wms-print-picking-sheet-bg: #eef7f3;")
         self.assertContains(response, "--wms-print-picking-sheet-border: #abc8bc;")
 
+    def test_scan_stock_update_contact_link_targets_scan_admin_contacts(self):
+        response = self.client.get(reverse("scan:scan_stock_update"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("scan:scan_admin_contacts") + "?contact_type=organization",
+        )
+
+    def test_scan_receive_pallet_contact_links_target_scan_admin_contacts(self):
+        response = self.client.get(reverse("scan:scan_receive_pallet"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("scan:scan_admin_contacts") + "?contact_type=organization",
+            count=4,
+        )
+
+    def test_scan_receive_association_contact_links_target_scan_admin_contacts(self):
+        response = self.client.get(reverse("scan:scan_receive_association"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("scan:scan_admin_contacts") + "?contact_type=organization",
+            count=2,
+        )
+
+    def test_scan_shipment_create_contact_links_include_selected_destination_filter(self):
+        response = self.client.get(
+            reverse("scan:scan_shipment_create"),
+            {"destination": self.destination.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        expected_url = (
+            reverse("scan:scan_admin_contacts") + f"?destination_id={self.destination.id}"
+        )
+        self.assertContains(response, expected_url, count=3)
+
+    def test_scan_prepare_kits_manage_link_targets_scan_admin_products(self):
+        response = self.client.get(reverse("scan:scan_prepare_kits"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_admin_products"))
+
+    def test_scan_pack_add_format_link_targets_scan_admin_carton_formats(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_admin_carton_formats"))
+
     def test_scan_pack_prefills_shipment_reference_from_querystring(self):
         response = self.client.get(
             reverse("scan:scan_pack"),

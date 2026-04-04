@@ -159,6 +159,11 @@ urlpatterns = [
     path("faq/", views.scan_faq, name="scan_faq"),
     path("ui-lab/", views.scan_ui_lab, name="scan_ui_lab"),
     path("settings/", views.scan_settings, name="scan_settings"),
+    path(
+        "admin/carton-formats/",
+        views.scan_admin_carton_formats,
+        name="scan_admin_carton_formats",
+    ),
     path("admin/contacts/", views.scan_admin_contacts, name="scan_admin_contacts"),
     path("admin/products/", views.scan_admin_products, name="scan_admin_products"),
     path("product-labels/", views.scan_product_labels, name="scan_product_labels"),

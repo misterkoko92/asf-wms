@@ -219,7 +219,7 @@ def build_prepare_kits_page_context(*, selected_kit_id=None, prepared_carton_ids
         "kit_options": [{"id": kit["id"], "name": kit["name"]} for kit in kit_cards],
         "selected_kit": selected_kit,
         "kit_data": kit_cards,
-        "kit_create_url": reverse("admin:wms_product_add"),
+        "kit_create_url": reverse("scan:scan_admin_products"),
         "prepare_result": _build_prepare_result(prepared_carton_ids),
     }
 

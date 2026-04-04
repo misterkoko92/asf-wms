@@ -1,11 +1,19 @@
 {% load i18n %}
+{% url 'scan:scan_admin_contacts' as scan_admin_contacts_url %}
 
 <div id="shipment-shipper-section" class="scan-hidden ui-comp-panel" hidden>
   <div class="scan-field">
     <label class="form-label" for="id_shipper_contact">{% trans "Expéditeur" %}</label>
     <div class="scan-inline">
       {{ form.shipper_contact }}
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+      <a
+        class="scan-scan-btn btn btn-tertiary"
+        href="{{ scan_admin_contacts_url }}{% if form.destination.value %}?destination_id={{ form.destination.value|urlencode }}{% endif %}"
+        data-contact-management-link="1"
+        data-base-href="{{ scan_admin_contacts_url }}"
+        target="_blank"
+        rel="noopener"
+      >
         {% trans "Ajouter expéditeur" %}
       </a>
     </div>
@@ -24,7 +32,14 @@
     <label class="form-label" for="id_recipient_contact">{% trans "Destinataire" %}</label>
     <div class="scan-inline">
       {{ form.recipient_contact }}
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+      <a
+        class="scan-scan-btn btn btn-tertiary"
+        href="{{ scan_admin_contacts_url }}{% if form.destination.value %}?destination_id={{ form.destination.value|urlencode }}{% endif %}"
+        data-contact-management-link="1"
+        data-base-href="{{ scan_admin_contacts_url }}"
+        target="_blank"
+        rel="noopener"
+      >
         {% trans "Ajouter destinataire" %}
       </a>
     </div>
@@ -45,7 +60,14 @@
         {{ form.correspondent_contact }}
       </div>
       <div id="shipment-correspondent-single" class="scan-hidden scan-shipment-contact-fixed scan-shipment-contact-slot" hidden></div>
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+      <a
+        class="scan-scan-btn btn btn-tertiary"
+        href="{{ scan_admin_contacts_url }}{% if form.destination.value %}?destination_id={{ form.destination.value|urlencode }}{% endif %}"
+        data-contact-management-link="1"
+        data-base-href="{{ scan_admin_contacts_url }}"
+        target="_blank"
+        rel="noopener"
+      >
         {% trans "Ajouter correspondant" %}
       </a>
     </div>
