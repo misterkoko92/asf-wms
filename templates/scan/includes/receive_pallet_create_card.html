@@ -1,4 +1,5 @@
 {% load i18n %}
+{% url 'scan:scan_admin_contacts' as scan_admin_contacts_url %}
 
 <div id="scan-receive-pallet-create-card" class="scan-card card border-0 ui-comp-card">
   <h2 class="ui-comp-title">{% trans "Réception palette" %}</h2>
@@ -51,10 +52,10 @@
 
     <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
       <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer la réception palette" %}</button>
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
         {% trans "Ajouter donateur" %}
       </a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
         {% trans "Ajouter transporteur" %}
       </a>
     </div>

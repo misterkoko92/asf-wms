@@ -1,0 +1,90 @@
+{% extends "scan/base.html" %}
+{% load i18n wms_ui %}
+
+{% block title %}WMS Scan - {% trans "Admin Formats Colis" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Admin - Formats carton" %}</h2>
+    <p class="scan-help ui-comp-note">
+      {% trans "Créer des formats carton utilisables depuis la page Préparer des colis." %}
+    </p>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="post" class="ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_carton_format">
+
+      {% if form.non_field_errors %}
+        <div class="scan-message error">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row g-3">
+        <div class="col-12 col-lg-4 scan-field">
+          <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+          {{ form.name }}
+          {{ form.name.errors }}
+        </div>
+        <div class="col-12 col-md-4 col-lg-2 scan-field">
+          <label class="form-label" for="{{ form.length_cm.id_for_label }}">{{ form.length_cm.label }}</label>
+          {{ form.length_cm }}
+          {{ form.length_cm.errors }}
+        </div>
+        <div class="col-12 col-md-4 col-lg-2 scan-field">
+          <label class="form-label" for="{{ form.width_cm.id_for_label }}">{{ form.width_cm.label }}</label>
+          {{ form.width_cm }}
+          {{ form.width_cm.errors }}
+        </div>
+        <div class="col-12 col-md-4 col-lg-2 scan-field">
+          <label class="form-label" for="{{ form.height_cm.id_for_label }}">{{ form.height_cm.label }}</label>
+          {{ form.height_cm }}
+          {{ form.height_cm.errors }}
+        </div>
+        <div class="col-12 col-md-6 col-lg-2 scan-field">
+          <label class="form-label" for="{{ form.max_weight_g.id_for_label }}">{{ form.max_weight_g.label }}</label>
+          {{ form.max_weight_g }}
+          {{ form.max_weight_g.errors }}
+        </div>
+        <div class="col-12 scan-field">
+          {% ui_switch field=form.is_default wide=True extra_classes="scan-switch-leading" %}
+          {{ form.is_default.errors }}
+        </div>
+      </div>
+
+      <div class="scan-filter-actions ui-comp-actions mt-3">
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer format" %}</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5">{% trans "Formats existants" %}</h3>
+    {% if carton_formats %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>{% trans "Nom" %}</th>
+              <th>{% trans "Dimensions" %}</th>
+              <th>{% trans "Poids max" %}</th>
+              <th>{% trans "Défaut" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for carton_format in carton_formats %}
+              <tr>
+                <td>{{ carton_format.name }}</td>
+                <td>{{ carton_format.length_cm }} x {{ carton_format.width_cm }} x {{ carton_format.height_cm }} cm</td>
+                <td>{{ carton_format.max_weight_g }} g</td>
+                <td>{% if carton_format.is_default %}{% trans "Oui" %}{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help ui-comp-note mb-0">{% trans "Aucun format carton enregistré." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}

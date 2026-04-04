@@ -498,6 +498,8 @@ class ScanShipmentForm(forms.Form):
             destinations=destinations,
             destination_id=destination_id,
         )
+        if not self.is_bound and selected_destination is not None:
+            self.initial.setdefault("destination", selected_destination.pk)
         shipper_contacts = (
             eligible_shipment_shipper_contacts_for_destination(selected_destination)
             if selected_destination

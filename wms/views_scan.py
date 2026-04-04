@@ -1,6 +1,7 @@
 """Scan views re-exported for URL routing."""
 
 from .views_scan_admin import (
+    scan_admin_carton_formats,
     scan_admin_contacts,
     scan_admin_products,
     scan_product_labels,
@@ -71,6 +72,7 @@ SCAN_FLOW_EXPORTS = (
     "scan_shipment_track_legacy",
     "scan_out",
     "scan_sync",
+    "scan_admin_carton_formats",
     "scan_admin_contacts",
     "scan_admin_products",
     "scan_product_labels",

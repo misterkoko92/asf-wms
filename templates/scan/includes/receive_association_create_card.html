@@ -1,4 +1,5 @@
 {% load i18n wms_ui %}
+{% url 'scan:scan_admin_contacts' as scan_admin_contacts_url %}
 
 {% trans "Hors format n°" as out_of_format_number_label %}
 {% trans "Description" as description_label %}
@@ -84,10 +85,10 @@
 
     <div class="scan-filter-actions scan-receive-association-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
       <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer la réception association" %}</button>
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
         {% trans "Ajouter association" %}
       </a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
         {% trans "Ajouter transporteur" %}
       </a>
     </div>

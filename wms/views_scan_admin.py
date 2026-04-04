@@ -21,8 +21,10 @@ from .admin_contacts_crud import (
     handle_contact_submission,
     handle_destination_submission,
 )
+from .forms_scan_admin_carton_formats import CartonFormatCrudForm
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import (
+    CartonFormat,
     Destination,
     Product,
     ShipmentRecipientOrganization,
@@ -52,11 +54,14 @@ def _select_scan_copy(*, french, english):
 
 
 TEMPLATE_SCAN_ADMIN_CONTACTS = "scan/admin_contacts.html"
+TEMPLATE_SCAN_ADMIN_CARTON_FORMATS = "scan/admin_carton_formats.html"
 TEMPLATE_SCAN_ADMIN_PRODUCTS = "scan/admin_products.html"
 TEMPLATE_SCAN_PRODUCT_LABELS = "scan/admin_product_labels.html"
 ACTIVE_SCAN_ADMIN_CONTACTS = "admin_contacts"
+ACTIVE_SCAN_ADMIN_CARTON_FORMATS = "admin_carton_formats"
 ACTIVE_SCAN_ADMIN_PRODUCTS = "admin_products"
 ACTIVE_SCAN_PRODUCT_LABELS = "product_labels"
+ACTION_SAVE_CARTON_FORMAT = "save_carton_format"
 
 CONTACT_FILTER_ALL = "all"
 CONTACT_FILTER_CHOICES = (
@@ -514,6 +519,33 @@ def scan_admin_products(request):
             "kit_rows": kit_rows,
             "products_admin_url": reverse("admin:wms_product_changelist"),
             "product_add_url": reverse("admin:wms_product_add"),
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_admin_carton_formats(request):
+    _require_superuser(request)
+    form = CartonFormatCrudForm(request.POST or None)
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == ACTION_SAVE_CARTON_FORMAT:
+            if form.is_valid():
+                form.save()
+                messages.success(request, _("Format carton enregistré."))
+                return redirect("scan:scan_admin_carton_formats")
+        else:
+            messages.error(request, _("Action de format carton non reconnue."))
+
+    return render(
+        request,
+        TEMPLATE_SCAN_ADMIN_CARTON_FORMATS,
+        {
+            "active": ACTIVE_SCAN_ADMIN_CARTON_FORMATS,
+            "form": form,
+            "carton_formats": list(CartonFormat.objects.all().order_by("name", "id")),
         },
     )
 

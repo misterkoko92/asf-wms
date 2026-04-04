@@ -11,6 +11,7 @@ from django.urls import reverse
 from contacts.models import Contact, ContactType
 from wms.forms_admin_contacts_contact import ContactCrudForm
 from wms.models import (
+    CartonFormat,
     Destination,
     DocumentReviewStatus,
     DocumentScanStatus,
@@ -139,6 +140,7 @@ class ScanAdminViewTests(TestCase):
     def test_scan_admin_views_redirect_anonymous_to_admin_login(self):
         for route_name in (
             "scan:scan_admin_contacts",
+            "scan:scan_admin_carton_formats",
             "scan:scan_admin_products",
             "scan:scan_admin_design",
             "scan:scan_product_labels",
@@ -152,6 +154,7 @@ class ScanAdminViewTests(TestCase):
         self.client.force_login(self.staff_user)
         for route_name in (
             "scan:scan_admin_contacts",
+            "scan:scan_admin_carton_formats",
             "scan:scan_admin_products",
             "scan:scan_admin_design",
             "scan:scan_product_labels",
@@ -507,6 +510,52 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, reverse("admin:wms_product_delete", args=[self.kit.id]))
         self.assertContains(response, self.kit.name)
         self.assertContains(response, self.component.name)
+
+    def test_scan_admin_carton_formats_renders_formats_and_create_form(self):
+        CartonFormat.objects.create(
+            name="Format test",
+            length_cm=42,
+            width_cm=33,
+            height_cm=28,
+            max_weight_g=7000,
+            is_default=True,
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_carton_formats"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active"], "admin_carton_formats")
+        self.assertContains(response, "Format test")
+        self.assertContains(response, 'name="action" value="save_carton_format"')
+        self.assertContains(response, 'name="name"')
+        self.assertContains(response, 'name="is_default"')
+        self.assertContains(
+            response,
+            'class="form-check form-switch scan-inline-switch scan-inline-switch-wide scan-switch-leading"',
+        )
+
+    def test_scan_admin_carton_formats_post_creates_format(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_carton_formats"),
+            {
+                "action": "save_carton_format",
+                "name": "Grand format scan",
+                "length_cm": "60",
+                "width_cm": "40",
+                "height_cm": "35",
+                "max_weight_g": "12000",
+                "is_default": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        created = CartonFormat.objects.get(name="Grand format scan")
+        self.assertTrue(created.is_default)
+        self.assertContains(response, "Format carton enregistré.")
 
     def test_scan_product_labels_page_renders_management_actions_for_superuser(self):
         self.client.force_login(self.superuser)
