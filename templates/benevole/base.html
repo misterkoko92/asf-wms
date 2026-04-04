@@ -43,6 +43,7 @@
           </div>
           {% if request.user.is_authenticated %}
             <div id="volunteer-masthead-utility" class="portal-masthead-utility ui-comp-actions" aria-label="{% trans "Navigation utilitaire bénévole" %}">
+              {% include "includes/history_nav_buttons.html" with history_nav_prefix="volunteer" %}
               <a
                 id="volunteer-account-link"
                 class="portal-utility-link{% if current == 'profile' %} is-active{% endif %}"

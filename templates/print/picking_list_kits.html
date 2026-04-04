@@ -5,11 +5,21 @@
 
 {% block extra_style %}
   .print-body { padding-bottom: 0; }
+  .picking-sheets {
+    display: grid;
+    gap: 5mm;
+  }
   .picking-sheet {
     border: 1px solid var(--wms-print-picking-sheet-border);
     border-radius: 4mm;
     padding: 4mm 4.5mm 3.5mm;
     background: var(--wms-print-picking-sheet-bg);
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .picking-sheet:not(:last-child) {
+    page-break-after: always;
+    break-after: page;
   }
   .picking-head {
     display: flex;
@@ -56,29 +66,61 @@
 {% endblock %}
 
 {% block body %}
-  <section class="picking-sheet">
-    <div class="picking-head">
-      <h1>{% if picking_title %}{{ picking_title }}{% else %}{% trans "Liste picking - kits" %}{% endif %}</h1>
-      <p class="picking-meta">{% trans "Cartons" %}: {{ carton_codes|join:", " }}</p>
-    </div>
+  <div class="picking-sheets">
+    {% if carton_blocks %}
+      {% for carton in carton_blocks %}
+        <section class="picking-sheet">
+          <div class="picking-head">
+            <h1>{% if picking_title %}{{ picking_title }}{% else %}{% trans "Liste picking - kits" %}{% endif %}</h1>
+            <p class="picking-meta">{% trans "Colis" %}: {{ carton.carton_code }}</p>
+          </div>
 
-    <table class="picking-table">
-      <thead>
-        <tr>
-          <th>{% trans "Produit" %}</th>
-          <th>{% trans "Quantité" %}</th>
-          <th>{% trans "Emplacement (Rack - Étagère - Bac)" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in item_rows %}
-          <tr>
-            <td>{{ row.label }}</td>
-            <td>{{ row.quantity }}</td>
-            <td>{{ row.location }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
+          <table class="picking-table">
+            <thead>
+              <tr>
+                <th>{% trans "Produit" %}</th>
+                <th>{% trans "Quantité" %}</th>
+                <th>{% trans "Emplacement (Rack - Étagère - Bac)" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in carton.item_rows %}
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.quantity }}</td>
+                  <td>{{ row.location }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+      {% endfor %}
+    {% else %}
+      <section class="picking-sheet">
+        <div class="picking-head">
+          <h1>{% if picking_title %}{{ picking_title }}{% else %}{% trans "Liste picking - kits" %}{% endif %}</h1>
+          <p class="picking-meta">{% trans "Cartons" %}: {{ carton_codes|join:", " }}</p>
+        </div>
+
+        <table class="picking-table">
+          <thead>
+            <tr>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Quantité" %}</th>
+              <th>{% trans "Emplacement (Rack - Étagère - Bac)" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in item_rows %}
+              <tr>
+                <td>{{ row.label }}</td>
+                <td>{{ row.quantity }}</td>
+                <td>{{ row.location }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endif %}
+  </div>
 {% endblock %}

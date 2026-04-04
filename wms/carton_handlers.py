@@ -21,6 +21,11 @@ MUTATION_BLOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 }
+ASSIGNABLE_SHIPMENT_STATUSES = {
+    ShipmentStatus.DRAFT,
+    ShipmentStatus.PICKING,
+    ShipmentStatus.PACKED,
+}
 
 
 def _shipment_is_locked(carton):
@@ -43,12 +48,21 @@ def _carton_can_be_mutated(carton):
     return shipment.status not in MUTATION_BLOCKED_SHIPMENT_STATUSES
 
 
-def _set_bulk_carton_status(carton, *, new_status, reason, user):
+def _shipment_can_receive_cartons(shipment):
+    if not shipment:
+        return False
+    if getattr(shipment, "is_disputed", False):
+        return False
+    return shipment.status in ASSIGNABLE_SHIPMENT_STATUSES
+
+
+def _set_bulk_carton_status(carton, *, new_status, reason, user, update_fields=None):
     set_carton_status(
         carton=carton,
         new_status=new_status,
         reason=reason,
         user=user,
+        update_fields=update_fields,
     )
 
 
@@ -60,6 +74,7 @@ def _bulk_status_feedback(request, *, action, updated_count, ignored_count):
         "bulk_update_cartons_packed": _("mis en prêt"),
         "bulk_mark_cartons_labeled": _("marqués étiquetés"),
         "bulk_mark_cartons_assigned": _("repassés en affecté"),
+        "bulk_assign_cartons_shipment": _("affectés à l'expédition"),
     }
     if updated_count:
         message = _("%(count)s colis %(action_label)s.") % {
@@ -77,6 +92,12 @@ def handle_carton_status_update(request):
     if request.method != "POST":
         return None
     action = (request.POST.get("action") or request.POST.get("bulk_action") or "").strip()
+    if (
+        not action
+        and (request.POST.get("bulk_shipment_id") or "").strip()
+        and request.POST.getlist("selected_carton_ids")
+    ):
+        action = "bulk_assign_cartons_shipment"
     allowed_actions = {
         "update_carton_status",
         "mark_carton_labeled",
@@ -86,6 +107,7 @@ def handle_carton_status_update(request):
         "bulk_update_cartons_packed",
         "bulk_mark_cartons_labeled",
         "bulk_mark_cartons_assigned",
+        "bulk_assign_cartons_shipment",
     }
     if action not in allowed_actions:
         return None
@@ -135,15 +157,46 @@ def handle_carton_status_update(request):
         "bulk_update_cartons_packed",
         "bulk_mark_cartons_labeled",
         "bulk_mark_cartons_assigned",
+        "bulk_assign_cartons_shipment",
     }:
         cartons = list(
             Carton.objects.filter(pk__in=request.POST.getlist("selected_carton_ids"))
             .select_related("shipment")
             .order_by("id")
         )
+        target_shipment = None
+        if action == "bulk_assign_cartons_shipment":
+            target_shipment = (
+                Shipment.objects.filter(pk=request.POST.get("bulk_shipment_id"))
+                .select_related("destination")
+                .first()
+            )
+            if not _shipment_can_receive_cartons(target_shipment):
+                _bulk_status_feedback(
+                    request,
+                    action=action,
+                    updated_count=0,
+                    ignored_count=len(cartons),
+                )
+                return redirect("scan:scan_cartons_ready")
         touched_shipments = set()
         updated_count = 0
         for selected_carton in cartons:
+            if action == "bulk_assign_cartons_shipment":
+                if selected_carton.shipment_id or not _carton_can_be_mutated(selected_carton):
+                    continue
+                selected_carton.shipment = target_shipment
+                selected_carton.preassigned_destination = None
+                _set_bulk_carton_status(
+                    selected_carton,
+                    new_status=CartonStatus.ASSIGNED,
+                    reason="bulk_assign_shipment",
+                    user=getattr(request, "user", None),
+                    update_fields=["shipment", "preassigned_destination"],
+                )
+                touched_shipments.add(target_shipment.id)
+                updated_count += 1
+                continue
             if action == "bulk_update_cartons_picking":
                 if selected_carton.shipment_id or not _carton_can_be_mutated(selected_carton):
                     continue

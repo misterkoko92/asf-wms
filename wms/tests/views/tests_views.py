@@ -945,6 +945,30 @@ class ScanViewTests(TestCase):
         self.assertContains(response, "C-PICK-B")
         self.assertContains(response, 'class="picking-table"')
 
+    def test_scan_cartons_picking_renders_one_table_per_carton(self):
+        carton_a = Carton.objects.create(code="C-PICK-BLOCK-A", status=CartonStatus.PICKING)
+        carton_b = Carton.objects.create(code="C-PICK-BLOCK-B", status=CartonStatus.PICKING)
+        CartonItem.objects.create(
+            carton=carton_a,
+            product_lot=ProductLot.objects.first(),
+            quantity=1,
+        )
+        CartonItem.objects.create(
+            carton=carton_b,
+            product_lot=ProductLot.objects.first(),
+            quantity=1,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_picking"),
+            {"carton_ids": f"{carton_a.id},{carton_b.id}"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-PICK-BLOCK-A")
+        self.assertContains(response, "C-PICK-BLOCK-B")
+        self.assertEqual(response.content.decode().count('class="picking-table"'), 2)
+
     def test_scan_carton_picking_renders_styled_table(self):
         carton = Carton.objects.create(code="C-PICK-1", status=CartonStatus.PICKING)
         CartonItem.objects.create(
@@ -1078,64 +1102,61 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Shipment.objects.count(), 1)
 
-    def test_scan_shipment_create_save_draft_creates_temp_reference(self):
+    def test_scan_shipment_create_without_cartons_creates_definitive_reference(self):
         url = reverse("scan:scan_shipment_create")
         response = self.client.post(
             url,
             {
-                "action": "save_draft",
                 "destination": self.destination.id,
                 "shipper_contact": self.shipper.id,
                 "recipient_contact": self.recipient.id,
                 "correspondent_contact": self.correspondent.id,
-                "carton_count": 1,
+                "carton_count": "",
             },
         )
         self.assertEqual(response.status_code, 302)
 
         shipment = Shipment.objects.get()
-        self.assertTrue(shipment.reference.startswith("EXP-TEMP-"))
+        self.assertTrue(shipment.reference)
+        self.assertFalse(shipment.reference.startswith("EXP-TEMP-"))
         self.assertEqual(shipment.status, ShipmentStatus.DRAFT)
         self.assertEqual(shipment.destination_id, self.destination.id)
-        self.assertEqual(
-            response.url,
-            reverse("scan:scan_shipment_edit", args=[shipment.id]),
-        )
+        self.assertEqual(response.url, reverse("scan:scan_shipment_create"))
+        self.assertEqual(shipment.carton_set.count(), 0)
 
-    def test_scan_shipment_create_save_draft_pack_redirects_to_pack(self):
+    def test_scan_shipment_create_multi_product_redirect_uses_definitive_reference(self):
         url = reverse("scan:scan_shipment_create")
         response = self.client.post(
             url,
             {
-                "action": "save_draft_pack",
+                "action": "create_pack",
                 "destination": self.destination.id,
                 "shipper_contact": self.shipper.id,
                 "recipient_contact": self.recipient.id,
                 "correspondent_contact": self.correspondent.id,
-                "carton_count": 1,
+                "carton_count": "",
             },
         )
         self.assertEqual(response.status_code, 302)
 
         shipment = Shipment.objects.get()
-        self.assertTrue(shipment.reference.startswith("EXP-TEMP-"))
+        self.assertFalse(shipment.reference.startswith("EXP-TEMP-"))
         self.assertEqual(
             response.url,
             f"{reverse('scan:scan_pack')}?shipment_reference={shipment.reference}",
         )
 
-    def test_scan_shipment_create_save_draft_requires_destination(self):
+    def test_scan_shipment_create_requires_destination(self):
         url = reverse("scan:scan_shipment_create")
         response = self.client.post(
             url,
             {
-                "action": "save_draft",
-                "carton_count": 1,
+                "carton_count": "",
             },
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            "Merci de sélectionner une destination avant d'enregistrer un brouillon.",
+            "Ce champ est obligatoire.",
             response.context["form"].errors.get("destination", []),
         )
         self.assertEqual(Shipment.objects.count(), 0)

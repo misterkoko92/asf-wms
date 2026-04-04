@@ -57,6 +57,7 @@
       </div>
       <div class="scan-header-utility">
         <nav id="scan-utility-nav" class="scan-utility-nav" aria-label="{% trans "Navigation utilitaire scan" %}">
+          {% include "includes/history_nav_buttons.html" with history_nav_prefix="scan" %}
           <a
             id="scan-faq-link"
             href="{% url 'scan:scan_faq' %}"

@@ -23,7 +23,6 @@ from wms.models import (
 )
 from wms.scan_shipment_handlers import (
     _get_carton_count,
-    _handle_shipment_save_draft_post,
     handle_shipment_create_post,
     handle_shipment_edit_post,
 )
@@ -154,7 +153,9 @@ class ScanShipmentHandlersTests(TestCase):
         )
         return destination, shipper_contact, recipient_contact, correspondent
 
-    def test_handle_shipment_save_draft_derives_correspondent_from_stopover(self):
+    def test_handle_shipment_create_post_without_cartons_derives_correspondent_from_stopover(
+        self,
+    ):
         destination, shipper_contact, recipient_contact, correspondent = (
             self._create_shipment_party_triplet("SVD")
         )
@@ -167,7 +168,14 @@ class ScanShipmentHandlersTests(TestCase):
             }
         )
         form = _FakeForm(
-            valid=False,
+            valid=True,
+            cleaned_data={
+                "destination": destination,
+                "shipper_contact": shipper_contact,
+                "recipient_contact": recipient_contact,
+                "correspondent_contact": None,
+                "carton_count": 0,
+            },
             data=request.POST,
             fields={
                 "destination": forms.ModelChoiceField(
@@ -187,20 +195,30 @@ class ScanShipmentHandlersTests(TestCase):
                 ),
             },
         )
-        shipment = SimpleNamespace(reference="EXP-TEMP-01", id=42)
+        shipment = SimpleNamespace(reference="EXP-2026-0001", id=42)
 
         with mock.patch(
             "wms.scan_shipment_handlers.Shipment.objects.create",
             return_value=shipment,
         ) as shipment_create_mock:
-            with mock.patch("wms.scan_shipment_handlers.messages.success"):
-                with mock.patch(
-                    "wms.scan_shipment_handlers.redirect",
-                    return_value=SimpleNamespace(status_code=302, url="/draft/42"),
-                ):
-                    response = _handle_shipment_save_draft_post(request, form=form)
+            with mock.patch("wms.scan_shipment_handlers.sync_shipment_ready_state"):
+                with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                    with mock.patch(
+                        "wms.scan_shipment_handlers.redirect",
+                        return_value=SimpleNamespace(status_code=302, url="/shipment/create"),
+                    ):
+                        response, carton_count, line_values, line_errors = (
+                            handle_shipment_create_post(
+                                request,
+                                form=form,
+                                available_carton_ids=set(),
+                            )
+                        )
 
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(carton_count, 0)
+        self.assertEqual(line_values, [])
+        self.assertEqual(line_errors, {})
         shipment_create_mock.assert_called_once()
         self.assertEqual(
             shipment_create_mock.call_args.kwargs["correspondent_contact_ref"],
@@ -214,8 +232,11 @@ class ScanShipmentHandlersTests(TestCase):
             shipment_create_mock.call_args.kwargs["party_snapshot"]["correspondent"]["label"],
             "Correspondent SVD, Correspondent Org SVD",
         )
+        self.assertNotIn("reference", shipment_create_mock.call_args.kwargs)
 
-    def test_handle_shipment_save_draft_ignores_posted_unavailable_correspondent(self):
+    def test_handle_shipment_create_post_without_cartons_ignores_posted_unavailable_correspondent(
+        self,
+    ):
         destination, shipper_contact, recipient_contact, linked_correspondent = (
             self._create_shipment_party_triplet("IGN")
         )
@@ -233,7 +254,14 @@ class ScanShipmentHandlersTests(TestCase):
             }
         )
         form = _FakeForm(
-            valid=False,
+            valid=True,
+            cleaned_data={
+                "destination": destination,
+                "shipper_contact": shipper_contact,
+                "recipient_contact": recipient_contact,
+                "correspondent_contact": linked_correspondent,
+                "carton_count": 0,
+            },
             data=request.POST,
             fields={
                 "destination": forms.ModelChoiceField(
@@ -253,21 +281,31 @@ class ScanShipmentHandlersTests(TestCase):
                 ),
             },
         )
-        shipment = SimpleNamespace(reference="EXP-TEMP-02", id=43)
+        shipment = SimpleNamespace(reference="EXP-2026-0002", id=43)
 
         with mock.patch(
             "wms.scan_shipment_handlers.Shipment.objects.create",
             return_value=shipment,
         ) as shipment_create_mock:
-            with mock.patch("wms.scan_shipment_handlers.messages.success"):
-                with mock.patch(
-                    "wms.scan_shipment_handlers.redirect",
-                    return_value=SimpleNamespace(status_code=302, url="/draft/43"),
-                ):
-                    with override_language("en"):
-                        response = _handle_shipment_save_draft_post(request, form=form)
+            with mock.patch("wms.scan_shipment_handlers.sync_shipment_ready_state"):
+                with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                    with mock.patch(
+                        "wms.scan_shipment_handlers.redirect",
+                        return_value=SimpleNamespace(status_code=302, url="/shipment/create"),
+                    ):
+                        with override_language("en"):
+                            response, carton_count, line_values, line_errors = (
+                                handle_shipment_create_post(
+                                    request,
+                                    form=form,
+                                    available_carton_ids=set(),
+                                )
+                            )
 
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(carton_count, 0)
+        self.assertEqual(line_values, [])
+        self.assertEqual(line_errors, {})
         self.assertEqual(form.errors, [])
         self.assertEqual(
             shipment_create_mock.call_args.kwargs["correspondent_contact_ref"],
@@ -281,8 +319,8 @@ class ScanShipmentHandlersTests(TestCase):
 
     def test_get_carton_count_handles_invalid_values(self):
         form = _FakeForm(valid=False)
-        self.assertEqual(_get_carton_count(form, self._request({"carton_count": "0"})), 1)
-        self.assertEqual(_get_carton_count(form, self._request({"carton_count": "bad"})), 1)
+        self.assertEqual(_get_carton_count(form, self._request({"carton_count": "0"})), 0)
+        self.assertEqual(_get_carton_count(form, self._request({"carton_count": "bad"})), 0)
 
     def test_parse_shipment_lines_keeps_expiry_for_product_lines(self):
         product = SimpleNamespace(id=7, name="Produit test")
@@ -615,63 +653,36 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(line_errors, {"1": "invalid"})
         create_mock.assert_not_called()
 
-    def test_handle_shipment_create_post_save_draft_ignores_line_errors(self):
-        request = self._request({"action": "save_draft", "carton_count": "1"})
-        form = _FakeForm(valid=False)
-        expected_response = SimpleNamespace(status_code=302, url="/shipment/1/edit")
+    def test_handle_shipment_create_post_without_cartons_skips_line_parsing(self):
+        request = self._request({"carton_count": ""})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=0))
+        expected_response = SimpleNamespace(status_code=302, url="/shipment/create")
 
-        with mock.patch(
-            "wms.scan_shipment_handlers.parse_shipment_lines",
-            return_value=([{"line": 1}], [], {"1": ["missing"]}),
-        ):
+        with mock.patch("wms.scan_shipment_handlers.parse_shipment_lines") as parse_mock:
             with mock.patch(
-                "wms.scan_shipment_handlers._handle_shipment_save_draft_post",
-                return_value=expected_response,
-            ) as save_draft_mock:
-                response, carton_count, line_values, line_errors = handle_shipment_create_post(
-                    request,
-                    form=form,
-                    available_carton_ids=set(),
-                )
+                "wms.scan_shipment_handlers.Shipment.objects.create",
+                return_value=SimpleNamespace(reference="EXP-2026-0044", id=44),
+            ) as create_mock:
+                with mock.patch("wms.scan_shipment_handlers.sync_shipment_ready_state"):
+                    with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                        with mock.patch(
+                            "wms.scan_shipment_handlers.redirect",
+                            return_value=expected_response,
+                        ):
+                            response, carton_count, line_values, line_errors = (
+                                handle_shipment_create_post(
+                                    request,
+                                    form=form,
+                                    available_carton_ids=set(),
+                                )
+                            )
 
         self.assertEqual(response, expected_response)
-        self.assertEqual(carton_count, 1)
-        self.assertEqual(line_values, [{"line": 1}])
+        self.assertEqual(carton_count, 0)
+        self.assertEqual(line_values, [])
         self.assertEqual(line_errors, {})
-        save_draft_mock.assert_called_once_with(
-            request,
-            form=form,
-            redirect_to_pack=False,
-        )
-
-    def test_handle_shipment_create_post_save_draft_pack_redirects_to_pack_flow(self):
-        request = self._request({"action": "save_draft_pack", "carton_count": "1"})
-        form = _FakeForm(valid=False)
-        expected_response = SimpleNamespace(status_code=302, url="/scan/pack/")
-
-        with mock.patch(
-            "wms.scan_shipment_handlers.parse_shipment_lines",
-            return_value=([{"line": 1}], [], {"1": ["missing"]}),
-        ):
-            with mock.patch(
-                "wms.scan_shipment_handlers._handle_shipment_save_draft_post",
-                return_value=expected_response,
-            ) as save_draft_mock:
-                response, carton_count, line_values, line_errors = handle_shipment_create_post(
-                    request,
-                    form=form,
-                    available_carton_ids=set(),
-                )
-
-        self.assertEqual(response, expected_response)
-        self.assertEqual(carton_count, 1)
-        self.assertEqual(line_values, [{"line": 1}])
-        self.assertEqual(line_errors, {})
-        save_draft_mock.assert_called_once_with(
-            request,
-            form=form,
-            redirect_to_pack=True,
-        )
+        parse_mock.assert_not_called()
+        create_mock.assert_called_once()
 
     def test_handle_shipment_edit_post_success(self):
         request = self._request({"carton_count": "2"})

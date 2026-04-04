@@ -4,11 +4,13 @@ from types import SimpleNamespace
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 
+from contacts.models import Contact, ContactType
 from wms.carton_handlers import _shipment_is_locked, handle_carton_status_update
 from wms.models import (
     Carton,
     CartonItem,
     CartonStatus,
+    Destination,
     Location,
     Product,
     ProductLot,
@@ -48,6 +50,28 @@ class CartonHandlersTests(TestCase):
             quantity_on_hand=10,
             quantity_reserved=0,
             location=self.location,
+        )
+
+    def _create_destination(self, code):
+        correspondent_org = Contact.objects.create(
+            name=f"Correspondent Org {code}",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name=f"Correspondent {code}",
+            contact_type=ContactType.PERSON,
+            first_name="Correspondent",
+            last_name=code,
+            organization=correspondent_org,
+            is_active=True,
+        )
+        return Destination.objects.create(
+            city=f"Paris {code}",
+            iata_code=code,
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
         )
 
     def test_handle_carton_status_update_returns_none_for_non_post_or_other_action(self):
@@ -336,6 +360,44 @@ class CartonHandlersTests(TestCase):
         eligible_carton.refresh_from_db()
         ignored_carton.refresh_from_db()
         self.assertEqual(eligible_carton.status, CartonStatus.PICKING)
+        self.assertEqual(ignored_carton.status, CartonStatus.SHIPPED)
+
+    def test_bulk_assign_cartons_shipment_updates_only_eligible_unassigned_rows(self):
+        destination = self._create_destination("BAS")
+        target_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination=destination,
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        eligible_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-ASSIGN",
+            status=CartonStatus.PACKED,
+        )
+        ignored_carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-ASSIGN-LOCKED",
+            status=CartonStatus.SHIPPED,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_assign_cartons_shipment",
+                "bulk_shipment_id": str(target_shipment.id),
+                "selected_carton_ids": [str(eligible_carton.id), str(ignored_carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        eligible_carton.refresh_from_db()
+        ignored_carton.refresh_from_db()
+        self.assertEqual(eligible_carton.shipment_id, target_shipment.id)
+        self.assertEqual(eligible_carton.status, CartonStatus.ASSIGNED)
+        self.assertIsNone(ignored_carton.shipment_id)
         self.assertEqual(ignored_carton.status, CartonStatus.SHIPPED)
 
     def test_mark_carton_labeled_ignored_when_shipment_status_is_locked(self):

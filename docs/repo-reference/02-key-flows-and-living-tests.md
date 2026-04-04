@@ -59,11 +59,12 @@ Use it when you need to answer:
 - UI API mirror under `/api/v1/ui/pilotage/`
 - scan settings preset-based calibration, including local `incident_sla` preview
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
-- shipment creation or draft/edit
+- shipment creation/edit, including document-first creation without cartons
 - carton status progression
-- grouped carton print/document entrypoints
+- grouped carton assignment and print/document entrypoints
 - direct HTML print bundles for shipment `paper`, `standard_labels`, and `carton_lists_a4`
 - shipment `carton_lists` kept as a per-carton action page for continuous-roll printing
+- carton bundle page exposes global print actions for continuous-roll and A4 four-up outputs
 - tracking events
 - structured shipment dispute intake, assignment, due date, and resolution
 - shipment tracking list filters for open, overdue, and unassigned disputes
@@ -98,7 +99,7 @@ Use it when you need to answer:
 
 ### Propagation warning
 
-If you change shipment sequencing, status rules, draft behavior, closure rules, or document/label availability, do not stop at one page or one handler. Check:
+If you change shipment sequencing, status rules, document-first creation behavior, closure rules, or document/label availability, do not stop at one page or one handler. Check:
 
 - `/scan/` routes
 - UI API endpoints

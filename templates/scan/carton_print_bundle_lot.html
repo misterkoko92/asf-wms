@@ -7,6 +7,18 @@
     <div class="scan-field ui-comp-panel">
       <h1 class="ui-comp-title h4 mb-3">{{ bundle_title }}</h1>
 
+      {% if bundle_actions %}
+        <div class="scan-field">
+          <div class="ui-comp-actions">
+            {% for action in bundle_actions %}
+              <a class="scan-scan-btn btn btn-tertiary" href="{{ action.url }}" target="_blank" rel="noopener">
+                {{ action.label }}
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
       <div class="scan-field">
         {% for row in bundle_rows %}
           <div class="scan-field">

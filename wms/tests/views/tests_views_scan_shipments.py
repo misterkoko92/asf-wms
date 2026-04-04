@@ -45,8 +45,9 @@ class ScanShipmentsViewsTests(TestCase):
         response.context_data = context
         return response
 
-    def _create_shipment(self, *, status=ShipmentStatus.DRAFT):
+    def _create_shipment(self, *, status=ShipmentStatus.DRAFT, reference=None):
         return Shipment.objects.create(
+            reference=reference,
             status=status,
             shipper_name="Aviation Sans Frontieres",
             recipient_name="Association Dest",
@@ -137,6 +138,57 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["cartons"], [{"id": 1, "code": "C-001"}])
         self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertEqual(rows_mock.call_args.kwargs["carton_capacity_cm3"], 12345)
+
+    def test_scan_cartons_ready_exposes_batch_shipment_assignment_controls(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        self._create_carton_with_item(code="C-ASSIGN-UI")
+
+        response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="bulk_assign_cartons_shipment"')
+        self.assertContains(response, 'name="bulk_shipment_id"')
+        self.assertContains(response, shipment.reference)
+
+    def test_scan_cartons_ready_uses_fixed_width_select_classes_and_descending_shipment_order(self):
+        older = self._create_shipment(status=ShipmentStatus.DRAFT, reference="250999")
+        newer = self._create_shipment(status=ShipmentStatus.DRAFT, reference="260014")
+        self._create_carton_with_item(code="C-ASSIGN-ORDER")
+
+        response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-carton-bulk-action-select")
+        self.assertContains(response, "scan-carton-bulk-shipment-select")
+        self.assertContains(response, "ui-select--sm")
+        self.assertContains(response, "ui-select--xl")
+        self.assertNotContains(response, "w-auto scan-carton-bulk-action-select")
+        self.assertNotContains(response, "w-auto scan-carton-bulk-shipment-select")
+        content = response.content.decode()
+        self.assertLess(content.index(newer.reference), content.index(older.reference))
+
+    def test_scan_cartons_ready_assigns_selected_cartons_when_only_target_shipment_is_posted(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        carton_a = self._create_carton_with_item(code="C-ASSIGN-FALLBACK-1")
+        carton_b = self._create_carton_with_item(code="C-ASSIGN-FALLBACK-2")
+
+        response = self.client.post(
+            reverse("scan:scan_cartons_ready"),
+            {
+                "bulk_shipment_id": str(shipment.id),
+                "selected_carton_ids": [str(carton_a.id), str(carton_b.id)],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        carton_a.refresh_from_db()
+        carton_b.refresh_from_db()
+        shipment.refresh_from_db()
+        self.assertEqual(carton_a.shipment_id, shipment.id)
+        self.assertEqual(carton_b.shipment_id, shipment.id)
+        self.assertEqual(carton_a.status, CartonStatus.ASSIGNED)
+        self.assertEqual(carton_b.status, CartonStatus.ASSIGNED)
+        self.assertEqual(shipment.status, ShipmentStatus.PICKING)
 
     def test_scan_kits_view_renders_rows_context(self):
         with mock.patch(
@@ -860,11 +912,12 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'id="pack-success-backdrop"')
         self.assertContains(response, "document.getElementById('pack-success-backdrop')")
 
-    def test_scan_shipment_create_renders_secondary_draft_button_near_submit(self):
+    def test_scan_shipment_create_hides_secondary_draft_button_near_submit(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'name="action" value="save_draft"', count=2)
+        self.assertNotContains(response, 'name="action" value="save_draft"')
+        self.assertContains(response, 'name="action" value="create_pack"', count=1)
 
     def test_scan_shipment_create_renders_single_correspondent_display_markers(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))

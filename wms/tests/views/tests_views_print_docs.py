@@ -518,12 +518,58 @@ class PrintDocsViewsTests(TestCase):
         self.assertContains(response, "Liste colisage")
         self.assertContains(
             response,
+            f'{reverse("scan:scan_cartons_view_bundle", kwargs={"bundle_key": "packing_lists"})}?carton_ids={carton_a.id},{carton_b.id}&amp;format=continuous',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_cartons_view_bundle", kwargs={"bundle_key": "packing_lists"})}?carton_ids={carton_a.id},{carton_b.id}&amp;format=a4_4up',
+        )
+        self.assertContains(
+            response,
             f'{reverse("scan:scan_carton_document", args=[carton_a.id])}?delivery=html',
         )
         self.assertContains(
             response,
             f'{reverse("scan:scan_carton_document", args=[carton_b.id])}?delivery=html',
         )
+
+    def test_scan_cartons_view_bundle_routes_packing_lists_to_continuous_print_document(self):
+        carton_a = self._create_standalone_carton_with_item()
+        carton_a.code = "C-CONT-A"
+        carton_a.save(update_fields=["code"])
+        product_lot = carton_a.cartonitem_set.first().product_lot
+        carton_b = Carton.objects.create(code="C-CONT-B")
+        CartonItem.objects.create(carton=carton_b, product_lot=product_lot, quantity=1)
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_view_bundle", kwargs={"bundle_key": "packing_lists"}),
+            {"carton_ids": f"{carton_a.id},{carton_b.id}", "format": "continuous"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="carton-packing-lists-print-document"')
+        self.assertContains(response, "C-CONT-A")
+        self.assertContains(response, "C-CONT-B")
+        self.assertEqual(response.content.decode().count('class="packing-sheet"'), 2)
+
+    def test_scan_cartons_view_bundle_routes_packing_lists_to_a4_four_up_print_document(self):
+        carton_a = self._create_standalone_carton_with_item()
+        carton_a.code = "C-A4-A"
+        carton_a.save(update_fields=["code"])
+        product_lot = carton_a.cartonitem_set.first().product_lot
+        carton_b = Carton.objects.create(code="C-A4-B")
+        CartonItem.objects.create(carton=carton_b, product_lot=product_lot, quantity=1)
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_view_bundle", kwargs={"bundle_key": "packing_lists"}),
+            {"carton_ids": f"{carton_a.id},{carton_b.id}", "format": "a4_4up"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-carton-lists-a4-print-document"')
+        self.assertContains(response, "C-A4-A")
+        self.assertContains(response, "C-A4-B")
+        self.assertEqual(response.content.decode().count('class="packing-four-up-item"'), 2)
 
     def test_scan_shipment_view_bundle_routes_all_to_orchestrator_page(self):
         shipment = self._create_shipment()
