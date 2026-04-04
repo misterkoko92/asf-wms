@@ -88,7 +88,7 @@
               </td>
               <td>
                 <div><strong>{{ row.match_type }}</strong></div>
-                <select name="row_{{ row.index }}_match" class="listing-match" data-row-index="{{ row.index }}">
+                <select name="row_{{ row.index }}_match" class="form-select ui-select--lg listing-match" data-row-index="{{ row.index }}">
                   <option value="new" {% if row.default_match == "new" %}selected{% endif %}>{% trans "Nouveau produit" %}</option>
                   {% for option in row.match_options %}
                     <option

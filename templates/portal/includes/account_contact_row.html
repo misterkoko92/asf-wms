@@ -2,7 +2,7 @@
 
 <div class="portal-contact-row" data-contact-row="{{ row.index }}">
   <div class="scan-field">
-    <select class="form-select" name="contact_{{ row.index }}_title">
+    <select class="form-select ui-select--md" name="contact_{{ row.index }}_title">
       <option value="">-</option>
       {% for value, label in contact_title_choices %}
         <option value="{{ value }}" {% if row.title == value %}selected{% endif %}>{{ label }}</option>

@@ -78,7 +78,7 @@
               <td>{{ column.name }}</td>
               <td>{{ column.sample }}</td>
               <td>
-                <select name="map_{{ column.index }}">
+                <select name="map_{{ column.index }}" class="form-select ui-select--lg">
                   <option value="">{% trans "Ignorer" %}</option>
                   {% for value, label in mapping_fields %}
                     <option value="{{ value }}" {% if column.mapped == value %}selected{% endif %}>{{ label }}</option>

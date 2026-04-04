@@ -10,12 +10,18 @@
 {% block content %}
   {% get_current_language as current_language %}
   {% trans "Inclure les produits avec stock à 0" as include_zero_label %}
+  {% trans "Toutes catégories" as all_categories_label %}
+  {% trans "Toutes sous-catégories" as all_subcategories_label %}
+  {{ category_paths_by_id|json_script:"scan-stock-category-paths-by-id" }}
+  {{ category_labels_by_id|json_script:"scan-stock-category-labels-by-id" }}
+  {{ category_filter_max_depth|json_script:"scan-stock-category-filter-max-depth" }}
+  {{ selected_category_path|json_script:"scan-stock-selected-category-path" }}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title">
       {% if current_language == "fr" %}{% trans "Vue stock" %}{% else %}{% trans "Stock view" %}{% endif %}
     </h2>
     <form method="get" class="scan-filters row g-3 ui-comp-form scan-stock-filter-row">
-      <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-3">
         <label class="form-label" for="id_q">
           {% if current_language == "fr" %}{% trans "Recherche" %}{% else %}{% trans "Search" %}{% endif %}
         </label>
@@ -23,18 +29,8 @@
       </div>
 
       <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_category">{% trans "Catégorie" %}</label>
-        <select id="id_category" name="category" class="form-select">
-          <option value="">{% trans "Toutes catégories" %}</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}" {% if category_id == category.id|stringformat:"s" %}selected{% endif %}>{{ category }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_warehouse">{% trans "Entrepôt" %}</label>
-        <select id="id_warehouse" name="warehouse" class="form-select">
+        <select id="id_warehouse" name="warehouse" class="form-select ui-select--md">
           <option value="">{% trans "Tous entrepôts" %}</option>
           {% for warehouse in warehouses %}
             <option value="{{ warehouse.id }}" {% if warehouse_id == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
@@ -44,7 +40,7 @@
 
       <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_sort">{% trans "Tri" %}</label>
-        <select id="id_sort" name="sort" class="form-select">
+        <select id="id_sort" name="sort" class="form-select ui-select--md">
           <option value="category" {% if sort == "category" %}selected{% endif %}>{% trans "Catégorie" %}</option>
           <option value="name" {% if sort == "name" %}selected{% endif %}>{% trans "Nom" %}</option>
           <option value="sku" {% if sort == "sku" %}selected{% endif %}>{% trans "Référence" %}</option>
@@ -52,8 +48,32 @@
           <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>{% trans "Stock décroissant" %}</option>
         </select>
       </div>
-      <div class="scan-field scan-stock-switch-field col-12 col-md-6 col-lg-4 d-flex align-items-end">
+      <div class="scan-field scan-stock-switch-field col-12 col-md-6 col-lg-5 d-flex align-items-end">
         {% ui_switch name="include_zero" id="id_include_zero" label=include_zero_label checked=include_zero wide=True extra_classes="mt-2" %}
+      </div>
+
+      <div class="scan-field scan-stock-field col-12">
+        <input type="hidden" id="id_category" name="category" value="{{ category_id }}">
+        <label class="form-label" for="scan-stock-category-l1">{% trans "Catégorie" %}</label>
+        <div
+          id="scan-stock-category-filters"
+          class="scan-filter-actions ui-comp-actions d-flex flex-wrap flex-xl-nowrap gap-2"
+          data-all-categories-label="{{ all_categories_label }}"
+          data-all-subcategories-label="{{ all_subcategories_label }}"
+        >
+          <select class="form-select form-select-sm ui-select--sm" id="scan-stock-category-l1" data-filter-level="0">
+            <option value="">{{ all_categories_label }}</option>
+          </select>
+          <select class="form-select form-select-sm ui-select--sm" id="scan-stock-category-l2" data-filter-level="1" hidden>
+            <option value="">{{ all_subcategories_label }} (L2)</option>
+          </select>
+          <select class="form-select form-select-sm ui-select--sm" id="scan-stock-category-l3" data-filter-level="2" hidden>
+            <option value="">{{ all_subcategories_label }} (L3)</option>
+          </select>
+          <select class="form-select form-select-sm ui-select--sm" id="scan-stock-category-l4" data-filter-level="3" hidden>
+            <option value="">{{ all_subcategories_label }} (L4)</option>
+          </select>
+        </div>
       </div>
 
       <div class="scan-filter-actions scan-stock-filter-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
@@ -113,4 +133,169 @@
       </p>
     {% endif %}
   </div>
+  <script>
+    (function () {
+      const categoryPathsByIdEl = document.getElementById('scan-stock-category-paths-by-id');
+      const categoryLabelsByIdEl = document.getElementById('scan-stock-category-labels-by-id');
+      const categoryFilterDepthEl = document.getElementById('scan-stock-category-filter-max-depth');
+      const selectedCategoryPathEl = document.getElementById('scan-stock-selected-category-path');
+      const categoryInput = document.getElementById('id_category');
+      const filtersRoot = document.getElementById('scan-stock-category-filters');
+      if (!categoryPathsByIdEl || !categoryLabelsByIdEl || !categoryInput || !filtersRoot) {
+        return;
+      }
+
+      let categoryPathsById = {};
+      let categoryLabelsById = {};
+      let categoryFilterMaxDepth = 0;
+      let selectedCategoryPath = [];
+      try {
+        categoryPathsById = JSON.parse(categoryPathsByIdEl.textContent || '{}');
+      } catch (err) {
+        categoryPathsById = {};
+      }
+      try {
+        categoryLabelsById = JSON.parse(categoryLabelsByIdEl.textContent || '{}');
+      } catch (err) {
+        categoryLabelsById = {};
+      }
+      try {
+        categoryFilterMaxDepth = parseInt(categoryFilterDepthEl ? categoryFilterDepthEl.textContent || '0' : '0', 10) || 0;
+      } catch (err) {
+        categoryFilterMaxDepth = 0;
+      }
+      try {
+        selectedCategoryPath = JSON.parse(selectedCategoryPathEl ? selectedCategoryPathEl.textContent || '[]' : '[]');
+      } catch (err) {
+        selectedCategoryPath = [];
+      }
+
+      const categorySelects = [
+        document.getElementById('scan-stock-category-l1'),
+        document.getElementById('scan-stock-category-l2'),
+        document.getElementById('scan-stock-category-l3'),
+        document.getElementById('scan-stock-category-l4'),
+      ].filter(Boolean);
+      const allCategoriesLabel = filtersRoot.dataset.allCategoriesLabel || 'Toutes catégories';
+      const allSubcategoriesLabel = filtersRoot.dataset.allSubcategoriesLabel || 'Toutes sous-catégories';
+
+      const categoryPrefixMatches = (path, prefix) =>
+        prefix.every((value, idx) => path[idx] === value);
+
+      const selectedPrefixForLevel = (level) => {
+        const prefix = [];
+        for (let idx = 0; idx < level; idx += 1) {
+          const value = (categorySelects[idx].value || '').trim();
+          if (!value) {
+            return null;
+          }
+          prefix.push(value);
+        }
+        return prefix;
+      };
+
+      const optionsForLevel = (level, prefix) => {
+        const optionsMap = new Map();
+        Object.entries(categoryPathsById).forEach(([categoryId, path]) => {
+          if (!Array.isArray(path) || path.length <= level) {
+            return;
+          }
+          if (!categoryPrefixMatches(path, prefix)) {
+            return;
+          }
+          const optionId = path[level];
+          if (!optionsMap.has(optionId)) {
+            optionsMap.set(optionId, categoryLabelsById[optionId] || optionId);
+          }
+        });
+        return Array.from(optionsMap.entries()).sort((left, right) =>
+          String(left[1] || '').localeCompare(String(right[1] || ''), 'fr', {
+            sensitivity: 'base',
+          })
+        );
+      };
+
+      const setSelectOptions = (select, options, level, preferredValue) => {
+        select.innerHTML = '';
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent =
+          level === 0 ? allCategoriesLabel : `${allSubcategoriesLabel} (L${level + 1})`;
+        select.appendChild(empty);
+        options.forEach(([value, label]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          select.appendChild(option);
+        });
+        if (preferredValue && options.some(([value]) => value === preferredValue)) {
+          select.value = preferredValue;
+        } else {
+          select.value = '';
+        }
+      };
+
+      const syncHiddenCategory = () => {
+        let deepestSelection = '';
+        categorySelects.forEach((select) => {
+          const value = (select.value || '').trim();
+          if (!select.hidden && value) {
+            deepestSelection = value;
+          }
+        });
+        categoryInput.value = deepestSelection;
+      };
+
+      const updateCategorySelects = ({ initial }) => {
+        for (let level = 0; level < categorySelects.length; level += 1) {
+          const select = categorySelects[level];
+          if (level >= categoryFilterMaxDepth) {
+            select.hidden = true;
+            select.value = '';
+            continue;
+          }
+          if (level === 0) {
+            setSelectOptions(
+              select,
+              optionsForLevel(0, []),
+              level,
+              initial ? (selectedCategoryPath[0] || '') : (select.value || '').trim()
+            );
+            select.hidden = false;
+            continue;
+          }
+          const prefix = selectedPrefixForLevel(level);
+          if (!prefix) {
+            select.hidden = true;
+            select.value = '';
+            continue;
+          }
+          const options = optionsForLevel(level, prefix);
+          setSelectOptions(
+            select,
+            options,
+            level,
+            initial ? (selectedCategoryPath[level] || '') : (select.value || '').trim()
+          );
+          select.hidden = options.length === 0;
+          if (select.hidden) {
+            select.value = '';
+          }
+        }
+        syncHiddenCategory();
+      };
+
+      categorySelects.forEach((select, index) => {
+        select.addEventListener('change', function () {
+          for (let nextIndex = index + 1; nextIndex < categorySelects.length; nextIndex += 1) {
+            categorySelects[nextIndex].value = '';
+            categorySelects[nextIndex].hidden = true;
+          }
+          updateCategorySelects({ initial: false });
+        });
+      });
+
+      updateCategorySelects({ initial: true });
+    })();
+  </script>
 {% endblock %}

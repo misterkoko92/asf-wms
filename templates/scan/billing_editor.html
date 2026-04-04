@@ -20,7 +20,7 @@
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
           <label class="form-label" for="id_association_profile">Association</label>
-          <select id="id_association_profile" name="association_profile">
+          <select id="id_association_profile" name="association_profile" class="form-select ui-select--lg">
             <option value="">-- Selectionner --</option>
             {% for profile in association_profiles %}
               <option value="{{ profile.id }}" {% if selected_association_profile and selected_association_profile.id == profile.id %}selected{% endif %}>
@@ -31,7 +31,7 @@
         </div>
         <div class="scan-field">
           <label class="form-label" for="id_kind">Type document</label>
-          <select id="id_kind" name="kind">
+          <select id="id_kind" name="kind" class="form-select ui-select--md">
             {% for kind_value, kind_label in billing_document_kind_choices %}
               {% if kind_value != "credit_note" %}
                 <option value="{{ kind_value }}" {% if selected_kind == kind_value %}selected{% endif %}>{{ kind_label }}</option>
@@ -299,7 +299,7 @@
             </div>
             <div class="scan-field">
               <label class="form-label" for="id_payment_method">Mode de paiement</label>
-              <select id="id_payment_method" name="payment_method">
+              <select id="id_payment_method" name="payment_method" class="form-select ui-select--md">
                 {% for value, label in billing_payment_method_choices %}
                   <option value="{{ value }}">{{ label }}</option>
                 {% endfor %}

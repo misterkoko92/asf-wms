@@ -159,6 +159,27 @@ class ScanBootstrapUiTests(TestCase):
             html=True,
         )
 
+    def test_scan_stock_exposes_multi_level_category_filters(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-stock-category-l1"')
+        self.assertContains(response, 'id="scan-stock-category-l2"')
+        self.assertContains(response, 'id="scan-stock-category-l3"')
+        self.assertContains(response, 'id="scan-stock-category-l4"')
+        self.assertContains(response, 'id="scan-stock-category-filters"')
+        self.assertContains(response, 'type="hidden" id="id_category" name="category"')
+
+    def test_scan_stock_applies_shared_select_size_classes_to_filters(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="id_warehouse"')
+        self.assertContains(response, 'id="id_sort"')
+        self.assertContains(response, 'id="scan-stock-category-l1"')
+        self.assertContains(response, "ui-select--md")
+        self.assertContains(response, "ui-select--sm")
+
     def test_scan_admin_products_keeps_filter_and_row_action_contract(self):
         self.client.force_login(self.superuser)
         component = Product.objects.create(
@@ -260,6 +281,15 @@ class ScanBootstrapUiTests(TestCase):
             response,
             'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl"',
         )
+
+    def test_scan_masthead_exposes_history_navigation_buttons(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-history-back"')
+        self.assertContains(response, 'id="scan-history-forward"')
+        self.assertContains(response, "window.history.back()")
+        self.assertContains(response, "window.history.forward()")
 
     def test_scan_nav_renders_shipments_group_instead_of_single_link(self):
         response = self.client.get(reverse("scan:scan_shipments_ready"))
@@ -682,6 +712,17 @@ class ScanBootstrapUiTests(TestCase):
             css_content,
         )
 
+    def test_scan_bootstrap_css_defines_shared_select_contract(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(".scan-bootstrap-enabled .form-select {", css_content)
+        self.assertIn("background-image:", css_content)
+        self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--sm", css_content)
+        self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--md", css_content)
+        self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--lg", css_content)
+        self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--xl", css_content)
+
     def test_scan_css_does_not_keep_removed_theme_selectors_or_toggle_controls(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.css"
         css_content = css_path.read_text(encoding="utf-8")
@@ -865,7 +906,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("if (!bindingPairs.length) {\n        return false;\n      }", js_content)
         self.assertNotIn("if (!bindingPairs.length) {\n        return true;\n      }", js_content)
 
-    def test_scan_shipment_create_places_secondary_draft_button_before_primary_submit(self):
+    def test_scan_shipment_create_places_multi_product_button_before_primary_submit(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))
 
         self.assertEqual(response.status_code, 200)
@@ -874,7 +915,7 @@ class ScanBootstrapUiTests(TestCase):
         details_end = content.index("</form>", details_start)
         details_content = content[details_start:details_end]
         self.assertLess(
-            details_content.index('name="action" value="save_draft"'),
+            details_content.index('name="action" value="create_pack"'),
             details_content.index('class="scan-submit btn btn-primary"'),
         )
 
@@ -1585,6 +1626,16 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(design_response.status_code, 200)
         self.assertContains(design_response, reverse("scan:scan_ui_lab"))
+
+    def test_scan_ui_lab_exposes_shared_select_size_classes(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-toolbar-status"')
+        self.assertContains(response, "ui-select--sm")
+        self.assertContains(response, "ui-select--lg")
 
     def test_scan_ui_lab_exposes_recommended_toolbar_demo_contract(self):
         self.client.force_login(self.superuser)

@@ -28,7 +28,7 @@
             </label>
             <select id="scan-admin-contact-action-target-id"
                     name="target_contact_id"
-                    class="form-select">
+                    class="form-select ui-select--lg">
                 <option value="">{% trans "Choisir..." %}</option>
                 {% for contact in contact_action_merge_targets %}
                     <option value="{{ contact.id }}"

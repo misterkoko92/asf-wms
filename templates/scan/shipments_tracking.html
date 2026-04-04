@@ -27,14 +27,14 @@
       </div>
       <div class="scan-field col-12 col-md-6">
         <label class="form-label" for="id_closed">{% trans "Dossiers clos" %}</label>
-        <select id="id_closed" name="closed" class="form-select">
+        <select id="id_closed" name="closed" class="form-select ui-select--md">
           <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>{% trans "Exclure clos" %}</option>
           <option value="all" {% if closed_filter == "all" %}selected{% endif %}>{% trans "Inclure clos" %}</option>
         </select>
       </div>
       <div class="scan-field col-12 col-md-6">
         <label class="form-label" for="id_dispute">{% trans "Litiges" %}</label>
-        <select id="id_dispute" name="dispute" class="form-select">
+        <select id="id_dispute" name="dispute" class="form-select ui-select--md">
           <option value="all" {% if dispute_filter == "all" %}selected{% endif %}>{% trans "Tous" %}</option>
           <option value="open" {% if dispute_filter == "open" %}selected{% endif %}>{% trans "Ouverts" %}</option>
           <option value="overdue" {% if dispute_filter == "overdue" %}selected{% endif %}>{% trans "En retard" %}</option>

@@ -82,7 +82,7 @@
       {% if item.products|length > 1 %}
         <div class="scan-field">
           <label class="form-label" for="match_id_{{ item.row_index }}">{% trans "Produit existant" %}</label>
-          <select id="match_id_{{ item.row_index }}" name="match_id_{{ item.row_index }}">
+          <select id="match_id_{{ item.row_index }}" name="match_id_{{ item.row_index }}" class="form-select ui-select--lg">
             {% for product in item.products %}
               <option value="{{ product.id }}">
                 {{ product.sku }} - {{ product.name }}{% if product.brand %} ({{ product.brand }}){% endif %}

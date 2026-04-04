@@ -56,7 +56,7 @@
           {% else %}
             <div class="scan-field">
               <label class="form-label" for="account_type">{% trans "Profil" %}</label>
-              <select class="form-select" id="account_type" name="account_type">
+              <select class="form-select ui-select--md" id="account_type" name="account_type">
                 <option value="{{ ACCOUNT_TYPE_ASSOCIATION }}" {% if form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>{% trans "Association" %}</option>
                 <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>{% trans "Utilisateur WMS" %}</option>
               </select>

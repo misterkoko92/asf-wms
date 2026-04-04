@@ -78,6 +78,12 @@
   --wms-input-placeholder: #7a8b84;
   --wms-input-focus-border: #6f9a8d;
   --wms-input-focus-shadow: 0 0 0 0.2rem rgba(111, 154, 141, 0.24);
+  --wms-select-icon-size: 0.8rem;
+  --wms-select-icon-offset-x: 0.9rem;
+  --wms-select-width-sm: 10rem;
+  --wms-select-width-md: 14rem;
+  --wms-select-width-lg: 18rem;
+  --wms-select-width-xl: 24rem;
   --wms-nav-item-bg: #fffdf9;
   --wms-nav-item-text: #2f3a36;
   --wms-nav-item-border: #d9e2dc;
@@ -700,6 +706,32 @@ body.scan-bootstrap-enabled {
   color: var(--wms-input-text);
   padding: var(--wms-input-padding-y) var(--wms-input-padding-x);
   box-shadow: none;
+}
+
+.scan-bootstrap-enabled .form-select {
+  padding-right: calc(
+    var(--wms-input-padding-x) + var(--wms-select-icon-size) + var(--wms-select-icon-offset-x) + 0.7rem
+  );
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%235a6964' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--wms-select-icon-offset-x) center;
+  background-size: var(--wms-select-icon-size) var(--wms-select-icon-size);
+}
+
+.scan-bootstrap-enabled .form-select.ui-select--sm {
+  width: min(100%, var(--wms-select-width-sm));
+}
+
+.scan-bootstrap-enabled .form-select.ui-select--md {
+  width: min(100%, var(--wms-select-width-md));
+}
+
+.scan-bootstrap-enabled .form-select.ui-select--lg {
+  width: min(100%, var(--wms-select-width-lg));
+}
+
+.scan-bootstrap-enabled .form-select.ui-select--xl {
+  width: min(100%, var(--wms-select-width-xl));
 }
 
 .scan-bootstrap-enabled .form-control::placeholder,

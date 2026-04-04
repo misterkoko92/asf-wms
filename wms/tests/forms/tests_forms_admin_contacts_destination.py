@@ -61,3 +61,12 @@ class DestinationCrudFormTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("duplicate_target_id", form.errors)
+
+    def test_select_widgets_use_shared_select_size_classes(self):
+        form = DestinationCrudForm()
+
+        self.assertIn(
+            "ui-select--lg",
+            form.fields["correspondent_contact_id"].widget.attrs["class"],
+        )
+        self.assertIn("ui-select--md", form.fields["duplicate_action"].widget.attrs["class"])

@@ -160,7 +160,7 @@
                   <div class="scan-field">
                     <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
                     <div class="scan-inline">
-                      <select id="id_carton_format" name="carton_format_id">
+                      <select id="id_carton_format" name="carton_format_id" class="form-select ui-select--xl">
                         {% for format in carton_formats %}
                           {% with format_id=format.id|stringformat:"s" %}
                             <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
@@ -200,7 +200,7 @@
           <div class="scan-field">
             <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
             <div class="scan-inline">
-              <select id="id_carton_format" name="carton_format_id">
+              <select id="id_carton_format" name="carton_format_id" class="form-select ui-select--xl">
                 {% for format in carton_formats %}
                   {% with format_id=format.id|stringformat:"s" %}
                     <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>

@@ -42,6 +42,7 @@ from .view_permissions import (
     BLOCKED_REASON_QUERY_PARAM,
     association_required,
 )
+from .view_utils import sorted_choices
 
 TEMPLATE_RECIPIENTS = "portal/recipients.html"
 TEMPLATE_ACCOUNT = "portal/account.html"
@@ -722,8 +723,8 @@ def _build_portal_account_context(
         "address": address,
         "notification_emails": profile.notification_emails,
         "billing_profile": profile.billing_profile,
-        "billing_frequency_choices": list(AssociationBillingFrequency.choices),
-        "billing_grouping_mode_choices": list(AssociationBillingGroupingMode.choices),
+        "billing_frequency_choices": sorted_choices(AssociationBillingFrequency.choices),
+        "billing_grouping_mode_choices": sorted_choices(AssociationBillingGroupingMode.choices),
         "billing_change_requests": list(
             profile.billing_change_requests.order_by("-requested_at")[:5]
         ),
@@ -734,7 +735,7 @@ def _build_portal_account_context(
         or _build_profile_form_data(association=association, address=address),
         "portal_contact_rows": portal_contact_rows or _build_contact_rows(profile),
         "empty_portal_contact_row": _build_default_contact_row(index="__INDEX__"),
-        "contact_title_choices": list(AssociationContactTitle.choices),
+        "contact_title_choices": sorted_choices(AssociationContactTitle.choices),
         "max_portal_contacts": MAX_PORTAL_CONTACTS,
         "portal_account_add_contact_button_attrs": {"id": "add-contact-row"},
         "user": user,
@@ -749,12 +750,15 @@ def portal_recipients(request):
     errors = []
     form_data = _build_default_recipient_form_data()
     editing_recipient = None
-    destinations = list(Destination.objects.filter(is_active=True).order_by("city"))
+    destinations = sorted(
+        Destination.objects.filter(is_active=True),
+        key=lambda destination: str(destination).lower(),
+    )
     destinations_by_id = {destination.id: destination for destination in destinations}
     blocked_reason = (request.GET.get(BLOCKED_REASON_QUERY_PARAM) or "").strip()
     blocked_popup_message = ""
     duplicate_recipient_suggestions = []
-    legal_form_choices = list(RecipientLegalForm.choices)
+    legal_form_choices = sorted_choices(RecipientLegalForm.choices)
     if blocked_reason in {BLOCKED_REASON_MISSING_DELIVERY_CONTACT}:
         blocked_popup_message = BLOCKED_MESSAGES.get(blocked_reason, "")
 
@@ -811,7 +815,7 @@ def portal_recipients(request):
             "form_data": form_data,
             "editing_recipient": editing_recipient,
             "destinations": destinations,
-            "contact_title_choices": list(AssociationContactTitle.choices),
+            "contact_title_choices": sorted_choices(AssociationContactTitle.choices),
             "legal_form_choices": legal_form_choices,
             "country_choices": build_country_choices(form_data.get("country")),
             "blocked_popup_message": blocked_popup_message,

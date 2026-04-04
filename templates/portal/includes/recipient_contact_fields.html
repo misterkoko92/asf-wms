@@ -4,7 +4,7 @@
   <div class="portal-recipient-grid-3">
     <div class="scan-field">
       <label class="form-label" for="contact_title">{% trans "Titre du contact" %}</label>
-      <select class="form-select" id="contact_title" name="contact_title">
+      <select class="form-select ui-select--md" id="contact_title" name="contact_title">
         <option value="">---------</option>
         {% for value, label in contact_title_choices %}
           <option value="{{ value }}" {% if form_data.contact_title == value %}selected{% endif %}>{{ label }}</option>

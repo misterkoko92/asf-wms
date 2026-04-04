@@ -9,6 +9,20 @@ from .models import (
     PlanningRun,
     PlanningVersionStatus,
 )
+from .view_utils import sorted_choices
+
+
+def _append_widget_class(field, css_class):
+    existing_class = field.widget.attrs.get("class", "").strip()
+    classes = [item for item in existing_class.split() if item]
+    if css_class not in classes:
+        classes.append(css_class)
+    field.widget.attrs["class"] = " ".join(classes)
+
+
+def _sort_field_choices(field):
+    if hasattr(field, "choices"):
+        field.choices = sorted_choices(field.choices)
 
 
 class PlanningRunForm(forms.ModelForm):
@@ -32,6 +46,18 @@ class PlanningRunForm(forms.ModelForm):
             "week_start": forms.DateInput(attrs={"type": "date"}),
             "week_end": forms.DateInput(attrs={"type": "date"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _sort_field_choices(self.fields["parameter_set"])
+        _sort_field_choices(self.fields["flight_mode"])
+        _sort_field_choices(self.fields["flight_batch"])
+        _append_widget_class(self.fields["parameter_set"], "form-select")
+        _append_widget_class(self.fields["parameter_set"], "ui-select--lg")
+        _append_widget_class(self.fields["flight_mode"], "form-select")
+        _append_widget_class(self.fields["flight_mode"], "ui-select--md")
+        _append_widget_class(self.fields["flight_batch"], "form-select")
+        _append_widget_class(self.fields["flight_batch"], "ui-select--lg")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -71,6 +97,14 @@ class PlanningAssignmentForm(forms.ModelForm):
             if version.status != PlanningVersionStatus.DRAFT:
                 for field in self.fields.values():
                     field.disabled = True
+        _sort_field_choices(self.fields["volunteer_snapshot"])
+        _sort_field_choices(self.fields["status"])
+        _append_widget_class(self.fields["volunteer_snapshot"], "form-select")
+        _append_widget_class(self.fields["volunteer_snapshot"], "ui-select--lg")
+        _append_widget_class(self.fields["flight_snapshot"], "form-select")
+        _append_widget_class(self.fields["flight_snapshot"], "ui-select--lg")
+        _append_widget_class(self.fields["status"], "form-select")
+        _append_widget_class(self.fields["status"], "ui-select--md")
 
 
 PlanningAssignmentFormSet = forms.modelformset_factory(

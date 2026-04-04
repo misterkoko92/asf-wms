@@ -87,19 +87,19 @@
             <tr class="mapping-row">
               <td class="mapping-index">{{ forloop.counter }}</td>
               <td>
-                <select name="mapping_worksheet" class="form-select form-select-sm mapping-worksheet" data-selected="{{ row.worksheet_name }}"></select>
+                <select name="mapping_worksheet" class="form-select form-select-sm ui-select--sm mapping-worksheet" data-selected="{{ row.worksheet_name }}"></select>
               </td>
               <td>
-                <select name="mapping_column" class="form-select form-select-sm mapping-column" data-selected="{{ row.column }}"></select>
+                <select name="mapping_column" class="form-select form-select-sm ui-select--sm mapping-column" data-selected="{{ row.column }}"></select>
               </td>
               <td>
-                <select name="mapping_row" class="form-select form-select-sm mapping-row-number" data-selected="{{ row.row }}"></select>
+                <select name="mapping_row" class="form-select form-select-sm ui-select--sm mapping-row-number" data-selected="{{ row.row }}"></select>
               </td>
               <td>
                 <input type="text" class="form-control form-control-sm mapping-cell-ref" value="{{ row.cell_ref }}" readonly>
               </td>
               <td>
-                <select name="mapping_source_key" class="form-select form-select-sm">
+                <select name="mapping_source_key" class="form-select form-select-sm ui-select--sm">
                   <option value="">{% trans "-- Choisir --" %}</option>
                   {% for source_key in source_keys %}
                     <option value="{{ source_key }}"{% if source_key == row.source_key %} selected{% endif %}>{{ source_key }}</option>
@@ -107,7 +107,7 @@
                 </select>
               </td>
               <td>
-                <select name="mapping_transform" class="form-select form-select-sm">
+                <select name="mapping_transform" class="form-select form-select-sm ui-select--sm">
                   {% for transform in transform_choices %}
                     <option value="{{ transform }}"{% if transform == row.transform %} selected{% endif %}>
                       {% if transform == "" %}
@@ -120,7 +120,7 @@
                 </select>
               </td>
               <td>
-                <select name="mapping_required" class="form-select form-select-sm">
+                <select name="mapping_required" class="form-select form-select-sm ui-select--sm">
                   <option value="0"{% if not row.required %} selected{% endif %}>{% trans "non" %}</option>
                   <option value="1"{% if row.required %} selected{% endif %}>{% trans "oui" %}</option>
                 </select>

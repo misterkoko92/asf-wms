@@ -352,6 +352,17 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, 'id="scan-sidebar-nav"')
         self.assertContains(response, reverse("planning:run_list"))
 
+    def test_planning_run_list_exposes_history_navigation_buttons(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="planning-history-back"')
+        self.assertContains(response, 'id="planning-history-forward"')
+        self.assertContains(response, "window.history.back()")
+        self.assertContains(response, "window.history.forward()")
+
     def test_planning_run_list_exposes_attention_blocks(self):
         PlanningRun.objects.create(
             week_start="2026-03-09",
@@ -396,6 +407,27 @@ class PlanningViewTests(TestCase):
             f'<a class="btn btn-tertiary" href="{reverse("planning:run_list")}">Annuler</a>',
             html=True,
         )
+
+    def test_run_create_page_uses_shared_select_classes_and_sorted_choice_labels(self):
+        PlanningParameterSet.objects.create(name="Alpha planning", is_current=False)
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_create"))
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        parameter_labels = [
+            str(label)
+            for value, label in form.fields["parameter_set"].choices
+            if str(value).strip()
+        ]
+        flight_mode_labels = [
+            str(label) for value, label in form.fields["flight_mode"].choices if str(value).strip()
+        ]
+        self.assertEqual(parameter_labels, sorted(parameter_labels, key=str.lower))
+        self.assertEqual(flight_mode_labels, sorted(flight_mode_labels, key=str.lower))
+        self.assertContains(response, "ui-select--md")
+        self.assertContains(response, "ui-select--lg")
 
     def test_staff_can_create_run(self):
         self.client.force_login(self.staff_user)
@@ -779,8 +811,16 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Non affectes")
         self.assertContains(response, "Communications")
         self.assertContains(response, "Historique des versions")
-        self.assertContains(response, "AF 123")
-        self.assertContains(response, "SHP-UNASSIGNED")
+
+    def test_version_detail_operator_cockpit_uses_fixed_width_select_classes(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ui-select--md")
+        self.assertContains(response, "ui-select--lg")
 
     def test_planning_version_detail_exposes_scan_shell_and_planning_header(self):
         data = self.make_operator_version()

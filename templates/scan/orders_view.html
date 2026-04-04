@@ -62,7 +62,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                    <select name="review_status" class="form-select">
+                    <select name="review_status" class="form-select form-select-sm ui-select--sm">
                       {% for value, label in review_status_choices %}
                         <option value="{{ value }}" {% if value == row.order.review_status %}selected{% endif %}>
                           {{ label }}

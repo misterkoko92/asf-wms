@@ -166,7 +166,7 @@
                         <label class="form-label" for="scan-shipment-link-id">{% trans "Lien expéditeur → destinataire" %}</label>
                         <select id="scan-shipment-link-id"
                                 name="link_id"
-                                class="form-select"
+                                class="form-select ui-select--lg"
                                 required>
                             <option value="">{% trans "Choisir..." %}</option>
                             {% for link in cockpit_shipment_links %}
@@ -182,7 +182,7 @@
                         <label class="form-label" for="scan-shipment-recipient-contact-id">{% trans "Référent autorisé" %}</label>
                         <select id="scan-shipment-recipient-contact-id"
                                 name="recipient_contact_id"
-                                class="form-select"
+                                class="form-select ui-select--lg"
                                 required>
                             <option value="">{% trans "Choisir..." %}</option>
                             {% for option in cockpit_shipment_authorization_options %}
@@ -219,7 +219,7 @@
                         </label>
                         <select id="scan-stopover-correspondent-id"
                                 name="recipient_organization_id"
-                                class="form-select"
+                                class="form-select ui-select--lg"
                                 required>
                             <option value="">{% trans "Choisir..." %}</option>
                             {% for recipient in cockpit_shipment_recipient_organizations %}
@@ -255,7 +255,7 @@
                         <label class="form-label" for="scan-merge-source-recipient-organization">{% trans "Structure source" %}</label>
                         <select id="scan-merge-source-recipient-organization"
                                 name="source_recipient_organization_id"
-                                class="form-select"
+                                class="form-select ui-select--lg"
                                 required>
                             <option value="">{% trans "Choisir..." %}</option>
                             {% for recipient in cockpit_shipment_recipient_organizations %}
@@ -272,7 +272,7 @@
                         <label class="form-label" for="scan-merge-target-recipient-organization">{% trans "Structure cible" %}</label>
                         <select id="scan-merge-target-recipient-organization"
                                 name="target_recipient_organization_id"
-                                class="form-select"
+                                class="form-select ui-select--lg"
                                 required>
                             <option value="">{% trans "Choisir..." %}</option>
                             {% for recipient in cockpit_shipment_recipient_organizations %}

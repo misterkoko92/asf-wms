@@ -95,7 +95,7 @@
 
               <div class="scan-field">
                 <label class="form-label" for="id_dispute_reason">{% trans "Motif du litige" %}</label>
-                <select id="id_dispute_reason" name="dispute_reason" class="form-select">
+                <select id="id_dispute_reason" name="dispute_reason" class="form-select ui-select--lg">
                   <option value="">{% trans "Sélectionner" %}</option>
                   {% for value, label in dispute_form.reason_options %}
                     <option value="{{ value }}" {% if dispute_form.reason_value == value %}selected{% endif %}>{{ label }}</option>
@@ -105,7 +105,7 @@
 
               <div class="scan-field">
                 <label class="form-label" for="id_dispute_owner">{% trans "Owner" %}</label>
-                <select id="id_dispute_owner" name="dispute_owner" class="form-select">
+                <select id="id_dispute_owner" name="dispute_owner" class="form-select ui-select--md">
                   <option value="">{% trans "Sans owner" %}</option>
                   {% for value, label in dispute_form.owner_options %}
                     <option value="{{ value }}" {% if dispute_form.owner_value == value %}selected{% endif %}>{{ label }}</option>
@@ -115,7 +115,7 @@
 
               <div class="scan-field">
                 <label class="form-label" for="id_dispute_status">{% trans "État du litige" %}</label>
-                <select id="id_dispute_status" name="dispute_status" class="form-select">
+                <select id="id_dispute_status" name="dispute_status" class="form-select ui-select--md">
                   {% for choice in dispute_form.status_options %}
                     <option value="{{ choice.value }}" {% if dispute_form.status_value == choice.value %}selected{% endif %}>{{ choice.label }}</option>
                   {% endfor %}

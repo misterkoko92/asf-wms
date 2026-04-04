@@ -13,7 +13,7 @@
     <div class="portal-grid-2">
       <div class="scan-field">
         <label class="form-label" for="id_billing_frequency">{% trans "Périodicité" %}</label>
-        <select class="form-select" id="id_billing_frequency" name="billing_frequency">
+        <select class="form-select ui-select--md" id="id_billing_frequency" name="billing_frequency">
           {% for value, label in billing_frequency_choices %}
             <option value="{{ value }}" {% if billing_profile.billing_frequency == value %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
@@ -21,7 +21,7 @@
       </div>
       <div class="scan-field">
         <label class="form-label" for="id_billing_grouping_mode">{% trans "Regroupement" %}</label>
-        <select class="form-select" id="id_billing_grouping_mode" name="billing_grouping_mode">
+        <select class="form-select ui-select--md" id="id_billing_grouping_mode" name="billing_grouping_mode">
           {% for value, label in billing_grouping_mode_choices %}
             <option value="{{ value }}" {% if billing_profile.grouping_mode == value %}selected{% endif %}>{{ label }}</option>
           {% endfor %}

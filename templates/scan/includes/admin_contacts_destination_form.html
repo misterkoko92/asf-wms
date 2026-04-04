@@ -82,7 +82,7 @@
                         </label>
                         <select id="{{ destination_form.duplicate_action.id_for_label }}"
                                 name="duplicate_action"
-                                class="form-select"
+                                class="form-select ui-select--md"
                                 data-duplicate-action="1">
                             {% for value, label in destination_form.fields.duplicate_action.choices %}
                                 <option value="{{ value }}"
@@ -97,7 +97,7 @@
                         </label>
                         <select id="scan-admin-destination-duplicate-target"
                                 name="duplicate_target_id"
-                                class="form-select">
+                                class="form-select ui-select--lg">
                             <option value="">{% trans "Choisir..." %}</option>
                             {% for candidate in destination_duplicate_candidates %}
                                 <option value="{{ candidate.id }}"

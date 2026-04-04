@@ -164,3 +164,43 @@ class StockViewHelpersTests(TestCase):
         )
         self.assertEqual([item.stock_total for item in products], [3, 0])
         self.assertTrue(context_include_zero["include_zero"])
+
+    def test_build_stock_context_filters_selected_category_subtree(self):
+        category_root = ProductCategory.objects.create(name="Aid")
+        category_level_2 = ProductCategory.objects.create(name="Kits", parent=category_root)
+        category_level_3 = ProductCategory.objects.create(name="Emergency", parent=category_level_2)
+        category_other = ProductCategory.objects.create(name="School", parent=category_root)
+
+        product_level_2 = self._create_product("SKU-L2", "Kit Parent", category=category_level_2)
+        product_level_3 = self._create_product("SKU-L3", "Kit Child", category=category_level_3)
+        product_other = self._create_product("SKU-OTHER", "School Pack", category=category_other)
+
+        for product in (product_level_2, product_level_3, product_other):
+            ProductLot.objects.create(
+                product=product,
+                location=self.location_a,
+                quantity_on_hand=5,
+                quantity_reserved=0,
+            )
+
+        request = self.factory.get(
+            "/scan/stock/",
+            {
+                "category": str(category_level_2.id),
+            },
+        )
+        context = build_stock_context(request)
+
+        self.assertEqual(
+            [item.id for item in context["products"]],
+            [product_level_3.id, product_level_2.id],
+        )
+        self.assertEqual(
+            context["selected_category_path"],
+            [str(category_root.id), str(category_level_2.id)],
+        )
+        self.assertEqual(
+            context["category_paths_by_id"][str(category_level_3.id)],
+            [str(category_root.id), str(category_level_2.id), str(category_level_3.id)],
+        )
+        self.assertEqual(context["category_filter_max_depth"], 3)
