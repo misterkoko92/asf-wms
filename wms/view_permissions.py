@@ -130,6 +130,8 @@ def association_required(view):
         def _is_allowed_portal_path(path):
             if path in allowed_paths:
                 return True
+            if path.startswith(recipients_url):
+                return True
             return path.startswith(billing_url)
 
         shipper_block_reason = _resolve_shipper_access_block_reason(profile)

@@ -6,9 +6,25 @@ from django.db import IntegrityError, connection, transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 
 from .carton_status_events import set_carton_status
-from .models import TEMP_SHIPMENT_REFERENCE_PREFIX, Carton, CartonStatus, Shipment, ShipmentStatus
+from .models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
+    Carton,
+    CartonStatus,
+    RecipientProductPreferenceStatus,
+    Shipment,
+    ShipmentPreferenceOverride,
+    ShipmentPreferenceOverrideAction,
+    ShipmentStatus,
+)
+from .recipient_product_preferences import (
+    list_recipient_refusal_conflicts_for_carton,
+    list_recipient_refusal_conflicts_for_products,
+    recipient_has_explicit_refused_preferences,
+)
+from .scan_helpers import build_product_label
 from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_helpers import (
@@ -162,6 +178,145 @@ def _validate_carton_preassignment(*, carton, destination, mismatch_confirmed):
     )
 
 
+def _request_actor(request):
+    user = getattr(request, "user", None)
+    if user is None or not hasattr(user, "_meta"):
+        return None
+    if hasattr(user, "is_authenticated") and not user.is_authenticated:
+        return None
+    return user
+
+
+def _resolve_recipient_organization_for_selection(
+    *, shipper_contact, recipient_contact, destination
+):
+    if shipper_contact is None or recipient_contact is None or destination is None:
+        return None
+    shipper = shipment_shipper_from_contact(shipper_contact)
+    if shipper is None:
+        return None
+    link = shipment_link_for_recipient_contact(
+        shipper=shipper,
+        recipient_contact=recipient_contact,
+        destination=destination,
+    )
+    if link is None:
+        return None
+    return getattr(link, "recipient_organization", None)
+
+
+def _format_recipient_conflict_product_labels(conflicts):
+    return ", ".join(build_product_label(conflict.product, "") for conflict in conflicts)
+
+
+def _build_recipient_refusal_carton_error(*, carton, conflicts):
+    return ngettext(
+        "Attention : le colis %(carton)s contient %(products)s. "
+        "Le destinataire a indiqué ne pas vouloir ce produit. "
+        "Voulez vous continuer ou choisir un autre colis ?",
+        "Attention : le colis %(carton)s contient %(products)s. "
+        "Le destinataire a indiqué ne pas vouloir ces produits. "
+        "Voulez vous continuer ou choisir un autre colis ?",
+        len(conflicts),
+    ) % {
+        "carton": carton.code,
+        "products": _format_recipient_conflict_product_labels(conflicts),
+    }
+
+
+def _build_recipient_refusal_product_error(*, conflicts):
+    return ngettext(
+        "Attention : le destinataire a indiqué ne pas vouloir %(products)s. "
+        "Voulez vous continuer ou modifier la ligne ?",
+        "Attention : le destinataire a indiqué ne pas vouloir %(products)s. "
+        "Voulez vous continuer ou modifier la ligne ?",
+        len(conflicts),
+    ) % {
+        "products": _format_recipient_conflict_product_labels(conflicts),
+    }
+
+
+def _existing_refusal_override_product_ids(*, shipment, recipient_organization, carton):
+    return set(
+        ShipmentPreferenceOverride.objects.filter(
+            shipment=shipment,
+            carton=carton,
+            recipient_organization=recipient_organization,
+            action=ShipmentPreferenceOverrideAction.OVERRIDE_REFUSAL,
+        ).values_list("product_id", flat=True)
+    )
+
+
+def _validate_recipient_refusal_conflicts_for_carton(
+    *,
+    shipment,
+    carton,
+    recipient_organization,
+    override_confirmed,
+):
+    if recipient_organization is None:
+        return []
+    conflicts = list_recipient_refusal_conflicts_for_carton(
+        recipient_organization=recipient_organization,
+        carton=carton,
+    )
+    if not conflicts:
+        return []
+    existing_product_ids = _existing_refusal_override_product_ids(
+        shipment=shipment,
+        recipient_organization=recipient_organization,
+        carton=carton,
+    )
+    pending_conflicts = [
+        conflict for conflict in conflicts if conflict.product.pk not in existing_product_ids
+    ]
+    if pending_conflicts and not override_confirmed:
+        raise StockError(
+            _build_recipient_refusal_carton_error(
+                carton=carton,
+                conflicts=pending_conflicts,
+            )
+        )
+    return pending_conflicts
+
+
+def _validate_recipient_refusal_conflicts_for_product(
+    *,
+    recipient_organization,
+    product,
+    override_confirmed,
+):
+    if recipient_organization is None:
+        return []
+    conflicts = list_recipient_refusal_conflicts_for_products(
+        recipient_organization=recipient_organization,
+        products=[product],
+    )
+    if conflicts and not override_confirmed:
+        raise StockError(_build_recipient_refusal_product_error(conflicts=conflicts))
+    return conflicts
+
+
+def _record_recipient_refusal_overrides(
+    *,
+    shipment,
+    carton,
+    recipient_organization,
+    conflicts,
+    user,
+):
+    for conflict in conflicts:
+        ShipmentPreferenceOverride.objects.create(
+            shipment=shipment,
+            carton=carton,
+            recipient_organization=recipient_organization,
+            product=conflict.product,
+            preference_status_snapshot=RecipientProductPreferenceStatus.REFUSED,
+            action=ShipmentPreferenceOverrideAction.OVERRIDE_REFUSAL,
+            created_by=user,
+        )
+
+
 def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
     destination_value = (form.data.get("destination") or "").strip()
     if not destination_value:
@@ -284,6 +439,18 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                     recipient_contact=recipient_contact,
                     destination=destination,
                 )
+                recipient_organization = _resolve_recipient_organization_for_selection(
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    destination=destination,
+                )
+                has_refused_preferences = bool(
+                    recipient_organization
+                    and recipient_has_explicit_refused_preferences(
+                        recipient_organization=recipient_organization
+                    )
+                )
+                actor = _request_actor(request)
                 destination_label = build_destination_label(destination)
                 party_payload = build_shipment_party_snapshot_payload(
                     shipper_contact=shipper_contact,
@@ -329,6 +496,19 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                                     False,
                                 ),
                             )
+                            recipient_refusal_conflicts = []
+                            if has_refused_preferences:
+                                recipient_refusal_conflicts = (
+                                    _validate_recipient_refusal_conflicts_for_carton(
+                                        shipment=shipment,
+                                        carton=carton,
+                                        recipient_organization=recipient_organization,
+                                        override_confirmed=item.get(
+                                            "recipient_preference_override_confirmed",
+                                            False,
+                                        ),
+                                    )
+                                )
                             carton.shipment = shipment
                             carton.preassigned_destination = None
                             set_carton_status(
@@ -338,7 +518,26 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                                 reason="shipment_create_assign",
                                 user=getattr(request, "user", None),
                             )
+                            _record_recipient_refusal_overrides(
+                                shipment=shipment,
+                                carton=carton,
+                                recipient_organization=recipient_organization,
+                                conflicts=recipient_refusal_conflicts,
+                                user=actor,
+                            )
                         else:
+                            recipient_refusal_conflicts = []
+                            if has_refused_preferences:
+                                recipient_refusal_conflicts = (
+                                    _validate_recipient_refusal_conflicts_for_product(
+                                        recipient_organization=recipient_organization,
+                                        product=item["product"],
+                                        override_confirmed=item.get(
+                                            "recipient_preference_override_confirmed",
+                                            False,
+                                        ),
+                                    )
+                                )
                             carton = pack_carton(
                                 user=request.user,
                                 product=item["product"],
@@ -353,6 +552,13 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                                 new_status=CartonStatus.ASSIGNED,
                                 reason="shipment_create_pack_assign",
                                 user=getattr(request, "user", None),
+                            )
+                            _record_recipient_refusal_overrides(
+                                shipment=shipment,
+                                carton=carton,
+                                recipient_organization=recipient_organization,
+                                conflicts=recipient_refusal_conflicts,
+                                user=actor,
                             )
             sync_shipment_ready_state(shipment)
             messages.success(
@@ -398,6 +604,18 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                     recipient_contact=recipient_contact,
                     destination=destination,
                 )
+                recipient_organization = _resolve_recipient_organization_for_selection(
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    destination=destination,
+                )
+                has_refused_preferences = bool(
+                    recipient_organization
+                    and recipient_has_explicit_refused_preferences(
+                        recipient_organization=recipient_organization
+                    )
+                )
+                actor = _request_actor(request)
                 destination_label = build_destination_label(destination)
 
                 shipment.destination = destination
@@ -483,6 +701,19 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         raise StockError(_("Carton indisponible."))
                     if carton.shipment_id != shipment.id and carton.status != CartonStatus.PACKED:
                         raise StockError(_("Carton indisponible."))
+                    recipient_refusal_conflicts = []
+                    if has_refused_preferences:
+                        recipient_refusal_conflicts = (
+                            _validate_recipient_refusal_conflicts_for_carton(
+                                shipment=shipment,
+                                carton=carton,
+                                recipient_organization=recipient_organization,
+                                override_confirmed=carton_item.get(
+                                    "recipient_preference_override_confirmed",
+                                    False,
+                                ),
+                            )
+                        )
                     if carton.shipment_id != shipment.id:
                         _validate_carton_preassignment(
                             carton=carton,
@@ -508,9 +739,28 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                             reason="shipment_edit_reassign",
                             user=getattr(request, "user", None),
                         )
+                    _record_recipient_refusal_overrides(
+                        shipment=shipment,
+                        carton=carton,
+                        recipient_organization=recipient_organization,
+                        conflicts=recipient_refusal_conflicts,
+                        user=actor,
+                    )
 
                 for item in line_items:
                     if "product" in item:
+                        recipient_refusal_conflicts = []
+                        if has_refused_preferences:
+                            recipient_refusal_conflicts = (
+                                _validate_recipient_refusal_conflicts_for_product(
+                                    recipient_organization=recipient_organization,
+                                    product=item["product"],
+                                    override_confirmed=item.get(
+                                        "recipient_preference_override_confirmed",
+                                        False,
+                                    ),
+                                )
+                            )
                         if related_order is not None:
                             order_line = order_lines_by_product.get(item["product"].id)
                             if order_line is None:
@@ -545,6 +795,13 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                             new_status=CartonStatus.ASSIGNED,
                             reason="shipment_edit_pack_assign",
                             user=getattr(request, "user", None),
+                        )
+                        _record_recipient_refusal_overrides(
+                            shipment=shipment,
+                            carton=carton,
+                            recipient_organization=recipient_organization,
+                            conflicts=recipient_refusal_conflicts,
+                            user=actor,
                         )
             sync_shipment_ready_state(shipment)
             messages.success(

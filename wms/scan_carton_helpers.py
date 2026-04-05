@@ -1,5 +1,6 @@
 from .models import Carton, CartonFormat, CartonStatus
 from .scan_parse import parse_decimal, parse_int
+from .scan_product_helpers import build_product_label
 
 
 def _build_destination_label(destination):
@@ -22,12 +23,30 @@ def _build_carton_option(carton, *, weight_total):
         "code": carton.code,
         "label": label,
         "weight_g": weight_total,
+        "shipment_id": getattr(carton, "shipment_id", None),
         "preassigned_destination_id": preassigned_destination_id,
         "preassigned_destination_iata": preassigned_destination_iata,
         "preassigned_destination_label": (
             _build_destination_label(preassigned_destination) if preassigned_destination else ""
         ),
+        "product_rows": _build_carton_product_rows(carton),
     }
+
+
+def _build_carton_product_rows(carton):
+    product_rows = {}
+    for item in carton.cartonitem_set.all():
+        product = item.product_lot.product
+        row = product_rows.setdefault(
+            product.pk,
+            {
+                "id": product.pk,
+                "label": build_product_label(product, ""),
+                "quantity": 0,
+            },
+        )
+        row["quantity"] += int(item.quantity or 0)
+    return list(product_rows.values())
 
 
 def build_available_cartons():

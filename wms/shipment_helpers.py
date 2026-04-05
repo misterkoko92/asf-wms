@@ -9,6 +9,8 @@ from .contact_labels import (
 )
 from .models import (
     Destination,
+    RecipientProductPreference,
+    RecipientProductPreferenceStatus,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
@@ -17,6 +19,7 @@ from .models import (
     ShipmentValidationStatus,
 )
 from .scan_helpers import parse_int, resolve_product
+from .scan_product_helpers import build_product_label
 from .shipment_party_registry import (
     eligible_shippers_for_stopover,
     stopover_correspondent_recipient_organization,
@@ -315,6 +318,7 @@ def build_shipment_contact_payload():
                     "allowed_destination_ids": set(),
                     "bound_shipper_ids": set(),
                     "binding_pairs": set(),
+                    "recipient_organization_ids_by_destination_id": {},
                 },
             )
             entry["countries"].update(countries)
@@ -323,10 +327,48 @@ def build_shipment_contact_payload():
             entry["binding_pairs"].add(
                 (link.shipper.organization_id, link.recipient_organization.destination_id)
             )
+            entry["recipient_organization_ids_by_destination_id"][
+                str(link.recipient_organization.destination_id)
+            ] = link.recipient_organization_id
+
+    refused_preferences_by_recipient_org_id = {}
+    recipient_organization_ids = {
+        recipient_organization_id
+        for entry in recipient_entries_by_contact_id.values()
+        for recipient_organization_id in entry[
+            "recipient_organization_ids_by_destination_id"
+        ].values()
+    }
+    if recipient_organization_ids:
+        for preference in RecipientProductPreference.objects.filter(
+            recipient_organization_id__in=recipient_organization_ids,
+            status=RecipientProductPreferenceStatus.REFUSED,
+        ).select_related("product"):
+            refused_preferences_by_recipient_org_id.setdefault(
+                preference.recipient_organization_id,
+                [],
+            ).append(
+                {
+                    "id": preference.product_id,
+                    "label": build_product_label(preference.product, ""),
+                }
+            )
 
     recipient_contacts_json = []
     for entry in recipient_entries_by_contact_id.values():
         destination_ids = sorted(entry["allowed_destination_ids"])
+        refused_products_by_destination_id = {}
+        refused_product_ids_by_destination_id = {}
+        for destination_id, recipient_organization_id in entry[
+            "recipient_organization_ids_by_destination_id"
+        ].items():
+            refused_products = list(
+                refused_preferences_by_recipient_org_id.get(recipient_organization_id, [])
+            )
+            refused_products_by_destination_id[destination_id] = refused_products
+            refused_product_ids_by_destination_id[destination_id] = [
+                product["id"] for product in refused_products
+            ]
         recipient_contacts_json.append(
             {
                 "id": entry["id"],
@@ -343,6 +385,11 @@ def build_shipment_contact_payload():
                     {"shipper_id": shipper_id, "destination_id": destination_id}
                     for shipper_id, destination_id in sorted(entry["binding_pairs"])
                 ],
+                "recipient_organization_ids_by_destination_id": dict(
+                    entry["recipient_organization_ids_by_destination_id"]
+                ),
+                "refused_product_ids_by_destination_id": refused_product_ids_by_destination_id,
+                "refused_products_by_destination_id": refused_products_by_destination_id,
             }
         )
 
@@ -407,6 +454,9 @@ def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
         preassigned_destination_confirmed = (
             data.get(prefix + "preassigned_destination_confirmed") or ""
         ).strip() == "1"
+        recipient_preference_override_confirmed = (
+            data.get(prefix + "recipient_preference_override_confirmed") or ""
+        ).strip() == "1"
         line_values.append(
             {
                 "carton_id": carton_id,
@@ -427,6 +477,9 @@ def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
                     {
                         "carton_id": int(carton_id),
                         "preassigned_destination_confirmed": preassigned_destination_confirmed,
+                        "recipient_preference_override_confirmed": (
+                            recipient_preference_override_confirmed
+                        ),
                     }
                 )
         elif product_code or quantity_raw or expires_on_raw:
@@ -449,7 +502,14 @@ def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
                 errors.append(_("Produit introuvable."))
             if not errors and product and quantity:
                 line_items.append(
-                    {"product": product, "quantity": quantity, "expires_on": expires_on}
+                    {
+                        "product": product,
+                        "quantity": quantity,
+                        "expires_on": expires_on,
+                        "recipient_preference_override_confirmed": (
+                            recipient_preference_override_confirmed
+                        ),
+                    }
                 )
         else:
             errors.append(_("Renseignez un carton ou un produit."))

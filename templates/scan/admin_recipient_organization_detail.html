@@ -1,0 +1,119 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - {% trans "Structure destinataire" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <div>
+        <h2 class="ui-comp-title">{{ recipient_organization.organization.name }}</h2>
+        <p class="scan-help ui-comp-note">
+          {% trans "Fiche scan/admin de la structure destinataire et gestion des préférences produits." %}
+        </p>
+      </div>
+      <div class="ui-comp-actions d-flex gap-2">
+        <a class="btn btn-secondary btn-sm" href="{{ back_url }}">{% trans "Retour au cockpit" %}</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5">{% trans "Identité" %}</h3>
+    <dl class="row mb-0">
+      <dt class="col-sm-3">{% trans "Structure" %}</dt>
+      <dd class="col-sm-9">{{ recipient_organization.organization.name }}</dd>
+      <dt class="col-sm-3">{% trans "Escale" %}</dt>
+      <dd class="col-sm-9">{{ recipient_organization.destination }}</dd>
+      <dt class="col-sm-3">{% trans "Statut ASF" %}</dt>
+      <dd class="col-sm-9">{{ recipient_organization.get_validation_status_display }}</dd>
+      <dt class="col-sm-3">{% trans "Correspondant actif" %}</dt>
+      <dd class="col-sm-9">{% if recipient_organization.is_correspondent %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</dd>
+    </dl>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5">{% trans "Préférences produits" %}</h3>
+    {% if preference_errors %}
+      <div class="scan-message error">
+        {% for error in preference_errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <p class="scan-help">
+      {% trans "Pilotez le catalogue ligne par ligne. “Non précisé” retire la règle explicite et laisse le produit accepté sans validation forte." %}
+    </p>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Statut" %}</th>
+              <th>{% trans "Quantité cible" %}</th>
+              <th>{% trans "Période" %}</th>
+              <th>{% trans "Livre" %}</th>
+              <th>{% trans "Pipeline" %}</th>
+              <th>{% trans "Reste a servir" %}</th>
+              <th>{% trans "Notes" %}</th>
+              <th class="text-end">{% trans "Action" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in recipient_product_rows %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ row.product.name }}</div>
+                  <div class="small text-body-secondary">
+                    {% if row.is_explicit %}
+                      {% trans "Préférence explicite" %}
+                    {% else %}
+                      {% trans "Aucune règle explicite" %}
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
+                  <select class="form-select ui-select--md" id="status_{{ row.product.id }}" name="status" form="admin-recipient-preference-form-{{ row.product.id }}">
+                    {% for value, label in preference_status_choices %}
+                      <option value="{{ value }}" {% if row.form_data.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input class="form-control" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="admin-recipient-preference-form-{{ row.product.id }}">
+                </td>
+                <td>
+                  <select class="form-select ui-select--md" id="period_unit_{{ row.product.id }}" name="period_unit" form="admin-recipient-preference-form-{{ row.product.id }}">
+                    <option value="">---------</option>
+                    {% for value, label in preference_period_choices %}
+                      <option value="{{ value }}" {% if row.form_data.period_unit == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>{% if row.coverage %}{{ row.coverage.delivered_quantity }}{% else %}-{% endif %}</td>
+                <td>{% if row.coverage %}{{ row.coverage.pipeline_quantity }}{% else %}-{% endif %}</td>
+                <td>{% if row.coverage %}{{ row.coverage.remaining_need }}{% else %}-{% endif %}</td>
+                <td class="w-25">
+                  <textarea class="form-control" id="notes_{{ row.product.id }}" name="notes" rows="2" form="admin-recipient-preference-form-{{ row.product.id }}">{{ row.form_data.notes }}</textarea>
+                </td>
+                <td class="text-end">
+                  <form id="admin-recipient-preference-form-{{ row.product.id }}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="q" value="{{ query }}">
+                    <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                    <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <input type="hidden" name="product_id" value="{{ row.product.id }}">
+                    <button type="submit" name="action" value="save_recipient_preference" class="btn btn-primary btn-sm">{% trans "Enregistrer la ligne" %}</button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="9" class="text-body-secondary">{% trans "Aucun produit actif dans le catalogue." %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+  </div>
+{% endblock %}

@@ -64,9 +64,14 @@ class ScanCartonHelpersTests(TestCase):
         self.assertEqual(options[0]["code"], "C-READY")
         self.assertEqual(options[0]["label"], "C-READY (NKC)")
         self.assertEqual(options[0]["weight_g"], 200)
+        self.assertIsNone(options[0]["shipment_id"])
         self.assertEqual(options[0]["preassigned_destination_id"], destination.id)
         self.assertEqual(options[0]["preassigned_destination_iata"], "NKC")
         self.assertEqual(options[0]["preassigned_destination_label"], str(destination))
+        self.assertEqual(
+            options[0]["product_rows"],
+            [{"id": product.id, "label": "Item", "quantity": 2}],
+        )
 
     def test_build_carton_formats_returns_default(self):
         fmt = CartonFormat.objects.create(

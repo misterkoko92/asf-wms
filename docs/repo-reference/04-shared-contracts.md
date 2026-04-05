@@ -296,6 +296,54 @@ Reference tests:
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 
+### Recipient Product Preference Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/shipment_parties.py`
+- `wms/recipient_product_preferences.py`
+- `wms/views_portal_account.py`
+- `wms/views_scan_admin.py`
+- `wms/views_scan_shipments.py`
+- `wms/scan_shipment_handlers.py`
+- `wms/shipment_helpers.py`
+- `wms/static/scan/scan.js`
+
+Current contract:
+
+- canonical product preferences attach to `ShipmentRecipientOrganization`, not to `AssociationRecipient`
+  and not directly to `contacts.Contact`
+- the only persisted statuses are `requested`, `allowed`, and `refused`; `unspecified` remains
+  implicit when no row exists for `(recipient_organization, product)`
+- `requested` and `allowed` require `quantity_target` plus `period_unit`; `refused` forbids both
+- `ShipmentPreferenceOverride` is append-only journaling for one-off shipment/carton overrides and
+  must not mutate the canonical preference row
+- coverage metrics use the current local calendar week/month window, `ShipmentWorkflowProjection.delivered_at`
+  as delivery evidence, and open assigned shipments as pipeline quantity
+- portal recipient detail and scan/admin recipient detail render the same canonical preference rows
+  plus the same coverage summary semantics
+- scan shipment create/edit exposes per-carton compatibility metadata keyed by recipient runtime,
+  blocks only explicit `refused` products, and records override rows when staff continues
+
+Maintenance rule:
+
+- if preference semantics, quantities, or status vocabulary change, update the model validation,
+  shared helper module, portal/admin detail surfaces, and scan shipment metadata/JS together
+- keep `unspecified` implicit; do not introduce stored "allowed by default" rows without updating
+  the shared helper and every consumer
+- if coverage math changes, keep the period/window rules, delivery evidence source, and scan
+  compatibility bucket logic aligned in the same work
+
+Reference tests:
+
+- `wms/tests/core/tests_recipient_product_preferences.py`
+- `wms/tests/core/tests_recipient_product_preference_coverage.py`
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_views_scan_admin_shipment_parties.py`
+- `wms/tests/scan/tests_scan_shipment_handlers.py`
+- `wms/tests/views/tests_views.py`
+- `wms/tests/views/tests_views_scan_shipments.py`
+
 ### V3.3 Artifacts Boundary Contract
 
 Primary runtime sources:

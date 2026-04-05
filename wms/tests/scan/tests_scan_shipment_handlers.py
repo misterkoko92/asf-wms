@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import RequestFactory, TestCase
 from django.utils.translation import override as override_language
@@ -10,16 +11,23 @@ from django.utils.translation import override as override_language
 from contacts.models import Contact, ContactType
 from wms.models import (
     Carton,
+    CartonItem,
     CartonStatus,
     Destination,
+    Location,
+    Product,
+    ProductLot,
+    RecipientProductPreference,
     Shipment,
     ShipmentAuthorizedRecipientContact,
+    ShipmentPreferenceOverride,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentValidationStatus,
+    Warehouse,
 )
 from wms.scan_shipment_handlers import (
     _get_carton_count,
@@ -48,12 +56,35 @@ class _FakeForm:
 class ScanShipmentHandlersTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        self.user = SimpleNamespace(id=1, username="scanner")
+        self.user = get_user_model().objects.create_user(
+            username="scan-shipment-handler-user",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        self.warehouse = Warehouse.objects.create(name="Shipment handler warehouse")
+        self.location = Location.objects.create(
+            warehouse=self.warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
 
     def _request(self, data=None):
         request = self.factory.post("/scan/shipment/", data or {})
         request.user = self.user
         return request
+
+    def _create_stock_product(self, *, sku, name, quantity_on_hand=10):
+        product = Product.objects.create(
+            sku=sku,
+            name=name,
+            qr_code_image=f"qr_codes/{sku.lower()}.png",
+        )
+        lot = ProductLot.objects.create(
+            product=product,
+            quantity_on_hand=quantity_on_hand,
+            location=self.location,
+        )
+        return product, lot
 
     def _cleaned_data(self, *, carton_count=2):
         destination, shipper, recipient, correspondent = self._create_shipment_party_triplet(
@@ -683,6 +714,241 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(line_errors, {})
         parse_mock.assert_not_called()
         create_mock.assert_called_once()
+
+    def test_handle_shipment_create_post_rejects_refused_carton_without_confirmation(self):
+        destination, shipper_contact, recipient_contact, correspondent = (
+            self._create_shipment_party_triplet("RFX")
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient_contact.organization,
+            destination=destination,
+        )
+        refused_product, refused_lot = self._create_stock_product(
+            sku="REF-CARTON-1",
+            name="Gants Steriles",
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=refused_product,
+            status="refused",
+            updated_by=self.user,
+        )
+        carton = Carton.objects.create(code="C-REFUSED-1", status=CartonStatus.PACKED)
+        CartonItem.objects.create(carton=carton, product_lot=refused_lot, quantity=1)
+        request = self._request(
+            {
+                "carton_count": "1",
+                "line_1_carton_id": str(carton.id),
+            }
+        )
+        cleaned_data = self._cleaned_data(carton_count=1)
+        cleaned_data["destination"] = destination
+        cleaned_data["shipper_contact"] = shipper_contact
+        cleaned_data["recipient_contact"] = recipient_contact
+        cleaned_data["correspondent_contact"] = correspondent
+        form = _FakeForm(valid=True, cleaned_data=cleaned_data, data=request.POST)
+
+        with mock.patch("wms.scan_shipment_handlers.messages.success"):
+            response, *_ = handle_shipment_create_post(
+                request,
+                form=form,
+                available_carton_ids={str(carton.id)},
+            )
+
+        self.assertIsNone(response)
+        self.assertIn(
+            (
+                None,
+                "Attention : le colis C-REFUSED-1 contient Gants Steriles. "
+                "Le destinataire a indiqué ne pas vouloir ce produit. "
+                "Voulez vous continuer ou choisir un autre colis ?",
+            ),
+            form.errors,
+        )
+        self.assertFalse(ShipmentPreferenceOverride.objects.exists())
+
+    def test_handle_shipment_create_post_records_override_for_confirmed_refused_carton(self):
+        destination, shipper_contact, recipient_contact, correspondent = (
+            self._create_shipment_party_triplet("RFC")
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient_contact.organization,
+            destination=destination,
+        )
+        refused_product, refused_lot = self._create_stock_product(
+            sku="REF-CARTON-2",
+            name="Compresses",
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=refused_product,
+            status="refused",
+            updated_by=self.user,
+        )
+        carton = Carton.objects.create(code="C-REFUSED-2", status=CartonStatus.PACKED)
+        CartonItem.objects.create(carton=carton, product_lot=refused_lot, quantity=2)
+        request = self._request(
+            {
+                "carton_count": "1",
+                "line_1_carton_id": str(carton.id),
+                "line_1_recipient_preference_override_confirmed": "1",
+            }
+        )
+        cleaned_data = self._cleaned_data(carton_count=1)
+        cleaned_data["destination"] = destination
+        cleaned_data["shipper_contact"] = shipper_contact
+        cleaned_data["recipient_contact"] = recipient_contact
+        cleaned_data["correspondent_contact"] = correspondent
+        form = _FakeForm(valid=True, cleaned_data=cleaned_data, data=request.POST)
+
+        with mock.patch("wms.scan_shipment_handlers.messages.success"):
+            response, *_ = handle_shipment_create_post(
+                request,
+                form=form,
+                available_carton_ids={str(carton.id)},
+            )
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertIsNotNone(carton.shipment_id)
+        override = ShipmentPreferenceOverride.objects.get(
+            shipment=carton.shipment,
+            carton=carton,
+            recipient_organization=recipient_organization,
+            product=refused_product,
+        )
+        self.assertEqual(override.preference_status_snapshot, "refused")
+        self.assertEqual(override.action, "override_refusal")
+        self.assertEqual(override.created_by_id, self.user.id)
+
+    def test_handle_shipment_create_post_records_override_for_confirmed_refused_product_line(self):
+        destination, shipper_contact, recipient_contact, correspondent = (
+            self._create_shipment_party_triplet("RFP")
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient_contact.organization,
+            destination=destination,
+        )
+        refused_product, _refused_lot = self._create_stock_product(
+            sku="REF-PRODUCT-1",
+            name="Masques",
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=refused_product,
+            status="refused",
+            updated_by=self.user,
+        )
+        request = self._request(
+            {
+                "carton_count": "1",
+                "line_1_product_code": refused_product.sku,
+                "line_1_quantity": "2",
+                "line_1_recipient_preference_override_confirmed": "1",
+            }
+        )
+        cleaned_data = self._cleaned_data(carton_count=1)
+        cleaned_data["destination"] = destination
+        cleaned_data["shipper_contact"] = shipper_contact
+        cleaned_data["recipient_contact"] = recipient_contact
+        cleaned_data["correspondent_contact"] = correspondent
+        form = _FakeForm(valid=True, cleaned_data=cleaned_data, data=request.POST)
+
+        with mock.patch("wms.scan_shipment_handlers.messages.success"):
+            response, *_ = handle_shipment_create_post(
+                request,
+                form=form,
+                available_carton_ids=set(),
+            )
+
+        self.assertEqual(response.status_code, 302)
+        shipment = Shipment.objects.get()
+        carton = shipment.carton_set.get()
+        override = ShipmentPreferenceOverride.objects.get(
+            shipment=shipment,
+            carton=carton,
+            recipient_organization=recipient_organization,
+            product=refused_product,
+        )
+        self.assertEqual(override.preference_status_snapshot, "refused")
+        self.assertEqual(override.action, "override_refusal")
+
+    def test_handle_shipment_edit_post_keeps_existing_refusal_override_without_reprompt(self):
+        destination, shipper_contact, recipient_contact, correspondent = (
+            self._create_shipment_party_triplet("RFE")
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient_contact.organization,
+            destination=destination,
+        )
+        refused_product, refused_lot = self._create_stock_product(
+            sku="REF-EDIT-1",
+            name="Bandages",
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=refused_product,
+            status="refused",
+            updated_by=self.user,
+        )
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name=shipper_contact.name,
+            shipper_contact_ref=shipper_contact,
+            recipient_name=recipient_contact.name,
+            recipient_contact_ref=recipient_contact,
+            correspondent_name=correspondent.name,
+            correspondent_contact_ref=correspondent,
+            destination=destination,
+            destination_address=str(destination),
+            destination_country=destination.country,
+            created_by=self.user,
+        )
+        carton = Carton.objects.create(
+            code="C-EDIT-REFUSED",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+        CartonItem.objects.create(carton=carton, product_lot=refused_lot, quantity=1)
+        ShipmentPreferenceOverride.objects.create(
+            shipment=shipment,
+            carton=carton,
+            recipient_organization=recipient_organization,
+            product=refused_product,
+            preference_status_snapshot="refused",
+            action="override_refusal",
+            created_by=self.user,
+        )
+        request = self._request(
+            {
+                "carton_count": "1",
+                "line_1_carton_id": str(carton.id),
+            }
+        )
+        cleaned_data = self._cleaned_data(carton_count=1)
+        cleaned_data["destination"] = destination
+        cleaned_data["shipper_contact"] = shipper_contact
+        cleaned_data["recipient_contact"] = recipient_contact
+        cleaned_data["correspondent_contact"] = correspondent
+        form = _FakeForm(valid=True, cleaned_data=cleaned_data, data=request.POST)
+
+        with mock.patch("wms.scan_shipment_handlers.messages.success"):
+            response, *_ = handle_shipment_edit_post(
+                request,
+                form=form,
+                shipment=shipment,
+                allowed_carton_ids={str(carton.id)},
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            ShipmentPreferenceOverride.objects.filter(
+                shipment=shipment,
+                carton=carton,
+                product=refused_product,
+            ).count(),
+            1,
+        )
 
     def test_handle_shipment_edit_post_success(self):
         request = self._request({"carton_count": "2"})

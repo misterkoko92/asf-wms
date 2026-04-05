@@ -4,8 +4,9 @@ from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 from django.db import transaction
 from django.db.models import Q
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
@@ -28,12 +29,22 @@ from .models import (
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
+    Product,
+    RecipientProductPreference,
+    RecipientProductPreferencePeriodUnit,
+    RecipientProductPreferenceSource,
+    RecipientProductPreferenceStatus,
     RecipientStructureDocument,
     RecipientStructureDocumentType,
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
 )
 from .portal_helpers import get_contact_address
+from .recipient_product_preferences import (
+    UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS,
+    list_effective_recipient_product_preferences,
+    list_recipient_product_coverages,
+)
 from .scan_helpers import parse_int
 from .upload_utils import validate_upload
 from .view_permissions import (
@@ -45,10 +56,15 @@ from .view_permissions import (
 from .view_utils import sorted_choices
 
 TEMPLATE_RECIPIENTS = "portal/recipients.html"
+TEMPLATE_RECIPIENT_DETAIL = "portal/recipient_detail.html"
 TEMPLATE_ACCOUNT = "portal/account.html"
 
 ACTION_CREATE_RECIPIENT = "create_recipient"
 ACTION_UPDATE_RECIPIENT = "update_recipient"
+ACTION_SAVE_RECIPIENT_PREFERENCE = "save_recipient_preference"
+ACTION_CREATE_RECIPIENT_PREFERENCE = "create_recipient_preference"
+ACTION_UPDATE_RECIPIENT_PREFERENCE = "update_recipient_preference"
+ACTION_DELETE_RECIPIENT_PREFERENCE = "delete_recipient_preference"
 ACTION_UPDATE_NOTIFICATIONS = "update_notifications"
 ACTION_UPDATE_PROFILE = "update_profile"
 ACTION_UPLOAD_ACCOUNT_DOC = "upload_account_doc"
@@ -58,6 +74,9 @@ ACTION_REQUEST_BILLING_PREFERENCES = "request_billing_preferences"
 MAX_PORTAL_CONTACTS = 10
 MESSAGE_RECIPIENT_ADDED = _("Recipient added.")
 MESSAGE_RECIPIENT_UPDATED = _("Destinataire modifié.")
+MESSAGE_RECIPIENT_PREFERENCE_ADDED = _("Préférence produit ajoutée.")
+MESSAGE_RECIPIENT_PREFERENCE_UPDATED = _("Préférence produit modifiée.")
+MESSAGE_RECIPIENT_PREFERENCE_DELETED = _("Préférence produit supprimée.")
 MESSAGE_PROFILE_UPDATED = _("Compte mis à jour.")
 MESSAGE_CONTACTS_UPDATED = _("Contacts emails mis à jour.")
 MESSAGE_UPDATE_NOTIFICATIONS_DEPRECATED = _(
@@ -83,6 +102,12 @@ ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED = _(
     "Ajoutez au moins un email pour activer l'alerte de livraison."
 )
 ERROR_RECIPIENT_NOT_FOUND = _("Destinataire introuvable.")
+ERROR_RECIPIENT_PRODUCT_REQUIRED = _("Produit requis.")
+ERROR_RECIPIENT_PRODUCT_QUANTITY_INVALID = _("Quantite cible invalide.")
+ERROR_RECIPIENT_PRODUCT_STATUS_INVALID = _("Statut produit invalide.")
+ERROR_RECIPIENT_PRODUCT_PERIOD_INVALID = _("Periode invalide.")
+ERROR_RECIPIENT_PREFERENCE_NOT_FOUND = _("Préférence produit introuvable.")
+ERROR_RECIPIENT_RUNTIME_REQUIRED = _("La structure destinataire operationnelle est introuvable.")
 ERROR_ASSOCIATION_NAME_REQUIRED = _("Nom de l'association requis.")
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse requise.")
 ERROR_CONTACT_ROWS_LIMIT = _("Maximum %(count)s contacts.")
@@ -134,6 +159,16 @@ def _build_default_recipient_form_data():
     }
 
 
+def _build_default_preference_form_data():
+    return {
+        "product_id": "",
+        "status": UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS,
+        "quantity_target": "",
+        "period_unit": "",
+        "notes": "",
+    }
+
+
 def _extract_recipient_form_data(post_data):
     return {
         "destination_id": (post_data.get("destination_id") or "").strip(),
@@ -157,6 +192,16 @@ def _extract_recipient_form_data(post_data):
     }
 
 
+def _extract_preference_form_data(post_data):
+    return {
+        "product_id": (post_data.get("product_id") or "").strip(),
+        "status": (post_data.get("status") or "").strip(),
+        "quantity_target": (post_data.get("quantity_target") or "").strip(),
+        "period_unit": (post_data.get("period_unit") or "").strip(),
+        "notes": (post_data.get("notes") or "").strip(),
+    }
+
+
 def _build_recipient_form_data_from_instance(recipient):
     return {
         "destination_id": str(recipient.destination_id or ""),
@@ -177,6 +222,28 @@ def _build_recipient_form_data_from_instance(recipient):
         "notes": recipient.notes or "",
         "notify_deliveries": bool(recipient.notify_deliveries),
         "is_delivery_contact": bool(recipient.is_delivery_contact),
+    }
+
+
+def _build_preference_form_data_from_instance(preference):
+    return {
+        "product_id": str(preference.product_id),
+        "status": preference.status,
+        "quantity_target": str(preference.quantity_target or ""),
+        "period_unit": preference.period_unit or "",
+        "notes": preference.notes or "",
+    }
+
+
+def _build_preference_form_data_from_effective_preference(effective_preference):
+    if effective_preference.preference is not None:
+        return _build_preference_form_data_from_instance(effective_preference.preference)
+    return {
+        "product_id": str(effective_preference.product.pk),
+        "status": UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS,
+        "quantity_target": "",
+        "period_unit": "",
+        "notes": "",
     }
 
 
@@ -232,6 +299,50 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
     form_data["email_values"] = email_values
     form_data["phone_values"] = _split_multi_values(form_data["phones"])
     return errors
+
+
+def _prepare_preference_form_data(form_data, products_by_id):
+    errors = []
+    product = products_by_id.get(parse_int(form_data["product_id"]))
+    if product is None:
+        errors.append(ERROR_RECIPIENT_PRODUCT_REQUIRED)
+    form_data["product"] = product
+
+    valid_statuses = {choice for choice, _label in RecipientProductPreferenceStatus.choices} | {
+        UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS
+    }
+    if form_data["status"] not in valid_statuses:
+        errors.append(ERROR_RECIPIENT_PRODUCT_STATUS_INVALID)
+
+    if form_data["status"] == UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS:
+        form_data["quantity_target_value"] = None
+        form_data["period_unit"] = ""
+        return errors
+
+    quantity_raw = form_data["quantity_target"]
+    if quantity_raw:
+        quantity_target = parse_int(quantity_raw)
+        if quantity_target is None or quantity_target < 0:
+            errors.append(ERROR_RECIPIENT_PRODUCT_QUANTITY_INVALID)
+        else:
+            form_data["quantity_target_value"] = quantity_target
+    else:
+        form_data["quantity_target_value"] = None
+
+    valid_period_units = {choice for choice, _label in RecipientProductPreferencePeriodUnit.choices}
+    if form_data["period_unit"] and form_data["period_unit"] not in valid_period_units:
+        errors.append(ERROR_RECIPIENT_PRODUCT_PERIOD_INVALID)
+
+    return errors
+
+
+def _flatten_validation_error_messages(error):
+    if hasattr(error, "message_dict"):
+        messages_list = []
+        for values in error.message_dict.values():
+            messages_list.extend(str(value) for value in values)
+        return messages_list
+    return [str(value) for value in error.messages]
 
 
 def _validate_recipient_creation_documents(request):
@@ -354,6 +465,15 @@ def _get_recipient_for_profile(profile, recipient_id):
     )
 
 
+def _get_portal_recipient_or_404(profile, recipient_id):
+    return get_object_or_404(
+        AssociationRecipient.objects.select_related("destination", "synced_contact"),
+        pk=recipient_id,
+        association_contact=profile.contact,
+        is_active=True,
+    )
+
+
 def _get_active_recipients(profile):
     return (
         AssociationRecipient.objects.filter(
@@ -402,6 +522,98 @@ def _decorate_recipient_validation_statuses(recipients):
             recipient_org.validation_status if recipient_org is not None else None
         )
     return recipients
+
+
+def _get_runtime_recipient_organization(recipient):
+    if recipient.synced_contact_id is None or recipient.destination_id is None:
+        return None
+
+    return (
+        ShipmentRecipientOrganization.objects.filter(
+            organization_id=recipient.synced_contact_id,
+            destination_id=recipient.destination_id,
+            is_active=True,
+        )
+        .select_related("organization", "destination")
+        .first()
+    )
+
+
+def _build_recipient_detail_context(
+    *,
+    recipient,
+    recipient_organization,
+    preference_errors=None,
+    preference_form_data_by_product_id=None,
+):
+    preference_products = list(Product.objects.filter(is_active=True).order_by("name", "id"))
+    recipient_preferences = []
+    recipient_preference_coverage_rows = []
+    recipient_product_rows = []
+    if recipient_organization is not None:
+        recipient_preferences = list(
+            RecipientProductPreference.objects.filter(recipient_organization=recipient_organization)
+            .select_related("product")
+            .order_by("product__name", "id")
+        )
+        effective_preferences = list_effective_recipient_product_preferences(
+            recipient_organization=recipient_organization,
+            products=preference_products,
+        )
+        quantitative_products = [
+            effective_preference.product
+            for effective_preference in effective_preferences
+            if effective_preference.status
+            in {
+                RecipientProductPreferenceStatus.REQUESTED,
+                RecipientProductPreferenceStatus.ALLOWED,
+            }
+        ]
+        coverages_by_product_id = {
+            coverage.product.pk: coverage
+            for coverage in list_recipient_product_coverages(
+                recipient_organization=recipient_organization,
+                products=quantitative_products,
+                as_of=timezone.now(),
+            )
+        }
+        recipient_product_rows = [
+            {
+                "product": effective_preference.product,
+                "preference": effective_preference.preference,
+                "status": effective_preference.status,
+                "is_explicit": effective_preference.is_explicit,
+                "form_data": (preference_form_data_by_product_id or {}).get(
+                    effective_preference.product.pk,
+                    _build_preference_form_data_from_effective_preference(effective_preference),
+                ),
+                "coverage": coverages_by_product_id.get(effective_preference.product.pk),
+            }
+            for effective_preference in effective_preferences
+        ]
+        recipient_preference_coverage_rows = [
+            {
+                "preference": preference,
+                "coverage": coverages_by_product_id.get(preference.product_id),
+            }
+            for preference in recipient_preferences
+            if coverages_by_product_id.get(preference.product_id) is not None
+        ]
+
+    return {
+        "recipient": recipient,
+        "recipient_organization": recipient_organization,
+        "recipient_preferences": recipient_preferences,
+        "recipient_product_rows": recipient_product_rows,
+        "recipient_preference_coverage_rows": recipient_preference_coverage_rows,
+        "preference_errors": preference_errors or [],
+        "preference_status_choices": [
+            (UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS, _("Non précisé")),
+            *list(RecipientProductPreferenceStatus.choices),
+        ],
+        "preference_period_choices": list(RecipientProductPreferencePeriodUnit.choices),
+        "preference_products": preference_products,
+    }
 
 
 def _build_duplicate_recipient_suggestions(*, form_data, editing_recipient=None):
@@ -821,6 +1033,83 @@ def portal_recipients(request):
             "blocked_popup_message": blocked_popup_message,
             "duplicate_recipient_suggestions": duplicate_recipient_suggestions,
         },
+    )
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_recipient_detail(request, recipient_id):
+    profile = request.association_profile
+    recipient = _get_portal_recipient_or_404(profile, recipient_id)
+    recipient = _decorate_recipient_validation_statuses([recipient])[0]
+    recipient_organization = _get_runtime_recipient_organization(recipient)
+    preference_errors = []
+    preference_form_data_by_product_id = {}
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == ACTION_SAVE_RECIPIENT_PREFERENCE:
+            if recipient_organization is None:
+                preference_errors.append(ERROR_RECIPIENT_RUNTIME_REQUIRED)
+            else:
+                products = list(Product.objects.filter(is_active=True).order_by("name", "id"))
+                products_by_id = {product.id: product for product in products}
+                form_data = _extract_preference_form_data(request.POST)
+                preference_errors.extend(_prepare_preference_form_data(form_data, products_by_id))
+
+                if preference_errors:
+                    product_id = parse_int(request.POST.get("product_id"))
+                    if product_id is not None:
+                        preference_form_data_by_product_id[product_id] = form_data
+                else:
+                    preference = RecipientProductPreference.objects.filter(
+                        recipient_organization=recipient_organization,
+                        product=form_data["product"],
+                    ).first()
+                    if form_data["status"] == UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS:
+                        if preference is not None:
+                            preference.delete()
+                            messages.success(request, MESSAGE_RECIPIENT_PREFERENCE_DELETED)
+                        return redirect("portal:portal_recipient_detail", recipient_id=recipient.id)
+
+                    created = preference is None
+                    if preference is None:
+                        preference = RecipientProductPreference(
+                            recipient_organization=recipient_organization,
+                            product=form_data["product"],
+                            created_by=request.user,
+                        )
+                    preference.product = form_data["product"]
+                    preference.status = form_data["status"]
+                    preference.quantity_target = form_data.get("quantity_target_value")
+                    preference.period_unit = form_data["period_unit"]
+                    preference.notes = form_data["notes"]
+                    preference.source = RecipientProductPreferenceSource.PORTAL
+                    preference.updated_by = request.user
+                    try:
+                        preference.save()
+                    except ValidationError as error:
+                        preference_errors.extend(_flatten_validation_error_messages(error))
+                        preference_form_data_by_product_id[form_data["product"].id] = form_data
+                    else:
+                        success_message = (
+                            MESSAGE_RECIPIENT_PREFERENCE_ADDED
+                            if created
+                            else MESSAGE_RECIPIENT_PREFERENCE_UPDATED
+                        )
+                        messages.success(request, success_message)
+                        return redirect("portal:portal_recipient_detail", recipient_id=recipient.id)
+
+    return render(
+        request,
+        TEMPLATE_RECIPIENT_DETAIL,
+        _build_recipient_detail_context(
+            recipient=recipient,
+            recipient_organization=recipient_organization,
+            preference_errors=preference_errors,
+            preference_form_data_by_product_id=preference_form_data_by_product_id,
+        ),
     )
 
 
