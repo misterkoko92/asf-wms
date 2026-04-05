@@ -1,10 +1,12 @@
-from datetime import datetime
+from datetime import date, datetime
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
+
+from wms.models import Location, Product, ProductLot, ProductLotStatus, Warehouse
 
 
 class ScanStockViewsTests(TestCase):
@@ -15,6 +17,27 @@ class ScanStockViewsTests(TestCase):
             is_staff=True,
         )
         self.client.force_login(self.staff_user)
+        warehouse = Warehouse.objects.create(name="Stock Test", code="STK")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            sku="STOCK-001",
+            name="Produit Stock",
+            default_location=location,
+            qr_code_image="qr_codes/stock_test.png",
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-STOCK-001",
+            received_on=date(2026, 1, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=4,
+            location=location,
+        )
 
     def _render_stub(self, _request, template_name, context):
         response = HttpResponse(template_name)
@@ -136,3 +159,10 @@ class ScanStockViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Ajouter catégorie")
         self.assertNotContains(response, "Ajouter entrepôt")
+
+    def test_scan_stock_hides_product_open_action_for_non_superuser(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "<th>Actions</th>", html=True)
+        self.assertNotContains(response, "Ouvrir")

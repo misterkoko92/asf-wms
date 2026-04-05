@@ -17,11 +17,15 @@ from wms.models import (
     OperationalJobRun,
     PlanningDestinationRule,
     PlanningParameterSet,
+    Product,
     PublicAccountRequest,
     ReceiptDonorSequence,
+    RecipientProductPreference,
     RecipientStructureDocument,
     RecipientStructureDocumentType,
+    Shipment,
     ShipmentAuthorizedRecipientContact,
+    ShipmentPreferenceOverride,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
@@ -250,6 +254,47 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertTrue(Location.objects.filter(pk=self.location.pk).exists())
         self.assertTrue(WmsRuntimeSettings.objects.filter(pk=self.runtime_settings.pk).exists())
         self.assertTrue(PlanningParameterSet.objects.filter(pk=self.parameter_set.pk).exists())
+
+    def test_apply_deletes_recipient_preference_runtime_rows(self):
+        stdout = StringIO()
+        product = Product.objects.create(
+            sku="RESET-PREF-001",
+            name="Kit urgence reset",
+            brand="ASF",
+            qr_code_image="qr_codes/reset-pref-001.png",
+        )
+        shipment = Shipment.objects.create(
+            reference="RESET-PREF-EXP-001",
+            status="draft",
+            shipper_name="Association A",
+            recipient_name="Recipient A",
+            correspondent_name="Correspondent A",
+            destination=self.destination,
+            destination_address="1 rue de Paris",
+            destination_country="France",
+        )
+        preference = RecipientProductPreference.objects.create(
+            recipient_organization=self.shipment_recipient_organization,
+            product=product,
+            status="requested",
+            quantity_target=50,
+            period_unit="week",
+            updated_by=self.user,
+        )
+        override = ShipmentPreferenceOverride.objects.create(
+            shipment=shipment,
+            recipient_organization=self.shipment_recipient_organization,
+            product=product,
+            preference_status_snapshot="refused",
+            action="override_refusal",
+            created_by=self.user,
+        )
+
+        call_command("reset_operational_data", "--apply", stdout=stdout)
+
+        self.assertFalse(RecipientProductPreference.objects.filter(pk=preference.pk).exists())
+        self.assertFalse(ShipmentPreferenceOverride.objects.filter(pk=override.pk).exists())
+        self.assertTrue(Product.objects.filter(pk=product.pk).exists())
 
     def test_render_reset_summary_lists_missing_tables(self):
         summary = ResetOperationalDataSummary(

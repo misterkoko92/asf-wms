@@ -98,6 +98,9 @@
               <th>{% trans "Catégorie" %}</th>
               <th>{% trans "Stock" %}</th>
               <th>{% trans "Dernière modification" %}</th>
+              {% if request.user.is_superuser %}
+                <th>{% trans "Actions" %}</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody>
@@ -118,6 +121,18 @@
                 <td>{{ product.category|default:"-" }}</td>
                 <td class="qty">{{ product.stock_total }}</td>
                 <td>{{ product.last_movement_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                {% if request.user.is_superuser %}
+                  <td class="text-end">
+                    <a
+                      class="scan-scan-btn btn btn-tertiary btn-sm"
+                      href="{% url 'admin:wms_product_change' product.id %}"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      {% trans "Ouvrir" %}
+                    </a>
+                  </td>
+                {% endif %}
               </tr>
             {% endfor %}
           </tbody>

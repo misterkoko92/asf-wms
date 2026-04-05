@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -11,6 +12,26 @@ class ShipmentValidationStatus(models.TextChoices):
     PENDING = "pending", _("En attente")
     VALIDATED = "validated", _("Valide")
     REJECTED = "rejected", _("Refuse")
+
+
+class RecipientProductPreferenceStatus(models.TextChoices):
+    REQUESTED = "requested", _("Demande")
+    ALLOWED = "allowed", _("Autorise")
+    REFUSED = "refused", _("Refuse")
+
+
+class RecipientProductPreferencePeriodUnit(models.TextChoices):
+    WEEK = "week", _("Semaine")
+    MONTH = "month", _("Mois")
+
+
+class RecipientProductPreferenceSource(models.TextChoices):
+    PORTAL = "portal", _("Portail")
+    SCAN_ADMIN = "scan_admin", _("Scan admin")
+
+
+class ShipmentPreferenceOverrideAction(models.TextChoices):
+    OVERRIDE_REFUSAL = "override_refusal", _("Override refus")
 
 
 class ShipmentShipper(models.Model):
@@ -291,6 +312,162 @@ class ShipmentAuthorizedRecipientContact(models.Model):
                     "Le referent destinataire par defaut doit etre actif."
                 )
 
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class RecipientProductPreference(models.Model):
+    recipient_organization = models.ForeignKey(
+        ShipmentRecipientOrganization,
+        on_delete=models.PROTECT,
+        related_name="product_preferences",
+    )
+    product = models.ForeignKey(
+        "wms.Product",
+        on_delete=models.PROTECT,
+        related_name="recipient_preferences",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=RecipientProductPreferenceStatus.choices,
+    )
+    quantity_target = models.PositiveIntegerField(null=True, blank=True)
+    period_unit = models.CharField(
+        max_length=10,
+        choices=RecipientProductPreferencePeriodUnit.choices,
+        blank=True,
+    )
+    notes = models.TextField(blank=True)
+    source = models.CharField(
+        max_length=20,
+        choices=RecipientProductPreferenceSource.choices,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_recipient_product_preferences",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_recipient_product_preferences",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "recipient_organization__destination__city",
+            "recipient_organization__organization__name",
+            "product__name",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient_organization", "product"],
+                name="wms_recipient_product_preference_unique_pair",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.recipient_organization} - {self.product} ({self.status})"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        requires_target = self.status in {
+            RecipientProductPreferenceStatus.REQUESTED,
+            RecipientProductPreferenceStatus.ALLOWED,
+        }
+
+        if requires_target:
+            if self.quantity_target is None:
+                errors["quantity_target"] = _("La quantite cible est requise.")
+            if not self.period_unit:
+                errors["period_unit"] = _("La periode est requise.")
+        elif self.status == RecipientProductPreferenceStatus.REFUSED:
+            if self.quantity_target is not None:
+                errors["quantity_target"] = _(
+                    "La quantite cible est interdite pour un produit refuse."
+                )
+            if self.period_unit:
+                errors["period_unit"] = _("La periode est interdite pour un produit refuse.")
+
+        if self.recipient_organization_id and not self.recipient_organization.is_active:
+            errors["recipient_organization"] = _("La structure destinataire doit etre active.")
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class ShipmentPreferenceOverride(models.Model):
+    shipment = models.ForeignKey(
+        "wms.Shipment",
+        on_delete=models.PROTECT,
+        related_name="preference_overrides",
+    )
+    carton = models.ForeignKey(
+        "wms.Carton",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preference_overrides",
+    )
+    recipient_organization = models.ForeignKey(
+        ShipmentRecipientOrganization,
+        on_delete=models.PROTECT,
+        related_name="preference_overrides",
+    )
+    product = models.ForeignKey(
+        "wms.Product",
+        on_delete=models.PROTECT,
+        related_name="shipment_preference_overrides",
+    )
+    preference_status_snapshot = models.CharField(
+        max_length=20,
+        choices=RecipientProductPreferenceStatus.choices,
+    )
+    action = models.CharField(
+        max_length=30,
+        choices=ShipmentPreferenceOverrideAction.choices,
+    )
+    reason = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipment_preference_overrides",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.shipment} - {self.product} "
+            f"({self.preference_status_snapshot}/{self.action})"
+        )
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.recipient_organization_id and not self.recipient_organization.is_active:
+            errors["recipient_organization"] = _("La structure destinataire doit etre active.")
         if errors:
             raise ValidationError(errors)
 

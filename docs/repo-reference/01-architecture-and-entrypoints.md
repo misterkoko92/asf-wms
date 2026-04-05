@@ -21,7 +21,7 @@ Main surfaces:
 Use the URL module to find the real feature surface before searching broadly.
 
 - `wms/scan_urls.py`: staff-facing scan, shipments, receipts, billing, imports, design, print, settings
-- `wms/portal_urls.py`: portal auth, dashboard, orders, billing, recipients, account
+- `wms/portal_urls.py`: portal auth, dashboard, orders, billing, recipients list/detail, account
 - `wms/volunteer_urls.py`: volunteer auth, profile, constraints, availabilities
 - `wms/planning_urls.py`: planning runs, versions, communications, artifacts
 - `api/v1/urls.py`: REST endpoints, UI API endpoints, integration endpoints
@@ -143,6 +143,7 @@ Important cross-cutting domain modules:
 
 - portal recipient sync: `wms/portal_recipient_sync.py`
 - shipment-party registry and rules: `wms/shipment_party_registry.py`, `wms/shipment_party_setup.py`, `wms/shipment_party_rules.py`
+- recipient product preferences and refusal resolution: `wms/recipient_product_preferences.py`
 - V3.3 target boundary for shipment-party graph logic: `wms/parties/`
 - live V3.3 application entrypoint for portal shipment-party sync: `wms/application/parties/use_cases.py`
 - stable V3.3 package-root import surface for shipment-party orchestration:

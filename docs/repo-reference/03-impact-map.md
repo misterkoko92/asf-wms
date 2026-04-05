@@ -71,6 +71,9 @@ Ask yourself:
 - does document-first creation still create a final shipment reference with zero cartons allowed?
 - do carton state transitions still agree with shipment state transitions?
 - do tracking and close endpoints still expose the same availability rules?
+- if recipient product-preference guidance changes, do `wms/recipient_product_preferences.py`,
+  `wms/shipment_form_helpers.py`, `wms/views_scan_shipments.py`, and `wms/static/scan/scan.js`
+  still expose the same blocking/metadata contract?
 - do `docs/mvp_spec.md`, `docs/operations.md`, and `docs/release_checklist.md` still describe reality?
 
 Run or inspect first:
@@ -101,6 +104,8 @@ Ask yourself:
 
 - will scan shipment forms now show different shippers, recipients, or correspondents?
 - does a portal change also require an admin contacts cockpit change?
+- if recipient product preferences or periodic quantities changed, do portal recipient detail,
+  scan/admin recipient detail, and scan shipment-create compatibility metadata still stay aligned?
 - should this logic be moved into `wms/parties/` instead of staying duplicated in portal/admin adapters?
 - if the public shipment-party import surface changed, did `wms/parties/__init__.py`,
   `wms/application/parties/__init__.py`, and `wms/tests/core/tests_v33_contracts.py`

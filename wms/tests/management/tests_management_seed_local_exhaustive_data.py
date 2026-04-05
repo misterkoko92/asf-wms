@@ -46,6 +46,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipmentValidationStatus,
     VolunteerAvailability,
     VolunteerConstraint,
     VolunteerProfile,
@@ -96,6 +97,33 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
                 label__icontains="users",
                 channel=CommunicationChannel.WHATSAPP,
             ).exists()
+        )
+
+    def test_command_marks_seeded_local_shippers_and_recipients_as_validated(self):
+        call_command("seed_local_exhaustive_data", "--scenario=users")
+
+        self.assertGreaterEqual(
+            ShipmentShipper.objects.filter(
+                organization__name__contains="[LOCAL users] Association",
+                validation_status=ShipmentValidationStatus.VALIDATED,
+                is_active=True,
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            ShipmentRecipientOrganization.objects.filter(
+                organization__name__contains="[LOCAL users] Structure",
+                validation_status=ShipmentValidationStatus.PENDING,
+            ).count(),
+            0,
+        )
+        self.assertGreaterEqual(
+            ShipmentRecipientOrganization.objects.filter(
+                organization__name__contains="[LOCAL users] Structure",
+                validation_status=ShipmentValidationStatus.VALIDATED,
+                is_active=True,
+            ).count(),
+            3,
         )
 
     def test_command_creates_actionable_shipments_cartons_and_alert_rows(self):

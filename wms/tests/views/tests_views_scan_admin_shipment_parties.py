@@ -1,18 +1,31 @@
 import re
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from contacts.models import Contact, ContactType
 from wms.models import (
+    Carton,
+    CartonItem,
+    CartonStatus,
     Destination,
+    Location,
+    Product,
+    ProductLot,
+    ProductLotStatus,
+    RecipientProductPreference,
+    Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
+    ShipmentWorkflowProjection,
+    Warehouse,
 )
 
 
@@ -93,6 +106,25 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             is_default=True,
             is_active=True,
         )
+        self.product = Product.objects.create(
+            sku="SCAN-RECIP-PREF-001",
+            name="Compresses scan",
+            brand="ASF",
+            qr_code_image="qr_codes/scan_recip_pref_001.png",
+        )
+        self.other_product = Product.objects.create(
+            sku="SCAN-RECIP-PREF-002",
+            name="Bandages scan",
+            brand="ASF",
+            qr_code_image="qr_codes/scan_recip_pref_002.png",
+        )
+
+    def _detail_url(self, recipient_organization=None):
+        recipient_organization = recipient_organization or self.recipient_organization
+        return reverse(
+            "scan:scan_admin_recipient_organization_detail",
+            kwargs={"recipient_organization_id": recipient_organization.id},
+        )
 
     def test_scan_admin_contacts_renders_shipment_party_cockpit(self):
         self.client.force_login(self.superuser)
@@ -134,6 +166,185 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             [link.id for link in response.context["cockpit_shipment_links"]],
             [self.link.id],
         )
+        self.assertContains(response, self._detail_url())
+        self.assertContains(response, "Ouvrir")
+
+    def test_scan_admin_recipient_detail_shows_current_preferences(self):
+        self.client.force_login(self.superuser)
+        preference = RecipientProductPreference.objects.create(
+            recipient_organization=self.recipient_organization,
+            product=self.product,
+            status="requested",
+            quantity_target=8,
+            period_unit="week",
+            source="scan_admin",
+            created_by=self.superuser,
+            updated_by=self.superuser,
+        )
+
+        response = self.client.get(self._detail_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["recipient_organization"], self.recipient_organization)
+        self.assertEqual(len(response.context["recipient_product_rows"]), 2)
+        self.assertContains(response, "Préférences produits")
+        self.assertContains(response, self.product.name)
+        self.assertContains(response, preference.get_status_display())
+        self.assertContains(response, "Enregistrer la ligne")
+
+    def test_scan_admin_recipient_detail_can_create_update_and_clear_preference(self):
+        self.client.force_login(self.superuser)
+
+        create_response = self.client.post(
+            self._detail_url(),
+            {
+                "action": "save_recipient_preference",
+                "product_id": str(self.product.id),
+                "status": "allowed",
+                "quantity_target": "15",
+                "period_unit": "month",
+                "notes": "Stock utile",
+            },
+        )
+
+        self.assertEqual(create_response.status_code, 302)
+        preference = self.recipient_organization.product_preferences.get(product=self.product)
+        self.assertEqual(preference.status, "allowed")
+        self.assertEqual(preference.quantity_target, 15)
+        self.assertEqual(preference.period_unit, "month")
+        self.assertEqual(preference.source, "scan_admin")
+        self.assertEqual(preference.updated_by, self.superuser)
+
+        update_response = self.client.post(
+            self._detail_url(),
+            {
+                "action": "save_recipient_preference",
+                "product_id": str(self.product.id),
+                "status": "refused",
+                "quantity_target": "",
+                "period_unit": "",
+                "notes": "Ne plus livrer",
+            },
+        )
+
+        self.assertEqual(update_response.status_code, 302)
+        preference.refresh_from_db()
+        self.assertEqual(preference.status, "refused")
+        self.assertIsNone(preference.quantity_target)
+        self.assertEqual(preference.notes, "Ne plus livrer")
+
+        delete_response = self.client.post(
+            self._detail_url(),
+            {
+                "action": "save_recipient_preference",
+                "product_id": str(self.product.id),
+                "status": "unspecified",
+                "quantity_target": "15",
+                "period_unit": "month",
+                "notes": "Retirer la règle",
+            },
+        )
+
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertFalse(self.recipient_organization.product_preferences.exists())
+
+    def test_scan_admin_recipient_detail_shows_preference_coverage_in_product_table(self):
+        self.client.force_login(self.superuser)
+        self.recipient_organization.product_preferences.create(
+            product=self.product,
+            status="requested",
+            quantity_target=10,
+            period_unit="week",
+            source="scan_admin",
+            created_by=self.superuser,
+            updated_by=self.superuser,
+        )
+        warehouse = Warehouse.objects.create(name="Scan Coverage Warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        delivered_shipment = Shipment.objects.create(
+            reference="26SCANCOV01",
+            shipper_name=self.shipper_person.name,
+            recipient_name=self.recipient_person.name,
+            recipient_contact_ref=self.recipient_person,
+            correspondent_name=self.correspondent_org.name,
+            destination=self.destination,
+            destination_address="10 Rue Test",
+            destination_country="Mali",
+        )
+        delivered_carton = Carton.objects.create(
+            code="C-SCAN-COV-1",
+            status=CartonStatus.SHIPPED,
+            shipment=delivered_shipment,
+        )
+        delivered_lot = ProductLot.objects.create(
+            product=self.product,
+            lot_code="SCAN-COV-LOT-1",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=50,
+            location=location,
+        )
+        CartonItem.objects.create(
+            carton=delivered_carton,
+            product_lot=delivered_lot,
+            quantity=4,
+        )
+        ShipmentWorkflowProjection.objects.create(
+            shipment=delivered_shipment,
+            destination=self.destination,
+            reference=delivered_shipment.reference,
+            delivered_at=timezone.now() - timedelta(days=1),
+        )
+        pipeline_shipment = Shipment.objects.create(
+            reference="26SCANCOV02",
+            shipper_name=self.shipper_person.name,
+            recipient_name=self.recipient_person.name,
+            recipient_contact_ref=self.recipient_person,
+            correspondent_name=self.correspondent_org.name,
+            destination=self.destination,
+            destination_address="10 Rue Test",
+            destination_country="Mali",
+        )
+        pipeline_carton = Carton.objects.create(
+            code="C-SCAN-COV-2",
+            status=CartonStatus.ASSIGNED,
+            shipment=pipeline_shipment,
+        )
+        pipeline_lot = ProductLot.objects.create(
+            product=self.product,
+            lot_code="SCAN-COV-LOT-2",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=50,
+            location=location,
+        )
+        CartonItem.objects.create(
+            carton=pipeline_carton,
+            product_lot=pipeline_lot,
+            quantity=1,
+        )
+        ShipmentWorkflowProjection.objects.create(
+            shipment=pipeline_shipment,
+            destination=self.destination,
+            reference=pipeline_shipment.reference,
+        )
+
+        response = self.client.get(self._detail_url())
+
+        self.assertEqual(response.status_code, 200)
+        row = next(
+            row
+            for row in response.context["recipient_product_rows"]
+            if row["product"].id == self.product.id
+        )
+        coverage = row["coverage"]
+        self.assertEqual(coverage.delivered_quantity, 4)
+        self.assertEqual(coverage.pipeline_quantity, 1)
+        self.assertEqual(coverage.remaining_need, 5)
+        self.assertContains(response, "Reste a servir")
 
     def test_admin_can_set_default_authorized_recipient_contact(self):
         self.client.force_login(self.superuser)

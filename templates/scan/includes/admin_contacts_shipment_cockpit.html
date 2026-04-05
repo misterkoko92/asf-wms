@@ -54,6 +54,7 @@
                                     <th>{% trans "Escale" %}</th>
                                     <th>{% trans "Statut ASF" %}</th>
                                     <th>{% trans "Référents actifs" %}</th>
+                                    <th>{% trans "Actions" %}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -68,10 +69,13 @@
                                         <td>{{ recipient.destination }}</td>
                                         <td>{{ recipient.get_validation_status_display }}</td>
                                         <td>{{ recipient.active_recipient_contact_count }}</td>
+                                        <td class="text-nowrap">
+                                            <a class="btn btn-secondary btn-sm" href="{% url 'scan:scan_admin_recipient_organization_detail' recipient_organization_id=recipient.id %}">{% trans "Ouvrir" %}</a>
+                                        </td>
                                     </tr>
                                 {% empty %}
                                     <tr>
-                                        <td colspan="4">{% trans "Aucune structure destinataire enregistrée." %}</td>
+                                        <td colspan="5">{% trans "Aucune structure destinataire enregistrée." %}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>

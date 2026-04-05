@@ -80,6 +80,13 @@ DELETE_BATCHES = (
         ),
     ),
     (
+        "recipient_preference_runtime",
+        (
+            "wms.ShipmentPreferenceOverride",
+            "wms.RecipientProductPreference",
+        ),
+    ),
+    (
         "shipment_order_receipt_runtime",
         (
             "wms.ReceiptShipmentAllocation",

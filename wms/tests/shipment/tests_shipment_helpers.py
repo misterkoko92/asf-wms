@@ -179,6 +179,11 @@ class ShipmentHelpersTests(TestCase):
                             "destination_id": destination.id,
                         }
                     ],
+                    "recipient_organization_ids_by_destination_id": {
+                        str(destination.id): recipient_org.id
+                    },
+                    "refused_product_ids_by_destination_id": {str(destination.id): []},
+                    "refused_products_by_destination_id": {str(destination.id): []},
                 }
             ],
         )
@@ -257,6 +262,14 @@ class ShipmentHelpersTests(TestCase):
                 },
             ],
         )
+        self.assertEqual(
+            recipients_json[0]["recipient_organization_ids_by_destination_id"],
+            {str(destination.id): recipient_org.id},
+        )
+        self.assertEqual(
+            recipients_json[0]["refused_product_ids_by_destination_id"],
+            {str(destination.id): []},
+        )
 
     def test_build_shipment_contact_payload_marks_exact_asf_shipper_as_priority(self):
         destination, _correspondent = self._create_destination_with_correspondent("CMN")
@@ -297,5 +310,12 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(line_values[1]["product_code"], "SKU-1")
         self.assertEqual(line_errors, {"2": ["Produit introuvable."]})
         self.assertEqual(
-            line_items, [{"carton_id": 12, "preassigned_destination_confirmed": False}]
+            line_items,
+            [
+                {
+                    "carton_id": 12,
+                    "preassigned_destination_confirmed": False,
+                    "recipient_preference_override_confirmed": False,
+                }
+            ],
         )
