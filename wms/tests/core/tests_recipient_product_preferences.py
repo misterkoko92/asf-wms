@@ -170,6 +170,51 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
         self.assertEqual(preference.status, "refused")
         self.assertEqual(override.preference_status_snapshot, "refused")
 
+    def test_preference_string_representation_and_inactive_recipient_validation(self):
+        preference_model = self._preference_model()
+        preference = preference_model(
+            recipient_organization=self.recipient_organization,
+            product=self.product,
+            status="requested",
+            quantity_target=8,
+            period_unit="week",
+            updated_by=self.user,
+        )
+
+        self.assertIn("requested", str(preference))
+        self.assertIn(self.product.name, str(preference))
+
+        self.recipient_organization.is_active = False
+        self.recipient_organization.save(update_fields=["is_active"])
+
+        with self.assertRaises(ValidationError) as exc:
+            preference.full_clean()
+
+        self.assertIn("recipient_organization", exc.exception.message_dict)
+
+    def test_override_string_representation_and_inactive_recipient_validation(self):
+        override_model = self._override_model()
+        override = override_model(
+            shipment=self.shipment,
+            carton=self.carton,
+            recipient_organization=self.recipient_organization,
+            product=self.product,
+            preference_status_snapshot="refused",
+            action="override_refusal",
+            created_by=self.user,
+        )
+
+        self.assertIn("override_refusal", str(override))
+        self.assertIn(self.product.name, str(override))
+
+        self.recipient_organization.is_active = False
+        self.recipient_organization.save(update_fields=["is_active"])
+
+        with self.assertRaises(ValidationError) as exc:
+            override.full_clean()
+
+        self.assertIn("recipient_organization", exc.exception.message_dict)
+
 
 class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDataMixin, TestCase):
     def _helper_module(self):
@@ -413,3 +458,35 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
             [item.product.pk for item in resolved], [self.product.pk, second_product.pk]
         )
         self.assertEqual([item.status for item in resolved], ["refused", "unspecified"])
+
+    def test_list_effective_preferences_returns_empty_for_empty_products(self):
+        helper = self._helper_module()
+
+        resolved = helper.list_effective_recipient_product_preferences(
+            recipient_organization=self.recipient_organization,
+            products=[],
+        )
+
+        self.assertEqual(resolved, [])
+
+    def test_list_carton_product_quantities_returns_empty_without_related_manager(self):
+        helper = self._helper_module()
+
+        rows = helper.list_carton_product_quantities(carton=object())
+
+        self.assertEqual(rows, [])
+
+    def test_refusal_conflict_helpers_return_empty_for_empty_inputs(self):
+        helper = self._helper_module()
+
+        product_conflicts = helper.list_recipient_refusal_conflicts_for_products(
+            recipient_organization=self.recipient_organization,
+            products=[],
+        )
+        carton_conflicts = helper.list_recipient_refusal_conflicts_for_carton(
+            recipient_organization=self.recipient_organization,
+            carton=object(),
+        )
+
+        self.assertEqual(product_conflicts, [])
+        self.assertEqual(carton_conflicts, [])
