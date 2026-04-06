@@ -64,6 +64,7 @@
                   </span>
                 </td>
                 <td class="portal-recipient-actions ui-comp-actions">
+                  <a class="btn btn-secondary btn-sm" href="{% url 'portal:portal_recipient_detail' recipient_id=recipient.id %}">{% trans "Ouvrir" %}</a>
                   <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}?edit={{ recipient.id }}">{% trans "Modifier" %}</a>
                 </td>
               </tr>

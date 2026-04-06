@@ -36,8 +36,10 @@ from wms.models import (
     ReceiptLine,
     ReceiptStatus,
     ReceiptType,
+    RecipientProductPreference,
     Shipment,
     ShipmentAuthorizedRecipientContact,
+    ShipmentPreferenceOverride,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
@@ -1144,6 +1146,133 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         carton.refresh_from_db()
         self.assertIsNotNone(carton.shipment_id)
+
+    def test_scan_shipment_create_exposes_recipient_preference_warning_metadata(self):
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=self.recipient_org,
+            destination=self.destination,
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=self.product,
+            status="refused",
+            updated_by=self.user,
+        )
+        carton = Carton.objects.create(code="C-REF-META", status=CartonStatus.PACKED)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=ProductLot.objects.first(),
+            quantity=1,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        carton_entry = next(
+            row for row in response.context["cartons_json"] if row["id"] == carton.id
+        )
+        self.assertEqual(
+            carton_entry["product_rows"],
+            [{"id": self.product.id, "label": self.product.name, "quantity": 1}],
+        )
+        recipient_entry = next(
+            row
+            for row in response.context["recipient_contacts_json"]
+            if row["id"] == self.recipient.id
+        )
+        self.assertEqual(
+            recipient_entry["recipient_organization_ids_by_destination_id"][
+                str(self.destination.id)
+            ],
+            recipient_organization.id,
+        )
+        self.assertEqual(
+            recipient_entry["refused_product_ids_by_destination_id"][str(self.destination.id)],
+            [self.product.id],
+        )
+        self.assertEqual(
+            carton_entry["compatibility_by_recipient_organization_id"][
+                str(recipient_organization.id)
+            ]["bucket"],
+            "incompatibles",
+        )
+        self.assertContains(response, 'id="shipment-recipient-preference-overlay"')
+
+    def test_scan_shipment_create_exposes_carton_compatibility_metadata_for_requested_need(self):
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=self.recipient_org,
+            destination=self.destination,
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=self.product,
+            status="requested",
+            quantity_target=10,
+            period_unit="week",
+            updated_by=self.user,
+        )
+        carton = Carton.objects.create(code="C-REQ-META", status=CartonStatus.PACKED)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=ProductLot.objects.first(),
+            quantity=2,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        carton_entry = next(
+            row for row in response.context["cartons_json"] if row["id"] == carton.id
+        )
+        compatibility = carton_entry["compatibility_by_recipient_organization_id"][
+            str(recipient_organization.id)
+        ]
+        self.assertEqual(compatibility["bucket"], "tres_adaptes")
+        self.assertGreater(compatibility["score"], 0)
+        self.assertContains(response, "compatibility_by_recipient_organization_id")
+
+    def test_scan_shipment_create_with_confirmed_refused_carton_records_override(self):
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=self.recipient_org,
+            destination=self.destination,
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=self.product,
+            status="refused",
+            updated_by=self.user,
+        )
+        carton = Carton.objects.create(code="C-REF-CONFIRM", status=CartonStatus.PACKED)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=ProductLot.objects.first(),
+            quantity=1,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_create"),
+            {
+                "destination": self.destination.id,
+                "shipper_contact": self.shipper.id,
+                "recipient_contact": self.recipient.id,
+                "correspondent_contact": self.correspondent.id,
+                "carton_count": 1,
+                "line_1_carton_id": carton.id,
+                "line_1_recipient_preference_override_confirmed": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertIsNotNone(carton.shipment_id)
+        override = ShipmentPreferenceOverride.objects.get(
+            shipment=carton.shipment,
+            carton=carton,
+            recipient_organization=recipient_organization,
+            product=self.product,
+        )
+        self.assertEqual(override.preference_status_snapshot, "refused")
+        self.assertEqual(override.action, "override_refusal")
 
     def test_scan_shipment_create_from_product(self):
         url = reverse("scan:scan_shipment_create")

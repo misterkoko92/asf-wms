@@ -63,6 +63,7 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
+    ShipmentWorkflowProjection,
     Warehouse,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
@@ -1870,6 +1871,18 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.account_url = reverse("portal:portal_account")
         self.account_request_url = reverse("portal:portal_account_request")
         self.destination = self._create_destination(city="Lyon", country="France")
+        self.product = Product.objects.create(
+            sku="PORTAL-PREF-001",
+            name="Compresses",
+            brand="ASF",
+            qr_code_image="qr_codes/portal-pref-001.png",
+        )
+        self.other_product = Product.objects.create(
+            sku="PORTAL-PREF-002",
+            name="Bandages",
+            brand="ASF",
+            qr_code_image="qr_codes/portal-pref-002.png",
+        )
 
     def _build_recipient_payload(self, **overrides):
         payload = {
@@ -1906,6 +1919,39 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 b"%PDF-1.7 statutes",
             ),
         }
+
+    def _detail_url(self, recipient):
+        return reverse("portal:portal_recipient_detail", kwargs={"recipient_id": recipient.id})
+
+    def _create_synced_recipient(self, *, structure_name="Recipient Detail"):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name=structure_name,
+            structure_name=structure_name,
+            address_line1="1 Rue Detail",
+            city="Paris",
+            country="France",
+            is_active=True,
+            legal_form="association",
+            beneficiary_count=50,
+        )
+        sync_association_recipient_to_contact(recipient)
+        recipient.refresh_from_db()
+        return recipient
+
+    def _build_preference_row_payload(self, *, product=None, **overrides):
+        product = product or self.product
+        payload = {
+            "action": "save_recipient_preference",
+            "product_id": str(product.id),
+            "status": "requested",
+            "quantity_target": "10",
+            "period_unit": "week",
+            "notes": "Urgent",
+        }
+        payload.update(overrides)
+        return payload
 
     def test_portal_recipients_get_lists_active_recipients(self):
         active = AssociationRecipient.objects.create(
@@ -1977,6 +2023,304 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Statut destinataire")
         self.assertContains(response, "En attente validation")
         self.assertContains(response, "Validé")
+
+    def test_portal_recipients_list_shows_open_action(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Recipient Detail",
+            structure_name="Recipient Detail",
+            address_line1="1 Rue Detail",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+
+        response = self.client.get(self.recipients_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("portal:portal_recipient_detail", kwargs={"recipient_id": recipient.id}),
+        )
+        self.assertContains(response, "Ouvrir")
+
+    def test_portal_recipient_detail_get_shows_empty_preferences_state(self):
+        recipient = self._create_synced_recipient()
+
+        response = self.client.get(
+            reverse("portal:portal_recipient_detail", kwargs={"recipient_id": recipient.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["recipient"], recipient)
+        self.assertEqual(response.context["recipient_preferences"], [])
+        self.assertEqual(len(response.context["recipient_product_rows"]), 2)
+        self.assertContains(response, "Préférences produits")
+        self.assertContains(response, "Compresses")
+        self.assertContains(response, "Bandages")
+        self.assertContains(response, "Non précisé")
+        self.assertContains(response, "Enregistrer la ligne")
+        self.assertContains(response, "Recipient Detail")
+        self.assertContains(response, "Lyon")
+
+    def test_portal_recipient_detail_rejects_other_association_recipient(self):
+        other_user = self._create_portal_user("portal-account-other", "other@example.com")
+        other_profile = self._create_profile(other_user)
+        recipient = AssociationRecipient.objects.create(
+            association_contact=other_profile.contact,
+            destination=self.destination,
+            name="Recipient Hidden",
+            structure_name="Recipient Hidden",
+            address_line1="1 Rue Hidden",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("portal:portal_recipient_detail", kwargs={"recipient_id": recipient.id})
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_portal_recipient_detail_post_adds_requested_preference(self):
+        recipient = self._create_synced_recipient()
+
+        response = self.client.post(
+            self._detail_url(recipient),
+            self._build_preference_row_payload(),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self._detail_url(recipient))
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        preference = recipient_organization.product_preferences.get(product=self.product)
+        self.assertEqual(preference.status, "requested")
+        self.assertEqual(preference.quantity_target, 10)
+        self.assertEqual(preference.period_unit, "week")
+        self.assertEqual(preference.notes, "Urgent")
+        self.assertEqual(preference.source, "portal")
+        self.assertEqual(preference.created_by, self.user)
+        self.assertEqual(preference.updated_by, self.user)
+
+    def test_portal_recipient_detail_post_adds_refused_preference_without_quantity(self):
+        recipient = self._create_synced_recipient()
+
+        response = self.client.post(
+            self._detail_url(recipient),
+            self._build_preference_row_payload(
+                product=self.other_product,
+                status="refused",
+                quantity_target="",
+                period_unit="",
+                notes="Ne pas livrer",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        preference = recipient_organization.product_preferences.get(product=self.other_product)
+        self.assertEqual(preference.status, "refused")
+        self.assertIsNone(preference.quantity_target)
+        self.assertEqual(preference.period_unit, "")
+
+    def test_portal_recipient_detail_post_updates_and_clears_preference_with_unspecified_status(
+        self,
+    ):
+        recipient = self._create_synced_recipient()
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        preference = recipient_organization.product_preferences.create(
+            product=self.product,
+            status="allowed",
+            quantity_target=4,
+            period_unit="month",
+            source="portal",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        update_response = self.client.post(
+            self._detail_url(recipient),
+            {
+                "action": "save_recipient_preference",
+                "product_id": str(self.product.id),
+                "status": "requested",
+                "quantity_target": "12",
+                "period_unit": "week",
+                "notes": "Maj",
+            },
+        )
+
+        self.assertEqual(update_response.status_code, 302)
+        preference.refresh_from_db()
+        self.assertEqual(preference.status, "requested")
+        self.assertEqual(preference.quantity_target, 12)
+        self.assertEqual(preference.period_unit, "week")
+        self.assertEqual(preference.notes, "Maj")
+
+        delete_response = self.client.post(
+            self._detail_url(recipient),
+            {
+                "action": "save_recipient_preference",
+                "product_id": str(self.product.id),
+                "status": "unspecified",
+                "quantity_target": "12",
+                "period_unit": "week",
+                "notes": "Retirer la règle",
+            },
+        )
+
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertFalse(
+            recipient_organization.product_preferences.filter(pk=preference.id).exists()
+        )
+
+    def test_portal_recipient_detail_post_rejects_refused_preference_with_quantity(self):
+        recipient = self._create_synced_recipient()
+
+        response = self.client.post(
+            self._detail_url(recipient),
+            self._build_preference_row_payload(
+                status="refused",
+                quantity_target="5",
+                period_unit="week",
+                notes="Conserver la saisie",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "La quantite cible est interdite pour un produit refuse.",
+            response.context["preference_errors"],
+        )
+        row = next(
+            row
+            for row in response.context["recipient_product_rows"]
+            if row["product"].id == self.product.id
+        )
+        self.assertEqual(row["form_data"]["status"], "refused")
+        self.assertEqual(row["form_data"]["quantity_target"], "5")
+        self.assertEqual(row["form_data"]["period_unit"], "week")
+        self.assertEqual(row["form_data"]["notes"], "Conserver la saisie")
+        self.assertFalse(
+            ShipmentRecipientOrganization.objects.get(
+                organization=recipient.synced_contact,
+                destination=recipient.destination,
+            ).product_preferences.exists()
+        )
+
+    def test_portal_recipient_detail_shows_preference_coverage_in_product_table(self):
+        recipient = self._create_synced_recipient()
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        recipient_organization.product_preferences.create(
+            product=self.product,
+            status="requested",
+            quantity_target=10,
+            period_unit="week",
+            source="portal",
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        warehouse = Warehouse.objects.create(name="Portal Coverage Warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        delivered_shipment = Shipment.objects.create(
+            reference="26PORTALCOV01",
+            shipper_name=self.profile.contact.name,
+            recipient_name=recipient.synced_contact.name,
+            recipient_contact_ref=recipient.synced_contact,
+            correspondent_name=self.destination.correspondent_contact.name,
+            destination=self.destination,
+            destination_address="1 Rue Detail",
+            destination_country="France",
+        )
+        delivered_carton = Carton.objects.create(
+            code="C-PORTAL-COV-1",
+            status=CartonStatus.SHIPPED,
+            shipment=delivered_shipment,
+        )
+        delivered_lot = ProductLot.objects.create(
+            product=self.product,
+            lot_code="PORTAL-COV-LOT-1",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=50,
+            location=location,
+        )
+        CartonItem.objects.create(
+            carton=delivered_carton,
+            product_lot=delivered_lot,
+            quantity=3,
+        )
+        ShipmentWorkflowProjection.objects.create(
+            shipment=delivered_shipment,
+            destination=self.destination,
+            reference=delivered_shipment.reference,
+            delivered_at=timezone.now() - timedelta(hours=1),
+        )
+        pipeline_shipment = Shipment.objects.create(
+            reference="26PORTALCOV02",
+            shipper_name=self.profile.contact.name,
+            recipient_name=recipient.synced_contact.name,
+            recipient_contact_ref=recipient.synced_contact,
+            correspondent_name=self.destination.correspondent_contact.name,
+            destination=self.destination,
+            destination_address="1 Rue Detail",
+            destination_country="France",
+        )
+        pipeline_carton = Carton.objects.create(
+            code="C-PORTAL-COV-2",
+            status=CartonStatus.ASSIGNED,
+            shipment=pipeline_shipment,
+        )
+        pipeline_lot = ProductLot.objects.create(
+            product=self.product,
+            lot_code="PORTAL-COV-LOT-2",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=50,
+            location=location,
+        )
+        CartonItem.objects.create(
+            carton=pipeline_carton,
+            product_lot=pipeline_lot,
+            quantity=2,
+        )
+        ShipmentWorkflowProjection.objects.create(
+            shipment=pipeline_shipment,
+            destination=self.destination,
+            reference=pipeline_shipment.reference,
+        )
+
+        response = self.client.get(self._detail_url(recipient))
+
+        self.assertEqual(response.status_code, 200)
+        row = next(
+            row
+            for row in response.context["recipient_product_rows"]
+            if row["product"].id == self.product.id
+        )
+        coverage = row["coverage"]
+        self.assertEqual(coverage.delivered_quantity, 3)
+        self.assertEqual(coverage.pipeline_quantity, 2)
+        self.assertEqual(coverage.remaining_need, 5)
+        self.assertContains(response, "Reste a servir")
+        self.assertContains(response, "5")
 
     def test_portal_recipients_post_validates_required_fields(self):
         response = self.client.post(

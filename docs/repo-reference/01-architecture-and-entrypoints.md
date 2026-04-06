@@ -21,7 +21,7 @@ Main surfaces:
 Use the URL module to find the real feature surface before searching broadly.
 
 - `wms/scan_urls.py`: staff-facing scan, shipments, receipts, billing, imports, design, print, settings
-- `wms/portal_urls.py`: portal auth, dashboard, orders, billing, recipients, account
+- `wms/portal_urls.py`: portal auth, dashboard, orders, billing, recipients list/detail, account
 - `wms/volunteer_urls.py`: volunteer auth, profile, constraints, availabilities
 - `wms/planning_urls.py`: planning runs, versions, communications, artifacts
 - `api/v1/urls.py`: REST endpoints, UI API endpoints, integration endpoints

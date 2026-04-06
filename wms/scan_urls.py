@@ -185,6 +185,11 @@ urlpatterns = [
         name="scan_admin_carton_formats",
     ),
     path("admin/contacts/", views.scan_admin_contacts, name="scan_admin_contacts"),
+    path(
+        "admin/contacts/recipient-organizations/<int:recipient_organization_id>/",
+        views.scan_admin_recipient_organization_detail,
+        name="scan_admin_recipient_organization_detail",
+    ),
     path("admin/products/", views.scan_admin_products, name="scan_admin_products"),
     path("product-labels/", views.scan_product_labels, name="scan_product_labels"),
     path(

@@ -76,7 +76,7 @@ class PortalBootstrapUiTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        AssociationRecipient.objects.create(
+        recipient = AssociationRecipient.objects.create(
             association_contact=association_contact,
             destination=destination,
             name="Destinataire Bootstrap",
@@ -86,6 +86,13 @@ class PortalBootstrapUiTests(TestCase):
             country="France",
             is_delivery_contact=True,
             is_active=True,
+        )
+        sync_association_recipient_to_contact(recipient)
+        Product.objects.create(
+            sku="PORTAL-BOOTSTRAP-PREF-001",
+            name="Produit Bootstrap",
+            brand="ASF",
+            qr_code_image="qr_codes/portal_bootstrap_pref_001.png",
         )
         self.order = Order.objects.create(
             association_contact=association_contact,
@@ -459,6 +466,30 @@ class PortalBootstrapUiTests(TestCase):
             '<a class="btn btn-tertiary btn-sm" href="/portal/recipients/?edit=1">Modifier</a>',
             html=True,
         )
+        self.assertContains(
+            response,
+            '<a class="btn btn-secondary btn-sm" href="/portal/recipients/1/">Ouvrir</a>',
+            html=True,
+        )
+
+    def test_portal_recipient_detail_uses_bootstrap_cards_and_actions(self):
+        response = self.client.get(
+            reverse("portal:portal_recipient_detail", kwargs={"recipient_id": 1})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-card portal-card card border-0")
+        self.assertContains(response, "portal-page-intro")
+        self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, "Préférences produits")
+        self.assertContains(response, "table table-sm align-middle")
+        self.assertContains(response, "form-select")
+        self.assertContains(response, "form-control")
+        self.assertContains(response, 'name="product_id"')
+        self.assertContains(response, 'name="status"')
+        self.assertContains(response, 'value="save_recipient_preference"')
+        self.assertContains(response, "Non précisé")
+        self.assertNotContains(response, "Ajouter la préférence")
 
     def test_portal_recipients_edit_exposes_product_preference_contract(self):
         recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")

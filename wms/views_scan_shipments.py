@@ -35,6 +35,7 @@ from .models import (
     ShipmentDisputeOwner,
     ShipmentDisputeReason,
     ShipmentDisputeStatus,
+    ShipmentRecipientOrganization,
     ShipmentStatus,
 )
 from .pack_handlers import build_pack_defaults, handle_pack_post
@@ -44,6 +45,7 @@ from .prepare_kits_helpers import (
     build_prepare_kits_picking_context,
     prepare_kits,
 )
+from .recipient_product_preferences import score_recipient_carton_compatibility
 from .runtime_settings import is_shipment_track_legacy_enabled
 from .scan_helpers import (
     build_carton_formats,
@@ -168,6 +170,10 @@ def _build_shipment_form_support(*, extra_carton_options=None, product_options=N
         available_cartons,
         extra_carton_options,
     )
+    _annotate_carton_selection_compatibility(
+        cartons_json=cartons_json,
+        recipient_contacts_json=recipient_contacts_json,
+    )
     return {
         "product_options": product_options,
         "cartons_json": cartons_json,
@@ -177,6 +183,65 @@ def _build_shipment_form_support(*, extra_carton_options=None, product_options=N
         "recipient_contacts_json": recipient_contacts_json,
         "correspondent_contacts_json": correspondent_contacts_json,
     }
+
+
+def _annotate_carton_selection_compatibility(*, cartons_json, recipient_contacts_json):
+    if not isinstance(cartons_json, list):
+        return
+    recipient_organization_ids = set()
+    for recipient_contact in recipient_contacts_json or []:
+        for recipient_organization_id in (
+            recipient_contact.get("recipient_organization_ids_by_destination_id") or {}
+        ).values():
+            try:
+                recipient_organization_ids.add(int(recipient_organization_id))
+            except (TypeError, ValueError):
+                continue
+
+    recipient_organizations = {
+        recipient_organization.id: recipient_organization
+        for recipient_organization in ShipmentRecipientOrganization.objects.filter(
+            id__in=recipient_organization_ids
+        ).select_related("organization", "destination")
+    }
+    carton_ids = []
+    for carton in cartons_json or []:
+        if not isinstance(carton, dict):
+            continue
+        try:
+            carton_ids.append(int(carton["id"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    cartons_by_id = {
+        carton.id: carton
+        for carton in Carton.objects.filter(id__in=carton_ids).prefetch_related(
+            "cartonitem_set__product_lot__product"
+        )
+    }
+    as_of = timezone.now()
+    for carton_row in cartons_json or []:
+        if not isinstance(carton_row, dict):
+            continue
+        carton_object = cartons_by_id.get(carton_row.get("id"))
+        compatibility_by_recipient_organization_id = {}
+        if carton_object is not None:
+            for (
+                recipient_organization_id,
+                recipient_organization,
+            ) in recipient_organizations.items():
+                compatibility = score_recipient_carton_compatibility(
+                    recipient_organization=recipient_organization,
+                    carton=carton_object,
+                    as_of=as_of,
+                )
+                compatibility_by_recipient_organization_id[str(recipient_organization_id)] = {
+                    "bucket": compatibility.bucket,
+                    "score": compatibility.score,
+                    "explanation": compatibility.explanation,
+                }
+        carton_row["compatibility_by_recipient_organization_id"] = (
+            compatibility_by_recipient_organization_id
+        )
 
 
 def _build_local_document_helper_context(request):

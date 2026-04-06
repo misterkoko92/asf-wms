@@ -324,35 +324,38 @@ class ShipmentAuthorizedRecipientContact(models.Model):
 class RecipientProductPreference(models.Model):
     recipient_organization = models.ForeignKey(
         ShipmentRecipientOrganization,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="product_preferences",
     )
     product = models.ForeignKey(
         "wms.Product",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="recipient_preferences",
     )
     category = models.ForeignKey(
         "wms.ProductCategory",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="recipient_preferences",
     )
-    status = models.CharField(max_length=20, choices=RecipientProductPreferenceStatus.choices)
+    status = models.CharField(
+        max_length=20,
+        choices=RecipientProductPreferenceStatus.choices,
+    )
     quantity_target = models.PositiveIntegerField(null=True, blank=True)
     period_unit = models.CharField(
-        max_length=12,
+        max_length=10,
         choices=RecipientProductPreferencePeriodUnit.choices,
         blank=True,
-        default="",
     )
     notes = models.TextField(blank=True)
     source = models.CharField(
         max_length=20,
         choices=RecipientProductPreferenceSource.choices,
+        blank=True,
         default=RecipientProductPreferenceSource.SYSTEM,
     )
     created_by = models.ForeignKey(
@@ -360,20 +363,24 @@ class RecipientProductPreference(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="recipient_product_preferences_created",
+        related_name="created_recipient_product_preferences",
     )
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="recipient_product_preferences_updated",
+        related_name="updated_recipient_product_preferences",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["recipient_organization_id", "id"]
+        ordering = [
+            "recipient_organization__destination__city",
+            "recipient_organization__organization__name",
+            "id",
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["recipient_organization", "product"],
@@ -417,12 +424,15 @@ class RecipientProductPreference(models.Model):
         elif self.status == RecipientProductPreferenceStatus.REFUSED:
             if self.quantity_target is not None:
                 errors["quantity_target"] = _(
-                    "Une preference refusee ne peut pas porter de quantite cible."
+                    "La quantite cible est interdite pour un produit refuse."
                 )
             if self.period_unit:
-                errors["period_unit"] = _("Une preference refusee ne peut pas porter de periode.")
+                errors["period_unit"] = _("La periode est interdite pour un produit refuse.")
             if has_category:
                 errors["category"] = _("Le statut refuse n'est pas autorise au niveau categorie.")
+
+        if self.recipient_organization_id and not self.recipient_organization.is_active:
+            errors["recipient_organization"] = _("La structure destinataire doit etre active.")
 
         if errors:
             raise ValidationError(errors)
@@ -435,7 +445,7 @@ class RecipientProductPreference(models.Model):
 class ShipmentPreferenceOverride(models.Model):
     shipment = models.ForeignKey(
         "wms.Shipment",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="preference_overrides",
     )
     carton = models.ForeignKey(
@@ -453,11 +463,14 @@ class ShipmentPreferenceOverride(models.Model):
     product = models.ForeignKey(
         "wms.Product",
         on_delete=models.PROTECT,
-        related_name="preference_overrides",
+        related_name="shipment_preference_overrides",
     )
-    preference_status_snapshot = models.CharField(max_length=20)
+    preference_status_snapshot = models.CharField(
+        max_length=20,
+        choices=RecipientProductPreferenceStatus.choices,
+    )
     action = models.CharField(
-        max_length=24,
+        max_length=30,
         choices=ShipmentPreferenceOverrideAction.choices,
         default=ShipmentPreferenceOverrideAction.OVERRIDE_REFUSAL,
     )
@@ -467,12 +480,27 @@ class ShipmentPreferenceOverride(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="shipment_preference_overrides_created",
+        related_name="shipment_preference_overrides",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["shipment_id", "id"]
+        ordering = ["-created_at", "-id"]
 
     def __str__(self) -> str:
-        return f"{self.shipment} - {self.product} ({self.action})"
+        return (
+            f"{self.shipment} - {self.product} "
+            f"({self.preference_status_snapshot}/{self.action})"
+        )
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.recipient_organization_id and not self.recipient_organization.is_active:
+            errors["recipient_organization"] = _("La structure destinataire doit etre active.")
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

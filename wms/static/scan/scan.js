@@ -1412,17 +1412,31 @@
     const cartonDataEl = document.getElementById('carton-data');
     const productDataEl = document.getElementById('product-data');
     const destinationDataEl = document.getElementById('destination-data');
+    const recipientDataEl = document.getElementById('recipient-contacts-data');
     const shipmentForm = document.getElementById('shipment-form');
     const mismatchOverlay = document.getElementById('shipment-preassignment-overlay');
     const mismatchMessage = document.getElementById('shipment-preassignment-message');
     const mismatchAcceptButton = document.getElementById('shipment-preassignment-accept');
     const mismatchRejectButton = document.getElementById('shipment-preassignment-reject');
+    const recipientPreferenceOverlay = document.getElementById(
+      'shipment-recipient-preference-overlay'
+    );
+    const recipientPreferenceMessage = document.getElementById(
+      'shipment-recipient-preference-message'
+    );
+    const recipientPreferenceAcceptButton = document.getElementById(
+      'shipment-recipient-preference-accept'
+    );
+    const recipientPreferenceRejectButton = document.getElementById(
+      'shipment-recipient-preference-reject'
+    );
 
     let lineValues = [];
     let lineErrors = {};
     let cartons = [];
     let products = [];
     let destinations = [];
+    let recipientContacts = [];
 
     try {
       lineValues = JSON.parse(lineDataEl ? lineDataEl.textContent || '[]' : '[]');
@@ -1449,6 +1463,13 @@
     } catch (err) {
       destinations = [];
     }
+    try {
+      recipientContacts = JSON.parse(
+        recipientDataEl ? recipientDataEl.textContent || '[]' : '[]'
+      );
+    } catch (err) {
+      recipientContacts = [];
+    }
 
     const cartonMap = new Map();
     cartons.forEach(carton => {
@@ -1462,6 +1483,12 @@
         destinationMap.set(String(destination.id), destination);
       }
     });
+    const recipientContactMap = new Map();
+    recipientContacts.forEach(recipientContact => {
+      if (recipientContact && recipientContact.id) {
+        recipientContactMap.set(String(recipientContact.id), recipientContact);
+      }
+    });
 
     const parseNumber = value => {
       const parsed = parseFloat((value || '').toString().replace(',', '.'));
@@ -1471,6 +1498,7 @@
     const productEntries = products
       .filter(product => product && product.name)
       .map(product => ({
+        id: product.id,
         name: product.name,
         nameLower: product.name.toLowerCase(),
         sku: product.sku || '',
@@ -1734,6 +1762,9 @@
       const expiresField = line.querySelector('.shipment-line-expires-field');
       const filterInput = line.querySelector('.scan-select-filter');
       const mismatchConfirmedInput = line.querySelector('.shipment-line-preassigned-confirmed');
+      const preferenceOverrideConfirmedInput = line.querySelector(
+        '.shipment-line-recipient-preference-confirmed'
+      );
       if (!cartonSelect || !productInput || !quantityInput) {
         return;
       }
@@ -1750,6 +1781,9 @@
       }
       if (mismatchConfirmedInput) {
         mismatchConfirmedInput.value = '';
+      }
+      if (preferenceOverrideConfirmedInput) {
+        preferenceOverrideConfirmedInput.value = '';
       }
       productInput.disabled = hasCarton;
       quantityInput.disabled = hasCarton;
@@ -1798,6 +1832,16 @@
       mismatchOverlay.classList.toggle('scan-hidden', !visible);
     };
 
+    const setRecipientPreferenceOverlayVisible = visible => {
+      if (!recipientPreferenceOverlay) {
+        return;
+      }
+      recipientPreferenceOverlay.hidden = !visible;
+      recipientPreferenceOverlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+      recipientPreferenceOverlay.classList.toggle('active', visible);
+      recipientPreferenceOverlay.classList.toggle('scan-hidden', !visible);
+    };
+
     const requestPreassignmentConfirmation = message =>
       new Promise(resolve => {
         if (
@@ -1826,6 +1870,34 @@
         mismatchRejectButton.addEventListener('click', handleReject);
       });
 
+    const requestRecipientPreferenceConfirmation = message =>
+      new Promise(resolve => {
+        if (
+          !recipientPreferenceOverlay ||
+          !recipientPreferenceMessage ||
+          !recipientPreferenceAcceptButton ||
+          !recipientPreferenceRejectButton
+        ) {
+          resolve(window.confirm(message));
+          return;
+        }
+        recipientPreferenceMessage.textContent = message;
+        setRecipientPreferenceOverlayVisible(true);
+
+        const cleanup = accepted => {
+          recipientPreferenceAcceptButton.removeEventListener('click', handleAccept);
+          recipientPreferenceRejectButton.removeEventListener('click', handleReject);
+          setRecipientPreferenceOverlayVisible(false);
+          resolve(accepted);
+        };
+
+        const handleAccept = () => cleanup(true);
+        const handleReject = () => cleanup(false);
+
+        recipientPreferenceAcceptButton.addEventListener('click', handleAccept);
+        recipientPreferenceRejectButton.addEventListener('click', handleReject);
+      });
+
     const buildPreassignmentMismatchMessage = (carton, destinationId) => {
       const template =
         shipmentForm?.dataset.preassignmentMismatchTemplate ||
@@ -1841,6 +1913,83 @@
       return template
         .replace('__EXPECTED__', expectedLabel)
         .replace('__CURRENT__', currentLabel);
+    };
+
+    const compatibilityBucketLabels = {
+      tres_adaptes: 'Tres adapte',
+      compatibles: 'Compatible',
+      a_eviter: 'A eviter',
+      incompatibles: 'Incompatible'
+    };
+
+    const buildCartonOptionLabel = (carton, recipientPreferenceContext) => {
+      const baseLabel = carton.weight_g
+        ? `${carton.label || carton.code} (${carton.weight_g} g)`
+        : carton.label || carton.code;
+      const recipientOrganizationId =
+        recipientPreferenceContext && recipientPreferenceContext.recipientOrganizationId;
+      if (!recipientOrganizationId) {
+        return baseLabel;
+      }
+      const compatibility =
+        carton.compatibility_by_recipient_organization_id &&
+        carton.compatibility_by_recipient_organization_id[String(recipientOrganizationId)];
+      const bucketLabel =
+        compatibility && compatibility.bucket
+          ? compatibilityBucketLabels[compatibility.bucket] || compatibility.bucket
+          : '';
+      return bucketLabel ? `${baseLabel} [${bucketLabel}]` : baseLabel;
+    };
+
+    const getRecipientPreferenceContext = () => {
+      const recipientId = document.getElementById('id_recipient_contact')?.value || '';
+      const destinationId = document.getElementById('id_destination')?.value || '';
+      const recipientContact = recipientContactMap.get(String(recipientId));
+      const recipientOrganizationId =
+        recipientContact?.recipient_organization_ids_by_destination_id?.[String(destinationId)] ||
+        '';
+      const refusedProducts =
+        recipientContact?.refused_products_by_destination_id?.[String(destinationId)] || [];
+      return {
+        recipientId: String(recipientId || ''),
+        destinationId: String(destinationId || ''),
+        recipientOrganizationId: String(recipientOrganizationId || ''),
+        refusedProducts,
+        refusedProductIds: new Set(refusedProducts.map(product => String(product.id))),
+      };
+    };
+
+    const updateCartonOptionLabels = () => {
+      const recipientPreferenceContext = getRecipientPreferenceContext();
+      container.querySelectorAll('.shipment-line-carton').forEach(select => {
+        Array.from(select.options).forEach(option => {
+          if (!option.value) {
+            return;
+          }
+          const carton = cartonMap.get(String(option.value));
+          if (!carton) {
+            return;
+          }
+          option.textContent = buildCartonOptionLabel(carton, recipientPreferenceContext);
+        });
+      });
+    };
+
+    const buildRecipientPreferenceCartonMessage = (carton, conflicts) => {
+      const productLabels = conflicts.map(product => product.label).join(', ');
+      const productNoun = conflicts.length > 1 ? 'ces produits' : 'ce produit';
+      return (
+        `Attention : le colis ${carton.code} contient ${productLabels}. ` +
+        `Le destinataire a indique ne pas vouloir ${productNoun}. ` +
+        'Voulez vous continuer ou choisir un autre colis ?'
+      );
+    };
+
+    const buildRecipientPreferenceProductMessage = product => {
+      return (
+        `Attention : le destinataire a indique ne pas vouloir ${product.label || product.name}. ` +
+        'Voulez vous continuer ou modifier la ligne ?'
+      );
     };
 
     const renderLines = count => {
@@ -1871,9 +2020,10 @@
         cartons.forEach(carton => {
           const option = document.createElement('option');
           option.value = String(carton.id);
-          option.textContent = carton.weight_g
-            ? `${carton.label || carton.code} (${carton.weight_g} g)`
-            : carton.label || carton.code;
+          option.textContent = buildCartonOptionLabel(
+            carton,
+            getRecipientPreferenceContext()
+          );
           cartonSelect.appendChild(option);
         });
         cartonSelect.value = lineValue.carton_id || '';
@@ -1954,6 +2104,10 @@
         mismatchConfirmedInput.type = 'hidden';
         mismatchConfirmedInput.name = `line_${index}_preassigned_destination_confirmed`;
         mismatchConfirmedInput.className = 'shipment-line-preassigned-confirmed';
+        const preferenceOverrideConfirmedInput = document.createElement('input');
+        preferenceOverrideConfirmedInput.type = 'hidden';
+        preferenceOverrideConfirmedInput.name = `line_${index}_recipient_preference_override_confirmed`;
+        preferenceOverrideConfirmedInput.className = 'shipment-line-recipient-preference-confirmed';
 
         grid.appendChild(buildField('Colis prepare', cartonSelect));
         const productField = buildField('Produit', productWrap);
@@ -1976,6 +2130,7 @@
         grid.appendChild(metrics);
         line.appendChild(grid);
         line.appendChild(mismatchConfirmedInput);
+        line.appendChild(preferenceOverrideConfirmedInput);
 
         const errors = lineErrors[String(index)];
         if (errors && errors.length) {
@@ -2046,6 +2201,7 @@
         container.appendChild(line);
       }
       updateCartonAvailability();
+      updateCartonOptionLabels();
       updateTotalWeight();
       updateAllLineMetrics();
     };
@@ -2071,29 +2227,66 @@
         if (!destinationId) {
           return;
         }
+        const recipientPreferenceContext = getRecipientPreferenceContext();
 
         const mismatches = [];
+        const preferenceMismatches = [];
         container.querySelectorAll('.shipment-line').forEach(line => {
           const confirmInput = line.querySelector('.shipment-line-preassigned-confirmed');
+          const preferenceConfirmInput = line.querySelector(
+            '.shipment-line-recipient-preference-confirmed'
+          );
           if (confirmInput) {
             confirmInput.value = '';
           }
+          if (preferenceConfirmInput) {
+            preferenceConfirmInput.value = '';
+          }
           const cartonId = line.querySelector('.shipment-line-carton')?.value || '';
-          if (!cartonId) {
+          if (cartonId) {
+            const carton = cartonMap.get(cartonId);
+            const preassignedDestinationId =
+              carton && carton.preassigned_destination_id
+                ? String(carton.preassigned_destination_id)
+                : '';
+            if (preassignedDestinationId && preassignedDestinationId !== String(destinationId)) {
+              mismatches.push({ carton, confirmInput, destinationId });
+            }
+            if (
+              carton &&
+              recipientPreferenceContext.refusedProductIds.size &&
+              Array.isArray(carton.product_rows)
+            ) {
+              const conflicts = carton.product_rows.filter(product =>
+                recipientPreferenceContext.refusedProductIds.has(String(product.id))
+              );
+              if (conflicts.length) {
+                preferenceMismatches.push({
+                  type: 'carton',
+                  carton,
+                  conflicts,
+                  confirmInput: preferenceConfirmInput
+                });
+              }
+            }
             return;
           }
-          const carton = cartonMap.get(cartonId);
-          const preassignedDestinationId =
-            carton && carton.preassigned_destination_id
-              ? String(carton.preassigned_destination_id)
-              : '';
-          if (!preassignedDestinationId || preassignedDestinationId === String(destinationId)) {
+          if (!recipientPreferenceContext.refusedProductIds.size) {
             return;
           }
-          mismatches.push({ carton, confirmInput, destinationId });
+          const productValue = line.querySelector('.shipment-line-product')?.value || '';
+          const product = findProductMatch(productValue);
+          if (!product || !recipientPreferenceContext.refusedProductIds.has(String(product.id))) {
+            return;
+          }
+          preferenceMismatches.push({
+            type: 'product',
+            product,
+            confirmInput: preferenceConfirmInput
+          });
         });
 
-        if (!mismatches.length) {
+        if (!mismatches.length && !preferenceMismatches.length) {
           return;
         }
 
@@ -2101,6 +2294,20 @@
         for (const mismatch of mismatches) {
           const accepted = await requestPreassignmentConfirmation(
             buildPreassignmentMismatchMessage(mismatch.carton, mismatch.destinationId)
+          );
+          if (!accepted) {
+            return;
+          }
+          if (mismatch.confirmInput) {
+            mismatch.confirmInput.value = '1';
+          }
+        }
+
+        for (const mismatch of preferenceMismatches) {
+          const accepted = await requestRecipientPreferenceConfirmation(
+            mismatch.type === 'carton'
+              ? buildRecipientPreferenceCartonMessage(mismatch.carton, mismatch.conflicts)
+              : buildRecipientPreferenceProductMessage(mismatch.product)
           );
           if (!accepted) {
             return;
@@ -2125,6 +2332,15 @@
 
     const initialCount = resolveCount(countInput ? countInput.value : 1);
     renderLines(initialCount);
+
+    const destinationSelect = document.getElementById('id_destination');
+    const recipientSelect = document.getElementById('id_recipient_contact');
+    if (destinationSelect) {
+      destinationSelect.addEventListener('change', updateCartonOptionLabels);
+    }
+    if (recipientSelect) {
+      recipientSelect.addEventListener('change', updateCartonOptionLabels);
+    }
 
     if (countInput) {
       const handleCountChange = event => {

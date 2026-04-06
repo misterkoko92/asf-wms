@@ -914,7 +914,11 @@ def _ensure_association_recipient(
             "is_active": is_active,
         },
     )
-    sync_association_recipient_to_contact(recipient)
+    synced_contact = sync_association_recipient_to_contact(recipient)
+    ShipmentRecipientOrganization.objects.filter(
+        organization=synced_contact,
+        destination=destination,
+    ).update(validation_status=ShipmentValidationStatus.VALIDATED)
     return recipient
 
 

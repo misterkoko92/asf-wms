@@ -34,6 +34,7 @@ Use it when you need to answer:
 - `wms/views_scan_settings.py`
 - `wms/scan_dashboard_sla.py`
 - `wms/scan_shipment_handlers.py`
+- `wms/recipient_product_preferences.py`
 - `wms/shipment_tracking_handlers.py`
 - `wms/shipment_document_handlers.py`
 - `wms/workflow_projection.py`
@@ -71,8 +72,10 @@ Use it when you need to answer:
 - warehouse `run magasin` generation/review under `/scan/preparation-runs/`, including proposal scoring, checkbox review actions, and conversion of accepted proposals into real shipments/cartons
 - warehouse `run magasin` flight acquisition first tries the planning API, then falls back to the latest imported exploitable flight batch; when that fallback batch is from a previous period, preparation capacity is computed from that batch period instead of crashing the operator flow
 - shipment creation/edit, including document-first creation without cartons
+- shipment refusal checks against recipient product preferences, with operator confirmation and override journaling
 - warehouse conversion creates real shipments in `ShipmentStatus.PICKING`; they stay out of planning-vols until operators physically finish the cartons and move them to `PACKED`
 - the final promotion from `PICKING` to `PACKED` is an explicit dossier action on `scan/shipment/<id>/edit/`; it is intentionally separate from preparation-run review and conversion
+- shipment refusal checks against recipient product preferences, with operator confirmation and override journaling
 - carton status progression
 - grouped carton assignment and print/document entrypoints
 - direct HTML print bundles for shipment `paper`, `standard_labels`, and `carton_lists_a4`
@@ -163,7 +166,8 @@ If you change shipment sequencing, status rules, document-first creation behavio
 
 - association authentication and account maintenance
 - portal dashboard cockpit KPIs and per-order next-step guidance
-- recipient creation/update
+- recipient list/detail/create/update
+- recipient product preference editing from both portal recipient detail and scan admin recipient cockpit
 - synchronization from `AssociationRecipient` to operational contact structures
 - shipper/recipient authorization chain
 - order creation from portal
@@ -197,6 +201,9 @@ If you change recipient fields, validation, shipment-party eligibility, default 
 
 Also inspect the shipment-party registry and sync layers. A portal-only change is often not portal-only in practice.
 When a recipient structure can now exist on multiple destinations, avoid organization-only runtime lookups and assertions.
+Recipient management routes now include both the lightweight list at `/portal/recipients/` and
+the recipient cockpit detail at `/portal/recipients/<id>/`, so permission guards and
+portal-side navigation should treat both as part of the same maintenance surface.
 
 ## 3. Orders: Public / Portal / Admin Side Effects
 

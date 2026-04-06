@@ -153,6 +153,101 @@ class ShipmentPartyModelTests(TestCase):
                 is_active=True,
             )
 
+    def test_authorized_recipient_contact_string_representation_marks_default(self):
+        shipper_org = self._create_organization("Ship Org Display")
+        shipper_default = self._create_person(
+            organization=shipper_org,
+            first_name="Sally",
+            last_name="Ship",
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_default,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            can_send_to_all=False,
+            is_active=True,
+        )
+        recipient_org = self._create_organization("Recipient Org Display")
+        destination = self._create_destination("DKR")
+        recipient_structure = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=True,
+        )
+        primary_contact = self._create_person(
+            organization=recipient_org,
+            first_name="Dr",
+            last_name="Display",
+        )
+        primary_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_structure,
+            contact=primary_contact,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_structure,
+            is_active=True,
+        )
+        authorized_contact = ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=primary_recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
+
+        self.assertIn("(defaut)", str(authorized_contact))
+
+    def test_authorized_recipient_contact_rejects_inactive_link(self):
+        shipper_org = self._create_organization("Ship Org Inactive Link")
+        shipper_default = self._create_person(
+            organization=shipper_org,
+            first_name="Sally",
+            last_name="Ship",
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_default,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            can_send_to_all=False,
+            is_active=True,
+        )
+        recipient_org = self._create_organization("Recipient Org Inactive Link")
+        destination = self._create_destination("NIM")
+        recipient_structure = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=True,
+        )
+        recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_structure,
+            contact=self._create_person(
+                organization=recipient_org,
+                first_name="Dr",
+                last_name="InactiveLink",
+            ),
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_structure,
+            is_active=False,
+        )
+
+        with self.assertRaises(ValidationError) as exc:
+            ShipmentAuthorizedRecipientContact(
+                link=link,
+                recipient_contact=recipient_contact,
+                is_default=False,
+                is_active=True,
+            ).full_clean()
+
+        self.assertIn("link", exc.exception.message_dict)
+
     def test_authorized_recipient_contact_rejects_contact_from_other_recipient_organization(
         self,
     ):
