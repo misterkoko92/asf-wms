@@ -1,0 +1,43 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Runs magasin{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="h4 mb-0 ui-comp-title">Runs magasin</h2>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_preparation_parameter_set_config' %}">Configurer les jeux de paramètres</a>
+        <a class="btn btn-primary" href="{% url 'scan:scan_preparation_run_create' %}">Nouveau run magasin</a>
+      </div>
+    </div>
+    {% if runs %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Fenêtre vols</th>
+              <th>Paramètres</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for run in runs %}
+              <tr>
+                <td>#{{ run.id }}</td>
+                <td>{{ run.flight_window_start|date:"d/m/Y" }} - {{ run.flight_window_end|date:"d/m/Y" }}</td>
+                <td>{{ run.parameter_set.name }}</td>
+                <td>{{ run.get_status_display }}</td>
+                <td><a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_preparation_run_detail' run.id %}">Ouvrir</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="ui-comp-note">Aucun run magasin.</p>
+    {% endif %}
+  </div>
+{% endblock %}

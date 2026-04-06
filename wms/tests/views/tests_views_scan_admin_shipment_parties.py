@@ -297,7 +297,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             shipment=delivered_shipment,
             destination=self.destination,
             reference=delivered_shipment.reference,
-            delivered_at=timezone.now() - timedelta(days=1),
+            delivered_at=timezone.now() - timedelta(hours=1),
         )
         pipeline_shipment = Shipment.objects.create(
             reference="26SCANCOV02",

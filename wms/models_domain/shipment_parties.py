@@ -28,10 +28,11 @@ class RecipientProductPreferencePeriodUnit(models.TextChoices):
 class RecipientProductPreferenceSource(models.TextChoices):
     PORTAL = "portal", _("Portail")
     SCAN_ADMIN = "scan_admin", _("Scan admin")
+    SYSTEM = "system", _("Systeme")
 
 
 class ShipmentPreferenceOverrideAction(models.TextChoices):
-    OVERRIDE_REFUSAL = "override_refusal", _("Override refus")
+    OVERRIDE_REFUSAL = "override_refusal", _("Override refusal")
 
 
 class ShipmentShipper(models.Model):
@@ -329,6 +330,15 @@ class RecipientProductPreference(models.Model):
     product = models.ForeignKey(
         "wms.Product",
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="recipient_preferences",
+    )
+    category = models.ForeignKey(
+        "wms.ProductCategory",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="recipient_preferences",
     )
     status = models.CharField(
@@ -346,6 +356,7 @@ class RecipientProductPreference(models.Model):
         max_length=20,
         choices=RecipientProductPreferenceSource.choices,
         blank=True,
+        default=RecipientProductPreferenceSource.SYSTEM,
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -368,32 +379,48 @@ class RecipientProductPreference(models.Model):
         ordering = [
             "recipient_organization__destination__city",
             "recipient_organization__organization__name",
-            "product__name",
             "id",
         ]
         constraints = [
             models.UniqueConstraint(
                 fields=["recipient_organization", "product"],
-                name="wms_recipient_product_preference_unique_pair",
+                condition=models.Q(product__isnull=False),
+                name="wms_recipient_product_pref_unique_product",
+            ),
+            models.UniqueConstraint(
+                fields=["recipient_organization", "category"],
+                condition=models.Q(category__isnull=False),
+                name="wms_recipient_product_pref_unique_category",
             ),
         ]
 
     def __str__(self) -> str:
-        return f"{self.recipient_organization} - {self.product} ({self.status})"
+        target = self.product or self.category
+        return f"{self.recipient_organization} - {target} ({self.status})"
 
     def clean(self):
         super().clean()
         errors = {}
-        requires_target = self.status in {
+        has_product = self.product_id is not None
+        has_category = self.category_id is not None
+
+        if has_product == has_category:
+            message = _("Choisissez exactement un produit ou une categorie.")
+            errors["product"] = message
+            errors["category"] = message
+
+        if self.status in (
             RecipientProductPreferenceStatus.REQUESTED,
             RecipientProductPreferenceStatus.ALLOWED,
-        }
-
-        if requires_target:
-            if self.quantity_target is None:
-                errors["quantity_target"] = _("La quantite cible est requise.")
+        ):
+            if not self.quantity_target:
+                errors["quantity_target"] = _(
+                    "La quantite cible est requise pour une preference demandee ou autorisee."
+                )
             if not self.period_unit:
-                errors["period_unit"] = _("La periode est requise.")
+                errors["period_unit"] = _(
+                    "La periode est requise pour une preference demandee ou autorisee."
+                )
         elif self.status == RecipientProductPreferenceStatus.REFUSED:
             if self.quantity_target is not None:
                 errors["quantity_target"] = _(
@@ -401,6 +428,8 @@ class RecipientProductPreference(models.Model):
                 )
             if self.period_unit:
                 errors["period_unit"] = _("La periode est interdite pour un produit refuse.")
+            if has_category:
+                errors["category"] = _("Le statut refuse n'est pas autorise au niveau categorie.")
 
         if self.recipient_organization_id and not self.recipient_organization.is_active:
             errors["recipient_organization"] = _("La structure destinataire doit etre active.")
@@ -443,6 +472,7 @@ class ShipmentPreferenceOverride(models.Model):
     action = models.CharField(
         max_length=30,
         choices=ShipmentPreferenceOverrideAction.choices,
+        default=ShipmentPreferenceOverrideAction.OVERRIDE_REFUSAL,
     )
     reason = models.TextField(blank=True)
     created_by = models.ForeignKey(

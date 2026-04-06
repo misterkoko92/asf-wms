@@ -32,11 +32,36 @@ class RecipientProductPreferenceTestDataMixin:
             destination=self.destination,
             is_active=True,
         )
+        self.category_l2 = wms_models.ProductCategory.objects.create(name="Kits")
+        self.category_l3 = wms_models.ProductCategory.objects.create(
+            name="Obstetrique",
+            parent=self.category_l2,
+        )
         self.product = wms_models.Product.objects.create(
             sku="PREF-001",
             name="Gants Steriles",
             brand="ASF",
             qr_code_image="qr_codes/pref-001.png",
+            category=self.category_l3,
+        )
+        self.component = wms_models.Product.objects.create(
+            sku="PREF-COMP-001",
+            name="Compresses",
+            brand="ASF",
+            qr_code_image="qr_codes/pref-comp-001.png",
+            category=self.category_l2,
+        )
+        self.kit = wms_models.Product.objects.create(
+            sku="PREF-KIT-001",
+            name="Kit Accouchement",
+            brand="ASF",
+            qr_code_image="qr_codes/pref-kit-001.png",
+            category=self.category_l3,
+        )
+        wms_models.ProductKitItem.objects.create(
+            kit=self.kit,
+            component=self.component,
+            quantity=2,
         )
         self.shipment = wms_models.Shipment.objects.create(
             reference="260001",
@@ -69,6 +94,11 @@ class RecipientProductPreferenceTestDataMixin:
         self.assertIsNotNone(model)
         return model
 
+    def _helper_module(self):
+        from wms import recipient_product_preferences
+
+        return recipient_product_preferences
+
 
 class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMixin, TestCase):
     def test_preference_models_are_exported_from_wms_models(self):
@@ -76,8 +106,7 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
         self.assertIsNotNone(getattr(wms_models, "ShipmentPreferenceOverride", None))
 
     def test_requested_preference_requires_quantity_and_period(self):
-        preference_model = self._preference_model()
-        preference = preference_model(
+        preference = self._preference_model()(
             recipient_organization=self.recipient_organization,
             product=self.product,
             status="requested",
@@ -91,8 +120,7 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
         self.assertIn("period_unit", exc.exception.message_dict)
 
     def test_allowed_preference_requires_quantity_and_period(self):
-        preference_model = self._preference_model()
-        preference = preference_model(
+        preference = self._preference_model()(
             recipient_organization=self.recipient_organization,
             product=self.product,
             status="allowed",
@@ -106,8 +134,7 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
         self.assertIn("period_unit", exc.exception.message_dict)
 
     def test_refused_preference_rejects_quantity_fields(self):
-        preference_model = self._preference_model()
-        preference = preference_model(
+        preference = self._preference_model()(
             recipient_organization=self.recipient_organization,
             product=self.product,
             status="refused",
@@ -121,6 +148,40 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
 
         self.assertIn("quantity_target", exc.exception.message_dict)
         self.assertIn("period_unit", exc.exception.message_dict)
+
+    def test_requested_and_allowed_can_target_product_or_category(self):
+        product_pref = self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            product=self.product,
+            status=wms_models.RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=4,
+            period_unit=wms_models.RecipientProductPreferencePeriodUnit.WEEK,
+            updated_by=self.user,
+        )
+        category_pref = self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            category=self.category_l2,
+            status=wms_models.RecipientProductPreferenceStatus.ALLOWED,
+            quantity_target=12,
+            period_unit=wms_models.RecipientProductPreferencePeriodUnit.MONTH,
+            updated_by=self.user,
+        )
+
+        self.assertEqual(product_pref.product, self.product)
+        self.assertEqual(category_pref.category, self.category_l2)
+
+    def test_category_level_refused_is_rejected(self):
+        preference = self._preference_model()(
+            recipient_organization=self.recipient_organization,
+            category=self.category_l2,
+            status=wms_models.RecipientProductPreferenceStatus.REFUSED,
+            updated_by=self.user,
+        )
+
+        with self.assertRaises(ValidationError) as exc:
+            preference.full_clean()
+
+        self.assertIn("category", exc.exception.message_dict)
 
     def test_preference_is_unique_per_recipient_organization_and_product(self):
         preference_model = self._preference_model()
@@ -146,16 +207,14 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
         self.assertIn("__all__", exc.exception.message_dict)
 
     def test_override_can_be_created_without_mutating_canonical_preference(self):
-        preference_model = self._preference_model()
-        override_model = self._override_model()
-        preference = preference_model.objects.create(
+        preference = self._preference_model().objects.create(
             recipient_organization=self.recipient_organization,
             product=self.product,
             status="refused",
             updated_by=self.user,
         )
 
-        override = override_model.objects.create(
+        override = self._override_model().objects.create(
             shipment=self.shipment,
             carton=self.carton,
             recipient_organization=self.recipient_organization,
@@ -171,8 +230,7 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
         self.assertEqual(override.preference_status_snapshot, "refused")
 
     def test_preference_string_representation_and_inactive_recipient_validation(self):
-        preference_model = self._preference_model()
-        preference = preference_model(
+        preference = self._preference_model()(
             recipient_organization=self.recipient_organization,
             product=self.product,
             status="requested",
@@ -193,8 +251,7 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
         self.assertIn("recipient_organization", exc.exception.message_dict)
 
     def test_override_string_representation_and_inactive_recipient_validation(self):
-        override_model = self._override_model()
-        override = override_model(
+        override = self._override_model()(
             shipment=self.shipment,
             carton=self.carton,
             recipient_organization=self.recipient_organization,
@@ -217,20 +274,14 @@ class RecipientProductPreferenceModelTests(RecipientProductPreferenceTestDataMix
 
 
 class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDataMixin, TestCase):
-    def _helper_module(self):
-        from wms import recipient_product_preferences
-
-        return recipient_product_preferences
-
     def test_missing_row_resolves_to_implicit_unspecified(self):
-        helper = self._helper_module()
-
-        resolved = helper.resolve_effective_recipient_product_preference(
+        resolved = self._helper_module().resolve_effective_recipient_product_preference(
             recipient_organization=self.recipient_organization,
             product=self.product,
         )
 
         self.assertEqual(resolved.status, "unspecified")
+        self.assertEqual(resolved.scope, "unspecified")
         self.assertFalse(resolved.is_explicit)
         self.assertIsNone(resolved.preference)
         self.assertIsNone(resolved.quantity_target)
@@ -245,29 +296,93 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
             period_unit="week",
             updated_by=self.user,
         )
-        helper = self._helper_module()
 
-        resolved = helper.resolve_effective_recipient_product_preference(
+        resolved = self._helper_module().resolve_effective_recipient_product_preference(
             recipient_organization=self.recipient_organization,
             product=self.product,
         )
 
         self.assertEqual(resolved.status, "requested")
+        self.assertEqual(resolved.scope, "product")
         self.assertTrue(resolved.is_explicit)
         self.assertEqual(resolved.preference.pk, preference.pk)
+        self.assertEqual(resolved.matched_preference_id, preference.pk)
+
+    def test_exact_product_preference_wins_over_category_preference(self):
+        self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            category=self.category_l3,
+            status="requested",
+            quantity_target=8,
+            period_unit="week",
+            updated_by=self.user,
+        )
+        self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            product=self.product,
+            status="allowed",
+            quantity_target=2,
+            period_unit="month",
+            updated_by=self.user,
+        )
+
+        resolved = self._helper_module().resolve_effective_recipient_product_preference(
+            recipient_organization=self.recipient_organization,
+            product=self.product,
+        )
+
+        self.assertEqual(resolved.status, "allowed")
+        self.assertEqual(resolved.quantity_target, 2)
+        self.assertEqual(resolved.period_unit, "month")
+        self.assertEqual(resolved.scope, "product")
+
+    def test_more_specific_category_wins_over_broader_category(self):
+        other_product = wms_models.Product.objects.create(
+            sku="PREF-002",
+            name="Bandages",
+            brand="ASF",
+            qr_code_image="qr_codes/pref-002.png",
+            category=self.category_l3,
+        )
+        self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            category=self.category_l2,
+            status="allowed",
+            quantity_target=12,
+            period_unit="month",
+            updated_by=self.user,
+        )
+        self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            category=self.category_l3,
+            status="requested",
+            quantity_target=6,
+            period_unit="week",
+            updated_by=self.user,
+        )
+
+        resolved = self._helper_module().resolve_effective_recipient_product_preference(
+            recipient_organization=self.recipient_organization,
+            product=other_product,
+        )
+
+        self.assertEqual(resolved.status, "requested")
+        self.assertEqual(resolved.quantity_target, 6)
+        self.assertEqual(resolved.period_unit, "week")
+        self.assertEqual(resolved.scope, "category")
 
     def test_resolution_exposes_targets_only_for_requested_and_allowed(self):
         second_product = wms_models.Product.objects.create(
-            sku="PREF-002",
-            name="Compresses",
-            brand="ASF",
-            qr_code_image="qr_codes/pref-002.png",
-        )
-        third_product = wms_models.Product.objects.create(
             sku="PREF-003",
-            name="Bandages",
+            name="Compresses Steriles",
             brand="ASF",
             qr_code_image="qr_codes/pref-003.png",
+        )
+        third_product = wms_models.Product.objects.create(
+            sku="PREF-004",
+            name="Bandages",
+            brand="ASF",
+            qr_code_image="qr_codes/pref-004.png",
         )
         self._preference_model().objects.create(
             recipient_organization=self.recipient_organization,
@@ -291,8 +406,8 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
             status="refused",
             updated_by=self.user,
         )
-        helper = self._helper_module()
 
+        helper = self._helper_module()
         requested = helper.resolve_effective_recipient_product_preference(
             recipient_organization=self.recipient_organization,
             product=self.product,
@@ -311,8 +426,25 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
         self.assertIsNone(refused.quantity_target)
         self.assertIsNone(refused.period_unit)
 
+    def test_kit_resolution_uses_kit_product_itself_not_components(self):
+        self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            product=self.component,
+            status="requested",
+            quantity_target=10,
+            period_unit="week",
+            updated_by=self.user,
+        )
+
+        resolved = self._helper_module().resolve_effective_recipient_product_preference(
+            recipient_organization=self.recipient_organization,
+            product=self.kit,
+        )
+
+        self.assertEqual(resolved.status, "unspecified")
+        self.assertEqual(resolved.scope, "unspecified")
+
     def test_list_carton_product_quantities_groups_same_product(self):
-        helper = self._helper_module()
         second_lot = wms_models.ProductLot.objects.create(
             product=self.product,
             quantity_on_hand=5,
@@ -333,7 +465,7 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
             quantity=3,
         )
 
-        rows = helper.list_carton_product_quantities(carton=self.carton)
+        rows = self._helper_module().list_carton_product_quantities(carton=self.carton)
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].product.pk, self.product.pk)
@@ -360,12 +492,11 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
         )
 
     def test_list_recipient_refusal_conflicts_for_carton_returns_explicit_refusals(self):
-        helper = self._helper_module()
         second_product = wms_models.Product.objects.create(
-            sku="PREF-004",
+            sku="PREF-005",
             name="Pansements",
             brand="ASF",
-            qr_code_image="qr_codes/pref-004.png",
+            qr_code_image="qr_codes/pref-005.png",
         )
         self._preference_model().objects.create(
             recipient_organization=self.recipient_organization,
@@ -400,7 +531,7 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
             quantity=1,
         )
 
-        conflicts = helper.list_recipient_refusal_conflicts_for_carton(
+        conflicts = self._helper_module().list_recipient_refusal_conflicts_for_carton(
             recipient_organization=self.recipient_organization,
             carton=self.carton,
         )
@@ -411,12 +542,11 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
         self.assertEqual(conflicts[0].preference.status, "refused")
 
     def test_list_recipient_refusal_conflicts_for_products_ignores_unspecified(self):
-        helper = self._helper_module()
         second_product = wms_models.Product.objects.create(
-            sku="PREF-005",
+            sku="PREF-006",
             name="Masques",
             brand="ASF",
-            qr_code_image="qr_codes/pref-005.png",
+            qr_code_image="qr_codes/pref-006.png",
         )
         self._preference_model().objects.create(
             recipient_organization=self.recipient_organization,
@@ -425,7 +555,7 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
             updated_by=self.user,
         )
 
-        conflicts = helper.list_recipient_refusal_conflicts_for_products(
+        conflicts = self._helper_module().list_recipient_refusal_conflicts_for_products(
             recipient_organization=self.recipient_organization,
             products=[self.product, second_product],
         )
@@ -436,10 +566,10 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
 
     def test_list_effective_preferences_includes_missing_products_as_unspecified(self):
         second_product = wms_models.Product.objects.create(
-            sku="PREF-004",
+            sku="PREF-007",
             name="Masques",
             brand="ASF",
-            qr_code_image="qr_codes/pref-004.png",
+            qr_code_image="qr_codes/pref-007.png",
         )
         self._preference_model().objects.create(
             recipient_organization=self.recipient_organization,
@@ -447,22 +577,20 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
             status="refused",
             updated_by=self.user,
         )
-        helper = self._helper_module()
 
-        resolved = helper.list_effective_recipient_product_preferences(
+        resolved = self._helper_module().list_effective_recipient_product_preferences(
             recipient_organization=self.recipient_organization,
             products=[self.product, second_product],
         )
 
         self.assertEqual(
-            [item.product.pk for item in resolved], [self.product.pk, second_product.pk]
+            [item.product.pk for item in resolved],
+            [self.product.pk, second_product.pk],
         )
         self.assertEqual([item.status for item in resolved], ["refused", "unspecified"])
 
     def test_list_effective_preferences_returns_empty_for_empty_products(self):
-        helper = self._helper_module()
-
-        resolved = helper.list_effective_recipient_product_preferences(
+        resolved = self._helper_module().list_effective_recipient_product_preferences(
             recipient_organization=self.recipient_organization,
             products=[],
         )
@@ -470,9 +598,7 @@ class RecipientProductPreferenceResolutionTests(RecipientProductPreferenceTestDa
         self.assertEqual(resolved, [])
 
     def test_list_carton_product_quantities_returns_empty_without_related_manager(self):
-        helper = self._helper_module()
-
-        rows = helper.list_carton_product_quantities(carton=object())
+        rows = self._helper_module().list_carton_product_quantities(carton=object())
 
         self.assertEqual(rows, [])
 

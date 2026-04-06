@@ -252,6 +252,7 @@ class ScanViewTests(TestCase):
             ("scan:scan_kits_view", "get", {}, None),
             ("scan:scan_cartons_ready", "get", {}, None),
             ("scan:scan_shipments_ready", "get", {}, None),
+            ("scan:scan_preparation_parameter_set_config", "get", {}, None),
             ("scan:scan_shipments_tracking", "get", {}, None),
             ("scan:scan_receipts_view", "get", {}, None),
             ("scan:scan_receive", "get", {}, None),
@@ -437,11 +438,17 @@ class ScanViewTests(TestCase):
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         shipments_response = self.client.get(reverse("scan:scan_shipments_ready"))
         pack_response = self.client.get(reverse("scan:scan_pack"))
+        preparation_runs_response = self.client.get(reverse("scan:scan_preparation_run_list"))
+        preparation_config_response = self.client.get(
+            reverse("scan:scan_preparation_parameter_set_config")
+        )
         sync_response = self.client.get(reverse("scan:scan_sync"))
 
         self.assertEqual(dashboard_response.status_code, 403)
         self.assertEqual(shipments_response.status_code, 403)
         self.assertEqual(pack_response.status_code, 200)
+        self.assertEqual(preparation_runs_response.status_code, 200)
+        self.assertEqual(preparation_config_response.status_code, 200)
         self.assertEqual(sync_response.status_code, 200)
 
     def test_admin_site_denies_preparateur(self):

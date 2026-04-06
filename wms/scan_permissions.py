@@ -3,6 +3,10 @@ PREPARATEUR_ALLOWED_SCAN_VIEWS = frozenset(
     {
         "scan_root",
         "scan_pack",
+        "scan_preparation_parameter_set_config",
+        "scan_preparation_run_list",
+        "scan_preparation_run_create",
+        "scan_preparation_run_detail",
         "scan_sync",
     }
 )

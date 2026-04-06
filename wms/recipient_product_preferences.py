@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import (
@@ -17,6 +18,7 @@ from .models import (
 )
 
 UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS = "unspecified"
+UNSPECIFIED_RECIPIENT_PREFERENCE_STATUS = UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +33,18 @@ class EffectiveRecipientProductPreference:
     @property
     def is_explicit(self) -> bool:
         return self.preference is not None
+
+    @property
+    def scope(self) -> str:
+        if self.preference is None:
+            return "unspecified"
+        if getattr(self.preference, "category_id", None):
+            return "category"
+        return "product"
+
+    @property
+    def matched_preference_id(self) -> int | None:
+        return getattr(self.preference, "id", None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +113,15 @@ def _resolve_period_window(*, as_of, period_unit):
     return None, None
 
 
+def _category_lineage(category):
+    lineage = []
+    current = category
+    while current is not None:
+        lineage.append(current)
+        current = current.parent
+    return lineage
+
+
 def _recipient_contact_ids(*, recipient_organization):
     contact_ids = set(
         ShipmentRecipientContact.objects.filter(
@@ -152,7 +175,7 @@ def _effective_preference_from_row(
 
     quantity_target = preference.quantity_target
     period_unit = preference.period_unit
-    if preference.status == "refused":
+    if preference.status == RecipientProductPreferenceStatus.REFUSED:
         quantity_target = None
         period_unit = None
 
@@ -166,6 +189,58 @@ def _effective_preference_from_row(
     )
 
 
+def _resolve_preference_for_product(
+    *,
+    recipient_organization,
+    product,
+    preferences_by_product_id: dict[int, RecipientProductPreference],
+    preferences_by_category_id: dict[int, RecipientProductPreference],
+):
+    product_preference = preferences_by_product_id.get(product.pk)
+    if product_preference is not None:
+        return product_preference
+
+    category = getattr(product, "category", None)
+    if category is None:
+        return None
+
+    for current in _category_lineage(category):
+        category_preference = preferences_by_category_id.get(current.id)
+        if category_preference is not None:
+            return category_preference
+    return None
+
+
+def _collect_preference_maps(*, recipient_organization, product_list):
+    product_ids = [
+        product.pk for product in product_list if getattr(product, "pk", None) is not None
+    ]
+    category_ids = {
+        category.id
+        for product in product_list
+        for category in _category_lineage(getattr(product, "category", None))
+    }
+    if not product_ids and not category_ids:
+        return {}, {}
+
+    preferences = (
+        RecipientProductPreference.objects.filter(
+            recipient_organization=recipient_organization,
+        )
+        .filter(Q(product_id__in=product_ids) | Q(category_id__in=category_ids))
+        .select_related("product", "category")
+    )
+
+    preferences_by_product_id = {}
+    preferences_by_category_id = {}
+    for preference in preferences:
+        if preference.product_id:
+            preferences_by_product_id[preference.product_id] = preference
+        if getattr(preference, "category_id", None):
+            preferences_by_category_id[preference.category_id] = preference
+    return preferences_by_product_id, preferences_by_category_id
+
+
 def recipient_has_explicit_refused_preferences(*, recipient_organization) -> bool:
     return RecipientProductPreference.objects.filter(
         recipient_organization=recipient_organization,
@@ -174,13 +249,15 @@ def recipient_has_explicit_refused_preferences(*, recipient_organization) -> boo
 
 
 def resolve_effective_recipient_product_preference(*, recipient_organization, product):
-    preference = (
-        RecipientProductPreference.objects.filter(
-            recipient_organization=recipient_organization,
-            product=product,
-        )
-        .select_related("product")
-        .first()
+    preferences_by_product_id, preferences_by_category_id = _collect_preference_maps(
+        recipient_organization=recipient_organization,
+        product_list=[product],
+    )
+    preference = _resolve_preference_for_product(
+        recipient_organization=recipient_organization,
+        product=product,
+        preferences_by_product_id=preferences_by_product_id,
+        preferences_by_category_id=preferences_by_category_id,
     )
     return _effective_preference_from_row(
         recipient_organization=recipient_organization,
@@ -198,18 +275,20 @@ def list_effective_recipient_product_preferences(
     if not product_list:
         return []
 
-    preferences_by_product_id = {
-        preference.product_id: preference
-        for preference in RecipientProductPreference.objects.filter(
-            recipient_organization=recipient_organization,
-            product_id__in=[product.pk for product in product_list],
-        ).select_related("product")
-    }
+    preferences_by_product_id, preferences_by_category_id = _collect_preference_maps(
+        recipient_organization=recipient_organization,
+        product_list=product_list,
+    )
     return [
         _effective_preference_from_row(
             recipient_organization=recipient_organization,
             product=product,
-            preference=preferences_by_product_id.get(product.pk),
+            preference=_resolve_preference_for_product(
+                recipient_organization=recipient_organization,
+                product=product,
+                preferences_by_product_id=preferences_by_product_id,
+                preferences_by_category_id=preferences_by_category_id,
+            ),
         )
         for product in product_list
     ]

@@ -65,6 +65,10 @@ from wms.models import (
     OrderReviewStatus,
     OrderStatus,
     PlanningRun,
+    PreparationDestinationRule,
+    PreparationParameterSet,
+    PreparationShipperMode,
+    PreparationShipperRule,
     Product,
     ProductCategory,
     ProductKitItem,
@@ -79,6 +83,12 @@ from wms.models import (
     ReceiptShipmentAllocation,
     ReceiptStatus,
     ReceiptType,
+    RecipientProductPreference,
+    RecipientProductPreferencePeriodUnit,
+    RecipientProductPreferenceSource,
+    RecipientProductPreferenceStatus,
+    RecurringPreparationNeed,
+    RecurringPreparationPeriodUnit,
     Shipment,
     ShipmentRecipientOrganization,
     ShipmentShipper,
@@ -179,6 +189,7 @@ def render_local_exhaustive_seed_summary(summary: LocalExhaustiveSeedSummary) ->
         f"- volunteer: volunteer-{summary.scenario_slug}-alice / {DEFAULT_LOCAL_PASSWORD}",
         "URLs:",
         "- scan dashboard: /scan/dashboard/",
+        "- run magasin: /scan/preparation-runs/",
         "- shipments tracking: /scan/shipments-tracking/",
         "- orders: /scan/orders/",
         "- billing: /scan/billing/",
@@ -285,7 +296,7 @@ def _seed_shared_references(
         code="bravo",
         is_active=True,
     )
-    _ensure_association_recipient(
+    recipient_c = _ensure_association_recipient(
         namespace,
         association_profile=association_b,
         destination=destination_b,
@@ -297,6 +308,15 @@ def _seed_shared_references(
         namespace,
         products=products,
         locations={"main": main_location, "overflow": overflow_location},
+    )
+    _ensure_preparation_seed(
+        namespace,
+        created_by=staff_user,
+        categories=categories,
+        products=products,
+        destinations=[destination_a, destination_b],
+        association_profiles=[association_a, association_b],
+        recipients=[recipient_a, recipient_b, recipient_c],
     )
 
     staff_user.groups.add(Group.objects.get(name=PREPARATEUR_GROUP_NAME))
@@ -900,6 +920,217 @@ def _ensure_association_recipient(
         destination=destination,
     ).update(validation_status=ShipmentValidationStatus.VALIDATED)
     return recipient
+
+
+def _validate_recipient_runtime(recipient_organization: ShipmentRecipientOrganization) -> None:
+    updates = []
+    if recipient_organization.validation_status != ShipmentValidationStatus.VALIDATED:
+        recipient_organization.validation_status = ShipmentValidationStatus.VALIDATED
+        updates.append("validation_status")
+    if updates:
+        recipient_organization.save(update_fields=updates)
+
+
+def _ensure_preparation_seed(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    created_by,
+    categories: dict[str, ProductCategory],
+    products: dict[str, Product],
+    destinations: list[Destination],
+    association_profiles: list[AssociationProfile],
+    recipients: list[AssociationRecipient],
+) -> None:
+    parameter_set, _ = PreparationParameterSet.objects.update_or_create(
+        name=f"{namespace.label} Run magasin",
+        defaults={
+            "notes": "Jeu de paramètres seedé pour démonstration locale du run magasin.",
+            "is_current": True,
+            "created_by": created_by,
+        },
+    )
+    PreparationParameterSet.objects.exclude(pk=parameter_set.pk).filter(is_current=True).update(
+        is_current=False
+    )
+
+    destination_rule_specs = {
+        "ABJ": {
+            "max_equivalent_units_per_flight": 12,
+            "max_usable_flights_per_week": 2,
+            "max_equivalent_units_per_week": 20,
+            "max_shipments_per_week": 3,
+            "fairness_weight": Decimal("1.10"),
+        },
+        "DKR": {
+            "max_equivalent_units_per_flight": 10,
+            "max_usable_flights_per_week": 2,
+            "max_equivalent_units_per_week": 16,
+            "max_shipments_per_week": 2,
+            "fairness_weight": Decimal("1.00"),
+        },
+    }
+    for destination in destinations:
+        defaults = destination_rule_specs.get(
+            destination.iata_code,
+            {
+                "max_equivalent_units_per_flight": 10,
+                "max_usable_flights_per_week": 1,
+                "max_equivalent_units_per_week": 10,
+                "max_shipments_per_week": 1,
+                "fairness_weight": Decimal("1.00"),
+            },
+        )
+        PreparationDestinationRule.objects.update_or_create(
+            parameter_set=parameter_set,
+            destination=destination,
+            defaults={
+                **defaults,
+                "allowed_weekdays": [],
+                "notes": f"{namespace.label} cap {destination.iata_code}",
+                "is_active": True,
+            },
+        )
+
+    shipper_modes = {
+        association_profiles[0].contact_id: PreparationShipperMode.ASF_COMPLEMENT_ALLOWED,
+        association_profiles[1].contact_id: PreparationShipperMode.ASF_AUTO_ALLOWED,
+    }
+    shippers_by_contact_id = {
+        shipper.organization_id: shipper
+        for shipper in ShipmentShipper.objects.filter(
+            organization_id__in=[profile.contact_id for profile in association_profiles]
+        ).select_related("organization")
+    }
+    for profile in association_profiles:
+        shipper = shippers_by_contact_id.get(profile.contact_id)
+        if shipper is None:
+            continue
+        if shipper.validation_status != ShipmentValidationStatus.VALIDATED:
+            shipper.validation_status = ShipmentValidationStatus.VALIDATED
+            shipper.save(update_fields=["validation_status"])
+        PreparationShipperRule.objects.update_or_create(
+            parameter_set=parameter_set,
+            shipper=shipper,
+            defaults={
+                "mode": shipper_modes.get(
+                    profile.contact_id, PreparationShipperMode.ASF_COMPLEMENT_ALLOWED
+                ),
+                "score_coefficient": Decimal("1.00"),
+                "is_active": True,
+                "notes": f"{namespace.label} shipper rule",
+            },
+        )
+
+    active_recipient_organizations: list[ShipmentRecipientOrganization] = []
+    for recipient in recipients:
+        if recipient.synced_contact_id is None:
+            continue
+        recipient_organization = (
+            ShipmentRecipientOrganization.objects.filter(
+                organization_id=recipient.synced_contact_id,
+                destination=recipient.destination,
+            )
+            .select_related("organization", "destination")
+            .order_by("-id")
+            .first()
+        )
+        if recipient_organization is None:
+            continue
+        _validate_recipient_runtime(recipient_organization)
+        if recipient.is_active:
+            active_recipient_organizations.append(recipient_organization)
+
+    if len(active_recipient_organizations) < 2:
+        return
+
+    shipper_a = shippers_by_contact_id.get(association_profiles[0].contact_id)
+    shipper_b = shippers_by_contact_id.get(association_profiles[1].contact_id)
+    if shipper_a is None or shipper_b is None:
+        return
+    recipient_a = active_recipient_organizations[0]
+    recipient_b = active_recipient_organizations[1]
+
+    RecurringPreparationNeed.objects.update_or_create(
+        shipper=shipper_a,
+        recipient_organization=recipient_a,
+        destination=recipient_a.destination,
+        defaults={
+            "period_unit": RecurringPreparationPeriodUnit.WEEK,
+            "target_equivalent_units": 12,
+            "is_active": True,
+            "notes": f"{namespace.label} besoin hebdo ABJ",
+            "created_by": created_by,
+        },
+    )
+    RecurringPreparationNeed.objects.update_or_create(
+        shipper=shipper_b,
+        recipient_organization=recipient_b,
+        destination=recipient_b.destination,
+        defaults={
+            "period_unit": RecurringPreparationPeriodUnit.WEEK,
+            "target_equivalent_units": 8,
+            "is_active": True,
+            "notes": f"{namespace.label} besoin hebdo DKR",
+            "created_by": created_by,
+        },
+    )
+
+    RecipientProductPreference.objects.update_or_create(
+        recipient_organization=recipient_a,
+        product=products["wheelchair"],
+        defaults={
+            "category": None,
+            "status": RecipientProductPreferenceStatus.REQUESTED,
+            "quantity_target": 12,
+            "period_unit": RecipientProductPreferencePeriodUnit.WEEK,
+            "notes": f"{namespace.label} priorité fauteuils",
+            "source": RecipientProductPreferenceSource.SYSTEM,
+            "created_by": created_by,
+            "updated_by": created_by,
+        },
+    )
+    RecipientProductPreference.objects.update_or_create(
+        recipient_organization=recipient_a,
+        category=categories["kits"],
+        defaults={
+            "product": None,
+            "status": RecipientProductPreferenceStatus.ALLOWED,
+            "quantity_target": 6,
+            "period_unit": RecipientProductPreferencePeriodUnit.WEEK,
+            "notes": f"{namespace.label} kits autorisés",
+            "source": RecipientProductPreferenceSource.SYSTEM,
+            "created_by": created_by,
+            "updated_by": created_by,
+        },
+    )
+    RecipientProductPreference.objects.update_or_create(
+        recipient_organization=recipient_b,
+        category=categories["school"],
+        defaults={
+            "product": None,
+            "status": RecipientProductPreferenceStatus.REQUESTED,
+            "quantity_target": 8,
+            "period_unit": RecipientProductPreferencePeriodUnit.WEEK,
+            "notes": f"{namespace.label} fournitures demandées",
+            "source": RecipientProductPreferenceSource.SYSTEM,
+            "created_by": created_by,
+            "updated_by": created_by,
+        },
+    )
+    RecipientProductPreference.objects.update_or_create(
+        recipient_organization=recipient_b,
+        product=products["thermometer"],
+        defaults={
+            "category": None,
+            "status": RecipientProductPreferenceStatus.ALLOWED,
+            "quantity_target": 2,
+            "period_unit": RecipientProductPreferencePeriodUnit.WEEK,
+            "notes": f"{namespace.label} thermomètres autorisés",
+            "source": RecipientProductPreferenceSource.SYSTEM,
+            "created_by": created_by,
+            "updated_by": created_by,
+        },
+    )
 
 
 def _seed_operational_flow(

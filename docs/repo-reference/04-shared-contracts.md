@@ -80,6 +80,39 @@ Reference tests:
 - `wms/tests/views/tests_views_volunteer.py`
 - `wms/tests/views/tests_views_imports.py`
 
+### Scan Sidebar Navigation Contract
+
+Primary runtime sources:
+
+- `templates/scan/includes/scan_sidebar_navigation.html`
+- `templates/scan/base.html`
+- `wms/views_scan_*.py` via their `active` context key
+
+Current contract:
+
+- preparateur-only scan users keep a reduced sidebar with direct links to:
+  - `Préparation`
+  - `Runs magasin`
+- the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`, `Préparation`, `Expéditions`, `Gestion`
+- the shared `Préparation` group currently exposes, in order:
+  - `Préparer des kits`
+  - `Préparer des colis`
+  - `Préparation expédition`
+  - `Runs magasin`
+- warehouse-preparation screens under `/scan/preparation-runs/` must set `active="preparation_runs"` so the shared group expands and highlights correctly
+- the warehouse-preparation settings screen at `/scan/preparation-runs/settings/` uses the same
+  `active="preparation_runs"` highlight and preparateur permission scope as the list/create/detail flow
+
+Maintenance rule:
+
+- if a scan sidebar entry is added, removed, renamed, or moved between groups, update the shared include, the relevant scan view `active` keys, the bootstrap regression tests, and this repo-reference section in the same work
+- do not introduce page-local navigation copies for warehouse-preparation flows; the shared scan sidebar remains the operator entry point
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_views_scan_preparation.py`
+
 ### Shared Select Contract
 
 Primary runtime sources:
@@ -100,11 +133,80 @@ Current contract:
 - placeholder options such as `---------` stay at the top
 - grouped choices keep their group structure while sorting the options inside each group
 - explicit per-select exceptions are allowed when business order matters, for example descending shipment selection on `scan/cartons`
+- warehouse-preparation create/config screens keep native selects and use `ui-select--lg` for the
+  parameter-set picker and `ui-select--xl` for shipper/destination multi-select scopes
 
 Maintenance rule:
 
 - when changing select ordering or sizing, update both the backend choice builders and the rendered template/widget classes in the same work
 - keep documented exceptions explicit and local; do not silently drift into mixed ordering rules
+
+### Warehouse Preparation Create Contract
+
+Primary runtime sources:
+
+- `wms/forms_preparation.py`
+- `wms/views_scan_preparation.py`
+- `templates/scan/preparation_run_create.html`
+- `templates/scan/preparation_parameter_set_config.html`
+
+Current contract:
+
+- flight-window fields on `/scan/preparation-runs/create/` use native date inputs via `type="date"`
+- default operational targets on `/scan/preparation-runs/create/` are `200` colis équivalents, `15` expéditions, taille cible `10`, minimum `8`, maximum `22`
+- the default flight window starts on the Monday of `S+1` when the run is launched on Monday/Tuesday/Wednesday, and on the Monday of `S+2` when launched on Thursday/Friday/Saturday/Sunday; the end date defaults to the following Sunday
+- shipper and destination scopes expose a `Tout sélectionner` toggle and default to all active options selected on first load
+- the parameter set defaults to the last run used by the current operator, then falls back to the latest known/current parameter set
+- the create screen keeps a direct operator path to parameter-set configuration without leaving the warehouse-preparation flow
+- the parameter-set picker on `/scan/preparation-runs/settings/` reloads automatically on selection change and does not rely on a separate `Ouvrir` submit button
+- warehouse-preparation destination rules stay in their own `PreparationDestinationRule` table; they are not the same rows as planning-vols `PlanningDestinationRule`, but blank magasin fields are prefilled from the current planning parameter set when a matching active destination rule exists
+- the settings screen explains destination-capacity units through hoverable `title` help on the column headers; weekly/flight capacities are `colis équivalents`, while shipment count is `dossiers d'expédition`
+- destination allowed weekdays are edited through a native multi-select widget rather than a free-text token field, and the "all days when empty" rule is documented in the shared column-header tooltip instead of repeated inline help on each row
+- the fairness-weight column must expose a hover explanation with a concrete example (`1,20` favors an escale vs `1,00`; `0,80` deprioritizes it)
+- if flight acquisition fails and no fallback batch can be used, the create screen must stay on the form, render a non-field error, and avoid leaving a draft run orphaned in the database
+
+Reference tests:
+
+- `wms/tests/views/tests_views_scan_preparation.py`
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+
+### Portal Recipient Product Preference Contract
+
+Primary runtime sources:
+
+- `wms/views_portal_account.py`
+- `templates/portal/recipients.html`
+- `wms/models_domain/shipment_parties.py`
+- `wms/recipient_product_preferences.py`
+
+Current contract:
+
+- the portal recipient edit flow at `/portal/recipients/?edit=<id>` exposes a dedicated
+  `Préférences produits du destinataire` section backed by the synced
+  `ShipmentRecipientOrganization` row for the same `(organization, destination)` scope
+- portal users can create, edit, and delete recipient product preferences with native
+  Bootstrap form controls on the same page as recipient editing; the form is anchored with
+  `#recipient-product-preferences`
+- portal status labels use operator-facing wording `Demandé`, `Autorisé`, and `Refusé` even
+  though the model `TextChoices` labels remain shorter internally
+- category-level preferences are allowed for `requested` and `allowed`; category-level
+  `refused` remains invalid and must surface a form error instead of being silently accepted
+- the portal form keeps separate `product` and `category` scopes and hides quantity/period
+  inputs when status is `refused`
+- the source of portal-created preferences must be persisted as `RecipientProductPreferenceSource.PORTAL`
+
+Maintenance rule:
+
+- if recipient preference semantics change, keep the portal edit UI, shipment-party validation
+  rules, and any preparation-run consumers aligned in the same work
+- do not fork a second portal-specific preference model or scope; the portal stays on the shared
+  shipment-party preference records
+
+Reference tests:
+
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/portal/tests_portal_shipment_parties.py`
 
 ### V3.3 Legacy Scan Asset Facade Contract
 
@@ -379,8 +481,83 @@ Reference tests:
 - `wms/tests/planning/tests_artifact_services.py`
 - `wms/tests/planning/tests_outputs.py`
 - `wms/tests/planning/tests_communication_actions.py`
+
+### Warehouse Preparation And Recipient Preference Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/preparation.py`
+- `wms/models_domain/shipment_parties.py`
+- `wms/recipient_product_preferences.py`
+- `wms/preparation/needs.py`
+- `wms/preparation/reservations.py`
+- `wms/preparation/candidates.py`
+- `wms/preparation/scoring.py`
+- `wms/preparation/conversion.py`
+
+Current contract:
+
+- `planning vols` and warehouse `run magasin` remain separate domains; proposal, snapshot, reservation, and scoring state for warehouse preparation must not be folded back into `wms/models_domain/planning.py`
+- canonical recipient product preferences live on `RecipientProductPreference`, scoped by `ShipmentRecipientOrganization`
+- effective recipient preference resolution order is `product -> most specific category -> unspecified`
+- category-level `requested` and `allowed` are supported; category-level `refused` is intentionally invalid in this phase
+- kit products resolve as the kit product itself for preference/scoring purposes; component preferences do not implicitly apply to the kit
+- `PreparationRunNeedSnapshot` freezes recurring need data at run time; run-local overrides mutate only the snapshot row, not the recurring need source
+- preparation reservation helpers own lot-level `quantity_reserved` mutations for run proposals, and urgent manual reclaim must mark the impacted proposal `needs_recalc` with an audit log entry
+- conversion of accepted proposals is explicit: accepted or partial proposal rows convert into real `Shipment` / `Carton` objects only when staff triggers the conversion action, not during proposal review itself
+- conversion creates shipments in `ShipmentStatus.PICKING`; warehouse review acceptance must not silently promote them to `PACKED`, because planning-vols only consumes physically confirmed `PACKED` / `PLANNED` shipments later
+- the later promotion from `ShipmentStatus.PICKING` to `PACKED` is a separate explicit shipment-dossier action; proposal conversion alone must never make a shipment planning-eligible
+- accepted deposit cartons are reattached to the converted shipment, while accepted ASF-stock cartons are materialized from the FEFO preparation reservations without double-consuming stock
+- fairness history counts only converted ASF-stock or mixed shipments in `PACKED` or `PLANNED`; deposited-only history must not bias fairness
+
+Maintenance rule:
+
+- if recipient preference semantics change, update `wms/models_domain/shipment_parties.py`, `wms/recipient_product_preferences.py`, and the nearest prep/core tests together
+- if warehouse run state changes, keep `wms/models_domain/preparation.py` and `wms/preparation/*` aligned instead of scattering preparation logic into planning or shipment views
+- if fairness, reservation, or need-snapshot semantics change, update this section in the same work so the warehouse-preparation contract stays explicit
+
+Reference tests:
+
+- `wms/tests/core/tests_recipient_product_preferences.py`
+- `wms/tests/preparation/tests_models.py`
+- `wms/tests/preparation/tests_needs.py`
+- `wms/tests/preparation/tests_reservations.py`
+- `wms/tests/preparation/tests_candidates.py`
+- `wms/tests/preparation/tests_scoring.py`
+- `wms/tests/preparation/tests_conversion.py`
+- `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/print/tests_print_pack_sync.py`
 - `wms/tests/test_job_runs.py`
+
+### Shipment Ready Confirmation Contract
+
+Primary runtime sources:
+
+- `wms/shipment_status.py`
+- `wms/views_scan_shipments.py`
+- `wms/views_scan_shipments_support.py`
+- `templates/scan/includes/shipment_dossier_header.html`
+- `wms/planning/sources.py`
+
+Current contract:
+
+- the explicit helper pair is `shipment_can_be_confirmed_ready(shipment)` and `confirm_shipment_ready(shipment, user)`
+- this action is for dossier-level confirmation after physical preparation, especially for shipments created by warehouse proposal conversion
+- confirmation is only valid while the shipment remains editable and every carton is already in `ASSIGNED` or `LABELED`
+- confirmation relabels remaining `ASSIGNED` cartons to `LABELED`, then sets the shipment to `ShipmentStatus.PACKED` and stamps `ready_at`
+- the dossier action is explicit in `scan/shipment/<id>/edit/`; it must not be folded into generic shipment edit POST handling or preparation-run review actions
+- planning-vols eligibility stays restricted to `ShipmentStatus.PACKED` and `ShipmentStatus.PLANNED`; `ShipmentStatus.PICKING` stays excluded even if its `ready_at` window would otherwise match
+
+Maintenance rule:
+
+- if shipment-ready confirmation semantics change, update the helper, dossier view, dossier header actions, planning source filter, and the related tests in the same work
+- keep this contract shipment-level and operator-triggered; do not silently reintroduce automatic planning eligibility from warehouse conversion or unrelated carton updates
+
+Reference tests:
+
+- `wms/tests/shipment/tests_shipment_status.py`
+- `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/planning/tests_sources.py`
 
 ### V3.3 Structural Facade Contract
 

@@ -17,6 +17,15 @@ from wms.models import (
     Location,
     Order,
     OrderReviewStatus,
+    PreparationCartonProposal,
+    PreparationDestinationRule,
+    PreparationParameterSet,
+    PreparationProposalSource,
+    PreparationRun,
+    PreparationShipmentProposal,
+    PreparationShipmentProposalStatus,
+    PreparationShipperMode,
+    PreparationShipperRule,
     Product,
     ProductKitItem,
     ProductLot,
@@ -26,6 +35,7 @@ from wms.models import (
     ReceiptType,
     Shipment,
     ShipmentRecipientOrganization,
+    ShipmentShipper,
     ShipmentStatus,
     ShipmentValidationStatus,
     Warehouse,
@@ -128,6 +138,23 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'id="theme-toggle"')
         self.assertNotContains(response, 'id="ui-reset-default"')
         self.assertNotContains(response, "Essayer interface Next")
+
+    def test_scan_sidebar_exposes_run_magasin_link_in_preparation_group(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_sidebar_html(response)
+        self.assertIn(reverse("scan:scan_preparation_run_list"), nav_html)
+        self.assertIn("Runs magasin", nav_html)
+        self._assert_nav_labels_in_order(
+            nav_html,
+            [
+                "Préparer des kits",
+                "Préparer des colis",
+                "Préparation expédition",
+                "Runs magasin",
+            ],
+        )
 
     def test_scan_templates_load_targeted_modules_only_on_needed_pages(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
@@ -904,6 +931,138 @@ class ScanBootstrapUiTests(TestCase):
                         response,
                         "Autoriser l'ajout avec valeurs standard",
                     )
+
+    def test_scan_preparation_run_pages_keep_bootstrap_review_contracts(self):
+        shipper_org = Contact.objects.create(
+            name="Association Source UI",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=Contact.objects.create(
+                first_name="Alice",
+                last_name="Source",
+                email="alice.source.ui@example.com",
+                organization=shipper_org,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            ),
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        recipient_org = Contact.objects.create(
+            name="Association Dest UI",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        Contact.objects.create(
+            first_name="Corinne",
+            last_name="Dest UI",
+            email="corinne.dest.ui@example.com",
+            organization=recipient_org,
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        recipient = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        parameter_set = PreparationParameterSet.objects.create(
+            name="Run magasin bootstrap",
+            created_by=self.staff_user,
+        )
+        PreparationShipperRule.objects.create(
+            parameter_set=parameter_set,
+            shipper=shipper,
+            mode=PreparationShipperMode.ASF_AUTO_ALLOWED,
+        )
+        PreparationDestinationRule.objects.create(
+            parameter_set=parameter_set,
+            destination=self.destination,
+            max_equivalent_units_per_flight=12,
+            max_usable_flights_per_week=2,
+            max_equivalent_units_per_week=20,
+            max_shipments_per_week=3,
+            fairness_weight="1.10",
+        )
+        run = PreparationRun.objects.create(
+            parameter_set=parameter_set,
+            created_by=self.staff_user,
+            target_equivalent_units=20,
+            target_shipment_count=2,
+            target_shipment_size_units=10,
+            min_shipment_size_units=5,
+            max_shipment_size_units=12,
+            flight_window_start=date(2026, 5, 18),
+            flight_window_end=date(2026, 5, 24),
+        )
+        proposal = PreparationShipmentProposal.objects.create(
+            run=run,
+            shipper=shipper,
+            recipient_organization=recipient,
+            destination=self.destination,
+            sequence=1,
+            source=PreparationProposalSource.ASF_STOCK,
+            status=PreparationShipmentProposalStatus.PROPOSED,
+            equivalent_units_total=8,
+            rationale={"reasons": ["requested need covered"]},
+        )
+        PreparationCartonProposal.objects.create(
+            shipment_proposal=proposal,
+            product=self.product,
+            source=PreparationProposalSource.ASF_STOCK,
+            status=PreparationShipmentProposalStatus.PROPOSED,
+            quantity=8,
+            equivalent_units_total=8,
+            rationale={"score_reasons": ["requested need covered"]},
+        )
+
+        create_response = self.client.get(reverse("scan:scan_preparation_run_create"))
+        config_response = self.client.get(reverse("scan:scan_preparation_parameter_set_config"))
+        detail_response = self.client.get(
+            reverse("scan:scan_preparation_run_detail", args=[run.id])
+        )
+
+        self.assertEqual(create_response.status_code, 200)
+        self.assertContains(create_response, "ui-comp-card")
+        self.assertContains(create_response, "ui-comp-title")
+        self.assertContains(create_response, "ui-comp-form")
+        self.assertContains(create_response, 'type="date"')
+        self.assertContains(create_response, 'id="prep-select-all-shippers"')
+
+        self.assertEqual(config_response.status_code, 200)
+        self.assertContains(config_response, "ui-comp-card")
+        self.assertContains(config_response, "ui-comp-title")
+        self.assertContains(config_response, "ui-comp-form")
+        self.assertContains(config_response, "Configuration du jeu de paramètres")
+        self.assertContains(
+            config_response, 'name="destination_rules-0-allowed_weekdays_selection"'
+        )
+        self.assertContains(config_response, 'id="prep-weekday-dropdown-0"')
+        self.assertContains(config_response, 'data-bs-toggle="tooltip"')
+        self.assertContains(config_response, 'onchange="this.form.submit()"')
+        self.assertContains(config_response, 'title="Nombre maximal de colis équivalents')
+        self.assertContains(config_response, 'title="Le poids d&#x27;équité augmente ou réduit')
+        self.assertContains(
+            config_response,
+            'title="Ne rien sélectionner pour utiliser tous les jours disponibles."',
+        )
+        self.assertNotContains(
+            config_response,
+            "Ne rien sélectionner pour utiliser tous les jours disponibles.</div>",
+        )
+        self.assertNotContains(config_response, ">Ouvrir<")
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "ui-comp-card")
+        self.assertContains(detail_response, "ui-comp-title")
+        self.assertContains(detail_response, "ui-comp-form")
+        self.assertContains(detail_response, "ui-comp-actions")
+        self.assertContains(detail_response, 'data-table-tools="1"')
+        self.assertContains(detail_response, 'name="selected_shipment_ids"')
+        self.assertContains(detail_response, 'name="selected_carton_ids"')
+        self.assertContains(detail_response, 'value="convert_accepted"')
 
     def test_scan_pack_js_uses_barcode_label_without_ocr_shortcut(self):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"

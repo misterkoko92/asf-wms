@@ -26,6 +26,7 @@ Use it when you need to answer:
 - `wms/views_scan_stock.py`
 - `wms/views_scan_shipments.py`
 - `wms/views_scan_shipments_support.py`
+- `wms/views_scan_preparation.py`
 - `wms/views_scan_dashboard.py`
 - `wms/views_scan_pilotage.py`
 - `wms/scan_pilotage.py`
@@ -68,7 +69,12 @@ Use it when you need to answer:
   remain the shared facades while `wms/static/scan/modules/` and
   `wms/static/scan/css/partials/` carry the first V3.3 modular slices
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
+- warehouse `run magasin` generation/review under `/scan/preparation-runs/`, including proposal scoring, checkbox review actions, and conversion of accepted proposals into real shipments/cartons
+- warehouse `run magasin` flight acquisition first tries the planning API, then falls back to the latest imported exploitable flight batch; when that fallback batch is from a previous period, preparation capacity is computed from that batch period instead of crashing the operator flow
 - shipment creation/edit, including document-first creation without cartons
+- shipment refusal checks against recipient product preferences, with operator confirmation and override journaling
+- warehouse conversion creates real shipments in `ShipmentStatus.PICKING`; they stay out of planning-vols until operators physically finish the cartons and move them to `PACKED`
+- the final promotion from `PICKING` to `PACKED` is an explicit dossier action on `scan/shipment/<id>/edit/`; it is intentionally separate from preparation-run review and conversion
 - shipment refusal checks against recipient product preferences, with operator confirmation and override journaling
 - carton status progression
 - grouped carton assignment and print/document entrypoints
@@ -91,15 +97,19 @@ Use it when you need to answer:
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_scan_workflow_stock_to_close_with_docs_labels_templates`
 - `wms/tests/core/tests_flow.py::FlowTests::test_import_to_order_prepare_flow`
 - `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_stock.py`
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_views_imports.py`
+- `wms/tests/shipment/tests_shipment_status.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`
 - `wms/tests/test_workflow_projection.py`
 - `wms/tests/management/tests_management_rebuild_workflow_projections.py`
+- `wms/tests/preparation/tests_conversion.py`
+- `wms/tests/planning/tests_sources.py`
 - `api/tests/tests_views_extra.py`
 
 ### Docs that must stay aligned

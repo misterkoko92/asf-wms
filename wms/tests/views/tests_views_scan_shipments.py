@@ -865,6 +865,8 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, "Ajouter emplacement")
         self.assertContains(response, 'data-preparateur-pack-mode="1"')
         self.assertContains(response, "Préparer des colis")
+        self.assertContains(response, "Runs magasin")
+        self.assertContains(response, reverse("scan:scan_preparation_run_list"))
         self.assertNotContains(response, "Tableau De Bord")
         self.assertNotContains(response, "Vue Stock")
         self.assertNotContains(response, "Admin Django")
@@ -984,6 +986,40 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'id="shipment-receipt-allocations-table"')
         self.assertContains(response, receipt.reference)
         self.assertContains(response, "Wave 3 allocation")
+
+    def test_scan_shipment_edit_exposes_confirm_ready_action_for_editable_shipment(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PICKING)
+        self._create_carton_with_item(
+            code="C-CONFIRM-READY-1",
+            shipment=shipment,
+            status=CartonStatus.ASSIGNED,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="confirm_shipment_ready"')
+        self.assertContains(response, "Confirmer prêt")
+
+    def test_scan_shipment_edit_post_confirms_ready_only_on_explicit_action(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PICKING)
+        carton = self._create_carton_with_item(
+            code="C-CONFIRM-READY-2",
+            shipment=shipment,
+            status=CartonStatus.ASSIGNED,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_edit", args=[shipment.id]),
+            {"action": "confirm_shipment_ready"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        carton.refresh_from_db()
+        self.assertEqual(shipment.status, ShipmentStatus.PACKED)
+        self.assertIsNotNone(shipment.ready_at)
+        self.assertEqual(carton.status, CartonStatus.LABELED)
 
     def test_scan_prepare_kits_groups_top_controls_in_single_panel(self):
         response = self.client.get(reverse("scan:scan_prepare_kits"))
@@ -1394,7 +1430,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'id="shipment-dossier-secondary-actions"')
         self.assertContains(
             response,
-            f'{reverse("scan:scan_cartons_ready")}?shipment_reference={shipment.reference}',
+            f"{reverse('scan:scan_cartons_ready')}?shipment_reference={shipment.reference}",
         )
         self.assertNotContains(response, "Documents générés")
         self.assertNotContains(response, "Feuille contact")

@@ -30,6 +30,26 @@ urlpatterns = [
     ),
     path("shipments-ready/", views.scan_shipments_ready, name="scan_shipments_ready"),
     path(
+        "preparation-runs/",
+        views.scan_preparation_run_list,
+        name="scan_preparation_run_list",
+    ),
+    path(
+        "preparation-runs/create/",
+        views.scan_preparation_run_create,
+        name="scan_preparation_run_create",
+    ),
+    path(
+        "preparation-runs/settings/",
+        views.scan_preparation_parameter_set_config,
+        name="scan_preparation_parameter_set_config",
+    ),
+    path(
+        "preparation-runs/<int:run_id>/",
+        views.scan_preparation_run_detail,
+        name="scan_preparation_run_detail",
+    ),
+    path(
         "shipments-tracking/",
         views.scan_shipments_tracking,
         name="scan_shipments_tracking",

@@ -45,9 +45,14 @@ from wms.models import (
     OrderReviewStatus,
     OrderStatus,
     Product,
+    ProductCategory,
     ProductKitItem,
     ProductLot,
     ProductLotStatus,
+    RecipientProductPreference,
+    RecipientProductPreferencePeriodUnit,
+    RecipientProductPreferenceSource,
+    RecipientProductPreferenceStatus,
     RecipientStructureDocument,
     RecipientStructureDocumentType,
     Shipment,
@@ -2267,7 +2272,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             shipment=delivered_shipment,
             destination=self.destination,
             reference=delivered_shipment.reference,
-            delivered_at=timezone.now() - timedelta(days=1),
+            delivered_at=timezone.now() - timedelta(hours=1),
         )
         pipeline_shipment = Shipment.objects.create(
             reference="26PORTALCOV02",
@@ -2550,6 +2555,144 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertTrue(recipient.is_delivery_contact)
         self.assertIsNotNone(recipient.synced_contact_id)
         self.assertEqual(Contact.objects.filter(pk=recipient.synced_contact_id).count(), 1)
+
+    def test_portal_recipients_edit_shows_product_preferences_for_synced_recipient(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Pref",
+            structure_name="Structure Pref",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Pref",
+            city="Paris",
+            country="France",
+            legal_form="association",
+            beneficiary_count=120,
+            is_active=True,
+        )
+        sync_association_recipient_to_contact(recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=self.destination,
+        )
+        product = Product.objects.create(name="Kit Hygiene Portal")
+        RecipientProductPreference.objects.create(
+            recipient_organization=shipment_recipient,
+            product=product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=6,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(f"{self.recipients_url}?edit={recipient.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Préférences produits du destinataire")
+        self.assertContains(response, "Kit Hygiene Portal")
+        self.assertContains(response, "Demandé")
+
+    def test_portal_recipients_post_creates_product_preference(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Pref Create",
+            structure_name="Structure Pref Create",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Pref",
+            city="Paris",
+            country="France",
+            legal_form="association",
+            beneficiary_count=120,
+            is_active=True,
+        )
+        sync_association_recipient_to_contact(recipient)
+        product = Product.objects.create(name="Kit Urgence Portal")
+
+        response = self.client.post(
+            self.recipients_url,
+            {
+                "action": "save_product_preference",
+                "recipient_id": str(recipient.id),
+                "scope_type": "product",
+                "product_id": str(product.id),
+                "category_id": "",
+                "status": RecipientProductPreferenceStatus.REQUESTED,
+                "quantity_target": "5",
+                "period_unit": RecipientProductPreferencePeriodUnit.WEEK,
+                "notes": "Priorité terrain",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f"{self.recipients_url}?edit={recipient.id}#recipient-product-preferences",
+        )
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=self.destination,
+        )
+        preference = RecipientProductPreference.objects.get(
+            recipient_organization=shipment_recipient
+        )
+        self.assertEqual(preference.product, product)
+        self.assertEqual(preference.status, RecipientProductPreferenceStatus.REQUESTED)
+        self.assertEqual(preference.quantity_target, 5)
+        self.assertEqual(preference.period_unit, RecipientProductPreferencePeriodUnit.WEEK)
+        self.assertEqual(preference.source, RecipientProductPreferenceSource.PORTAL)
+        self.assertEqual(preference.created_by, self.user)
+        self.assertEqual(preference.updated_by, self.user)
+
+    def test_portal_recipients_post_rejects_category_level_refused_preference(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Pref Category",
+            structure_name="Structure Pref Category",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Pref",
+            city="Paris",
+            country="France",
+            legal_form="association",
+            beneficiary_count=120,
+            is_active=True,
+        )
+        sync_association_recipient_to_contact(recipient)
+        root_category = ProductCategory.objects.create(name="Kits Portal")
+        child_category = ProductCategory.objects.create(
+            name="Obstetrique Portal", parent=root_category
+        )
+
+        response = self.client.post(
+            self.recipients_url,
+            {
+                "action": "save_product_preference",
+                "recipient_id": str(recipient.id),
+                "scope_type": "category",
+                "product_id": "",
+                "category_id": str(child_category.id),
+                "status": RecipientProductPreferenceStatus.REFUSED,
+                "quantity_target": "",
+                "period_unit": "",
+                "notes": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Le statut refuse n'est pas autorise au niveau categorie.",
+            response.context["product_preference_errors"],
+        )
+        self.assertEqual(RecipientProductPreference.objects.count(), 0)
 
     def test_portal_recipients_get_exposes_extended_contact_titles(self):
         response = self.client.get(self.recipients_url)

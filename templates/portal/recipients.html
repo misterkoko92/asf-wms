@@ -193,6 +193,139 @@
     </form>
   </div>
 
+  {% if editing_recipient %}
+    <div id="recipient-product-preferences" class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Préférences produits du destinataire</h3>
+      {% if recipient_organization %}
+        <p class="scan-help">Ces préférences sont utilisées par le moteur magasin. Les catégories demandées et autorisées couvrent tous les produits de la catégorie. Le refus n'est possible qu'au niveau produit.</p>
+
+        {% if product_preference_errors %}
+          <div class="scan-message error">
+            {% for error in product_preference_errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if recipient_product_preferences %}
+          <div class="scan-table-wrap table-responsive">
+            <table class="portal-table scan-table table table-sm table-hover">
+              <thead>
+                <tr>
+                  <th>Cible</th>
+                  <th>Type</th>
+                  <th>Statut</th>
+                  <th>Quantité cible</th>
+                  <th>Période</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for preference in recipient_product_preferences %}
+                  <tr>
+                    <td>{{ preference.target_label }}</td>
+                    <td>{% if preference.scope_type == "product" %}Produit{% else %}Catégorie{% endif %}</td>
+                    <td>{{ preference.status_label }}</td>
+                    <td>{{ preference.quantity_target|default:"-" }}</td>
+                    <td>{{ preference.period_unit_label }}</td>
+                    <td>{{ preference.notes|default:"-" }}</td>
+                    <td class="ui-comp-actions">
+                      <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}?edit={{ editing_recipient.id }}&preference_edit={{ preference.id }}#recipient-product-preferences">Modifier</a>
+                      <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_product_preference">
+                        <input type="hidden" name="recipient_id" value="{{ editing_recipient.id }}">
+                        <input type="hidden" name="preference_id" value="{{ preference.id }}">
+                        <button type="submit" class="btn btn-tertiary btn-sm">Supprimer</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p>Aucune préférence produit enregistrée.</p>
+        {% endif %}
+
+        <form method="post" class="ui-comp-form mt-3" data-recipient-preference-form="1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_product_preference">
+          <input type="hidden" name="recipient_id" value="{{ editing_recipient.id }}">
+          <input type="hidden" name="preference_id" value="{{ product_preference_form_data.preference_id }}">
+
+          <div class="portal-recipient-grid-3">
+            <div class="scan-field">
+              <label class="form-label" for="pref_scope_type">Portée</label>
+              <select class="form-select ui-select--md" id="pref_scope_type" name="scope_type" data-pref-scope>
+                {% for value, label in product_preference_scope_choices %}
+                  <option value="{{ value }}" {% if product_preference_form_data.scope_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="scan-field" data-pref-product-field>
+              <label class="form-label" for="pref_product_id">Produit</label>
+              <select class="form-select ui-select--lg" id="pref_product_id" name="product_id">
+                <option value="">---------</option>
+                {% for value, label in product_choices %}
+                  <option value="{{ value }}" {% if product_preference_form_data.product_id == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="scan-field" data-pref-category-field>
+              <label class="form-label" for="pref_category_id">Catégorie</label>
+              <select class="form-select ui-select--lg" id="pref_category_id" name="category_id">
+                <option value="">---------</option>
+                {% for value, label in category_choices %}
+                  <option value="{{ value }}" {% if product_preference_form_data.category_id == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="portal-recipient-grid-3">
+            <div class="scan-field">
+              <label class="form-label" for="pref_status">Statut</label>
+              <select class="form-select ui-select--md" id="pref_status" name="status" data-pref-status>
+                {% for value, label in product_preference_status_choices %}
+                  <option value="{{ value }}" {% if product_preference_form_data.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="scan-field" data-pref-quantity-field>
+              <label class="form-label" for="pref_quantity_target">Quantité cible</label>
+              <input class="form-control" type="number" min="1" step="1" id="pref_quantity_target" name="quantity_target" value="{{ product_preference_form_data.quantity_target }}">
+            </div>
+            <div class="scan-field" data-pref-period-field>
+              <label class="form-label" for="pref_period_unit">Période</label>
+              <select class="form-select ui-select--md" id="pref_period_unit" name="period_unit">
+                <option value="">---------</option>
+                {% for value, label in product_preference_period_choices %}
+                  <option value="{{ value }}" {% if product_preference_form_data.period_unit == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="scan-field">
+            <label class="form-label" for="pref_notes">Notes</label>
+            <textarea class="form-control" id="pref_notes" name="notes" rows="2">{{ product_preference_form_data.notes }}</textarea>
+          </div>
+
+          <div class="ui-comp-actions">
+            <button type="submit" class="btn btn-primary">{% if editing_product_preference %}Enregistrer la préférence{% else %}Ajouter la préférence{% endif %}</button>
+            {% if editing_product_preference %}
+              <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}?edit={{ editing_recipient.id }}#recipient-product-preferences">Annuler</a>
+            {% endif %}
+          </div>
+        </form>
+      {% else %}
+        <p class="scan-help">Enregistrez d'abord le destinataire pour activer les préférences produits.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
   {% if blocked_popup_message %}
     <script>
       window.addEventListener("load", function() {
@@ -200,4 +333,48 @@
       });
     </script>
   {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ block.super }}
+  <script>
+    (function () {
+      const form = document.querySelector('[data-recipient-preference-form]');
+      if (!form) {
+        return;
+      }
+      const scopeSelect = form.querySelector('[data-pref-scope]');
+      const statusSelect = form.querySelector('[data-pref-status]');
+      const productField = form.querySelector('[data-pref-product-field]');
+      const categoryField = form.querySelector('[data-pref-category-field]');
+      const quantityField = form.querySelector('[data-pref-quantity-field]');
+      const periodField = form.querySelector('[data-pref-period-field]');
+
+      const refreshVisibility = function () {
+        const scope = scopeSelect ? scopeSelect.value : 'product';
+        const status = statusSelect ? statusSelect.value : 'requested';
+        if (productField) {
+          productField.style.display = scope === 'product' ? '' : 'none';
+        }
+        if (categoryField) {
+          categoryField.style.display = scope === 'category' ? '' : 'none';
+        }
+        const showTarget = status !== 'refused';
+        if (quantityField) {
+          quantityField.style.display = showTarget ? '' : 'none';
+        }
+        if (periodField) {
+          periodField.style.display = showTarget ? '' : 'none';
+        }
+      };
+
+      if (scopeSelect) {
+        scopeSelect.addEventListener('change', refreshVisibility);
+      }
+      if (statusSelect) {
+        statusSelect.addEventListener('change', refreshVisibility);
+      }
+      refreshVisibility();
+    })();
+  </script>
 {% endblock %}

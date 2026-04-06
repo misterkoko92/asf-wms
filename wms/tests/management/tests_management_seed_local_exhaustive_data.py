@@ -33,12 +33,17 @@ from wms.models import (
     OrderLine,
     PlanningRun,
     PlanningRunStatus,
+    PreparationDestinationRule,
+    PreparationParameterSet,
+    PreparationShipperRule,
     Product,
     ProductLot,
     ProductLotStatus,
     PublicAccountRequest,
     Receipt,
     ReceiptShipmentAllocation,
+    RecipientProductPreference,
+    RecurringPreparationNeed,
     Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientOrganization,
@@ -218,6 +223,32 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
             2,
         )
         self.assertTrue(PlanningRun.objects.filter(status=PlanningRunStatus.SOLVED).exists())
+
+    def test_command_creates_preparation_run_seed_configuration(self):
+        call_command("seed_local_exhaustive_data", "--scenario=preparation")
+
+        parameter_set = PreparationParameterSet.objects.get(name__icontains="[LOCAL preparation]")
+        self.assertTrue(parameter_set.is_current)
+        self.assertGreaterEqual(
+            PreparationDestinationRule.objects.filter(
+                parameter_set=parameter_set, is_active=True
+            ).count(),
+            2,
+        )
+        self.assertGreaterEqual(
+            PreparationShipperRule.objects.filter(
+                parameter_set=parameter_set, is_active=True
+            ).count(),
+            2,
+        )
+        self.assertGreaterEqual(RecurringPreparationNeed.objects.count(), 2)
+        self.assertGreaterEqual(RecipientProductPreference.objects.count(), 4)
+        self.assertFalse(
+            ShipmentRecipientOrganization.objects.filter(
+                organization__name__contains="[LOCAL preparation]",
+                validation_status="pending",
+            ).exists()
+        )
 
     def test_command_is_idempotent_and_fresh_can_reset_previous_runtime_rows(self):
         Shipment.objects.create(

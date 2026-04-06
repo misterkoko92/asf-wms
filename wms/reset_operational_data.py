@@ -69,6 +69,23 @@ DELETE_BATCHES = (
         ),
     ),
     (
+        "preparation_runtime",
+        (
+            "wms.PreparationDecisionLog",
+            "wms.PreparationReservation",
+            "wms.PreparationCartonProposal",
+            "wms.PreparationShipmentProposal",
+            "wms.PreparationRunNeedSnapshot",
+            "wms.PreparationRun",
+            "wms.ShipmentPreferenceOverride",
+            "wms.RecipientProductPreference",
+            "wms.RecurringPreparationNeed",
+            "wms.PreparationShipperRule",
+            "wms.PreparationDestinationRule",
+            "wms.PreparationParameterSet",
+        ),
+    ),
+    (
         "billing_links_and_history",
         (
             "wms.BillingDocumentShipment",

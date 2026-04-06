@@ -68,6 +68,7 @@ from .shipment_form_helpers import (
     build_shipment_order_line_values,
     build_shipment_order_product_options,
 )
+from .shipment_status import confirm_shipment_ready, shipment_can_be_confirmed_ready
 from .shipment_tracking_handlers import (
     allowed_tracking_statuses_for_shipment,
     handle_shipment_tracking_post,
@@ -94,6 +95,7 @@ from .views_scan_shipments_support import (
     ARCHIVE_STALE_DRAFTS_ACTION,
     CLOSE_SHIPMENT_ACTION,
     CLOSED_FILTER_EXCLUDE,
+    CONFIRM_SHIPMENT_READY_ACTION,
     DISPUTE_FILTER_ALL,
     DISPUTE_FILTER_OPEN,
     DISPUTE_FILTER_OVERDUE,
@@ -415,6 +417,12 @@ def _shipment_dossier_can_edit(shipment):
     return not _shipment_dossier_is_locked(shipment) and not getattr(shipment, "is_disputed", False)
 
 
+def _shipment_dossier_can_confirm_ready(shipment):
+    if not _shipment_dossier_can_edit(shipment):
+        return False
+    return shipment_can_be_confirmed_ready(shipment)
+
+
 def _shipment_dossier_extra_context(
     *,
     request,
@@ -438,6 +446,7 @@ def _shipment_dossier_extra_context(
         "is_locked": is_locked,
         "is_closed": bool(shipment.closed_at),
         "can_edit": can_edit,
+        "can_confirm_ready": _shipment_dossier_can_confirm_ready(shipment),
         "can_close": _shipment_can_be_closed(shipment),
         "return_to": RETURN_TO_SHIPMENTS_DOSSIERS,
         "tracking_return_to": RETURN_TO_SHIPMENTS_DOSSIERS,
@@ -477,6 +486,29 @@ def _close_shipment_case(request, shipment):
         user=request.user if request.user.is_authenticated else None,
     )
     messages.success(request, _("Dossier clôturé."))
+
+
+def _confirm_shipment_ready(request, shipment):
+    if shipment is None:
+        messages.error(request, _("Expédition introuvable."))
+        return
+    if not _shipment_dossier_can_edit(shipment):
+        messages.warning(request, _("Expédition verrouillée : confirmation impossible."))
+        return
+    try:
+        confirm_shipment_ready(
+            shipment=shipment,
+            user=request.user if request.user.is_authenticated else None,
+        )
+    except StockError as exc:
+        messages.error(request, str(exc))
+        return
+
+    record_shipment_dossier_activity(
+        shipment=shipment,
+        label="Expédition confirmée prête",
+    )
+    messages.success(request, _("Expédition confirmée prête."))
 
 
 def _build_shipments_tracking_summary_cards(shipments):
@@ -1207,11 +1239,13 @@ def scan_shipment_edit(request, shipment_id):
         request.method == "POST" or (request.GET.get("mode") or "").strip() == "edit"
     )
 
-    if (
-        request.method == "POST"
-        and (request.POST.get("action") or "").strip() == CLOSE_SHIPMENT_ACTION
-    ):
+    action = (request.POST.get("action") or "").strip()
+    if request.method == "POST" and action == CLOSE_SHIPMENT_ACTION:
         _close_shipment_case(request, shipment)
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+    if request.method == "POST" and action == CONFIRM_SHIPMENT_READY_ACTION:
+        _confirm_shipment_ready(request, shipment)
         return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 
     if request.method == "POST" and not can_edit:

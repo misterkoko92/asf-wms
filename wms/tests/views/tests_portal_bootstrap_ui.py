@@ -26,6 +26,10 @@ from wms.models import (
     OrderReviewStatus,
     OrderStatus,
     Product,
+    RecipientProductPreference,
+    RecipientProductPreferencePeriodUnit,
+    RecipientProductPreferenceSource,
+    RecipientProductPreferenceStatus,
     Shipment,
     ShipmentRecipientOrganization,
     ShipmentStatus,
@@ -486,6 +490,39 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'value="save_recipient_preference"')
         self.assertContains(response, "Non précisé")
         self.assertNotContains(response, "Ajouter la préférence")
+
+    def test_portal_recipients_edit_exposes_product_preference_contract(self):
+        recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")
+        sync_association_recipient_to_contact(recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        product = Product.objects.create(name="Kit Hygiene Bootstrap")
+        RecipientProductPreference.objects.create(
+            recipient_organization=shipment_recipient,
+            product=product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=4,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(f"{reverse('portal:portal_recipients')}?edit={recipient.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="recipient-product-preferences"')
+        self.assertContains(response, 'data-recipient-preference-form="1"')
+        self.assertContains(response, 'name="scope_type"')
+        self.assertContains(response, 'name="product_id"')
+        self.assertContains(response, 'name="category_id"')
+        self.assertContains(response, 'name="status"')
+        self.assertContains(response, 'name="quantity_target"')
+        self.assertContains(response, 'name="period_unit"')
+        self.assertContains(response, "Demandé")
+        self.assertContains(response, "Kit Hygiene Bootstrap")
 
     def test_portal_account_keeps_contact_row_template_and_flags_contract(self):
         response = self.client.get(reverse("portal:portal_account"))
