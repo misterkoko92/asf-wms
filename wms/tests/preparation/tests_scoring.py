@@ -318,3 +318,52 @@ class PreparationScoringTests(TestCase):
         )
 
         self.assertGreater(association_score.score, asf_score.score)
+
+    def test_refused_preferences_are_excluded_and_fairness_penalty_is_explained(self):
+        refused_product = Product.objects.create(
+            name="Produit Refuse",
+            default_location=self.location,
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=self.recipient,
+            product=refused_product,
+            status=RecipientProductPreferenceStatus.REFUSED,
+            created_by=self.user,
+        )
+
+        refused_score = score_preparation_candidate(
+            shipper=self.association_shipper,
+            recipient_organization=self.recipient,
+            destination=self.destination,
+            product=refused_product,
+            asf_shipper=self.asf_shipper,
+        )
+        self._create_history_shipment(
+            shipper_contact=self.association_contact,
+            product_lot=self.lot_requested,
+            quantity=4,
+            status=ShipmentStatus.PACKED,
+            source=PreparationProposalSource.ASF_STOCK,
+        )
+
+        requested_score = score_preparation_candidate(
+            shipper=self.asf_shipper,
+            recipient_organization=self.recipient,
+            destination=self.destination,
+            product=self.requested_product,
+            asf_shipper=self.asf_shipper,
+            asf_penalty=0.9,
+            fairness_category_level="L3",
+        )
+
+        self.assertTrue(refused_score.excluded)
+        self.assertEqual(refused_score.reasons, ["refused preference"])
+        self.assertEqual(
+            compute_fairness_history_quantity(
+                destination=self.destination,
+                product=refused_product,
+            ),
+            0,
+        )
+        self.assertIn("fairness penalty 4", requested_score.reasons)
+        self.assertIn("asf penalty 0.9", requested_score.reasons)

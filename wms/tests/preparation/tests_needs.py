@@ -173,3 +173,46 @@ class PreparationNeedSnapshotTests(TestCase):
         self.assertEqual(need.target_equivalent_units, 10)
         self.assertEqual(snapshot.target_equivalent_units, 6)
         self.assertEqual(snapshot.snapshot_payload["override"]["target_equivalent_units"], 6)
+
+    def test_period_override_and_noop_preserve_snapshot_payload_shape(self):
+        RecurringPreparationNeed.objects.create(
+            shipper=self.shipper,
+            recipient_organization=self.recipient,
+            destination=self.destination,
+            period_unit=RecurringPreparationPeriodUnit.WEEK,
+            target_equivalent_units=10,
+            is_active=True,
+            created_by=self.user,
+        )
+
+        snapshot = snapshot_active_recurring_needs(run=self.run)[0]
+        override_preparation_need_snapshot(
+            snapshot,
+            period_unit=RecurringPreparationPeriodUnit.MONTH,
+        )
+        snapshot.refresh_from_db()
+        unchanged_payload = dict(snapshot.snapshot_payload)
+        override_preparation_need_snapshot(snapshot)
+        snapshot.refresh_from_db()
+
+        self.assertEqual(snapshot.period_unit, RecurringPreparationPeriodUnit.MONTH)
+        self.assertEqual(snapshot.snapshot_payload["override"]["period_unit"], "month")
+        self.assertEqual(snapshot.snapshot_payload, unchanged_payload)
+
+    def test_noop_override_returns_snapshot_without_creating_override_payload(self):
+        RecurringPreparationNeed.objects.create(
+            shipper=self.shipper,
+            recipient_organization=self.recipient,
+            destination=self.destination,
+            period_unit=RecurringPreparationPeriodUnit.WEEK,
+            target_equivalent_units=10,
+            is_active=True,
+            created_by=self.user,
+        )
+
+        snapshot = snapshot_active_recurring_needs(run=self.run)[0]
+        returned_snapshot = override_preparation_need_snapshot(snapshot)
+        snapshot.refresh_from_db()
+
+        self.assertEqual(returned_snapshot.id, snapshot.id)
+        self.assertNotIn("override", snapshot.snapshot_payload)

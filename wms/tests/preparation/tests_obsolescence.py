@@ -257,3 +257,23 @@ class PreparationObsolescenceTests(TestCase):
         self.assertEqual(self.run.shipment_proposals.get().equivalent_units_total, 12)
         self.assertEqual(new_run.shipment_proposals.get().equivalent_units_total, 8)
         self.assertEqual(new_run.parameter_snapshot["recalculated_from_run_id"], self.run.id)
+
+    def test_obsolescence_helpers_noop_when_scope_is_not_impacted(self):
+        shipment = Shipment.objects.create(
+            reference="EXP-NOOP",
+            status=ShipmentStatus.PACKED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            destination=None,
+            destination_address="Airport road",
+            destination_country="CI",
+            created_by=self.user,
+        )
+
+        stale_for_shipment = mark_open_preparation_runs_stale_for_shipment(shipment=shipment)
+        stale_for_stock = mark_open_preparation_runs_stale_for_stock(product=self.product)
+
+        self.assertEqual(stale_for_shipment, 0)
+        self.assertEqual(stale_for_stock, 0)

@@ -179,6 +179,48 @@ class PreparationCandidateTests(TestCase):
         self.assertEqual(candidates[0].product, self.kit)
         self.assertEqual(candidates[0].products[0]["product"], self.kit)
 
+    def test_deposited_candidates_skip_wrong_shipper_and_empty_stock_returns_no_candidate(self):
+        other_shipper_contact = Contact.objects.create(
+            name="Association Other",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        other_shipment = Shipment.objects.create(
+            reference="EXP-OTHER",
+            status=ShipmentStatus.PICKING,
+            shipper_name=other_shipper_contact.name,
+            shipper_contact_ref=other_shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            destination=self.destination,
+            destination_address="Airport road",
+            destination_country="CI",
+            created_by=self.user,
+        )
+        other_carton = Carton.objects.create(
+            code="CARTON-OTHER-SHIPPER",
+            shipment=other_shipment,
+            current_location=self.location,
+        )
+        CartonItem.objects.create(
+            carton=other_carton,
+            product_lot=self.deposit_lot,
+            quantity=1,
+        )
+
+        deposited = build_deposited_carton_candidates(
+            shipper=self.shipper,
+            recipient_organization=self.recipient,
+            destination=self.destination,
+        )
+        stock = build_asf_stock_carton_candidates(
+            product=self.product,
+            manual_reserve_quantity=99,
+        )
+
+        self.assertEqual(deposited, [])
+        self.assertEqual(stock, [])
+
     def test_mixed_candidates_can_include_deposit_and_asf_stock(self):
         matching = self._create_deposit_carton(
             recipient_contact=self.recipient_contact,

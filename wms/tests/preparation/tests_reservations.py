@@ -248,3 +248,75 @@ class PreparationReservationTests(TestCase):
                 created_by=self.user,
                 manual_reserve_quantity=6,
             )
+
+    def test_existing_active_reservations_are_reused_and_invalid_rows_raise(self):
+        existing = reserve_stock_for_carton_proposal(
+            run=self.run,
+            shipment_proposal=self.shipment_proposal,
+            carton_proposal=self.carton_proposal,
+            created_by=self.user,
+        )
+
+        reused = reserve_stock_for_carton_proposal(
+            run=self.run,
+            shipment_proposal=self.shipment_proposal,
+            carton_proposal=self.carton_proposal,
+            created_by=self.user,
+        )
+
+        self.assertEqual(
+            [reservation.id for reservation in reused],
+            [reservation.id for reservation in existing],
+        )
+
+        invalid_product_carton = PreparationCartonProposal.objects.create(
+            shipment_proposal=self.shipment_proposal,
+            product=None,
+            source=PreparationProposalSource.ASF_STOCK,
+            status=PreparationShipmentProposalStatus.PROPOSED,
+            quantity=1,
+        )
+        with self.assertRaises(StockError):
+            reserve_stock_for_carton_proposal(
+                run=self.run,
+                shipment_proposal=self.shipment_proposal,
+                carton_proposal=invalid_product_carton,
+                created_by=self.user,
+            )
+
+        invalid_quantity_carton = PreparationCartonProposal.objects.create(
+            shipment_proposal=self.shipment_proposal,
+            product=self.product,
+            source=PreparationProposalSource.ASF_STOCK,
+            status=PreparationShipmentProposalStatus.PROPOSED,
+            quantity=0,
+        )
+        with self.assertRaises(StockError):
+            reserve_stock_for_carton_proposal(
+                run=self.run,
+                shipment_proposal=self.shipment_proposal,
+                carton_proposal=invalid_quantity_carton,
+                created_by=self.user,
+            )
+
+    def test_reclaim_validates_quantity_and_fails_when_reservation_is_too_small(self):
+        reserve_stock_for_carton_proposal(
+            run=self.run,
+            shipment_proposal=self.shipment_proposal,
+            carton_proposal=self.carton_proposal,
+            created_by=self.user,
+        )
+
+        with self.assertRaises(StockError):
+            reclaim_carton_proposal_stock_for_urgency(
+                carton_proposal=self.carton_proposal,
+                quantity=0,
+                created_by=self.user,
+            )
+
+        with self.assertRaises(StockError):
+            reclaim_carton_proposal_stock_for_urgency(
+                carton_proposal=self.carton_proposal,
+                quantity=8,
+                created_by=self.user,
+            )
