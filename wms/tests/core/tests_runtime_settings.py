@@ -1,10 +1,23 @@
 from unittest import mock
 
+from django.conf import settings
 from django.db.utils import OperationalError
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from wms.models import WmsRuntimeSettings
 from wms.runtime_settings import get_runtime_config, is_shipment_track_legacy_enabled
+
+
+class TestRuntimeOptimizationsTests(SimpleTestCase):
+    def test_test_runtime_uses_fast_password_hasher_first(self):
+        self.assertEqual(
+            settings.PASSWORD_HASHERS[0],
+            "django.contrib.auth.hashers.MD5PasswordHasher",
+        )
+        self.assertIn(
+            "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+            settings.PASSWORD_HASHERS,
+        )
 
 
 class RuntimeSettingsTests(TestCase):

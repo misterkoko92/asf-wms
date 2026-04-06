@@ -35,22 +35,26 @@ from wms.planning.communications import generate_version_drafts
 
 
 class PlanningViewTests(TestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
-        self.staff_user = get_user_model().objects.create_user(
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.staff_user = get_user_model().objects.create_user(
             username="planning-staff",
             password="pass1234",  # pragma: allowlist secret
             is_staff=True,
         )
-        self.superuser = get_user_model().objects.create_superuser(
+        cls.superuser = get_user_model().objects.create_superuser(
             username="planning-admin",
             email="planning-admin@example.com",
             password="pass1234",  # pragma: allowlist secret
         )
-        self.parameter_set = PlanningParameterSet.objects.create(
+        cls.parameter_set = PlanningParameterSet.objects.create(
             name="Semaine 11",
             is_current=True,
         )
+
+    def setUp(self):
+        self.factory = RequestFactory()
 
     def make_version_with_assignment(self, *, status=PlanningVersionStatus.DRAFT):
         run = PlanningRun.objects.create(

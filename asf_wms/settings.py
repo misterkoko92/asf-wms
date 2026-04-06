@@ -178,6 +178,18 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+if RUNNING_TESTS:
+    # Keep MD5 first for fast test user/password setup while preserving
+    # compatibility with hashes that may still be asserted or checked in tests.
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+        "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+        "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+        "django.contrib.auth.hashers.Argon2PasswordHasher",
+        "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+        "django.contrib.auth.hashers.ScryptPasswordHasher",
+    ]
+
 LANGUAGE_CODE = "fr"
 LANGUAGES = [
     ("fr", _("Français")),
