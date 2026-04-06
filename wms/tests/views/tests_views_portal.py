@@ -72,7 +72,8 @@ from wms.shipment_party_setup import ensure_shipment_shipper
 
 
 class PortalBaseTestCase(TestCase):
-    def _create_association_contact(self, name, with_address=True):
+    @classmethod
+    def _create_association_contact(cls, name, with_address=True):
         contact = Contact.objects.create(
             name=name,
             contact_type=ContactType.ORGANIZATION,
@@ -90,7 +91,8 @@ class PortalBaseTestCase(TestCase):
             )
         return contact
 
-    def _create_portal_user(self, username, email, password="pass1234", *, active=True):
+    @classmethod
+    def _create_portal_user(cls, username, email, password="pass1234", *, active=True):
         return get_user_model().objects.create_user(
             username=username,
             email=email,
@@ -98,8 +100,9 @@ class PortalBaseTestCase(TestCase):
             is_active=active,
         )
 
-    def _create_profile(self, user, *, must_change_password=False, with_address=True):
-        contact = self._create_association_contact(
+    @classmethod
+    def _create_profile(cls, user, *, must_change_password=False, with_address=True):
+        contact = cls._create_association_contact(
             f"Association {user.username}",
             with_address=with_address,
         )
@@ -111,7 +114,8 @@ class PortalBaseTestCase(TestCase):
         ensure_shipment_shipper(contact)
         return profile
 
-    def _create_destination(self, *, city="Paris", country="France"):
+    @classmethod
+    def _create_destination(cls, *, city="Paris", country="France"):
         suffix = Destination.objects.count() + 1
         correspondent = Contact.objects.create(
             name=f"Correspondant {suffix}",
@@ -126,15 +130,16 @@ class PortalBaseTestCase(TestCase):
             is_active=True,
         )
 
+    @classmethod
     def _create_delivery_recipient(
-        self,
+        cls,
         profile,
         *,
         city="Paris",
         country="France",
         structure_name="Structure Test",
     ):
-        destination = self._create_destination(city=city, country=country)
+        destination = cls._create_destination(city=city, country=country)
         email_local = structure_name.lower().replace(" ", ".")
         return AssociationRecipient.objects.create(
             association_contact=profile.contact,
@@ -613,25 +618,29 @@ class PortalAuthViewsTests(PortalBaseTestCase):
 
 
 class PortalOrdersViewsTests(PortalBaseTestCase):
-    def setUp(self):
-        self.user = self._create_portal_user(
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = cls._create_portal_user(
             "portal-orders",
             "orders@example.com",
         )
-        self.profile = self._create_profile(self.user, with_address=True)
-        self.delivery_recipient = self._create_delivery_recipient(self.profile)
-        sync_association_recipient_to_contact(self.delivery_recipient)
+        cls.profile = cls._create_profile(cls.user, with_address=True)
+        cls.delivery_recipient = cls._create_delivery_recipient(cls.profile)
+        sync_association_recipient_to_contact(cls.delivery_recipient)
         shipment_recipient = ShipmentRecipientOrganization.objects.get(
-            organization=self.delivery_recipient.synced_contact,
-            destination=self.delivery_recipient.destination,
+            organization=cls.delivery_recipient.synced_contact,
+            destination=cls.delivery_recipient.destination,
         )
         shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
         shipment_recipient.save(update_fields=["validation_status"])
-        self.destination = self.delivery_recipient.destination
+        cls.destination = cls.delivery_recipient.destination
+        cls.product = Product.objects.create(name="Produit Portail")
+
+    def setUp(self):
         self.client.force_login(self.user)
         self.dashboard_url = reverse("portal:portal_dashboard")
         self.order_create_url = reverse("portal:portal_order_create")
-        self.product = Product.objects.create(name="Produit Portail")
         self.product_options = [
             {"id": self.product.id, "name": self.product.name, "available_stock": 5}
         ]
@@ -1863,14 +1872,18 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
 
 class PortalAccountViewsTests(PortalBaseTestCase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = cls._create_portal_user("portal-account", "account@example.com")
+        cls.profile = cls._create_profile(cls.user, with_address=True)
+        cls.destination = cls._create_destination(city="Lyon", country="France")
+
     def setUp(self):
-        self.user = self._create_portal_user("portal-account", "account@example.com")
-        self.profile = self._create_profile(self.user, with_address=True)
         self.client.force_login(self.user)
         self.recipients_url = reverse("portal:portal_recipients")
         self.account_url = reverse("portal:portal_account")
         self.account_request_url = reverse("portal:portal_account_request")
-        self.destination = self._create_destination(city="Lyon", country="France")
         self.product = Product.objects.create(
             sku="PORTAL-PREF-001",
             name="Compresses",
@@ -2922,10 +2935,14 @@ class PortalAccountViewsTests(PortalBaseTestCase):
 
 
 class PortalBillingViewsTests(PortalBaseTestCase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = cls._create_portal_user("portal-billing", "portal-billing@example.com")
+        cls.profile = cls._create_profile(cls.user, with_address=True)
+        cls.delivery_recipient = cls._create_delivery_recipient(cls.profile)
+
     def setUp(self):
-        self.user = self._create_portal_user("portal-billing", "portal-billing@example.com")
-        self.profile = self._create_profile(self.user, with_address=True)
-        self._create_delivery_recipient(self.profile)
         self.client.force_login(self.user)
         self.billing_url = reverse("portal:portal_billing")
 

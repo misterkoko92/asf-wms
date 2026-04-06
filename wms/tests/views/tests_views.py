@@ -54,26 +54,27 @@ from wms.services import StockError, pack_carton
 
 
 class ScanViewTests(TestCase):
-    def setUp(self):
-        self.user = get_user_model().objects.create_user(
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = get_user_model().objects.create_user(
             username="scan-user",
             password="pass1234",
             is_staff=True,
         )
-        self.superuser = get_user_model().objects.create_superuser(
+        cls.superuser = get_user_model().objects.create_superuser(
             username="scan-admin", password="pass1234", email="admin@example.com"
         )
-        self.client.force_login(self.user)
-        self.warehouse = Warehouse.objects.create(name="Reception", code="REC")
-        self.location = Location.objects.create(
-            warehouse=self.warehouse, zone="A", aisle="01", shelf="001"
+        cls.warehouse = Warehouse.objects.create(name="Reception", code="REC")
+        cls.location = Location.objects.create(
+            warehouse=cls.warehouse, zone="A", aisle="01", shelf="001"
         )
-        self.product = Product.objects.create(
+        cls.product = Product.objects.create(
             sku="SKU-001",
             name="Produit Test",
             weight_g=100,
             volume_cm3=100,
-            default_location=self.location,
+            default_location=cls.location,
             qr_code_image="qr_codes/test.png",
         )
         CartonFormat.objects.create(
@@ -85,65 +86,69 @@ class ScanViewTests(TestCase):
             is_default=True,
         )
         ProductLot.objects.create(
-            product=self.product,
+            product=cls.product,
             lot_code="LOT-01",
             received_on=date(2025, 12, 1),
             status=ProductLotStatus.AVAILABLE,
             quantity_on_hand=50,
-            location=self.location,
+            location=cls.location,
         )
 
-        self.shipper_org = self._create_contact(
+        cls.shipper_org = cls._create_contact(
             "Shipper Org",
             address_country="FRANCE",
         )
-        self.shipper = self._create_contact(
+        cls.shipper = cls._create_contact(
             "Jean Shipper",
             address_country="FRANCE",
             contact_type=ContactType.PERSON,
-            organization=self.shipper_org,
+            organization=cls.shipper_org,
         )
-        self.recipient_org = self._create_contact(
+        cls.recipient_org = cls._create_contact(
             "Recipient Org",
             address_country="COTE D'IVOIRE",
         )
-        self.recipient = self._create_contact(
+        cls.recipient = cls._create_contact(
             "Alice Recipient",
             address_country="COTE D'IVOIRE",
             contact_type=ContactType.PERSON,
-            organization=self.recipient_org,
+            organization=cls.recipient_org,
         )
-        self.correspondent_org = self._create_contact(
+        cls.correspondent_org = cls._create_contact(
             "Correspondent Org",
             address_country="COTE D'IVOIRE",
         )
-        self.correspondent = self._create_contact(
+        cls.correspondent = cls._create_contact(
             "Correspondent",
             address_country="COTE D'IVOIRE",
             contact_type=ContactType.PERSON,
-            organization=self.correspondent_org,
+            organization=cls.correspondent_org,
         )
-        self.destination = Destination.objects.create(
+        cls.destination = Destination.objects.create(
             city="ABIDJAN",
             iata_code="ABJ",
             country="COTE D'IVOIRE",
-            correspondent_contact=self.correspondent,
+            correspondent_contact=cls.correspondent,
             is_active=True,
         )
-        self.transporter = self._create_contact(
+        cls.transporter = cls._create_contact(
             "Transporter",
             address_country="FRANCE",
             role=ContactCapabilityType.TRANSPORTER,
         )
-        self.donor = self._create_contact(
+        cls.donor = cls._create_contact(
             "Donor",
             address_country="FRANCE",
             role=ContactCapabilityType.DONOR,
         )
-        self._allow_shipments_to_destination(self.destination)
+        cls._allow_shipments_to_destination(cls.destination)
 
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    @classmethod
     def _create_contact(
-        self,
+        cls,
         name,
         address_country,
         contact_type=ContactType.ORGANIZATION,
@@ -168,17 +173,18 @@ class ScanViewTests(TestCase):
             ensure_contact_capability(contact, role)
         return contact
 
-    def _allow_shipments_to_destination(self, destination):
+    @classmethod
+    def _allow_shipments_to_destination(cls, destination):
         ShipmentShipper.objects.update_or_create(
-            organization=self.shipper_org,
+            organization=cls.shipper_org,
             defaults={
-                "default_contact": self.shipper,
+                "default_contact": cls.shipper,
                 "validation_status": ShipmentValidationStatus.VALIDATED,
                 "is_active": True,
             },
         )
         ShipmentRecipientOrganization.objects.update_or_create(
-            organization=self.recipient_org,
+            organization=cls.recipient_org,
             defaults={
                 "destination": destination,
                 "validation_status": ShipmentValidationStatus.VALIDATED,
@@ -186,7 +192,7 @@ class ScanViewTests(TestCase):
             },
         )
         ShipmentRecipientOrganization.objects.update_or_create(
-            organization=self.correspondent_org,
+            organization=cls.correspondent_org,
             defaults={
                 "destination": destination,
                 "validation_status": ShipmentValidationStatus.VALIDATED,
@@ -196,15 +202,15 @@ class ScanViewTests(TestCase):
         )
         shipment_recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
             recipient_organization=ShipmentRecipientOrganization.objects.get(
-                organization=self.recipient_org,
+                organization=cls.recipient_org,
             ),
-            contact=self.recipient,
+            contact=cls.recipient,
             defaults={"is_active": True},
         )
         link, _created = ShipmentShipperRecipientLink.objects.update_or_create(
-            shipper=ShipmentShipper.objects.get(organization=self.shipper_org),
+            shipper=ShipmentShipper.objects.get(organization=cls.shipper_org),
             recipient_organization=ShipmentRecipientOrganization.objects.get(
-                organization=self.recipient_org,
+                organization=cls.recipient_org,
             ),
             defaults={"is_active": True},
         )

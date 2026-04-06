@@ -75,38 +75,216 @@ class UiApiEndpointsTests(TestCase):
         "week_end",
     }
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
         user_model = get_user_model()
-        self.staff_user = user_model.objects.create_user(
+        cls.staff_user = user_model.objects.create_user(
             username="ui-api-staff",
             password="pass1234",
             is_staff=True,
         )
-        self.basic_user = user_model.objects.create_user(
+        cls.basic_user = user_model.objects.create_user(
             username="ui-api-basic",
             password="pass1234",
         )
-        self.portal_user = user_model.objects.create_user(
+        cls.portal_user = user_model.objects.create_user(
             username="ui-api-portal",
             password="pass1234",
         )
-        self.superuser_user = user_model.objects.create_user(
+        cls.superuser_user = user_model.objects.create_user(
             username="ui-api-superuser",
             password="pass1234",
             is_staff=True,
             is_superuser=True,
         )
 
-        self.association_contact = Contact.objects.create(
+        cls.association_contact = Contact.objects.create(
             name="Association UI API",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         AssociationProfile.objects.create(
-            user=self.portal_user,
-            contact=self.association_contact,
+            user=cls.portal_user,
+            contact=cls.association_contact,
         )
 
+        cls.role_users = {
+            "staff": cls.staff_user,
+            "superuser": cls.superuser_user,
+            "basic": cls.basic_user,
+            "portal": cls.portal_user,
+        }
+        for role_name in ("admin", "qualite", "magasinier", "benevole", "livreur"):
+            cls.role_users[role_name] = user_model.objects.create_user(
+                username=f"ui-api-{role_name}",
+                password="pass1234",
+                is_staff=True,
+            )
+
+        warehouse = Warehouse.objects.create(name="UI API WH", code="UIA")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        cls.product = Product.objects.create(
+            sku="UI-API-001",
+            name="UI API Product",
+            brand="Medi",
+            default_location=location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        cls.product_lot = ProductLot.objects.create(
+            product=cls.product,
+            lot_code="LOT-LOW",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=15,
+            quantity_reserved=0,
+            location=location,
+        )
+
+        cls.correspondent_contact = cls._create_contact(
+            "UI Correspondent",
+            contact_type=ContactType.PERSON,
+        )
+        cls.correspondent_org = cls._create_contact("UI Correspondent Org")
+        cls.correspondent_contact.organization = cls.correspondent_org
+        cls.correspondent_contact.save(update_fields=["organization"])
+        cls.destination = Destination.objects.create(
+            city="RUN",
+            iata_code="RUN",
+            country="France",
+            correspondent_contact=cls.correspondent_contact,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=cls.correspondent_org,
+            destination=cls.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=True,
+        )
+
+        cls.shipper_contact = cls._create_contact(
+            "UI Shipper",
+        )
+        cls.shipper_referent = cls._create_contact(
+            "UI Shipper Referent",
+            contact_type=ContactType.PERSON,
+        )
+        cls.shipper_referent.organization = cls.shipper_contact
+        cls.shipper_referent.save(update_fields=["organization"])
+        cls.shipment_shipper = cls._ensure_shipment_shipper(
+            cls.shipper_contact,
+            default_contact=cls.shipper_referent,
+        )
+
+        cls.recipient_contact = cls._create_contact(
+            "UI Recipient",
+        )
+        cls.recipient_referent = cls._create_contact(
+            "UI Recipient Referent",
+            contact_type=ContactType.PERSON,
+        )
+        cls.recipient_referent.organization = cls.recipient_contact
+        cls.recipient_referent.save(update_fields=["organization"])
+        (
+            cls.shipment_recipient_organization,
+            cls.shipment_recipient_contact,
+            shipment_link,
+        ) = cls._bind_recipient(
+            cls.shipper_contact,
+            cls.recipient_contact,
+            cls.destination,
+            recipient_referent=cls.recipient_referent,
+        )
+
+        cls.donor_contact = cls._create_contact(
+            "UI Donor",
+        )
+        cls.donor_contact.capabilities.update_or_create(
+            capability=ContactCapabilityType.DONOR,
+            defaults={"is_active": True},
+        )
+
+        cls.available_carton = Carton.objects.create(
+            code="UI-CARTON-AVAILABLE",
+            status=CartonStatus.PACKED,
+        )
+        cls.ready_carton = Carton.objects.create(
+            code="UI-CARTON-READY",
+            status=CartonStatus.PACKED,
+        )
+        CartonItem.objects.create(
+            carton=cls.ready_carton,
+            product_lot=cls.product_lot,
+            quantity=2,
+        )
+
+        cls.shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name="ASF Hub",
+            shipper_contact_ref=cls.shipper_contact,
+            recipient_name="CHU Nord",
+            recipient_contact_ref=cls.recipient_contact,
+            correspondent_name="M. Dupont",
+            correspondent_contact_ref=cls.correspondent_contact,
+            destination=cls.destination,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=cls.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=cls.shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            comments="Planned",
+            created_by=cls.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+
+        Order.objects.create(
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination_address="10 Rue Test",
+            destination_country="France",
+            created_by=cls.staff_user,
+        )
+        cls.portal_order = Order.objects.create(
+            association_contact=cls.association_contact,
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Correspondent",
+            destination_address="20 Rue Test",
+            destination_country="France",
+            created_by=cls.staff_user,
+        )
+        cls.portal_recipient = AssociationRecipient.objects.create(
+            association_contact=cls.association_contact,
+            destination=cls.destination,
+            name="Recipient Structure",
+            structure_name="Recipient Structure",
+            address_line1="1 rue recipient",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+            emails="recipient@example.org",
+            email="recipient@example.org",
+            phones="0102030405",
+            phone="0102030405",
+        )
+        sync_association_recipient_to_contact(cls.portal_recipient)
+        ShipmentRecipientOrganization.objects.filter(
+            organization=cls.portal_recipient.synced_contact,
+        ).update(validation_status=ShipmentValidationStatus.VALIDATED)
+
+    def setUp(self):
         self.staff_client = APIClient()
         self.staff_client.force_authenticate(self.staff_user)
         self.basic_client = APIClient()
@@ -122,13 +300,8 @@ class UiApiEndpointsTests(TestCase):
             "portal": self.portal_client,
         }
         for role_name in ("admin", "qualite", "magasinier", "benevole", "livreur"):
-            role_user = user_model.objects.create_user(
-                username=f"ui-api-{role_name}",
-                password="pass1234",
-                is_staff=True,
-            )
             role_client = APIClient()
-            role_client.force_authenticate(role_user)
+            role_client.force_authenticate(self.role_users[role_name])
             self.role_clients[role_name] = role_client
         self.staff_role_clients = {
             role_name: self.role_clients[role_name]
@@ -143,169 +316,8 @@ class UiApiEndpointsTests(TestCase):
             )
         }
 
-        warehouse = Warehouse.objects.create(name="UI API WH", code="UIA")
-        location = Location.objects.create(
-            warehouse=warehouse,
-            zone="A",
-            aisle="01",
-            shelf="001",
-        )
-        self.product = Product.objects.create(
-            sku="UI-API-001",
-            name="UI API Product",
-            brand="Medi",
-            default_location=location,
-            is_active=True,
-            qr_code_image="qr_codes/test.png",
-        )
-        self.product_lot = ProductLot.objects.create(
-            product=self.product,
-            lot_code="LOT-LOW",
-            status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=15,
-            quantity_reserved=0,
-            location=location,
-        )
-
-        self.correspondent_contact = self._create_contact(
-            "UI Correspondent",
-            contact_type=ContactType.PERSON,
-        )
-        self.correspondent_org = self._create_contact("UI Correspondent Org")
-        self.correspondent_contact.organization = self.correspondent_org
-        self.correspondent_contact.save(update_fields=["organization"])
-        self.destination = Destination.objects.create(
-            city="RUN",
-            iata_code="RUN",
-            country="France",
-            correspondent_contact=self.correspondent_contact,
-            is_active=True,
-        )
-        ShipmentRecipientOrganization.objects.create(
-            organization=self.correspondent_org,
-            destination=self.destination,
-            validation_status=ShipmentValidationStatus.VALIDATED,
-            is_correspondent=True,
-            is_active=True,
-        )
-
-        self.shipper_contact = self._create_contact(
-            "UI Shipper",
-        )
-        self.shipper_referent = self._create_contact(
-            "UI Shipper Referent",
-            contact_type=ContactType.PERSON,
-        )
-        self.shipper_referent.organization = self.shipper_contact
-        self.shipper_referent.save(update_fields=["organization"])
-        self.shipment_shipper = self._ensure_shipment_shipper(
-            self.shipper_contact,
-            default_contact=self.shipper_referent,
-        )
-
-        self.recipient_contact = self._create_contact(
-            "UI Recipient",
-        )
-        self.recipient_referent = self._create_contact(
-            "UI Recipient Referent",
-            contact_type=ContactType.PERSON,
-        )
-        self.recipient_referent.organization = self.recipient_contact
-        self.recipient_referent.save(update_fields=["organization"])
-        (
-            self.shipment_recipient_organization,
-            self.shipment_recipient_contact,
-            shipment_link,
-        ) = self._bind_recipient(
-            self.shipper_contact,
-            self.recipient_contact,
-            self.destination,
-            recipient_referent=self.recipient_referent,
-        )
-
-        self.donor_contact = self._create_contact(
-            "UI Donor",
-        )
-        self.donor_contact.capabilities.update_or_create(
-            capability=ContactCapabilityType.DONOR,
-            defaults={"is_active": True},
-        )
-
-        self.available_carton = Carton.objects.create(
-            code="UI-CARTON-AVAILABLE",
-            status=CartonStatus.PACKED,
-        )
-        self.ready_carton = Carton.objects.create(
-            code="UI-CARTON-READY",
-            status=CartonStatus.PACKED,
-        )
-        CartonItem.objects.create(
-            carton=self.ready_carton,
-            product_lot=self.product_lot,
-            quantity=2,
-        )
-
-        self.shipment = Shipment.objects.create(
-            status=ShipmentStatus.PLANNED,
-            shipper_name="ASF Hub",
-            shipper_contact_ref=self.shipper_contact,
-            recipient_name="CHU Nord",
-            recipient_contact_ref=self.recipient_contact,
-            correspondent_name="M. Dupont",
-            correspondent_contact_ref=self.correspondent_contact,
-            destination=self.destination,
-            destination_address="1 Rue Test",
-            destination_country="France",
-            created_by=self.staff_user,
-        )
-        ShipmentTrackingEvent.objects.create(
-            shipment=self.shipment,
-            status=ShipmentTrackingStatus.PLANNED,
-            comments="Planned",
-            created_by=self.staff_user,
-            actor_name="Ops",
-            actor_structure="ASF",
-        )
-
-        Order.objects.create(
-            review_status=OrderReviewStatus.PENDING,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            correspondent_name="Correspondent",
-            destination_address="10 Rue Test",
-            destination_country="France",
-            created_by=self.staff_user,
-        )
-        self.portal_order = Order.objects.create(
-            association_contact=self.association_contact,
-            review_status=OrderReviewStatus.PENDING,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            correspondent_name="Correspondent",
-            destination_address="20 Rue Test",
-            destination_country="France",
-            created_by=self.staff_user,
-        )
-        self.portal_recipient = AssociationRecipient.objects.create(
-            association_contact=self.association_contact,
-            destination=self.destination,
-            name="Recipient Structure",
-            structure_name="Recipient Structure",
-            address_line1="1 rue recipient",
-            postal_code="75001",
-            city="Paris",
-            country="France",
-            emails="recipient@example.org",
-            email="recipient@example.org",
-            phones="0102030405",
-            phone="0102030405",
-        )
-        sync_association_recipient_to_contact(self.portal_recipient)
-        ShipmentRecipientOrganization.objects.filter(
-            organization=self.portal_recipient.synced_contact,
-        ).update(validation_status=ShipmentValidationStatus.VALIDATED)
-
-    def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
+    @classmethod
+    def _create_contact(cls, name, *, contact_type=ContactType.ORGANIZATION):
         contact = Contact.objects.create(
             name=name,
             contact_type=contact_type,
@@ -402,7 +414,8 @@ class UiApiEndpointsTests(TestCase):
             projected_at=projected_at or timezone.now(),
         )
 
-    def _ensure_shipment_shipper(self, shipper_contact, *, default_contact=None):
+    @classmethod
+    def _ensure_shipment_shipper(cls, shipper_contact, *, default_contact=None):
         if default_contact is None:
             default_contact = (
                 Contact.objects.filter(
@@ -414,7 +427,7 @@ class UiApiEndpointsTests(TestCase):
                 .first()
             )
         if default_contact is None:
-            default_contact = self._create_contact(
+            default_contact = cls._create_contact(
                 f"{shipper_contact.name} Referent",
                 contact_type=ContactType.PERSON,
             )
@@ -430,15 +443,16 @@ class UiApiEndpointsTests(TestCase):
         )
         return shipper
 
+    @classmethod
     def _bind_recipient(
-        self,
+        cls,
         shipper_contact,
         recipient_contact,
         destination,
         *,
         recipient_referent=None,
     ):
-        shipper = self._ensure_shipment_shipper(shipper_contact)
+        shipper = cls._ensure_shipment_shipper(shipper_contact)
         recipient_organization, _created = ShipmentRecipientOrganization.objects.update_or_create(
             organization=recipient_contact,
             defaults={
@@ -448,7 +462,7 @@ class UiApiEndpointsTests(TestCase):
             },
         )
         if recipient_referent is None:
-            recipient_referent = self._create_contact(
+            recipient_referent = cls._create_contact(
                 f"{recipient_contact.name} Referent",
                 contact_type=ContactType.PERSON,
             )

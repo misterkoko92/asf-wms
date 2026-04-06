@@ -43,51 +43,55 @@ from wms.models import (
 
 
 class ScanBootstrapUiTests(TestCase):
-    def setUp(self):
-        self.staff_user = get_user_model().objects.create_user(
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.staff_user = get_user_model().objects.create_user(
             username="scan-bootstrap-staff",
             password="pass1234",
             is_staff=True,
         )
-        self.superuser = get_user_model().objects.create_superuser(
+        cls.superuser = get_user_model().objects.create_superuser(
             username="scan-bootstrap-admin",
             password="pass1234",
             email="scan-bootstrap-admin@example.com",
         )
-        self.client.force_login(self.staff_user)
-        self.correspondent = Contact.objects.create(
+        cls.correspondent = Contact.objects.create(
             name="Correspondant Bootstrap",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        self.warehouse = Warehouse.objects.create(name="Main", code="MAIN")
-        self.destination = Destination.objects.create(
+        cls.warehouse = Warehouse.objects.create(name="Main", code="MAIN")
+        cls.destination = Destination.objects.create(
             city="BRAZZAVILLE",
             iata_code="BZV",
             country="REP. DU CONGO",
-            correspondent_contact=self.correspondent,
+            correspondent_contact=cls.correspondent,
             is_active=True,
         )
         location = Location.objects.create(
-            warehouse=self.warehouse,
+            warehouse=cls.warehouse,
             zone="A",
             aisle="01",
             shelf="001",
         )
-        self.product = Product.objects.create(
+        cls.product = Product.objects.create(
             sku="BOOT-001",
             name="Produit Bootstrap",
             default_location=location,
             qr_code_image="qr_codes/test.png",
         )
         ProductLot.objects.create(
-            product=self.product,
+            product=cls.product,
             lot_code="LOT-BOOT-001",
             received_on=date(2026, 1, 1),
             status=ProductLotStatus.AVAILABLE,
             quantity_on_hand=12,
             location=location,
         )
+
+    def setUp(self):
+        self.client.force_login(self.staff_user)
 
     def _scan_sidebar_html(self, response):
         content = response.content.decode()
