@@ -18,6 +18,12 @@ from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
 from .views_scan_orders import scan_order, scan_orders_view
 from .views_scan_pilotage import scan_pilotage
+from .views_scan_preparation import (
+    scan_preparation_parameter_set_config,
+    scan_preparation_run_create,
+    scan_preparation_run_detail,
+    scan_preparation_run_list,
+)
 from .views_scan_receipts import (
     scan_receipts_view,
     scan_receive,
@@ -51,6 +57,10 @@ SCAN_FLOW_EXPORTS = (
     "scan_local_document_helper_installer",
     "scan_cartons_ready",
     "scan_shipments_ready",
+    "scan_preparation_run_list",
+    "scan_preparation_run_create",
+    "scan_preparation_parameter_set_config",
+    "scan_preparation_run_detail",
     "scan_shipments_tracking",
     "scan_receipts_view",
     "scan_stock_update",

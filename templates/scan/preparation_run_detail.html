@@ -1,0 +1,95 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Run magasin{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="h4 mb-0 ui-comp-title">Run magasin #{{ run.id }}</h2>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_preparation_parameter_set_config' %}?parameter_set={{ run.parameter_set_id }}">Configurer ce jeu de paramètres</a>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_preparation_run_list' %}">Retour liste</a>
+      </div>
+    </div>
+    <div class="ui-comp-form row g-3 mb-3">
+      <div class="col-12 col-lg-4"><strong>Fenêtre vols:</strong> {{ run.flight_window_start|date:"d/m/Y" }} - {{ run.flight_window_end|date:"d/m/Y" }}</div>
+      <div class="col-12 col-lg-4"><strong>Paramètres:</strong> {{ run.parameter_set.name }}</div>
+      <div class="col-12 col-lg-4"><strong>Statut:</strong> {{ run.get_status_display }}</div>
+    </div>
+    {% if fallback_warning %}
+      <div class="alert alert-warning mb-3" id="scan-preparation-fallback-warning">
+        Fallback vols actif: {{ fallback_warning.reason }}{% if fallback_warning.freshness_days != None %} ({{ fallback_warning.freshness_days }} jour(s)){% endif %}
+      </div>
+    {% endif %}
+    {% if proposal_rows %}
+      <form method="post" class="ui-comp-form">
+        {% csrf_token %}
+        <div class="d-flex flex-wrap gap-2 mb-3 ui-comp-actions">
+          <button type="submit" name="action" value="accept_all" class="btn btn-primary">Tout accepter</button>
+          <button type="submit" name="action" value="accept_selected" class="btn btn-tertiary">Accepter la sélection</button>
+          <button type="submit" name="action" value="reject_keep_draft" class="btn btn-warning">Refuser et laisser en brouillon</button>
+          <button type="submit" name="action" value="reject_delete" class="btn btn-danger">Refuser et effacer</button>
+          <button type="submit" name="action" value="convert_accepted" class="btn btn-success">Créer les expéditions validées</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>Exp.</th>
+              <th>Expéditeur</th>
+              <th>Destinataire</th>
+              <th>Escale</th>
+              <th>Séquence</th>
+              <th>CE</th>
+              <th>Colis</th>
+              <th>Statut</th>
+              <th>Raisons</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in proposal_rows %}
+              <tr class="{% if row.needs_recalc %}needs-recalc{% endif %}">
+                <td><input type="checkbox" name="selected_shipment_ids" value="{{ row.id }}"></td>
+                <td>{{ row.shipper_name }}</td>
+                <td>{{ row.recipient_name }}</td>
+                <td>{{ row.destination_label }}</td>
+                <td>{{ row.sequence }}</td>
+                <td>{{ row.equivalent_units_total }}</td>
+                <td>{{ row.carton_count }}</td>
+                <td>
+                  <span class="{% if row.needs_recalc %}needs-recalc{% endif %}">{{ row.status }}</span>
+                </td>
+                <td>
+                  {% if row.score_reasons %}
+                    <ul class="mb-0">
+                      {% for reason in row.score_reasons %}
+                        <li>{{ reason }}</li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    -
+                  {% endif %}
+                  {% if row.carton_rows %}
+                    <div class="mt-2 d-flex flex-column gap-1">
+                      {% for carton in row.carton_rows %}
+                        <label class="form-check">
+                          <input class="form-check-input" type="checkbox" name="selected_carton_ids" value="{{ carton.id }}">
+                          <span class="form-check-label">
+                            {{ carton.product_label }} x {{ carton.quantity }} | {{ carton.source }} | {{ carton.status }}{% if carton.reservation_count %} | res: {{ carton.reservation_count }}{% endif %}
+                          </span>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          </table>
+        </div>
+      </form>
+    {% else %}
+      <p class="ui-comp-note">Aucune proposition.</p>
+    {% endif %}
+  </div>
+{% endblock %}

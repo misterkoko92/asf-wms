@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -11,6 +12,27 @@ class ShipmentValidationStatus(models.TextChoices):
     PENDING = "pending", _("En attente")
     VALIDATED = "validated", _("Valide")
     REJECTED = "rejected", _("Refuse")
+
+
+class RecipientProductPreferenceStatus(models.TextChoices):
+    REQUESTED = "requested", _("Demande")
+    ALLOWED = "allowed", _("Autorise")
+    REFUSED = "refused", _("Refuse")
+
+
+class RecipientProductPreferencePeriodUnit(models.TextChoices):
+    WEEK = "week", _("Semaine")
+    MONTH = "month", _("Mois")
+
+
+class RecipientProductPreferenceSource(models.TextChoices):
+    PORTAL = "portal", _("Portail")
+    SCAN_ADMIN = "scan_admin", _("Scan admin")
+    SYSTEM = "system", _("Systeme")
+
+
+class ShipmentPreferenceOverrideAction(models.TextChoices):
+    OVERRIDE_REFUSAL = "override_refusal", _("Override refusal")
 
 
 class ShipmentShipper(models.Model):
@@ -297,3 +319,160 @@ class ShipmentAuthorizedRecipientContact(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class RecipientProductPreference(models.Model):
+    recipient_organization = models.ForeignKey(
+        ShipmentRecipientOrganization,
+        on_delete=models.CASCADE,
+        related_name="product_preferences",
+    )
+    product = models.ForeignKey(
+        "wms.Product",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="recipient_preferences",
+    )
+    category = models.ForeignKey(
+        "wms.ProductCategory",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="recipient_preferences",
+    )
+    status = models.CharField(max_length=20, choices=RecipientProductPreferenceStatus.choices)
+    quantity_target = models.PositiveIntegerField(null=True, blank=True)
+    period_unit = models.CharField(
+        max_length=12,
+        choices=RecipientProductPreferencePeriodUnit.choices,
+        blank=True,
+        default="",
+    )
+    notes = models.TextField(blank=True)
+    source = models.CharField(
+        max_length=20,
+        choices=RecipientProductPreferenceSource.choices,
+        default=RecipientProductPreferenceSource.SYSTEM,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recipient_product_preferences_created",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recipient_product_preferences_updated",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["recipient_organization_id", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient_organization", "product"],
+                condition=models.Q(product__isnull=False),
+                name="wms_recipient_product_pref_unique_product",
+            ),
+            models.UniqueConstraint(
+                fields=["recipient_organization", "category"],
+                condition=models.Q(category__isnull=False),
+                name="wms_recipient_product_pref_unique_category",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        target = self.product or self.category
+        return f"{self.recipient_organization} - {target} ({self.status})"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        has_product = self.product_id is not None
+        has_category = self.category_id is not None
+
+        if has_product == has_category:
+            message = _("Choisissez exactement un produit ou une categorie.")
+            errors["product"] = message
+            errors["category"] = message
+
+        if self.status in (
+            RecipientProductPreferenceStatus.REQUESTED,
+            RecipientProductPreferenceStatus.ALLOWED,
+        ):
+            if not self.quantity_target:
+                errors["quantity_target"] = _(
+                    "La quantite cible est requise pour une preference demandee ou autorisee."
+                )
+            if not self.period_unit:
+                errors["period_unit"] = _(
+                    "La periode est requise pour une preference demandee ou autorisee."
+                )
+        elif self.status == RecipientProductPreferenceStatus.REFUSED:
+            if self.quantity_target is not None:
+                errors["quantity_target"] = _(
+                    "Une preference refusee ne peut pas porter de quantite cible."
+                )
+            if self.period_unit:
+                errors["period_unit"] = _("Une preference refusee ne peut pas porter de periode.")
+            if has_category:
+                errors["category"] = _("Le statut refuse n'est pas autorise au niveau categorie.")
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class ShipmentPreferenceOverride(models.Model):
+    shipment = models.ForeignKey(
+        "wms.Shipment",
+        on_delete=models.CASCADE,
+        related_name="preference_overrides",
+    )
+    carton = models.ForeignKey(
+        "wms.Carton",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preference_overrides",
+    )
+    recipient_organization = models.ForeignKey(
+        ShipmentRecipientOrganization,
+        on_delete=models.PROTECT,
+        related_name="preference_overrides",
+    )
+    product = models.ForeignKey(
+        "wms.Product",
+        on_delete=models.PROTECT,
+        related_name="preference_overrides",
+    )
+    preference_status_snapshot = models.CharField(max_length=20)
+    action = models.CharField(
+        max_length=24,
+        choices=ShipmentPreferenceOverrideAction.choices,
+        default=ShipmentPreferenceOverrideAction.OVERRIDE_REFUSAL,
+    )
+    reason = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipment_preference_overrides_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["shipment_id", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.shipment} - {self.product} ({self.action})"

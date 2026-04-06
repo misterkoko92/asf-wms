@@ -1,0 +1,282 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Configuration run magasin{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="h4 mb-0 ui-comp-title">Configuration du jeu de paramètres</h2>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_preparation_run_list' %}">Retour aux runs</a>
+        <a class="btn btn-primary" href="{% url 'scan:scan_preparation_run_create' %}">Nouveau run magasin</a>
+      </div>
+    </div>
+
+    <form method="get" class="row g-3 ui-comp-form">
+      <div class="col-12 col-lg-8">
+        <label class="form-label" for="id_parameter_set">Jeu de paramètres à éditer</label>
+        <select
+          id="id_parameter_set"
+          name="parameter_set"
+          class="form-select ui-select--lg"
+          onchange="this.form.submit()"
+        >
+          {% for choice in parameter_set_choices %}
+            <option value="{{ choice.id }}"{% if choice.id == parameter_set.id %} selected{% endif %}>{{ choice.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="small text-muted mt-1">Le jeu de paramètres se recharge automatiquement après sélection.</div>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="post" class="ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="parameter_set_id" value="{{ parameter_set.id }}">
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="{{ parameter_form.name.id_for_label }}">{{ parameter_form.name.label }}</label>
+          {{ parameter_form.name }}
+          {% if parameter_form.name.errors %}
+            <div class="text-danger small mt-1">{{ parameter_form.name.errors|join:", " }}</div>
+          {% endif %}
+        </div>
+        <div class="col-12 col-lg-6 d-flex align-items-end">
+          <label class="form-check mb-0">
+            {{ parameter_form.is_current }}
+            <span class="form-check-label">{{ parameter_form.is_current.label }}</span>
+          </label>
+          {% if parameter_form.is_current.errors %}
+            <div class="text-danger small mt-1">{{ parameter_form.is_current.errors|join:", " }}</div>
+          {% endif %}
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="{{ parameter_form.notes.id_for_label }}">{{ parameter_form.notes.label }}</label>
+          {{ parameter_form.notes }}
+          {% if parameter_form.notes.errors %}
+            <div class="text-danger small mt-1">{{ parameter_form.notes.errors|join:", " }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <h3 class="h5 ui-comp-title">Règles par escale</h3>
+        {{ destination_formset.management_form }}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover" data-table-tools="1">
+            <thead>
+              <tr>
+                <th>Escale</th>
+                <th>
+                  <span>Capacité max par vol</span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm text-muted p-0 align-baseline"
+                    data-bs-toggle="tooltip"
+                    title="Nombre maximal de colis équivalents préparables sur un vol pour cette escale."
+                    aria-label="Aide capacité max par vol"
+                  >&#9432;</button>
+                </th>
+                <th>Nombre de vols utilisables par semaine</th>
+                <th>
+                  <span>Capacité max par semaine</span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm text-muted p-0 align-baseline"
+                    data-bs-toggle="tooltip"
+                    title="Nombre maximal de colis équivalents préparables sur la semaine pour cette escale."
+                    aria-label="Aide capacité max par semaine"
+                  >&#9432;</button>
+                </th>
+                <th>
+                  <span>Nombre max d'expéditions par semaine</span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm text-muted p-0 align-baseline"
+                    data-bs-toggle="tooltip"
+                    title="Nombre maximal de dossiers d'expédition proposés sur la semaine pour cette escale."
+                    aria-label="Aide nombre max d'expéditions par semaine"
+                  >&#9432;</button>
+                </th>
+                <th>
+                  <span>Poids d'équité</span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm text-muted p-0 align-baseline"
+                    data-bs-toggle="tooltip"
+                    title="Le poids d'équité augmente ou réduit la priorité relative de cette escale dans le scoring. Exemple: 1,20 favorise l'escale par rapport à 1,00 ; 0,80 la défavorise."
+                    aria-label="Aide poids d'équité"
+                  >&#9432;</button>
+                </th>
+                <th>
+                  <span>Jours de vol autorisés</span>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm text-muted p-0 align-baseline"
+                    data-bs-toggle="tooltip"
+                    title="Ne rien sélectionner pour utiliser tous les jours disponibles."
+                    aria-label="Aide jours de vol autorisés"
+                  >&#9432;</button>
+                </th>
+                <th>Active</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for destination_form in destination_formset %}
+                <tr>
+                  <td>
+                    {{ destination_form.id }}
+                    {{ destination_form.instance.destination.city }} ({{ destination_form.instance.destination.iata_code }})
+                  </td>
+                  <td>{{ destination_form.max_equivalent_units_per_flight }}</td>
+                  <td>{{ destination_form.max_usable_flights_per_week }}</td>
+                  <td>{{ destination_form.max_equivalent_units_per_week }}</td>
+                  <td>{{ destination_form.max_shipments_per_week }}</td>
+                  <td>{{ destination_form.fairness_weight }}</td>
+                  <td>
+                    <div class="d-none">
+                      {{ destination_form.allowed_weekdays_selection }}
+                    </div>
+                    <div class="dropdown" data-prep-weekday-dropdown>
+                      <button
+                        type="button"
+                        id="prep-weekday-dropdown-{{ forloop.counter0 }}"
+                        class="btn btn-tertiary btn-sm dropdown-toggle w-100 text-start"
+                        data-bs-toggle="dropdown"
+                        data-bs-auto-close="outside"
+                        aria-expanded="false"
+                      >
+                        <span data-prep-weekday-summary>{{ destination_form.weekday_summary }}</span>
+                      </button>
+                      <div class="dropdown-menu p-3" aria-labelledby="prep-weekday-dropdown-{{ forloop.counter0 }}">
+                        {% with selected_days=destination_form.allowed_weekdays_selection.value %}
+                          {% for weekday_value, weekday_label in destination_form.allowed_weekdays_selection.field.choices %}
+                            <label class="form-check mb-2 d-flex align-items-center gap-2">
+                              <input
+                                class="form-check-input prep-weekday-checkbox"
+                                type="checkbox"
+                                value="{{ weekday_value }}"
+                                {% if selected_days and weekday_value in selected_days %}checked{% endif %}
+                              >
+                              <span class="form-check-label">{{ weekday_label }}</span>
+                            </label>
+                          {% endfor %}
+                        {% endwith %}
+                      </div>
+                    </div>
+                  </td>
+                  <td class="text-center">{{ destination_form.is_active }}</td>
+                  <td>{{ destination_form.notes }}</td>
+                </tr>
+                {% if destination_form.errors %}
+                  <tr>
+                    <td colspan="9" class="text-danger small">{{ destination_form.errors }}</td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <h3 class="h5 ui-comp-title">Règles par expéditeur</h3>
+        {{ shipper_formset.management_form }}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover" data-table-tools="1">
+            <thead>
+              <tr>
+                <th>Expéditeur</th>
+                <th>Mode de préparation</th>
+                <th>Coefficient de score</th>
+                <th>Active</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for shipper_form in shipper_formset %}
+                <tr>
+                  <td>
+                    {{ shipper_form.id }}
+                    {{ shipper_form.instance.shipper.organization.name }}
+                  </td>
+                  <td>{{ shipper_form.mode }}</td>
+                  <td>{{ shipper_form.score_coefficient }}</td>
+                  <td class="text-center">{{ shipper_form.is_active }}</td>
+                  <td>{{ shipper_form.notes }}</td>
+                </tr>
+                {% if shipper_form.errors %}
+                  <tr>
+                    <td colspan="5" class="text-danger small">{{ shipper_form.errors }}</td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 ui-comp-actions">
+        <button type="submit" class="btn btn-primary">Enregistrer le jeu de paramètres</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_preparation_run_create' %}">Retour au formulaire run magasin</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script>
+    (function () {
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (node) {
+        new bootstrap.Tooltip(node);
+      });
+
+      document.querySelectorAll('[data-prep-weekday-dropdown]').forEach(function (dropdown) {
+        const hiddenSelect = dropdown.parentElement.querySelector('select[name$="allowed_weekdays_selection"]');
+        const summary = dropdown.querySelector('[data-prep-weekday-summary]');
+        const checkboxes = Array.from(dropdown.querySelectorAll('.prep-weekday-checkbox'));
+        if (!hiddenSelect || !summary || checkboxes.length === 0) {
+          return;
+        }
+
+        const labelsByValue = {};
+        checkboxes.forEach(function (checkbox) {
+          const label = checkbox.parentElement.querySelector('.form-check-label');
+          labelsByValue[checkbox.value] = label ? label.textContent.trim() : checkbox.value;
+        });
+
+        const refreshSummary = function () {
+          const checked = checkboxes.filter(function (checkbox) {
+            return checkbox.checked;
+          }).map(function (checkbox) {
+            return checkbox.value;
+          });
+          summary.textContent = checked.length === 0 || checked.length === checkboxes.length
+            ? 'Tous les jours'
+            : checked.map(function (value) { return labelsByValue[value]; }).join(', ');
+        };
+
+        const syncHiddenSelect = function () {
+          const checkedValues = new Set(
+            checkboxes.filter(function (checkbox) { return checkbox.checked; }).map(function (checkbox) {
+              return checkbox.value;
+            })
+          );
+          Array.from(hiddenSelect.options).forEach(function (option) {
+            option.selected = checkedValues.has(option.value);
+          });
+          refreshSummary();
+        };
+
+        checkboxes.forEach(function (checkbox) {
+          checkbox.addEventListener('change', syncHiddenSelect);
+        });
+
+        refreshSummary();
+      });
+    })();
+  </script>
+{% endblock %}

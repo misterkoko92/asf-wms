@@ -78,7 +78,7 @@ Practical rule:
 
 - URL root: `wms/scan_urls.py`
 - View facade exports: `wms/views.py`
-- Main runtime modules: `wms/views_scan_stock.py`, `wms/views_scan_shipments.py`, `wms/views_scan_shipments_support.py`, `wms/views_scan_receipts.py`, `wms/views_scan_orders.py`, `wms/views_scan_admin.py`, `wms/views_scan_dashboard.py`, `wms/views_scan_billing.py`, `wms/views_scan_misc.py`
+- Main runtime modules: `wms/views_scan_stock.py`, `wms/views_scan_shipments.py`, `wms/views_scan_shipments_support.py`, `wms/views_scan_receipts.py`, `wms/views_scan_orders.py`, `wms/views_scan_admin.py`, `wms/views_scan_dashboard.py`, `wms/views_scan_billing.py`, `wms/views_scan_misc.py`, `wms/views_scan_preparation.py`
 - Templates: `templates/scan/`
 - Static assets: `wms/static/scan/`
 - Stable scan asset facade: `templates/scan/base.html` keeps `scan.js` and `scan/modules/core.js`
@@ -137,17 +137,30 @@ Practical rule:
 Prefer the facade for imports unless a local change explicitly belongs in the extracted domain module.
 
 - import compatibility facade: `wms/models.py`
-- extracted domain modules: `wms/models_domain/catalog.py`, `inventory.py`, `shipment.py`, `shipment_parties.py`, `portal.py`, `planning.py`, `billing.py`, `integration.py`, `references.py`, `volunteer.py`
+- extracted domain modules: `wms/models_domain/catalog.py`, `inventory.py`, `shipment.py`, `shipment_parties.py`, `portal.py`, `planning.py`, `preparation.py`, `billing.py`, `integration.py`, `references.py`, `volunteer.py`
 
 Important cross-cutting domain modules:
 
 - portal recipient sync: `wms/portal_recipient_sync.py`
 - shipment-party registry and rules: `wms/shipment_party_registry.py`, `wms/shipment_party_setup.py`, `wms/shipment_party_rules.py`
+- recipient preference resolution and warehouse-preparation runtime:
+  `wms/recipient_product_preferences.py`, `wms/models_domain/preparation.py`, `wms/preparation/*`
+- warehouse-preparation staff adapters:
+  `wms/forms_preparation.py`, `wms/views_scan_preparation.py`, `templates/scan/preparation_run_*.html`
+- legacy scan sidebar exposes the warehouse-preparation cockpit under `/scan/preparation-runs/`
+  inside the shared `Préparation` navigation group
+- warehouse-preparation parameter-set configuration lives at `/scan/preparation-runs/settings/`
+  and intentionally stays in the same legacy scan flow/permission scope as the run list, create,
+  and detail pages
 - V3.3 target boundary for shipment-party graph logic: `wms/parties/`
 - live V3.3 application entrypoint for portal shipment-party sync: `wms/application/parties/use_cases.py`
 - stable V3.3 package-root import surface for shipment-party orchestration:
   `wms/parties/__init__.py` and `wms/application/parties/__init__.py`
 - `ShipmentRecipientOrganization` is now scoped by `(organization, destination)` rather than by organization globally, so destination-aware lookups are the default contract for portal and admin shipment-party flows
+- canonical recipient product preferences now live on `RecipientProductPreference`, still scoped by `ShipmentRecipientOrganization`; effective resolution order is `product -> most specific category -> unspecified`, and category-level `refused` is intentionally invalid
+- warehouse `run magasin` is a separate domain from `planning vols`; preparation proposals, snapshots, reservations, and scoring live under `wms/models_domain/preparation.py` and `wms/preparation/*` instead of extending `wms/models_domain/planning.py`
+- accepted warehouse proposals now convert into real `Shipment` / `Carton` objects through `wms/preparation/conversion.py`; conversion creates shipments in `ShipmentStatus.PICKING`, not `PACKED`, so the planning-vols flow still only sees physically confirmed shipments later
+- explicit dossier-ready confirmation now lives in `wms/shipment_status.py` and `wms/views_scan_shipments.py`; `wms/planning/sources.py` must keep excluding `ShipmentStatus.PICKING` until that confirmation promotes the shipment to `PACKED`
 - workflow notifications and side effects: `wms/signals.py`
 - core orchestration services: `wms/services.py`
 - V3.3 target boundary for planning/document artifact lifecycle: `wms/artifacts/`
@@ -196,6 +209,7 @@ If the ticket touches:
 - scan flow: `wms/scan_urls.py`, `wms/views_scan_*`, nearest `*_handlers.py`, `templates/scan/`, `wms/tests/views/`
 - portal flow: `wms/portal_urls.py`, `wms/views_portal_*`, `wms/portal_recipient_sync.py`, `templates/portal/`, `wms/tests/portal/`
 - shipment-party/contact rules: `wms/models_domain/shipment_parties.py`, `wms/models_domain/portal.py`, `wms/shipment_party_*`, `wms/portal_recipient_sync.py`
+- preparation run / recipient preference engine: `wms/models_domain/preparation.py`, `wms/models_domain/shipment_parties.py`, `wms/recipient_product_preferences.py`, `wms/preparation/*`, `wms/tests/preparation/`, `wms/tests/core/tests_recipient_product_preferences.py`
 - planning artifacts/runtime: `wms/planning/*`, `wms/artifacts/*`, `wms/application/planning_artifacts/use_cases.py`, `wms/tests/planning/`, `wms/tests/print/tests_print_pack_sync.py`
 - print/documents: `wms/shipment_document_handlers.py`, `wms/billing_document_handlers.py`, `templates/print/`, scan print views, print tests
 - shared UI: `wms/templatetags/wms_ui.py`, `templates/wms/components/`, `templates/scan/ui_lab.html`, bridge CSS files, bootstrap UI tests

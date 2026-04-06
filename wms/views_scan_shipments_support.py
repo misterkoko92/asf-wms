@@ -22,6 +22,7 @@ ACTIVE_SHIPMENTS_TRACKING = "shipments_tracking"
 
 ARCHIVE_STALE_DRAFTS_ACTION = "archive_stale_drafts"
 CLOSE_SHIPMENT_ACTION = "close_shipment_case"
+CONFIRM_SHIPMENT_READY_ACTION = "confirm_shipment_ready"
 CLOSED_FILTER_EXCLUDE = "exclude"
 CLOSED_FILTER_ALL = "all"
 DISPUTE_FILTER_ALL = "all"

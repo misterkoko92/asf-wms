@@ -1,0 +1,147 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Nouveau run magasin{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="h4 mb-0 ui-comp-title">Nouveau run magasin</h2>
+      <a class="btn btn-tertiary" href="{% url 'scan:scan_preparation_parameter_set_config' %}">Configurer les jeux de paramètres</a>
+    </div>
+    <form method="post" class="row g-3 ui-comp-form">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="col-12">
+          <div class="alert alert-danger mb-0" role="alert">
+            {{ form.non_field_errors|join:" " }}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="col-12">
+        <label class="form-label" for="{{ form.parameter_set.id_for_label }}">{{ form.parameter_set.label }}</label>
+        {{ form.parameter_set }}
+        {% if form.parameter_set.errors %}
+          <div class="text-danger small mt-1">{{ form.parameter_set.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <label class="form-label mb-0" for="{{ form.shippers.id_for_label }}">{{ form.shippers.label }}</label>
+          <label class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="prep-select-all-shippers" checked>
+            <span class="form-check-label">Tout sélectionner</span>
+          </label>
+        </div>
+        {{ form.shippers }}
+        {% if form.shippers.errors %}
+          <div class="text-danger small mt-1">{{ form.shippers.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <label class="form-label mb-0" for="{{ form.destinations.id_for_label }}">{{ form.destinations.label }}</label>
+          <label class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="prep-select-all-destinations" checked>
+            <span class="form-check-label">Tout sélectionner</span>
+          </label>
+        </div>
+        {{ form.destinations }}
+        {% if form.destinations.errors %}
+          <div class="text-danger small mt-1">{{ form.destinations.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <label class="form-label" for="{{ form.target_equivalent_units.id_for_label }}">{{ form.target_equivalent_units.label }}</label>
+        {{ form.target_equivalent_units }}
+        {% if form.target_equivalent_units.errors %}
+          <div class="text-danger small mt-1">{{ form.target_equivalent_units.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-6">
+        <label class="form-label" for="{{ form.target_shipment_count.id_for_label }}">{{ form.target_shipment_count.label }}</label>
+        {{ form.target_shipment_count }}
+        {% if form.target_shipment_count.errors %}
+          <div class="text-danger small mt-1">{{ form.target_shipment_count.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-6">
+        <label class="form-label" for="{{ form.target_shipment_size_units.id_for_label }}">{{ form.target_shipment_size_units.label }}</label>
+        {{ form.target_shipment_size_units }}
+        {% if form.target_shipment_size_units.errors %}
+          <div class="text-danger small mt-1">{{ form.target_shipment_size_units.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-6">
+        <label class="form-label" for="{{ form.min_shipment_size_units.id_for_label }}">{{ form.min_shipment_size_units.label }}</label>
+        {{ form.min_shipment_size_units }}
+        {% if form.min_shipment_size_units.errors %}
+          <div class="text-danger small mt-1">{{ form.min_shipment_size_units.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-6">
+        <label class="form-label" for="{{ form.max_shipment_size_units.id_for_label }}">{{ form.max_shipment_size_units.label }}</label>
+        {{ form.max_shipment_size_units }}
+        {% if form.max_shipment_size_units.errors %}
+          <div class="text-danger small mt-1">{{ form.max_shipment_size_units.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-6">
+        <label class="form-label" for="{{ form.flight_window_start.id_for_label }}">{{ form.flight_window_start.label }}</label>
+        {{ form.flight_window_start }}
+        {% if form.flight_window_start.errors %}
+          <div class="text-danger small mt-1">{{ form.flight_window_start.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+      <div class="col-12 col-lg-6">
+        <label class="form-label" for="{{ form.flight_window_end.id_for_label }}">{{ form.flight_window_end.label }}</label>
+        {{ form.flight_window_end }}
+        {% if form.flight_window_end.errors %}
+          <div class="text-danger small mt-1">{{ form.flight_window_end.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 d-flex flex-wrap gap-2 ui-comp-actions">
+        <button type="submit" class="btn btn-primary">Générer le run</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_preparation_run_list' %}">Retour</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      const bindings = [
+        ["prep-select-all-shippers", "{{ form.shippers.id_for_label }}"],
+        ["prep-select-all-destinations", "{{ form.destinations.id_for_label }}"],
+      ];
+
+      const syncCheckboxFromSelect = function (checkbox, select) {
+        const options = Array.from(select.options);
+        checkbox.checked = options.length > 0 && options.every(function (option) {
+          return option.selected;
+        });
+      };
+
+      bindings.forEach(function (binding) {
+        const checkbox = document.getElementById(binding[0]);
+        const select = document.getElementById(binding[1]);
+        if (!checkbox || !select) {
+          return;
+        }
+        syncCheckboxFromSelect(checkbox, select);
+        checkbox.addEventListener("change", function () {
+          Array.from(select.options).forEach(function (option) {
+            option.selected = checkbox.checked;
+          });
+        });
+        select.addEventListener("change", function () {
+          syncCheckboxFromSelect(checkbox, select);
+        });
+      });
+    })();
+  </script>
+{% endblock %}

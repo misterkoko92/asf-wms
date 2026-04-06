@@ -65,6 +65,18 @@
         </a>
       </div>
       <div id="shipment-dossier-secondary-actions" class="ui-comp-actions d-flex flex-wrap justify-content-lg-end gap-2">
+        {% if can_confirm_ready %}
+          <form method="post" class="d-inline-flex">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm_shipment_ready">
+            <button
+              type="submit"
+              class="scan-scan-btn btn btn-success"
+            >
+              Confirmer prêt
+            </button>
+          </form>
+        {% endif %}
         {% if is_closed %}
           <button
             type="button"

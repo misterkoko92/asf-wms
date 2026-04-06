@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -9,6 +10,7 @@ from wms.planning.sources import (
     build_correspondent_reference,
     build_recipient_reference,
     build_shipper_reference,
+    get_run_shipments,
 )
 
 
@@ -134,3 +136,43 @@ class PlanningSourcesTests(TestCase):
 
         self.assertEqual(reference["contact_id"], correspondent_org.id)
         self.assertEqual(reference["contact_name"], "Cora CORRESPONDENT, Association Correspondent")
+
+    def test_get_run_shipments_excludes_picking_shipments_even_if_ready_window_matches(self):
+        destination = Destination.objects.create(
+            city="Douala",
+            iata_code="DLA",
+            country="CM",
+            correspondent_contact=self._create_org("Fallback DLA"),
+            is_active=True,
+        )
+        packed = Shipment.objects.create(
+            reference="EXP-PLAN-READY-001",
+            status=ShipmentStatus.PACKED,
+            shipper_name="Packed shipper",
+            recipient_name="Packed recipient",
+            destination=destination,
+            destination_address="Airport road",
+            destination_country=destination.country,
+            ready_at=datetime(2026, 3, 10, 9, 0, tzinfo=UTC),
+            created_by=self.user,
+        )
+        Shipment.objects.create(
+            reference="EXP-PLAN-PICKING-001",
+            status=ShipmentStatus.PICKING,
+            shipper_name="Picking shipper",
+            recipient_name="Picking recipient",
+            destination=destination,
+            destination_address="Airport road",
+            destination_country=destination.country,
+            ready_at=datetime(2026, 3, 10, 10, 0, tzinfo=UTC),
+            created_by=self.user,
+        )
+        run = SimpleNamespace(
+            week_start=packed.ready_at.date(),
+            week_end=packed.ready_at.date(),
+            flight_batch_id=None,
+        )
+
+        shipments = list(get_run_shipments(run))
+
+        self.assertEqual([shipment.reference for shipment in shipments], [packed.reference])
