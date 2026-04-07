@@ -807,6 +807,41 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--lg", css_content)
         self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--xl", css_content)
 
+    def test_scan_bootstrap_css_keeps_shared_number_input_controls_compact(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".scan-bootstrap-enabled .ui-number-input .form-control,\n"
+            ".scan-bootstrap-enabled .ui-number-input-input {\n"
+            "  min-width: 0;\n"
+            "  padding-left: calc(var(--wms-input-padding-x) + 3.85rem);",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .ui-number-input-btn {\n" "  width: 1.5rem;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-btn {\n"
+            "  width: 1.3rem;",
+            css_content,
+        )
+
+    def test_scan_shell_css_blocks_horizontal_overflow_in_scroll_region(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-body {\n"
+            "  min-width: 0;\n"
+            "  min-height: 0;\n"
+            "  overflow-y: auto;\n"
+            "  overflow-x: hidden;\n"
+            "  overscroll-behavior-x: none;",
+            css_content,
+        )
+
     def test_scan_prepare_kits_uses_full_width_top_panel_contract(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
         css_content = css_path.read_text(encoding="utf-8")
