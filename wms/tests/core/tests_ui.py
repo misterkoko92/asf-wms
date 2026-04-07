@@ -38,18 +38,23 @@ class ScanUiTests(StaticLiveServerTestCase):
         self.client.force_login(self.user)
         self.session_cookie = self.client.cookies[settings.SESSION_COOKIE_NAME]
         warehouse = Warehouse.objects.create(name="UI WH", code="UI")
-        location = Location.objects.create(warehouse=warehouse, zone="A", aisle="01", shelf="001")
+        self.location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
         Product.objects.create(
             sku="UI-001",
             name="UI Product",
             weight_g=100,
             volume_cm3=100,
-            default_location=location,
+            default_location=self.location,
             qr_code_image="qr_codes/test.png",
         )
 
-    def _new_context(self, browser, init_script=None):
-        context = browser.new_context()
+    def _new_context(self, browser, init_script=None, **kwargs):
+        context = browser.new_context(**kwargs)
         if init_script:
             context.add_init_script(init_script)
         context.add_cookies(
@@ -275,6 +280,134 @@ class ScanUiTests(StaticLiveServerTestCase):
             increment.click()
             page.wait_for_function(
                 "() => document.getElementById('ui-lab-number-input-demo').value === '3'"
+            )
+            context.close()
+            browser.close()
+
+    def test_scan_pack_enhances_quantity_inputs_added_dynamically(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context(browser)
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}{reverse('scan:scan_pack')}",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_function(
+                "(() => {"
+                "  const input = document.querySelector('.pack-line .pack-line-quantity');"
+                "  return !!input"
+                "    && input.classList.contains('is-ui-number-input-enhanced')"
+                "    && !!input.closest('.ui-number-input')"
+                "    && !!input.closest('.ui-number-input').querySelector('.ui-number-input-controls');"
+                "})()"
+            )
+
+            page.locator("#pack-add-line").click()
+            page.wait_for_function("() => document.querySelectorAll('.pack-line').length === 2")
+            page.wait_for_function(
+                "(() => {"
+                "  const inputs = Array.from(document.querySelectorAll('.pack-line .pack-line-quantity'));"
+                "  return inputs.length === 2"
+                "    && inputs.every(input => input.classList.contains('is-ui-number-input-enhanced'))"
+                "    && inputs.every(input => !!input.closest('.ui-number-input'))"
+                "    && inputs.every(input => !!input.closest('.ui-number-input')"
+                "      .querySelector('.ui-number-input-controls'));"
+                "})()"
+            )
+
+            self.assertEqual(
+                page.locator('.pack-line [data-ui-number-input-action="increment"]').count(),
+                2,
+            )
+            self.assertEqual(
+                page.locator('.pack-line [data-ui-number-input-action="decrement"]').count(),
+                2,
+            )
+            context.close()
+            browser.close()
+
+    def test_scan_pack_barcode_detector_resolves_product_select_and_restarts_cleanly(self):
+        Product.objects.create(
+            sku="UI-002",
+            barcode="UI-BAR-002",
+            name="UI Barcode Product",
+            weight_g=120,
+            volume_cm3=180,
+            default_location=self.location,
+            qr_code_image="qr_codes/test-barcode.png",
+        )
+        init_script = """
+window.__scanCodes = ['UI-BAR-002', 'UI-BAR-002'];
+window.__getUserMediaCalls = 0;
+window.__videoLoadCalls = 0;
+Object.defineProperty(navigator, 'mediaDevices', {
+  value: {
+    getUserMedia: async () => {
+      window.__getUserMediaCalls += 1;
+      return new MediaStream();
+    },
+  },
+  configurable: true,
+});
+window.BarcodeDetector = class {
+  async detect() {
+    const code = window.__scanCodes.shift();
+    return code ? [{ rawValue: code }] : [];
+  }
+};
+HTMLMediaElement.prototype.play = function() {
+  return Promise.resolve();
+};
+HTMLMediaElement.prototype.pause = function() {};
+HTMLMediaElement.prototype.load = function() {
+  window.__videoLoadCalls += 1;
+};
+"""
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context(
+                browser,
+                init_script=init_script,
+                viewport={"width": 390, "height": 844},
+                is_mobile=True,
+                has_touch=True,
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}{reverse('scan:scan_pack')}",
+                wait_until="domcontentloaded",
+            )
+            scan_button = page.locator('[data-scan-target="id_pack_line_1_product_code"]')
+            page.wait_for_selector('[data-scan-target="id_pack_line_1_product_code"]')
+
+            scan_button.tap()
+            page.wait_for_function(
+                "() => document.getElementById('id_pack_line_1_product_code').value === 'UI-002'"
+            )
+            page.wait_for_function(
+                "() => !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+            page.wait_for_function(
+                "() => window.__getUserMediaCalls === 1 && window.__videoLoadCalls >= 1"
+            )
+            self.assertNotEqual(
+                page.evaluate(
+                    "() => document.activeElement"
+                    " ? document.activeElement.getAttribute('data-scan-target') || ''"
+                    " : ''"
+                ),
+                "id_pack_line_1_product_code",
+            )
+
+            scan_button.tap()
+            page.wait_for_function("() => window.__getUserMediaCalls === 2")
+            page.wait_for_function(
+                "() => !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+            self.assertEqual(
+                page.locator("#id_pack_line_1_product_code").input_value(),
+                "UI-002",
             )
             context.close()
             browser.close()

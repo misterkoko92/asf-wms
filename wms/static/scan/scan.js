@@ -11,6 +11,7 @@
   let detector = null;
   let zxingReader = null;
   let scanning = false;
+  let activeScanTrigger = null;
   let ocrActiveInput = null;
   let ocrProducts = [];
   let ocrOverlay = null;
@@ -43,6 +44,21 @@
     const tagName = input.tagName ? input.tagName.toLowerCase() : '';
     const eventName = tagName === 'select' ? 'change' : 'input';
     input.dispatchEvent(new Event(eventName, { bubbles: true }));
+  }
+
+  function blurElement(element) {
+    if (element && typeof element.blur === 'function') {
+      element.blur();
+    }
+  }
+
+  function releaseScanInteraction() {
+    blurElement(activeScanTrigger);
+    blurElement(activeInput);
+    if (document.activeElement && document.activeElement !== document.body) {
+      blurElement(document.activeElement);
+    }
+    activeScanTrigger = null;
   }
 
   function applyScanValue(input, code) {
@@ -186,6 +202,7 @@
 
   async function stopScan() {
     scanning = false;
+    detector = null;
     if (zxingReader) {
       try {
         zxingReader.reset();
@@ -205,11 +222,26 @@
       }
     }
     if (video) {
+      try {
+        video.pause();
+      } catch (err) {
+        // Ignore pause errors.
+      }
       video.srcObject = null;
+      video.removeAttribute('src');
+      if (typeof video.load === 'function') {
+        try {
+          video.load();
+        } catch (err) {
+          // Ignore load errors.
+        }
+      }
     }
     if (overlay) {
       overlay.classList.remove('active');
     }
+    releaseScanInteraction();
+    activeInput = null;
     setScanMode('');
   }
 
@@ -221,11 +253,7 @@
       const barcodes = await detector.detect(video);
       if (barcodes.length > 0) {
         const code = barcodes[0].rawValue || '';
-        if (activeInput) {
-          activeInput.value = code;
-          activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        setStatus('Code detecte: ' + code);
+        handleDetectedCode(code);
         await stopScan();
         return;
       }
@@ -1354,6 +1382,12 @@
       if (lineCountInput) {
         lineCountInput.value = String(count);
       }
+      container.dispatchEvent(
+        new CustomEvent('wms:enhance-number-inputs', {
+          bubbles: true,
+          detail: { root: container }
+        })
+      );
       updateAllLineMetrics();
     };
 
@@ -3858,11 +3892,14 @@
     if (!trigger) {
       return;
     }
+    event.preventDefault();
     const targetId = trigger.getAttribute('data-scan-target');
     const input = document.getElementById(targetId);
     if (!input) {
       return;
     }
+    activeScanTrigger = trigger;
+    blurElement(trigger);
     startScan(input);
   });
 
@@ -3871,11 +3908,14 @@
     if (!trigger) {
       return;
     }
+    event.preventDefault();
     const targetId = trigger.getAttribute('data-ocr-target');
     const input = document.getElementById(targetId);
     if (!input) {
       return;
     }
+    activeScanTrigger = trigger;
+    blurElement(trigger);
     startOcrScan(input);
   });
 
