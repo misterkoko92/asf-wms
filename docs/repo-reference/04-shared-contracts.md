@@ -159,10 +159,11 @@ Primary runtime sources:
 Current contract:
 
 - eligible legacy `input[type="number"]` controls can be progressively enhanced into the shared `ui-number-input` wrapper
-- the shared control renders decrement/increment buttons on the left side of the field
+- the shared control renders compact decrement/increment buttons on the left side of the field
 - the input text area keeps extra left padding so values never overlap the buttons
 - the runtime enhancement respects native `min`, `max`, `step`, `disabled`, and `readonly` semantics
 - the enhancement dispatches native-feeling `input` and `change` events after button clicks so existing page logic keeps reacting to quantity changes
+- page-level horizontal drift stays clipped in the shared legacy shell; any required horizontal movement must live inside an explicit local wrapper such as `scan-table-wrap table-responsive`
 - page-local exceptions can opt out with `data-ui-number-input-optout="1"` or `ui-number-input-optout`
 
 Maintenance rule:
