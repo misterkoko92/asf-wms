@@ -1169,7 +1169,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["line_count"], 2)
         self.assertEqual(response.context_data["line_values"], [{"line": 1}, {"line": 2}])
         self.assertEqual(response.context_data["missing_defaults"], [])
-        self.assertFalse(response.context_data["confirm_defaults"])
+        self.assertTrue(response.context_data["confirm_defaults"])
         packing_result_mock.assert_called_once_with([10, 20])
 
     def test_scan_pack_post_returns_handler_response_when_available(self):

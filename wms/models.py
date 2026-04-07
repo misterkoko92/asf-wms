@@ -58,6 +58,7 @@ from .models_domain.inventory import (
     ProductLotStatus,
     RackColor,
     Receipt,
+    ReceiptConformityStatus,
     ReceiptDonorSequence,
     ReceiptHorsFormat,
     ReceiptLine,

@@ -4,7 +4,7 @@ from unittest import mock
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from wms.models import ReceiptStatus, ReceiptType
+from wms.models import ReceiptConformityStatus, ReceiptStatus, ReceiptType
 from wms.receipt_pallet_handlers import handle_pallet_create_post
 from wms.receipt_pallet_state import build_receive_pallet_context, build_receive_pallet_state
 
@@ -103,6 +103,8 @@ class ReceiptPalletFlowTests(TestCase):
             received_on="2026-01-10",
             pallet_count=4,
             transport_request_date="2026-01-08",
+            conformity_status=ReceiptConformityStatus.CONFORM,
+            notes="",
             warehouse=warehouse,
             created_by=self.user,
         )

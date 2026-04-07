@@ -34,7 +34,7 @@
   margin-bottom: 6px;
 }
 
-.scan-field input,
+.scan-field input:not([type="checkbox"]):not([type="radio"]),
 .scan-field select,
 .scan-field textarea {
   width: 100%;

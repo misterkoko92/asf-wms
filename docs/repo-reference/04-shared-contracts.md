@@ -50,6 +50,7 @@ Stable primitives currently documented:
 - `ui_alert`
 - `ui_status_badge`
 - `ui_switch`
+- `ui-number-input`
 - `ui-comp-card`
 - `ui-comp-panel`
 - `ui-comp-actions`
@@ -132,7 +133,8 @@ Current contract:
 - default ordering is alphabetical by rendered label
 - placeholder options such as `---------` stay at the top
 - grouped choices keep their group structure while sorting the options inside each group
-- explicit per-select exceptions are allowed when business order matters, for example descending shipment selection on `scan/cartons`
+- explicit per-select exceptions are allowed when business order matters; `scan/pack`
+  uses descending shipment references with labels formatted as `REFERENCE - IATA`
 - warehouse-preparation create/config screens keep native selects and use `ui-select--lg` for the
   parameter-set picker and `ui-select--xl` for shipper/destination multi-select scopes
 
@@ -140,6 +142,64 @@ Maintenance rule:
 
 - when changing select ordering or sizing, update both the backend choice builders and the rendered template/widget classes in the same work
 - keep documented exceptions explicit and local; do not silently drift into mixed ordering rules
+
+### Shared Number Input Contract
+
+Primary runtime sources:
+
+- `wms/static/scan/modules/core.js`
+- `wms/static/scan/scan-bootstrap.css`
+- `templates/scan/ui_lab.html`
+- `templates/scan/base.html`
+- `templates/portal/base.html`
+- `templates/planning/base.html`
+- `templates/benevole/base.html`
+- standalone benevole auth templates that do not extend `benevole/base.html`
+
+Current contract:
+
+- eligible legacy `input[type="number"]` controls can be progressively enhanced into the shared `ui-number-input` wrapper
+- the shared control renders decrement/increment buttons on the left side of the field
+- the input text area keeps extra left padding so values never overlap the buttons
+- the runtime enhancement respects native `min`, `max`, `step`, `disabled`, and `readonly` semantics
+- the enhancement dispatches native-feeling `input` and `change` events after button clicks so existing page logic keeps reacting to quantity changes
+- page-local exceptions can opt out with `data-ui-number-input-optout="1"` or `ui-number-input-optout`
+
+Maintenance rule:
+
+- if the shared number-input behavior changes, keep the shared JS, shared CSS, base template script includes, UI Lab contract example, and runtime tests aligned in the same work
+- do not reintroduce browser-specific spinner styling as the primary contract; the shared left-side controls are now the repository default for enhanced legacy number inputs
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_planning.py`
+- `wms/tests/views/tests_views_volunteer.py`
+- `wms/tests/core/tests_ui.py`
+
+### Receipt Conformity Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/inventory.py`
+- `wms/forms.py`
+- `wms/receipt_pallet_handlers.py`
+- `wms/receipt_handlers.py`
+- `templates/scan/includes/receive_pallet_create_card.html`
+- `templates/scan/includes/receive_association_create_card.html`
+
+Current contract:
+
+- `Receipt` persists `conformity_status` and keeps `unknown` for legacy rows that predate this capture
+- `/scan/receive-pallet/` stores the operator observation in `Receipt.notes`
+- `/scan/receive-association/` reuses `pickup_charge_comment` as the operator observation field
+- when the operator marks a reception non-conform, the observation field becomes mandatory in both forms
+
+Maintenance rule:
+
+- if receipt conformity capture changes, keep the model field, form validation, handler persistence, and scan templates aligned in the same work
+- preserve the historical `unknown` state unless a dedicated migration explicitly backfills it for statistics
 
 ### Warehouse Preparation Create Contract
 

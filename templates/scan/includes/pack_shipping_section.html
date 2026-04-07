@@ -11,7 +11,17 @@
   {% if not request.scan_is_preparateur %}
     <div class="scan-field scan-pack-shipping-field col-12 col-lg-3">
       <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
-      {{ form.shipment_reference }}
+      <select id="{{ form.shipment_reference.id_for_label }}" name="{{ form.shipment_reference.html_name }}">
+        <option value=""{% if not form.shipment_reference.value %} selected{% endif %}>---------</option>
+        {% for shipment in form.shipment_reference.field.queryset %}
+          <option
+            value="{{ shipment.reference }}"
+            {% if form.shipment_reference.value|stringformat:"s" == shipment.reference|stringformat:"s" %}selected{% endif %}
+          >
+            {{ shipment.reference }} - {{ shipment.destination.iata_code|default:"-" }}
+          </option>
+        {% endfor %}
+      </select>
       {% for error in form.shipment_reference.errors %}
         <div class="scan-message error">{{ error }}</div>
       {% endfor %}
@@ -24,7 +34,27 @@
   {% endif %}
 
   <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
-    {% ui_switch name="confirm_defaults" id="id_confirm_defaults" label="Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids." checked=confirm_defaults wide=True %}
+    <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
+      <input
+        id="id_confirm_defaults"
+        {% if confirm_defaults %}checked="checked"{% endif %}
+        class="form-check-input"
+        name="confirm_defaults"
+        role="switch"
+        type="checkbox"
+        value="1"
+      >
+      <label class="form-check-label scan-switch-label" for="id_confirm_defaults">
+        <span class="scan-switch-copy">
+          <span id="id_confirm_defaults-label" class="scan-switch-title">Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids.</span>
+        </span>
+        <span class="scan-switch-control" aria-hidden="true">
+          <span class="scan-switch-track">
+            <span class="scan-switch-handle"></span>
+          </span>
+        </span>
+      </label>
+    </div>
   </div>
 </div>
 

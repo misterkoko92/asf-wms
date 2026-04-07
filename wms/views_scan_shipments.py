@@ -1028,7 +1028,7 @@ def scan_pack(request):
         line_values = pack_state["line_values"]
         line_errors = pack_state["line_errors"]
         missing_defaults = pack_state.get("missing_defaults", [])
-        confirm_defaults = pack_state.get("confirm_defaults", False)
+        confirm_defaults = pack_state.get("confirm_defaults", True)
         if response:
             return response
     else:
@@ -1039,7 +1039,7 @@ def scan_pack(request):
             line_values,
         ) = build_pack_defaults(default_format)
         missing_defaults = []
-        confirm_defaults = False
+        confirm_defaults = True
     return _render_pack_page(
         request,
         form=form,

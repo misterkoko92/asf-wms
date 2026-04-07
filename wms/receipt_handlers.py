@@ -3,7 +3,13 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
-from .models import Receipt, ReceiptHorsFormat, ReceiptStatus, ReceiptType
+from .models import (
+    Receipt,
+    ReceiptConformityStatus,
+    ReceiptHorsFormat,
+    ReceiptStatus,
+    ReceiptType,
+)
 from .scan_helpers import parse_int, resolve_default_warehouse, resolve_product
 from .services import StockError, receive_receipt_line
 
@@ -62,6 +68,11 @@ def handle_receipt_association_post(
                         create_form.cleaned_data.get("pickup_charge_comment") or ""
                     ),
                     pickup_charge_proof=create_form.cleaned_data.get("pickup_charge_proof"),
+                    conformity_status=(
+                        ReceiptConformityStatus.NON_CONFORM
+                        if create_form.cleaned_data.get("is_non_conform")
+                        else ReceiptConformityStatus.CONFORM
+                    ),
                     warehouse=warehouse,
                     created_by=request.user,
                 )
