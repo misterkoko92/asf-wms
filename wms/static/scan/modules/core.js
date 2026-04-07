@@ -198,6 +198,16 @@
     root.querySelectorAll('input[type="number"]').forEach(enhanceNumberInput);
   }
 
+  document.addEventListener('wms:enhance-number-inputs', event => {
+    const root =
+      event &&
+      event.detail &&
+      event.detail.root instanceof Element
+        ? event.detail.root
+        : document;
+    setupNumberInputs(root);
+  });
+
   function setupLiveSync() {
     const banner = document.getElementById('scan-sync-banner');
     if (!banner) {
