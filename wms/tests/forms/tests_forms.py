@@ -319,6 +319,52 @@ class FormsTests(TestCase):
         )
         self.assertEqual(destination_ids, {active_destination.id})
 
+    def test_scan_pack_form_exposes_descending_shipment_reference_choices(self):
+        correspondent = Contact.objects.create(name="Pack Correspondent", is_active=True)
+        destination_bko = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="Mali",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        destination_nkc = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipment_old = Shipment.objects.create(
+            reference="260011",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="ASF",
+            recipient_name="Dest BKO",
+            destination=destination_bko,
+            destination_address="1 Rue Test",
+            destination_country="Mali",
+        )
+        shipment_new = Shipment.objects.create(
+            reference="260012",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="ASF",
+            recipient_name="Dest NKC",
+            destination=destination_nkc,
+            destination_address="2 Rue Test",
+            destination_country="Mauritanie",
+        )
+
+        form = ScanPackForm()
+
+        shipment_field = form.fields["shipment_reference"]
+        self.assertIsInstance(shipment_field, django_forms.ModelChoiceField)
+        self.assertEqual(shipment_field.to_field_name, "reference")
+        self.assertEqual(
+            list(shipment_field.queryset.values_list("reference", flat=True)[:2]),
+            [shipment_new.reference, shipment_old.reference],
+        )
+        self.assertEqual(shipment_field.label_from_instance(shipment_new), "260012 - NKC")
+
     def test_scan_receipt_select_form_orders_unsliced_queryset(self):
         receipt_b = Receipt.objects.create(reference="B-RECEIPT", warehouse=self.warehouse)
         receipt_a = Receipt.objects.create(reference="A-RECEIPT", warehouse=self.warehouse)
@@ -392,6 +438,53 @@ class FormsTests(TestCase):
         self.assertEqual(list(stock_form.fields["donor_contact"].queryset), [donor])
         self.assertNotIn(legacy_contact, create_form.fields["source_contact"].queryset)
         self.assertNotIn(inactive_donor, pallet_form.fields["source_contact"].queryset)
+
+    def test_scan_receipt_pallet_form_requires_observation_when_non_conform(self):
+        donor = self._create_org("Donor Receipt")
+        transporter = self._create_org("Transporter Receipt")
+        ensure_contact_capability(donor, ContactCapabilityType.DONOR)
+        ensure_contact_capability(transporter, ContactCapabilityType.TRANSPORTER)
+
+        form = ScanReceiptPalletForm(
+            data={
+                "received_on": "2026-04-06",
+                "pallet_count": 2,
+                "source_contact": donor.id,
+                "carrier_contact": transporter.id,
+                "is_non_conform": "1",
+                "observation": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors.get("observation"),
+            ["Observation requise pour une réception non conforme."],
+        )
+
+    def test_scan_receipt_association_form_requires_observation_when_non_conform(self):
+        shipper = self._create_org("Association Receipt")
+        transporter = self._create_org("Association Transporter")
+        self._register_shipper(shipper)
+        ensure_contact_capability(transporter, ContactCapabilityType.TRANSPORTER)
+
+        form = ScanReceiptAssociationForm(
+            data={
+                "received_on": "2026-04-06",
+                "carton_count": 3,
+                "hors_format_count": 0,
+                "source_contact": shipper.id,
+                "carrier_contact": transporter.id,
+                "pickup_charge_comment": "",
+                "is_non_conform": "1",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors.get("pickup_charge_comment"),
+            ["Observation requise pour une réception non conforme."],
+        )
 
     def test_scan_stock_update_form_reports_missing_product(self):
         with mock.patch("wms.forms.resolve_product", return_value=None):

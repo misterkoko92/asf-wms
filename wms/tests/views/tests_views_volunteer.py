@@ -91,6 +91,12 @@ class VolunteerAuthViewTests(TestCase):
         self.assertContains(response, reverse("volunteer:request_account"))
         self.assertContains(response, "Demander un compte")
 
+    def test_login_get_loads_shared_core_script(self):
+        response = self.client.get(reverse("volunteer:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan/modules/core.js")
+
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("volunteer:dashboard"))
 

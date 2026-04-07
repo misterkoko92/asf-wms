@@ -206,6 +206,28 @@ class ScanBootstrapUiTests(TestCase):
             html=True,
         )
 
+    def test_scan_stock_places_category_filters_on_dedicated_row_before_actions(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="scan-field scan-stock-field scan-stock-category-field col-12"',
+        )
+        content = response.content.decode()
+        self.assertLess(
+            content.index("scan-stock-category-field"),
+            content.index("scan-stock-filter-actions-inline"),
+        )
+
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-stock-filter-row .scan-stock-category-field {",
+            css_content,
+        )
+        self.assertIn("grid-column: 1 / -1;", css_content)
+
     def test_scan_stock_exposes_multi_level_category_filters(self):
         response = self.client.get(reverse("scan:scan_stock"))
 
@@ -785,6 +807,33 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--lg", css_content)
         self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--xl", css_content)
 
+    def test_scan_prepare_kits_uses_full_width_top_panel_contract(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-prepare-kits-main-row .scan-prepare-kits-top-panel-full {",
+            css_content,
+        )
+        self.assertNotIn("max-width: min(100%, 62rem);", css_content)
+
+    def test_scan_field_css_contract_excludes_checkbox_and_radio_inputs(self):
+        css_path = (
+            Path(settings.BASE_DIR)
+            / "wms"
+            / "static"
+            / "scan"
+            / "css"
+            / "partials"
+            / "auth-public.css"
+        )
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn('.scan-field input:not([type="checkbox"]):not([type="radio"]),', css_content)
+        self.assertNotIn(
+            ".scan-field input,\n.scan-field select,\n.scan-field textarea {", css_content
+        )
+
     def test_scan_css_does_not_keep_removed_theme_selectors_or_toggle_controls(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.css"
         css_content = css_path.read_text(encoding="utf-8")
@@ -1170,6 +1219,21 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-form")
         self.assertContains(response, "ui-comp-file-input")
 
+    def test_scan_receive_surfaces_expose_observation_and_conformity_controls(self):
+        pallet_response = self.client.get(reverse("scan:scan_receive_pallet"))
+        self.assertEqual(pallet_response.status_code, 200)
+        self.assertContains(pallet_response, 'name="observation"')
+        self.assertContains(pallet_response, 'name="is_non_conform"')
+        self.assertContains(pallet_response, 'class="form-check form-switch mb-0"')
+        self.assertContains(pallet_response, ">Non conforme<")
+
+        association_response = self.client.get(reverse("scan:scan_receive_association"))
+        self.assertEqual(association_response.status_code, 200)
+        self.assertContains(association_response, "Observation")
+        self.assertContains(association_response, 'name="is_non_conform"')
+        self.assertContains(association_response, 'class="form-check form-switch mb-0"')
+        self.assertContains(association_response, ">Non conforme<")
+
     def test_scan_file_upload_surfaces_use_shared_file_input_component(self):
         self.client.force_login(self.superuser)
         shipment = Shipment.objects.create(
@@ -1545,6 +1609,39 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(pack_response, "scan-pack-shipping-actions-inline")
         self.assertContains(pack_response, "scan-pack-shipping-field")
 
+    def test_scan_pack_uses_shipment_select_contract(self):
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=self.correspondent,
+            is_active=True,
+        )
+        Shipment.objects.create(
+            reference="260012",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="ASF",
+            recipient_name="Dest",
+            destination=destination,
+            destination_address="1 Rue Test",
+            destination_country="Mauritanie",
+            created_by=self.staff_user,
+        )
+
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            r'<select[^>]+id="id_shipment_reference"[^>]+name="shipment_reference"',
+        )
+        self.assertContains(response, "260012 - NKC")
+        self.assertContains(response, 'id="id_confirm_defaults"')
+        self.assertRegex(
+            response.content.decode(),
+            r'<input[^>]+id="id_confirm_defaults"[^>]+checked',
+        )
+
     def test_scan_state_pages_use_bootstrap_card_shell(self):
         for route_name in [
             "scan:scan_cartons_ready",
@@ -1830,6 +1927,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="ui-lab-toolbar-status"')
         self.assertContains(response, "ui-select--sm")
         self.assertContains(response, "ui-select--lg")
+
+    def test_scan_ui_lab_exposes_shared_number_input_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-contract-number-input"')
+        self.assertContains(response, 'id="ui-lab-number-input-contract"')
+        self.assertContains(response, 'id="ui-lab-number-input-demo"')
+        self.assertContains(response, 'data-ui-number-input-demo="1"')
+        self.assertContains(response, "ui-number-input")
+        self.assertContains(response, "ui-number-input-controls")
+        self.assertContains(response, "ui-number-input-btn")
 
     def test_scan_ui_lab_exposes_recommended_toolbar_demo_contract(self):
         self.client.force_login(self.superuser)

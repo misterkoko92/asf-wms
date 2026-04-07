@@ -67,18 +67,35 @@
       {% endfor %}
     </div>
 
-    <div class="scan-field scan-receive-association-field col-12 col-lg-4">
-      <label class="form-label" for="id_pickup_charge_comment">Commentaire enl&egrave;vement</label>
-      {{ create_form.pickup_charge_comment }}
-      {% for error in create_form.pickup_charge_comment.errors %}
+    <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
+      <label class="form-label" for="id_pickup_charge_proof">Justificatif enl&egrave;vement</label>
+      {% ui_file_input field=create_form.pickup_charge_proof %}
+      {% for error in create_form.pickup_charge_proof.errors %}
         <div class="scan-message error">{{ error }}</div>
       {% endfor %}
     </div>
 
-    <div class="scan-field scan-receive-association-field col-12 col-lg-4">
-      <label class="form-label" for="id_pickup_charge_proof">Justificatif enl&egrave;vement</label>
-      {% ui_file_input field=create_form.pickup_charge_proof %}
-      {% for error in create_form.pickup_charge_proof.errors %}
+    <div class="scan-field scan-receive-association-field scan-receive-association-conformity-field col-12 col-lg-4">
+      <label class="form-check form-switch mb-0">
+        <input
+          type="checkbox"
+          class="form-check-input"
+          id="{{ create_form.is_non_conform.id_for_label }}"
+          name="{{ create_form.is_non_conform.html_name }}"
+          value="1"
+          {% if create_form.is_non_conform.value %}checked{% endif %}
+        >
+        <span class="form-check-label">{{ create_form.is_non_conform.label }}</span>
+      </label>
+      {% for error in create_form.is_non_conform.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-association-field scan-receive-association-observation-field col-12">
+      <label class="form-label" for="id_pickup_charge_comment">Observation</label>
+      {{ create_form.pickup_charge_comment }}
+      {% for error in create_form.pickup_charge_comment.errors %}
         <div class="scan-message error">{{ error }}</div>
       {% endfor %}
     </div>
@@ -189,5 +206,22 @@
       countInput.addEventListener('input', handleCountChange);
       countInput.addEventListener('change', handleCountChange);
     }
+  })();
+</script>
+
+<script>
+  (function () {
+    const toggle = document.getElementById('{{ create_form.is_non_conform.id_for_label }}');
+    const observation = document.getElementById('id_pickup_charge_comment');
+    if (!toggle || !observation) {
+      return;
+    }
+
+    const syncObservationRequirement = () => {
+      observation.required = !!toggle.checked;
+    };
+
+    toggle.addEventListener('change', syncObservationRequirement);
+    syncObservationRequirement();
   })();
 </script>

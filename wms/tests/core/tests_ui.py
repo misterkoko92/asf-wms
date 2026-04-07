@@ -236,3 +236,45 @@ class ScanUiTests(StaticLiveServerTestCase):
             )
             context.close()
             browser.close()
+
+    def test_scan_ui_lab_enhances_shared_number_input(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context(browser)
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}{reverse('scan:scan_ui_lab')}",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("#ui-lab-number-input-demo")
+            page.wait_for_function(
+                "(() => {"
+                "  const input = document.getElementById('ui-lab-number-input-demo');"
+                "  return !!input"
+                "    && input.classList.contains('is-ui-number-input-enhanced')"
+                "    && !!input.closest('.ui-number-input')"
+                "    && !!input.closest('.ui-number-input').querySelector('.ui-number-input-controls');"
+                "})()"
+            )
+
+            decrement = page.locator(
+                '[data-ui-number-input-target="ui-lab-number-input-demo"]'
+                '[data-ui-number-input-action="decrement"]'
+            )
+            increment = page.locator(
+                '[data-ui-number-input-target="ui-lab-number-input-demo"]'
+                '[data-ui-number-input-action="increment"]'
+            )
+            self.assertEqual(decrement.count(), 1)
+            self.assertEqual(increment.count(), 1)
+
+            decrement.click()
+            page.wait_for_function(
+                "() => document.getElementById('ui-lab-number-input-demo').value === '2'"
+            )
+            increment.click()
+            page.wait_for_function(
+                "() => document.getElementById('ui-lab-number-input-demo').value === '3'"
+            )
+            context.close()
+            browser.close()

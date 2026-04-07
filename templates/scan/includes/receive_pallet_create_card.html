@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n wms_ui %}
 {% url 'scan:scan_admin_contacts' as scan_admin_contacts_url %}
 
 <div id="scan-receive-pallet-create-card" class="scan-card card border-0 ui-comp-card">
@@ -50,6 +50,31 @@
       {% endfor %}
     </div>
 
+    <div class="scan-field scan-receive-pallet-field scan-receive-pallet-observation-field col-12">
+      <label class="form-label" for="{{ create_form.observation.id_for_label }}">{{ create_form.observation.label }}</label>
+      {{ create_form.observation }}
+      {% for error in create_form.observation.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-pallet-field scan-receive-pallet-conformity-field col-12 col-lg-2">
+      <label class="form-check form-switch mb-0">
+        <input
+          type="checkbox"
+          class="form-check-input"
+          id="{{ create_form.is_non_conform.id_for_label }}"
+          name="{{ create_form.is_non_conform.html_name }}"
+          value="1"
+          {% if create_form.is_non_conform.value %}checked{% endif %}
+        >
+        <span class="form-check-label">{{ create_form.is_non_conform.label }}</span>
+      </label>
+      {% for error in create_form.is_non_conform.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
     <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
       <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer la réception palette" %}</button>
       <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
@@ -62,3 +87,20 @@
   </form>
   <p class="scan-help">{% trans "La référence est générée automatiquement (format YY-XX-WWW-ZZ)." %}</p>
 </div>
+
+<script>
+  (function () {
+    const toggle = document.getElementById('{{ create_form.is_non_conform.id_for_label }}');
+    const observation = document.getElementById('{{ create_form.observation.id_for_label }}');
+    if (!toggle || !observation) {
+      return;
+    }
+
+    const syncObservationRequirement = () => {
+      observation.required = !!toggle.checked;
+    };
+
+    toggle.addEventListener('change', syncObservationRequirement);
+    syncObservationRequirement();
+  })();
+</script>

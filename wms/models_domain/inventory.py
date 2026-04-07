@@ -137,6 +137,12 @@ class ReceiptStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class ReceiptConformityStatus(models.TextChoices):
+    UNKNOWN = "unknown", "Unknown"
+    CONFORM = "conform", "Conform"
+    NON_CONFORM = "non_conform", "Non-conform"
+
+
 class Receipt(models.Model):
     reference = models.CharField(max_length=80, blank=True)
     receipt_type = models.CharField(
@@ -186,6 +192,11 @@ class Receipt(models.Model):
     )
     received_on = models.DateField(default=timezone.localdate)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
+    conformity_status = models.CharField(
+        max_length=20,
+        choices=ReceiptConformityStatus.choices,
+        default=ReceiptConformityStatus.UNKNOWN,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True

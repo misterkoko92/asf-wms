@@ -359,6 +359,14 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, 'id="scan-sidebar-nav"')
         self.assertContains(response, reverse("planning:run_list"))
 
+    def test_planning_run_list_loads_shared_core_script(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan/modules/core.js")
+
     def test_planning_run_list_exposes_history_navigation_buttons(self):
         self.client.force_login(self.staff_user)
 

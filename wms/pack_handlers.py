@@ -10,7 +10,7 @@ from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
 from .domain.stock import ensure_carton_code
-from .models import CartonFormat, CartonStatus, Location
+from .models import CartonFormat, CartonStatus, Location, Shipment
 from .scan_helpers import (
     build_pack_line_values,
     build_packing_bins,
@@ -44,6 +44,12 @@ def _normalize_pack_family(value):
     if normalized in PREPARATEUR_ALLOWED_FAMILIES:
         return normalized
     return ""
+
+
+def _resolve_selected_shipment(value):
+    if isinstance(value, Shipment):
+        return value
+    return resolve_shipment(value)
 
 
 def _get_product_root_category_name(product):
@@ -565,7 +571,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
         shipment = (
             editing_carton.shipment
             if editing_carton is not None and editing_carton.shipment_id
-            else resolve_shipment(form.cleaned_data["shipment_reference"])
+            else _resolve_selected_shipment(form.cleaned_data["shipment_reference"])
         )
         preassigned_destination = (
             None if shipment is not None else form.cleaned_data["preassigned_destination"]

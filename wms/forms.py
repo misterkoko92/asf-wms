@@ -70,6 +70,27 @@ def _active_receipt_source_organizations():
     ).order_by("name")
 
 
+def _normalize_form_text(cleaned_data, field_name):
+    value = (cleaned_data.get(field_name) or "").strip()
+    cleaned_data[field_name] = value
+    return value
+
+
+def _add_non_conform_observation_error(cleaned_data, form, *, observation_field_name):
+    observation = _normalize_form_text(cleaned_data, observation_field_name)
+    if cleaned_data.get("is_non_conform") and not observation:
+        form.add_error(
+            observation_field_name,
+            _("Observation requise pour une réception non conforme."),
+        )
+
+
+def _shipment_reference_label(shipment):
+    destination = getattr(shipment, "destination", None)
+    iata_code = getattr(destination, "iata_code", "") or "-"
+    return f"{shipment.reference} - {iata_code}"
+
+
 class ReceiveStockForm(forms.Form):
     product = forms.ModelChoiceField(
         queryset=Product.objects.filter(is_active=True).order_by("name")
@@ -272,6 +293,15 @@ class ScanReceiptPalletForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
+    observation = forms.CharField(
+        label=_("Observation"),
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    is_non_conform = forms.BooleanField(
+        label=_("Non conforme"),
+        required=False,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -281,6 +311,15 @@ class ScanReceiptPalletForm(forms.Form):
         self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
         _select_single_choice(self.fields["carrier_contact"])
+
+    def clean(self):
+        cleaned = super().clean()
+        _add_non_conform_observation_error(
+            cleaned,
+            self,
+            observation_field_name="observation",
+        )
+        return cleaned
 
 
 class ScanReceiptAssociationForm(forms.Form):
@@ -325,12 +364,16 @@ class ScanReceiptAssociationForm(forms.Form):
         max_length=3,
     )
     pickup_charge_comment = forms.CharField(
-        label="Commentaire enlèvement",
+        label="Observation",
         required=False,
-        widget=forms.Textarea(attrs={"rows": 2}),
+        widget=forms.Textarea(attrs={"rows": 3}),
     )
     pickup_charge_proof = forms.FileField(
         label="Justificatif enlèvement",
+        required=False,
+    )
+    is_non_conform = forms.BooleanField(
+        label=_("Non conforme"),
         required=False,
     )
 
@@ -346,6 +389,15 @@ class ScanReceiptAssociationForm(forms.Form):
     def clean_pickup_charge_currency(self):
         value = (self.cleaned_data.get("pickup_charge_currency") or "").strip().upper()
         return value or "EUR"
+
+    def clean(self):
+        cleaned = super().clean()
+        _add_non_conform_observation_error(
+            cleaned,
+            self,
+            observation_field_name="pickup_charge_comment",
+        )
+        return cleaned
 
 
 class ScanStockUpdateForm(forms.Form):
@@ -413,7 +465,12 @@ class ScanReceiptLineForm(forms.Form):
 
 
 class ScanPackForm(forms.Form):
-    shipment_reference = forms.CharField(label="Référence expédition", required=False)
+    shipment_reference = forms.ModelChoiceField(
+        label="Référence expédition",
+        queryset=Shipment.objects.none(),
+        required=False,
+        to_field_name="reference",
+    )
     preassigned_destination = forms.ModelChoiceField(
         label=_("Destination pre-affectee"),
         queryset=Destination.objects.filter(is_active=True).order_by("city"),
@@ -424,6 +481,17 @@ class ScanPackForm(forms.Form):
         queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
         required=False,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        shipment_field = self.fields["shipment_reference"]
+        shipment_field.queryset = (
+            Shipment.objects.filter(archived_at__isnull=True)
+            .exclude(reference="")
+            .select_related("destination")
+            .order_by("-reference", "-id")
+        )
+        shipment_field.label_from_instance = _shipment_reference_label
 
 
 class ScanPrepareKitsForm(forms.Form):

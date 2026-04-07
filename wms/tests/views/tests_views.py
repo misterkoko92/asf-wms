@@ -1741,6 +1741,25 @@ class ScanViewTests(TestCase):
         receipt = Receipt.objects.filter(receipt_type=ReceiptType.PALLET).first()
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt.pallet_count, 2)
+        self.assertEqual(getattr(receipt, "conformity_status", None), "conform")
+
+    def test_scan_receive_pallet_creates_non_conform_receipt_with_observation(self):
+        response = self.client.post(
+            reverse("scan:scan_receive_pallet"),
+            {
+                "received_on": "2025-12-20",
+                "pallet_count": 1,
+                "source_contact": self.donor.id,
+                "carrier_contact": self.transporter.id,
+                "is_non_conform": "1",
+                "observation": "Palette filmée partiellement déchirée.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        receipt = Receipt.objects.filter(receipt_type=ReceiptType.PALLET).latest("id")
+        self.assertEqual(getattr(receipt, "conformity_status", None), "non_conform")
+        self.assertEqual(receipt.notes, "Palette filmée partiellement déchirée.")
 
     def test_scan_receive_association_creates_receipt(self):
         url = reverse("scan:scan_receive_association")
@@ -1759,6 +1778,26 @@ class ScanViewTests(TestCase):
         receipt = Receipt.objects.filter(receipt_type=ReceiptType.ASSOCIATION).first()
         self.assertIsNotNone(receipt)
         self.assertEqual(ReceiptHorsFormat.objects.count(), 1)
+        self.assertEqual(getattr(receipt, "conformity_status", None), "conform")
+
+    def test_scan_receive_association_creates_non_conform_receipt_with_observation(self):
+        response = self.client.post(
+            reverse("scan:scan_receive_association"),
+            {
+                "received_on": "2025-12-20",
+                "carton_count": 2,
+                "hors_format_count": 0,
+                "source_contact": self.shipper_org.id,
+                "carrier_contact": self.transporter.id,
+                "pickup_charge_comment": "Cartons humides à l'arrivée.",
+                "is_non_conform": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        receipt = Receipt.objects.filter(receipt_type=ReceiptType.ASSOCIATION).latest("id")
+        self.assertEqual(getattr(receipt, "conformity_status", None), "non_conform")
+        self.assertEqual(receipt.pickup_charge_comment, "Cartons humides à l'arrivée.")
 
     def test_scan_out_consumes_stock(self):
         url = reverse("scan:scan_out")

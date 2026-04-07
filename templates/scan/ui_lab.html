@@ -192,6 +192,39 @@
           </div>
         </form>
       </article>
+      <article id="ui-lab-contract-number-input" class="ui-lab-surface">
+        <h4>Number input</h4>
+        <div class="scan-field">
+          <div id="ui-lab-number-input-contract" class="ui-number-input is-fluid">
+            <div class="ui-number-input-controls" aria-hidden="true">
+              <button type="button" class="ui-number-input-btn" tabindex="-1">-</button>
+              <button type="button" class="ui-number-input-btn" tabindex="-1">+</button>
+            </div>
+            <input
+              class="form-control ui-number-input-input"
+              type="number"
+              min="0"
+              step="1"
+              value="12"
+              readonly
+            >
+          </div>
+          <div class="scan-help ui-comp-note">Contrat partage: controles a gauche et reserve d'espace pour la valeur.</div>
+        </div>
+        <div class="scan-field mt-3">
+          <label class="form-label" for="ui-lab-number-input-demo">Quantite</label>
+          <input
+            class="form-control ui-number-input-demo"
+            id="ui-lab-number-input-demo"
+            type="number"
+            min="0"
+            step="1"
+            value="3"
+            data-ui-number-input-demo="1"
+          >
+          <div class="scan-help ui-comp-note">Reference core pour l'enrichissement runtime automatique.</div>
+        </div>
+      </article>
       <article id="ui-lab-contract-actions" class="ui-lab-surface">
         <h4>{{ actions_group_label }}</h4>
         <div class="ui-comp-actions ui-lab-row">

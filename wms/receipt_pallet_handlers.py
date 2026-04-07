@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.utils.translation import gettext as _
 
-from .models import Receipt, ReceiptStatus, ReceiptType
+from .models import Receipt, ReceiptConformityStatus, ReceiptStatus, ReceiptType
 from .scan_helpers import resolve_default_warehouse
 
 
@@ -21,6 +21,12 @@ def handle_pallet_create_post(request, *, form):
         received_on=form.cleaned_data["received_on"],
         pallet_count=form.cleaned_data["pallet_count"],
         transport_request_date=form.cleaned_data["transport_request_date"],
+        conformity_status=(
+            ReceiptConformityStatus.NON_CONFORM
+            if form.cleaned_data.get("is_non_conform")
+            else ReceiptConformityStatus.CONFORM
+        ),
+        notes=form.cleaned_data.get("observation") or "",
         warehouse=warehouse,
         created_by=request.user,
     )
