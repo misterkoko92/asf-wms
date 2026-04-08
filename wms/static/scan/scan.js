@@ -229,13 +229,6 @@
       }
       video.srcObject = null;
       video.removeAttribute('src');
-      if (typeof video.load === 'function') {
-        try {
-          video.load();
-        } catch (err) {
-          // Ignore load errors.
-        }
-      }
     }
     if (overlay) {
       overlay.classList.remove('active');
