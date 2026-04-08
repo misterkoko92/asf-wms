@@ -66,6 +66,30 @@ class PlanningViewTests(TestCase):
 
         self.assertNotIn("wms.planning.solver", sys.modules)
 
+    def test_prepare_run_inputs_wrapper_delegates_to_snapshots_module(self):
+        views_planning = importlib.import_module("wms.views_planning")
+
+        with mock.patch(
+            "wms.planning.snapshots.prepare_run_inputs",
+            return_value="prepared",
+        ) as prepare_run_inputs_mock:
+            result = views_planning.prepare_run_inputs("run-token")
+
+        self.assertEqual(result, "prepared")
+        prepare_run_inputs_mock.assert_called_once_with("run-token")
+
+    def test_solve_run_wrapper_delegates_to_solver_module(self):
+        views_planning = importlib.import_module("wms.views_planning")
+
+        with mock.patch(
+            "wms.planning.solver.solve_run",
+            return_value="solved",
+        ) as solve_run_mock:
+            result = views_planning.solve_run("run-token")
+
+        self.assertEqual(result, "solved")
+        solve_run_mock.assert_called_once_with("run-token")
+
     def make_version_with_assignment(self, *, status=PlanningVersionStatus.DRAFT):
         run = PlanningRun.objects.create(
             week_start="2026-03-09",
