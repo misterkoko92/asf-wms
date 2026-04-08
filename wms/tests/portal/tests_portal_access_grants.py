@@ -1,6 +1,7 @@
 import importlib
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase
@@ -160,6 +161,11 @@ class PortalAccessGrantTests(TestCase):
         self.assertEqual(scopes[0].association_profile, profile)
         self.assertEqual(scopes[0].shipper, self.shipper)
 
+    def test_list_user_portal_scopes_returns_empty_for_unauthenticated_user(self):
+        portal_access = self._load_portal_access_module()
+
+        self.assertEqual(portal_access.list_user_portal_scopes(AnonymousUser()), [])
+
     def test_resolve_active_portal_scope_ignores_inactive_grant_in_session(self):
         grant_model = getattr(wms_models, "PortalAccessGrant", None)
         role_enum = getattr(wms_models, "PortalAccessRole", None)
@@ -182,6 +188,24 @@ class PortalAccessGrantTests(TestCase):
 
         self.assertIsNone(portal_access.resolve_active_portal_scope(request))
 
+    def test_activate_portal_scope_clears_session_when_scope_has_no_bindable_source(self):
+        request = self._build_request(self.user)
+        portal_access = self._load_portal_access_module()
+        request.session[portal_access.ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": portal_access.PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": 123,
+        }
+
+        portal_access.activate_portal_scope(
+            request,
+            scope=portal_access.PortalScope(
+                source="manual",
+                role=wms_models.PortalAccessRole.SHIPPER_ADMIN,
+            ),
+        )
+
+        self.assertNotIn(portal_access.ACTIVE_PORTAL_SCOPE_SESSION_KEY, request.session)
+
     def test_activate_portal_scope_persists_explicit_grant_for_request_user(self):
         grant_model = getattr(wms_models, "PortalAccessGrant", None)
         role_enum = getattr(wms_models, "PortalAccessRole", None)
@@ -203,3 +227,58 @@ class PortalAccessGrantTests(TestCase):
         self.assertIsNotNone(resolved_scope)
         self.assertEqual(resolved_scope.grant, grant)
         self.assertEqual(resolved_scope.recipient_organization, self.recipient_organization)
+
+    def test_resolve_active_portal_scope_returns_none_without_request_user_or_grant_id(self):
+        portal_access = self._load_portal_access_module()
+        request = self._build_request(self.user)
+        request.session[portal_access.ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": portal_access.PORTAL_SCOPE_SOURCE_GRANT,
+        }
+
+        self.assertIsNone(portal_access.resolve_active_portal_scope(None))
+        self.assertIsNone(portal_access.resolve_active_portal_scope(request))
+
+    def test_resolve_active_portal_scope_accepts_matching_legacy_association_payload(self):
+        profile = wms_models.AssociationProfile.objects.create(
+            user=self.user,
+            contact=self.shipper_contact,
+        )
+        request = self._build_request(self.user)
+        portal_access = self._load_portal_access_module()
+        request.session[portal_access.ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": portal_access.PORTAL_SCOPE_SOURCE_LEGACY_ASSOCIATION,
+            "association_profile_id": profile.id,
+        }
+
+        resolved_scope = portal_access.resolve_active_portal_scope(request)
+
+        self.assertIsNotNone(resolved_scope)
+        self.assertEqual(resolved_scope.association_profile, profile)
+        self.assertEqual(
+            resolved_scope.source,
+            portal_access.PORTAL_SCOPE_SOURCE_LEGACY_ASSOCIATION,
+        )
+
+    def test_resolve_active_portal_scope_rejects_mismatched_legacy_association_payload(self):
+        profile = wms_models.AssociationProfile.objects.create(
+            user=self.user,
+            contact=self.shipper_contact,
+        )
+        request = self._build_request(self.user)
+        portal_access = self._load_portal_access_module()
+        request.session[portal_access.ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": portal_access.PORTAL_SCOPE_SOURCE_LEGACY_ASSOCIATION,
+            "association_profile_id": profile.id + 1,
+        }
+
+        self.assertIsNone(portal_access.resolve_active_portal_scope(request))
+
+    def test_resolve_active_portal_scope_returns_none_when_legacy_profile_is_missing(self):
+        request = self._build_request(self.user)
+        portal_access = self._load_portal_access_module()
+        request.session[portal_access.ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": portal_access.PORTAL_SCOPE_SOURCE_LEGACY_ASSOCIATION,
+            "association_profile_id": 999999,
+        }
+
+        self.assertIsNone(portal_access.resolve_active_portal_scope(request))

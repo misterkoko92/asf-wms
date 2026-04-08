@@ -4,12 +4,16 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 
 from contacts.models import Contact, ContactType
 from wms.models import (
     AssociationProfile,
+    Destination,
+    PortalAccessGrant,
     PortalAccessRole,
+    ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentValidationStatus,
 )
@@ -234,3 +238,166 @@ class PortalPermissionsTests(TestCase):
 
         with self.assertRaises(PermissionDenied):
             view_permissions._bind_association_profile(request)
+
+    def test_association_required_redirects_to_scope_select_when_multiple_scopes_exist(self):
+        user = get_user_model().objects.create_user(
+            username="portal-multi-scope-user",
+            email="portal-multi-scope-user@example.com",
+            password="pass1234",
+        )
+        shipper_contact = self._create_contact(name="Association Multi Scope")
+        referent = Contact.objects.create(
+            name="Association Multi Scope Referent",
+            first_name="Multi",
+            last_name="Referent",
+            contact_type=ContactType.PERSON,
+            organization=shipper_contact,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_contact,
+            default_contact=referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="Mali",
+            correspondent_contact=Contact.objects.create(
+                name="Association Multi Scope Correspondent",
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            ),
+            is_active=True,
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=self._create_contact(name="Association Multi Scope Recipient"),
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_org,
+        )
+        view_permissions = importlib.import_module("wms.view_permissions")
+
+        @view_permissions.association_required
+        def sample_view(request):
+            return HttpResponse("ok")
+
+        request = RequestFactory().get("/portal/orders/")
+        request.user = user
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+
+        response = sample_view(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/portal/scope-select/", response.url)
+
+    def test_bind_association_profile_rejects_shipper_grant_without_legacy_profile(self):
+        user = get_user_model().objects.create_user(
+            username="portal-grant-no-profile-user",
+            email="portal-grant-no-profile-user@example.com",
+            password="pass1234",
+        )
+        contact = self._create_contact(name="Association Grant No Profile")
+        referent = Contact.objects.create(
+            name="Association Grant No Profile Referent",
+            first_name="Grant",
+            last_name="Referent",
+            contact_type=ContactType.PERSON,
+            organization=contact,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=contact,
+            default_contact=referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        view_permissions = importlib.import_module("wms.view_permissions")
+
+        request = RequestFactory().get("/portal/orders/")
+        request.user = user
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+
+        with self.assertRaises(PermissionDenied):
+            view_permissions._bind_association_profile(request)
+
+    def test_bind_association_profile_returns_scope_select_redirect_when_scope_is_ambiguous(self):
+        user = get_user_model().objects.create_user(
+            username="portal-bind-ambiguous-user",
+            email="portal-bind-ambiguous-user@example.com",
+            password="pass1234",
+        )
+        shipper_contact = self._create_contact(name="Association Bind Ambiguous")
+        referent = Contact.objects.create(
+            name="Association Bind Ambiguous Referent",
+            first_name="Bind",
+            last_name="Referent",
+            contact_type=ContactType.PERSON,
+            organization=shipper_contact,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_contact,
+            default_contact=referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Kayes",
+            iata_code="KYS",
+            country="Mali",
+            correspondent_contact=Contact.objects.create(
+                name="Association Bind Ambiguous Correspondent",
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            ),
+            is_active=True,
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=self._create_contact(name="Association Bind Ambiguous Recipient"),
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_org,
+        )
+        view_permissions = importlib.import_module("wms.view_permissions")
+
+        request = RequestFactory().get("/portal/orders/")
+        request.user = user
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+
+        response = view_permissions._bind_association_profile(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/portal/scope-select/", response.url)
