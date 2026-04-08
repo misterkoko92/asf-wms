@@ -13,6 +13,8 @@ from wms.models import (
     CartonStatus,
     Destination,
     Location,
+    PortalAccessGrant,
+    PortalAccessRole,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -46,6 +48,10 @@ class UiApiE2EWorkflowsTests(TestCase):
             username="ui-e2e-portal",
             password="pass1234",
         )
+        self.recipient_scope_user = user_model.objects.create_user(
+            username="ui-e2e-recipient-scope",
+            password="pass1234",
+        )
 
         self.staff_client = APIClient()
         self.staff_client.force_authenticate(self.staff_user)
@@ -53,6 +59,8 @@ class UiApiE2EWorkflowsTests(TestCase):
         self.superuser_client.force_authenticate(self.superuser)
         self.portal_client = APIClient()
         self.portal_client.force_authenticate(self.portal_user)
+        self.recipient_scope_client = APIClient()
+        self.recipient_scope_client.force_authenticate(self.recipient_scope_user)
 
         self.association_contact = Contact.objects.create(
             name="Association E2E",
@@ -118,6 +126,14 @@ class UiApiE2EWorkflowsTests(TestCase):
             self.shipper_contact,
             self.recipient_contact,
             self.destination,
+        )
+        PortalAccessGrant.objects.create(
+            user=self.recipient_scope_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=ShipmentRecipientOrganization.objects.get(
+                organization=self.recipient_contact,
+                destination=self.destination,
+            ),
         )
         self.donor_contact = self._create_contact("E2E Donor")
         self.donor_contact.capabilities.update_or_create(
@@ -431,3 +447,37 @@ class UiApiE2EWorkflowsTests(TestCase):
         dashboard_response = self.portal_client.get("/api/v1/ui/portal/dashboard/")
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertGreaterEqual(dashboard_response.json()["kpis"]["orders_total"], 1)
+
+    def test_e2e_portal_recipient_scope_dashboard_and_patch(self):
+        dashboard_response = self.recipient_scope_client.get("/api/v1/ui/portal/dashboard/")
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertEqual(dashboard_response.json()["mode"], "recipient")
+
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=self.recipient_contact,
+            destination=self.destination,
+        )
+        patch_response = self.recipient_scope_client.patch(
+            f"/api/v1/ui/portal/recipients/{recipient_organization.id}/",
+            {
+                "destination_id": self.destination.id,
+                "structure_name": "E2E Recipient Updated",
+                "contact_title": AssociationContactTitle.MRS,
+                "contact_last_name": "Diallo",
+                "contact_first_name": "Aicha",
+                "phones": "0102030407",
+                "emails": "aicha.diallo@example.org",
+                "address_line1": "7 Rue E2E",
+                "postal_code": "75003",
+                "city": "Paris",
+                "country": "France",
+                "notify_deliveries": False,
+                "is_delivery_contact": False,
+            },
+            format="json",
+        )
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(
+            patch_response.json()["recipient"]["structure_name"],
+            "E2E Recipient Updated",
+        )

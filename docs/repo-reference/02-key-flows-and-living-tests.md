@@ -223,6 +223,9 @@ When a recipient structure can now exist on multiple destinations, avoid organiz
 Recipient management routes now include both the lightweight list at `/portal/recipients/` and
 the recipient cockpit detail at `/portal/recipients/<id>/`, so permission guards and
 portal-side navigation should treat both as part of the same maintenance surface.
+The same maintenance surface now has UI API mirrors at `/api/v1/ui/portal/dashboard/`,
+`/api/v1/ui/portal/recipients/`, and `/api/v1/ui/portal/recipients/<id>/`; scope-aware
+recipient changes must stay aligned across HTML and UI API.
 
 ## 3. Orders: Public / Portal / Admin Side Effects
 

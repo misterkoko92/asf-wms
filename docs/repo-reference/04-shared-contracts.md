@@ -236,6 +236,7 @@ Reference tests:
 Primary runtime sources:
 
 - `wms/views_portal_account.py`
+- `api/v1/ui_views.py`
 - `templates/portal/recipients.html`
 - `wms/models_domain/shipment_parties.py`
 - `wms/recipient_product_preferences.py`
@@ -245,6 +246,9 @@ Current contract:
 - the portal recipient edit flow at `/portal/recipients/?edit=<id>` exposes a dedicated
   `Préférences produits du destinataire` section backed by the synced
   `ShipmentRecipientOrganization` row for the same `(organization, destination)` scope
+- `GET /api/v1/ui/portal/recipients/` and `PATCH /api/v1/ui/portal/recipients/<id>/`
+  reuse the same shared runtime recipient scope instead of mutating `AssociationRecipient`
+  directly; a `recipient_admin` scope addresses the runtime `ShipmentRecipientOrganization.id`
 - portal users can create, edit, and delete recipient product preferences with native
   Bootstrap form controls on the same page as recipient editing; the form is anchored with
   `#recipient-product-preferences`
@@ -266,6 +270,8 @@ Maintenance rule:
 Reference tests:
 
 - `wms/tests/views/tests_views_portal.py`
+- `api/tests/tests_ui_endpoints.py`
+- `api/tests/tests_ui_e2e_workflows.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 
@@ -721,7 +727,8 @@ Current contract:
 
 - `wms/application/portal/dashboard_queries.py` owns both the shipper dashboard composition and the recipient-scope home composition for `/portal/`
 - `build_portal_dashboard_payload(profile=...)` remains the shared shipper composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
-- `build_recipient_scope_home_payload(recipient_organization=...)` now feeds the legacy recipient home rendered on `/portal/` when the active scope is `recipient_admin`; there is no UI API mirror for this recipient home yet
+- `build_recipient_scope_home_payload(recipient_organization=...)` feeds both the legacy recipient home rendered on `/portal/` and the recipient-scope branch of `GET /api/v1/ui/portal/dashboard/` when the active scope is `recipient_admin`
+- the portal UI API dashboard is now scope-aware and returns `mode="shipper"` or `mode="recipient"` so consumers can branch without re-deriving portal access rules
 - `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
 - portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
 - the HTML table and the UI API must stay aligned on the meaning of "next step" for pending review, correction, preparation, and tracked shipment states
