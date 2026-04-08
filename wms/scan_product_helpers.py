@@ -69,7 +69,7 @@ def build_product_label(product, lot_code):
     return label
 
 
-def build_product_options(*, include_kits: bool = False):
+def build_product_options(*, include_kits: bool = False, compact: bool = False):
     available_expr = ExpressionWrapper(
         F("productlot__quantity_on_hand") - F("productlot__quantity_reserved"),
         output_field=IntegerField(),
@@ -87,6 +87,19 @@ def build_product_options(*, include_kits: bool = False):
         )
         .order_by("name")
     )
+    if compact and not include_kits:
+        return list(
+            base_qs.values(
+                "id",
+                "name",
+                "sku",
+                "barcode",
+                "ean",
+                "brand",
+                "default_location_id",
+                "storage_conditions",
+            )
+        )
     base_products = list(
         base_qs.values(
             "id",

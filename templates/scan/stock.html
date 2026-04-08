@@ -86,7 +86,7 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
       {% if include_zero %}{% trans "Produits" %}{% else %}{% trans "Produits en stock" %}{% endif %}
-      <span class="badge text-bg-light ui-comp-count-badge">{{ products|length }}</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ products_total_count }}</span>
     </h2>
     {% if products %}
       <div class="scan-table-wrap table-responsive">
@@ -138,6 +138,19 @@
           </tbody>
         </table>
       </div>
+      {% if products_page.has_other_pages %}
+        <div class="scan-filter-actions ui-comp-actions d-flex flex-wrap gap-2 align-items-center mt-3">
+          <span class="scan-help ui-comp-note">
+            {% blocktrans with current=products_page.number total=products_page.paginator.num_pages %}Page {{ current }} / {{ total }}{% endblocktrans %}
+          </span>
+          {% if products_page.has_previous %}
+            <a class="btn btn-tertiary btn-sm" href="{{ products_page_prev_url }}">{% trans "Page précédente" %}</a>
+          {% endif %}
+          {% if products_page.has_next %}
+            <a class="btn btn-tertiary btn-sm" href="{{ products_page_next_url }}">{% trans "Page suivante" %}</a>
+          {% endif %}
+        </div>
+      {% endif %}
     {% else %}
       <p class="scan-help ui-comp-note">
         {% if include_zero %}
