@@ -251,9 +251,9 @@ def _redirect_for_portal_scope(request, *, scope, next_url=""):
     activate_portal_scope(request, scope=scope)
     if scope.association_profile and scope.association_profile.must_change_password:
         return redirect("portal:portal_change_password")
-    if scope.role == PortalAccessRole.SHIPPER_ADMIN:
+    if scope.role in {PortalAccessRole.SHIPPER_ADMIN, PortalAccessRole.RECIPIENT_ADMIN}:
         return redirect(next_url or "portal:portal_dashboard")
-    return redirect("portal:portal_scope_select")
+    return redirect(next_url or "portal:portal_dashboard")
 
 
 def _redirect_authenticated_portal_user(request, *, next_url=""):

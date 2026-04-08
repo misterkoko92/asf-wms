@@ -58,6 +58,7 @@ from wms.models import (
     RecipientStructureDocument,
     RecipientStructureDocumentType,
     Shipment,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
@@ -542,6 +543,30 @@ class PortalAuthViewsTests(PortalBaseTestCase):
             },
         )
 
+    def test_portal_login_with_one_explicit_recipient_grant_redirects_to_dashboard(self):
+        user = self._create_portal_user("portal-auth-recipient", "recipient@example.com")
+        recipient_organization = self._create_recipient_organization(name="Grant Recipient")
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        response = self.client.post(
+            self.login_url,
+            {"identifier": user.email, "password": "pass1234"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self.assertEqual(
+            self.client.session[ACTIVE_PORTAL_SCOPE_SESSION_KEY],
+            {
+                "source": PORTAL_SCOPE_SOURCE_GRANT,
+                "grant_id": grant.id,
+            },
+        )
+
     def test_portal_login_with_multiple_grants_redirects_to_scope_selector(self):
         user = self._create_portal_user("portal-auth-multi", "multi@example.com")
         shipper = self._create_shipper(name="Multi Shipper")
@@ -964,6 +989,108 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         response = self.client.get(self.order_create_url)
 
         self.assertEqual(response.status_code, 403)
+
+    def test_portal_dashboard_renders_recipient_scope_home_for_active_grant(self):
+        recipient_user = self._create_portal_user(
+            "portal-recipient-dashboard",
+            "recipient-dashboard@example.com",
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=self.delivery_recipient.synced_contact,
+            destination=self.destination,
+        )
+        grant = PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        recipient_contact = Contact.objects.create(
+            first_name="Aicha",
+            last_name="Traore",
+            email="aicha.traore@example.com",
+            phone="+223000001",
+            contact_type=ContactType.PERSON,
+            organization=recipient_organization.organization,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=recipient_contact,
+            is_active=True,
+        )
+        RecipientStructureDocument.objects.create(
+            contact=recipient_organization.organization,
+            doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            status=DocumentReviewStatus.APPROVED,
+            file=SimpleUploadedFile("recipient-proof.pdf", b"pdf"),
+            uploaded_by=self.user,
+        )
+        preference_product = Product.objects.create(name="Kit Hygiene Recipient")
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=preference_product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=8,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        other_recipient = self._create_recipient_organization(
+            city="Lyon",
+            name="Other Recipient Scope",
+        )
+        other_contact = Contact.objects.create(
+            first_name="Nadia",
+            last_name="Diallo",
+            email="nadia.diallo@example.com",
+            contact_type=ContactType.PERSON,
+            organization=other_recipient.organization,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=other_recipient,
+            contact=other_contact,
+            is_active=True,
+        )
+        RecipientStructureDocument.objects.create(
+            contact=other_recipient.organization,
+            doc_type=RecipientStructureDocumentType.STATUTES,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("other-statutes.pdf", b"pdf"),
+            uploaded_by=self.user,
+        )
+        other_product = Product.objects.create(name="Kit Other Scope")
+        RecipientProductPreference.objects.create(
+            recipient_organization=other_recipient,
+            product=other_product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=3,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.client.force_login(recipient_user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+
+        response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["recipient_organization"], recipient_organization)
+        self.assertContains(response, "Fiche destinataire")
+        self.assertContains(response, "Structure Test")
+        self.assertContains(response, "Aicha Traore")
+        self.assertContains(response, "Preuve d&#x27;enregistrement")
+        self.assertContains(response, "Kit Hygiene Recipient")
+        self.assertNotContains(response, "Other Recipient Scope")
+        self.assertNotContains(response, "Nadia Diallo")
+        self.assertNotContains(response, "Kit Other Scope")
 
     def test_portal_order_create_get_renders(self):
         with mock.patch(

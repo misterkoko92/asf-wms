@@ -714,15 +714,18 @@ Primary runtime sources:
 
 Current contract:
 
-- `wms/application/portal/dashboard_queries.py` is the shared composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
+- `wms/application/portal/dashboard_queries.py` owns both the shipper dashboard composition and the recipient-scope home composition for `/portal/`
+- `build_portal_dashboard_payload(profile=...)` remains the shared shipper composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
+- `build_recipient_scope_home_payload(recipient_organization=...)` now feeds the legacy recipient home rendered on `/portal/` when the active scope is `recipient_admin`; there is no UI API mirror for this recipient home yet
 - `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
 - portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
 - the HTML table and the UI API must stay aligned on the meaning of "next step" for pending review, correction, preparation, and tracked shipment states
 
 Maintenance rule:
 
-- if the association-facing dossier guidance changes, update the helper logic, the portal template, and the portal UI API in the same work
-- keep `wms/views_portal_orders.py` and `api/v1/ui_views.py` thin over `wms/application/portal/dashboard_queries.py`; do not let the two surfaces drift back to separate query composition during V3.1
+- if the shipper-facing dossier guidance changes, update the helper logic, the shipper portal template, and the portal UI API in the same work
+- if the recipient home fields, section anchors, or shell navigation change, update `wms/views_portal_orders.py`, `templates/portal/base.html`, `templates/portal/recipient_scope_home.html`, and the portal bootstrap/view tests in the same work
+- keep `wms/views_portal_orders.py` and `api/v1/ui_views.py` thin over `wms/application/portal/dashboard_queries.py`; do not let shipper composition drift back into duplicated query logic during V3.1
 - keep KPI naming stable while phase 1 stays local, so seed data and operator feedback can be compared across runs
 
 Reference tests:
@@ -1007,15 +1010,18 @@ Current auth scope contract:
 - when a portal user has exactly one scope, login auto-activates it in session; when a user has
   multiple scopes, the session stays unbound until `/portal/scope-select/` resolves the active
   scope
-- the current legacy `/portal/` pages guarded by `association_required` remain shipper-only and
-  must reject recipient scopes until recipient-specific views are introduced
+- `/portal/` is now the first role-aware page: shipper scopes keep the order cockpit while
+  recipient scopes render a recipient home on the same shell
+- the remaining legacy pages guarded by `association_required` remain shipper-only and must still
+  reject recipient scopes until recipient-specific maintenance views are introduced
 
 Maintenance rule:
 
 - never treat portal recipient edits as pure presentation changes
 - verify whether the change impacts synchronization, authorizations, default contacts, or scan selectors
-- keep `PortalAccessGrant`, legacy `AssociationProfile` fallback, `/portal/scope-select/`, and
-  `association_required` aligned in the same work while the portal is still mid-transition
+- keep `PortalAccessGrant`, legacy `AssociationProfile` fallback, `/portal/scope-select/`,
+  `portal_scope_required`, and `association_required` aligned in the same work while the portal is
+  still mid-transition
 - if recipient compliance fields or documents change, update portal creation/edit, synced `Contact`, `scan/contacts`, and admin merge/deduplication behavior together
 
 Reference tests:

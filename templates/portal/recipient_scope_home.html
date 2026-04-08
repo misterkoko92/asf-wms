@@ -1,0 +1,138 @@
+{% extends "portal/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Fiche destinataire" %}{% endblock %}
+
+{% block content %}
+  <div id="portal-recipient-home-intro" class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <div>
+        <h2 class="ui-comp-title">{% trans "Fiche destinataire" %}</h2>
+        <p class="scan-help">{% trans "Consultez les informations partagées de votre structure, les référents, les documents et les besoins produits." %}</p>
+      </div>
+      <div>
+        <span class="{{ recipient_validation_status_display.badge_class }}">
+          {{ recipient_validation_status_display.label }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div id="portal-recipient-home-identity" class="scan-card portal-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Identité structure" %}</h3>
+    <dl class="row mb-0">
+      <dt class="col-sm-3">{% trans "Structure" %}</dt>
+      <dd class="col-sm-9">{{ recipient_structure_name|default:"-" }}</dd>
+      <dt class="col-sm-3">{% trans "Escale" %}</dt>
+      <dd class="col-sm-9">{{ recipient_destination_label|default:"-" }}</dd>
+      <dt class="col-sm-3">{% trans "Forme juridique" %}</dt>
+      <dd class="col-sm-9">{{ recipient_legal_form_label|default:"-" }}</dd>
+      <dt class="col-sm-3">{% trans "Bénéficiaires" %}</dt>
+      <dd class="col-sm-9">{{ recipient_beneficiary_count|default:"-" }}</dd>
+      <dt class="col-sm-3">{% trans "Adresse" %}</dt>
+      <dd class="col-sm-9">
+        {% for line in recipient_address_lines %}
+          {{ line }}{% if not forloop.last %}<br>{% endif %}
+        {% empty %}
+          -
+        {% endfor %}
+      </dd>
+      <dt class="col-sm-3">{% trans "Notes" %}</dt>
+      <dd class="col-sm-9">{{ recipient_notes|default:"-" }}</dd>
+    </dl>
+  </div>
+
+  <div id="portal-recipient-home-contacts" class="scan-card portal-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Référents destinataire" %}</h3>
+    {% if recipient_contact_rows %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="portal-table scan-table table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>{% trans "Nom" %}</th>
+              <th>{% trans "Rôle" %}</th>
+              <th>{% trans "Email" %}</th>
+              <th>{% trans "Téléphone" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in recipient_contact_rows %}
+              <tr>
+                <td>{{ row.name|default:"-" }}</td>
+                <td>{{ row.role|default:"-" }}</td>
+                <td>{{ row.email|default:"-" }}</td>
+                <td>{{ row.phone|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help mb-0">{% trans "Aucun référent actif enregistré pour cette structure." %}</p>
+    {% endif %}
+  </div>
+
+  <div id="portal-recipient-home-documents" class="scan-card portal-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Documents structure" %}</h3>
+    {% if recipient_document_rows %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="portal-table scan-table table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>{% trans "Type" %}</th>
+              <th>{% trans "Statut" %}</th>
+              <th>{% trans "Fichier" %}</th>
+              <th>{% trans "Téléversé le" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in recipient_document_rows %}
+              <tr>
+                <td>{{ row.doc_type_label }}</td>
+                <td>{{ row.status_label }}</td>
+                <td>{{ row.filename }}</td>
+                <td>{{ row.uploaded_at|date:"d/m/Y" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help mb-0">{% trans "Aucun document structure disponible pour le moment." %}</p>
+    {% endif %}
+  </div>
+
+  <div id="portal-recipient-home-preferences" class="scan-card portal-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Préférences produits" %}</h3>
+    {% if recipient_preference_rows %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="portal-table scan-table table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>{% trans "Cible" %}</th>
+              <th>{% trans "Type" %}</th>
+              <th>{% trans "Statut" %}</th>
+              <th>{% trans "Quantité cible" %}</th>
+              <th>{% trans "Période" %}</th>
+              <th>{% trans "Notes" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in recipient_preference_rows %}
+              <tr>
+                <td>{{ row.target_label }}</td>
+                <td>{{ row.scope_type_label }}</td>
+                <td>{{ row.status_label }}</td>
+                <td>{{ row.quantity_target|default:"-" }}</td>
+                <td>{{ row.period_unit_label|default:"-" }}</td>
+                <td>{{ row.notes|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help mb-0">{% trans "Aucune préférence produit explicite n'est encore renseignée." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}

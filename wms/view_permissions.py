@@ -95,72 +95,117 @@ def volunteer_required(view):
 
 
 def association_required(view):
-    def _resolve_shipper_access_block_reason(profile):
-        shipper = (
-            ShipmentShipper.objects.filter(
-                organization=profile.contact,
-            )
-            .order_by("id")
-            .first()
-        )
-        if shipper is None:
-            return None
-        if not shipper.is_active or shipper.validation_status == ShipmentValidationStatus.PENDING:
-            return BLOCKED_REASON_REVIEW_PENDING
-        if shipper.validation_status == ShipmentValidationStatus.REJECTED:
-            return BLOCKED_REASON_COMPLIANCE_REQUIRED
-        return None
-
+    @wraps(view)
     def wrapped(request, *args, **kwargs):
-        scope = resolve_active_portal_scope(request)
-        if scope is None:
-            scopes = list_user_portal_scopes(request.user)
-            if len(scopes) > 1:
-                return redirect("portal:portal_scope_select")
-            raise PermissionDenied
-        request.portal_scope = scope
-        if scope.role != PortalAccessRole.SHIPPER_ADMIN or scope.shipper is None:
-            raise PermissionDenied
-        profile = scope.association_profile or get_association_profile(request.user)
-        if profile is None:
-            raise PermissionDenied
-        if profile.must_change_password:
-            change_url = reverse("portal:portal_change_password")
-            if request.path != change_url:
-                return redirect(change_url)
-        recipients_url = reverse("portal:portal_recipients")
-        account_url = reverse("portal:portal_account")
-        billing_url = reverse("portal:portal_billing")
-        allowed_paths = {
-            recipients_url,
-            account_url,
-            reverse("portal:portal_logout"),
-            reverse("portal:portal_change_password"),
-        }
-
-        def _is_allowed_portal_path(path):
-            if path in allowed_paths:
-                return True
-            if path.startswith(recipients_url):
-                return True
-            return path.startswith(billing_url)
-
-        shipper_block_reason = _resolve_shipper_access_block_reason(profile)
-        if shipper_block_reason and not _is_allowed_portal_path(request.path):
-            blocked_message = BLOCKED_MESSAGES.get(shipper_block_reason)
-            if blocked_message:
-                messages.error(request, blocked_message)
-            return redirect(f"{account_url}?{BLOCKED_REASON_QUERY_PARAM}={shipper_block_reason}")
-        has_delivery_contact = AssociationRecipient.objects.filter(
-            association_contact=profile.contact,
-            is_active=True,
-            is_delivery_contact=True,
-        ).exists()
-        if not has_delivery_contact and not _is_allowed_portal_path(request.path):
-            return redirect(
-                f"{recipients_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_MISSING_DELIVERY_CONTACT}"
-            )
-        request.association_profile = profile
+        response = _bind_portal_scope(request)
+        if response is not None:
+            return response
+        response = _bind_association_profile(request)
+        if response is not None:
+            return response
         return view(request, *args, **kwargs)
 
     return wrapped
+
+
+def portal_scope_required(view):
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        response = _bind_portal_scope(request)
+        if response is not None:
+            return response
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
+def _resolve_shipper_access_block_reason(profile):
+    shipper = (
+        ShipmentShipper.objects.filter(
+            organization=profile.contact,
+        )
+        .order_by("id")
+        .first()
+    )
+    if shipper is None:
+        return None
+    if not shipper.is_active or shipper.validation_status == ShipmentValidationStatus.PENDING:
+        return BLOCKED_REASON_REVIEW_PENDING
+    if shipper.validation_status == ShipmentValidationStatus.REJECTED:
+        return BLOCKED_REASON_COMPLIANCE_REQUIRED
+    return None
+
+
+def _bind_portal_scope(request):
+    scope = resolve_active_portal_scope(request)
+    scopes = list_user_portal_scopes(request.user)
+    request.portal_scope_count = len(scopes)
+    if scope is None:
+        if len(scopes) > 1:
+            return redirect("portal:portal_scope_select")
+        raise PermissionDenied
+    request.portal_scope = scope
+    if scope.association_profile is not None and scope.association_profile.must_change_password:
+        change_url = reverse("portal:portal_change_password")
+        if request.path != change_url:
+            return redirect(change_url)
+    return None
+
+
+def _bind_association_profile(request):
+    scope = getattr(request, "portal_scope", None)
+    if scope is None:
+        response = _bind_portal_scope(request)
+        if response is not None:
+            return response
+        scope = getattr(request, "portal_scope", None)
+    if scope is None or scope.role != PortalAccessRole.SHIPPER_ADMIN or scope.shipper is None:
+        raise PermissionDenied
+
+    profile = scope.association_profile or get_association_profile(request.user)
+    if profile is None:
+        raise PermissionDenied
+
+    recipients_url = reverse("portal:portal_recipients")
+    account_url = reverse("portal:portal_account")
+    billing_url = reverse("portal:portal_billing")
+    allowed_paths = {
+        recipients_url,
+        account_url,
+        reverse("portal:portal_logout"),
+        reverse("portal:portal_change_password"),
+    }
+
+    def _is_allowed_portal_path(path):
+        if path in allowed_paths:
+            return True
+        if path.startswith(recipients_url):
+            return True
+        return path.startswith(billing_url)
+
+    shipper_block_reason = _resolve_shipper_access_block_reason(profile)
+    if shipper_block_reason and not _is_allowed_portal_path(request.path):
+        blocked_message = BLOCKED_MESSAGES.get(shipper_block_reason)
+        if blocked_message:
+            messages.error(request, blocked_message)
+        return redirect(f"{account_url}?{BLOCKED_REASON_QUERY_PARAM}={shipper_block_reason}")
+
+    has_delivery_contact = AssociationRecipient.objects.filter(
+        association_contact=profile.contact,
+        is_active=True,
+        is_delivery_contact=True,
+    ).exists()
+    if not has_delivery_contact and not _is_allowed_portal_path(request.path):
+        return redirect(
+            f"{recipients_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_MISSING_DELIVERY_CONTACT}"
+        )
+
+    request.association_profile = profile
+    return None
+
+
+def require_association_profile(request):
+    response = _bind_association_profile(request)
+    if response is not None:
+        return response
+    return request.association_profile

@@ -33,10 +33,12 @@ from wms.models import (
     RecipientProductPreferenceSource,
     RecipientProductPreferenceStatus,
     Shipment,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentStatus,
     ShipmentValidationStatus,
 )
+from wms.portal_access import ACTIVE_PORTAL_SCOPE_SESSION_KEY, PORTAL_SCOPE_SOURCE_GRANT
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
@@ -104,6 +106,32 @@ class PortalBootstrapUiTests(TestCase):
             destination_country="France",
         )
         self.client.force_login(self.user)
+
+    def _activate_recipient_scope(self):
+        recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")
+        sync_association_recipient_to_contact(recipient)
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        recipient_user = get_user_model().objects.create_user(
+            username="portal-bootstrap-scope-recipient",
+            password="pass1234",  # pragma: allowlist secret
+            email="portal-bootstrap-scope-recipient@example.com",
+        )
+        grant = PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(recipient_user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+        return recipient_organization
 
     def test_portal_base_includes_bootstrap_assets_when_enabled(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
@@ -311,6 +339,77 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="portal-history-forward"')
         self.assertContains(response, "window.history.back()")
         self.assertContains(response, "window.history.forward()")
+
+    def test_portal_recipient_scope_home_uses_recipient_navigation_contract(self):
+        recipient_organization = self._activate_recipient_scope()
+        recipient_contact = Contact.objects.create(
+            first_name="Mariam",
+            last_name="Diop",
+            email="mariam.diop@example.com",
+            contact_type=ContactType.PERSON,
+            organization=recipient_organization.organization,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=recipient_contact,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Portail destinataire")
+        self.assertContains(response, 'id="portal-primary-nav"')
+        self.assertContains(response, "#portal-recipient-home-identity")
+        self.assertContains(response, "#portal-recipient-home-contacts")
+        self.assertContains(response, "#portal-recipient-home-documents")
+        self.assertContains(response, "#portal-recipient-home-preferences")
+        self.assertNotContains(response, reverse("portal:portal_billing"))
+        self.assertNotContains(response, reverse("portal:portal_recipients"))
+        self.assertNotContains(response, reverse("portal:portal_order_create"))
+
+    def test_portal_recipient_scope_home_uses_bootstrap_cards_and_tables(self):
+        recipient_organization = self._activate_recipient_scope()
+        recipient_contact = Contact.objects.create(
+            first_name="Kadi",
+            last_name="Sow",
+            email="kadi.sow@example.com",
+            phone="+330100200",
+            contact_type=ContactType.PERSON,
+            organization=recipient_organization.organization,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=recipient_contact,
+            is_active=True,
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=Product.objects.create(name="Kit Recipient Bootstrap"),
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=4,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-recipient-home-intro"')
+        self.assertContains(response, 'id="portal-recipient-home-identity"')
+        self.assertContains(response, 'id="portal-recipient-home-contacts"')
+        self.assertContains(response, 'id="portal-recipient-home-documents"')
+        self.assertContains(response, 'id="portal-recipient-home-preferences"')
+        self.assertContains(response, "scan-card portal-card card border-0")
+        self.assertContains(response, "table table-sm table-hover")
+        self.assertContains(response, "Référents destinataire")
+        self.assertContains(response, "Documents structure")
+        self.assertContains(response, "Préférences produits")
+        self.assertContains(response, "Kit Recipient Bootstrap")
 
     def test_portal_billing_pages_use_bootstrap_tables(self):
         billing_document = BillingDocument.objects.create(
