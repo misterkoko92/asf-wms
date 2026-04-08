@@ -74,6 +74,10 @@ def _infer_contact_business_type(contact: Contact) -> str:
         return "donor"
     if ContactCapabilityType.TRANSPORTER in capabilities:
         return "transporter"
+    if ContactCapabilityType.PARTNER in capabilities:
+        return "partner"
+    if ContactCapabilityType.OTHER in capabilities:
+        return "other"
     if ContactCapabilityType.VOLUNTEER in capabilities:
         return "volunteer"
     if contact.contact_type == ContactType.PERSON:

@@ -53,6 +53,14 @@ class ContactCapabilityTests(TestCase):
                 is_active=True,
             )
 
+    def test_capability_type_exposes_partner_and_other(self):
+        capability_type = self._get_capability_type()
+
+        self.assertEqual(capability_type.PARTNER, "partner")
+        self.assertEqual(capability_type.OTHER, "other")
+        self.assertIn(("partner", "Partenaire"), capability_type.choices)
+        self.assertIn(("other", "Autre"), capability_type.choices)
+
     def test_capability_helpers_filter_active_contacts_and_organizations(self):
         capability_model = self._get_capability_model()
         capability_type = self._get_capability_type()

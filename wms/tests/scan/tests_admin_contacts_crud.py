@@ -108,6 +108,34 @@ class AdminContactsCrudTests(TestCase):
         self.assertEqual(context["contact_form"].initial["organization_name"], recipient_org.name)
         self.assertEqual(context["contact_form"].initial["destination_id"], self.destination.id)
 
+    def test_build_admin_contacts_forms_prefills_partner_capability_context(self):
+        partner = Contact.objects.create(
+            name="Partenaire Stockage",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ensure_contact_capability(partner, ContactCapabilityType.PARTNER)
+
+        context = build_admin_contacts_forms(edit_contact_id=partner.id)
+
+        self.assertEqual(context["contact_form_mode"], "edit")
+        self.assertEqual(context["editing_contact"], partner)
+        self.assertEqual(context["contact_form"].initial["business_type"], "partner")
+
+    def test_build_admin_contacts_forms_prefills_other_capability_context(self):
+        other_contact = Contact.objects.create(
+            name="Historique Divers",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ensure_contact_capability(other_contact, ContactCapabilityType.OTHER)
+
+        context = build_admin_contacts_forms(edit_contact_id=other_contact.id)
+
+        self.assertEqual(context["contact_form_mode"], "edit")
+        self.assertEqual(context["editing_contact"], other_contact)
+        self.assertEqual(context["contact_form"].initial["business_type"], "other")
+
     def test_handle_destination_submission_invalid_form_stays_inline(self):
         outcome = handle_destination_submission(
             {

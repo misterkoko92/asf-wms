@@ -44,7 +44,7 @@
         <div class="row g-3">
             <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="organization"
-                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,partner,other"
                  data-contact-entities="organization,person">
                 <label class="form-label" for="{{ contact_form.organization_name.id_for_label }}">
                     {{ contact_form.organization_name.label }}
@@ -83,7 +83,7 @@
             </div>
             <div class="scan-field col-12 col-lg-3"
                  data-contact-field-group="person"
-                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,volunteer"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,partner,other,volunteer"
                  data-contact-entities="person,organization">
                 <label class="form-label" for="{{ contact_form.title.id_for_label }}">
                     {{ contact_form.title.label }}
@@ -100,7 +100,7 @@
             </div>
             <div class="scan-field col-12 col-lg-3"
                  data-contact-field-group="person"
-                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,volunteer"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,partner,other,volunteer"
                  data-contact-entities="person,organization">
                 <label class="form-label" for="{{ contact_form.first_name.id_for_label }}">
                     {{ contact_form.first_name.label }}
@@ -113,7 +113,7 @@
             </div>
             <div class="scan-field col-12 col-lg-3"
                  data-contact-field-group="person"
-                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,volunteer"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,partner,other,volunteer"
                  data-contact-entities="person,organization">
                 <label class="form-label" for="{{ contact_form.last_name.id_for_label }}">
                     {{ contact_form.last_name.label }}
@@ -165,7 +165,7 @@
         <div class="row g-3">
             <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="registry"
-                 data-contact-businesses="donor,transporter"
+                 data-contact-businesses="donor,transporter,partner,other"
                  data-contact-entities="organization">
                 <label class="form-label" for="{{ contact_form.siret.id_for_label }}">
                     {{ contact_form.siret.label }}
@@ -175,7 +175,7 @@
             </div>
             <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="registry"
-                 data-contact-businesses="donor,transporter"
+                 data-contact-businesses="donor,transporter,partner,other"
                  data-contact-entities="organization">
                 <label class="form-label" for="{{ contact_form.vat_number.id_for_label }}">
                     {{ contact_form.vat_number.label }}
@@ -185,7 +185,7 @@
             </div>
             <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="registry"
-                 data-contact-businesses="donor,transporter"
+                 data-contact-businesses="donor,transporter,partner,other"
                  data-contact-entities="organization">
                 <label class="form-label" for="{{ contact_form.legal_registration_number.id_for_label }}">
                     {{ contact_form.legal_registration_number.label }}
@@ -241,7 +241,7 @@
             </div>
             <div class="scan-field col-12"
                  data-contact-field-group="use-org-address"
-                 data-contact-businesses="donor,transporter,volunteer,shipper,recipient,correspondent"
+                 data-contact-businesses="donor,transporter,partner,other,volunteer,shipper,recipient,correspondent"
                  data-contact-entities="person">
                 {% ui_switch field=contact_form.use_organization_address wide=True %}
                 {{ contact_form.use_organization_address.errors }}

@@ -16,6 +16,8 @@ BUSINESS_TYPE_CHOICES = (
     ("correspondent", _("Correspondant")),
     ("donor", _("Donateur")),
     ("transporter", _("Transporteur")),
+    ("partner", _("Partenaire")),
+    ("other", _("Autre")),
     ("volunteer", _("Bénévole")),
 )
 
@@ -170,7 +172,7 @@ class ContactCrudForm(forms.Form):
             self._require_fields(cleaned_data, "first_name", "last_name")
             if entity_type == ContactType.ORGANIZATION:
                 self.add_error("entity_type", _("Un bénévole doit être une personne."))
-        elif business_type in {"donor", "transporter"}:
+        elif business_type in {"donor", "transporter", "partner", "other"}:
             if not entity_type:
                 self.add_error("entity_type", _("Choisissez une nature de contact."))
             elif entity_type == ContactType.PERSON:

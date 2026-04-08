@@ -134,6 +134,25 @@ class ScanAdminContactsCrudViewTests(TestCase):
         shipper = ShipmentShipper.objects.get(organization=organization)
         self.assertEqual(shipper.default_contact.first_name, "Jean")
 
+    def test_scan_admin_contacts_get_edit_contact_prefills_partner_business_type(self):
+        partner = Contact.objects.create(
+            name="Partenaire Fret",
+            contact_type=ContactType.ORGANIZATION,
+            email="partner@example.com",
+            is_active=True,
+        )
+        ensure_contact_capability(partner, ContactCapabilityType.PARTNER)
+
+        response = self.client.get(
+            reverse("scan:scan_admin_contacts"),
+            {"edit": str(partner.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["contact_form_mode"], "edit")
+        self.assertEqual(response.context["editing_contact"], partner)
+        self.assertContains(response, 'value="partner"')
+
     def test_scan_admin_contacts_post_deactivate_contact_marks_contact_inactive(self):
         donor = Contact.objects.create(
             name="Donateur Actif",

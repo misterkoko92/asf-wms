@@ -1,7 +1,47 @@
 {% load i18n %}
 <div id="scan-admin-contacts-intro" class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Gestion des contacts" %}</h2>
-    <p class="scan-help ui-comp-note">
-        {% trans "Répertoire unifié des structures et personnes, avec cockpit expédition basé sur le registre canonique." %}
-    </p>
+    <div class="ui-comp-panel d-flex flex-column flex-xl-row gap-3 justify-content-between align-items-xl-start">
+        <div>
+            <h2 class="ui-comp-title">{% trans "Gestion des contacts" %}</h2>
+            <p class="scan-help ui-comp-note mb-0">
+                {% trans "Répertoire unifié des structures et personnes, avec cockpit expédition basé sur le registre canonique. Pour ajouter manuellement une fiche, utilisez l’accordéon « Création de contact » ci-dessous ou le lien « Ajouter contact » dans l’admin Django legacy." %}
+            </p>
+        </div>
+        <div class="d-flex flex-column gap-3">
+            <section aria-label="Admin Django canonique">
+                <h3 class="h6 mb-2">Admin Django canonique</h3>
+                <div class="ui-comp-actions d-flex flex-wrap gap-2">
+                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_portalaccessgrant_changelist' %}" target="_blank" rel="noopener">
+                        Accès portail
+                    </a>
+                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_shipmentrecipientorganization_changelist' %}" target="_blank" rel="noopener">
+                        Structures destinataires
+                    </a>
+                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_recipientproductpreference_changelist' %}" target="_blank" rel="noopener">
+                        Préférences produits
+                    </a>
+                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_recipientstructuredocument_changelist' %}" target="_blank" rel="noopener">
+                        Documents structures
+                    </a>
+                </div>
+            </section>
+            <section aria-label="Admin Django legacy">
+                <h3 class="h6 mb-2">Admin Django legacy</h3>
+                <div class="ui-comp-actions d-flex flex-wrap gap-2">
+                    <a class="btn btn-tertiary btn-sm" href="{{ contacts_admin_url }}" target="_blank" rel="noopener">
+                        Contacts
+                    </a>
+                    <a class="btn btn-tertiary btn-sm" href="{{ contact_add_url }}" target="_blank" rel="noopener">
+                        Ajouter contact
+                    </a>
+                    <a class="btn btn-tertiary btn-sm" href="{{ destination_admin_url }}" target="_blank" rel="noopener">
+                        Destinations
+                    </a>
+                    <a class="btn btn-tertiary btn-sm" href="{{ destination_add_url }}" target="_blank" rel="noopener">
+                        Ajouter destination
+                    </a>
+                </div>
+            </section>
+        </div>
+    </div>
 </div>
