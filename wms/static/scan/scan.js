@@ -11,6 +11,7 @@
   let detector = null;
   let zxingReader = null;
   let scanning = false;
+  let scanStartInFlight = false;
   let activeScanTrigger = null;
   let ocrActiveInput = null;
   let ocrProducts = [];
@@ -30,11 +31,125 @@
   const OCR_CORE_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js';
   const OCR_LANG_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js-data@5.0.0';
   const OCR_LANG = 'fra';
+  const CAMERA_RETRY_DELAYS_MS = [160, 320, 640];
+  const CAMERA_RETRYABLE_ERROR_NAMES = new Set(['AbortError', 'NotReadableError', 'TrackStartError']);
+  const CAMERA_PERMISSION_ERROR_NAMES = new Set([
+    'NotAllowedError',
+    'PermissionDeniedError',
+    'SecurityError'
+  ]);
+  const CAMERA_RETRYABLE_MESSAGE_SNIPPETS = [
+    'aborterror',
+    'notreadableerror',
+    'trackstarterror',
+    'camera-restarting',
+    'device in use',
+    'could not start video source',
+    'starting video failed',
+    'device already in use',
+    'hardware error'
+  ];
 
   function setStatus(text) {
     if (statusEl) {
       statusEl.textContent = text;
     }
+  }
+
+  function wait(ms) {
+    return new Promise(resolve => window.setTimeout(resolve, ms));
+  }
+
+  function stopStreamTracks(targetStream) {
+    if (!targetStream || typeof targetStream.getTracks !== 'function') {
+      return;
+    }
+    targetStream.getTracks().forEach(track => {
+      try {
+        track.stop();
+      } catch (err) {
+        // Ignore track stop errors.
+      }
+    });
+  }
+
+  function releaseCameraStream() {
+    const currentStream = stream;
+    const attachedStream =
+      video && video.srcObject && video.srcObject !== currentStream ? video.srcObject : null;
+    stopStreamTracks(currentStream);
+    stopStreamTracks(attachedStream);
+    stream = null;
+  }
+
+  function releaseVideoElement() {
+    if (!video) {
+      return;
+    }
+    try {
+      video.pause();
+    } catch (err) {
+      // Ignore pause errors.
+    }
+    video.srcObject = null;
+    video.removeAttribute('src');
+  }
+
+  function resetZxingReader() {
+    if (!zxingReader) {
+      return;
+    }
+    try {
+      zxingReader.reset();
+    } catch (err) {
+      // Ignore reset errors.
+    }
+    zxingReader = null;
+  }
+
+  function isPermissionCameraError(err) {
+    return !!(err && CAMERA_PERMISSION_ERROR_NAMES.has(err.name || ''));
+  }
+
+  function isRetryableCameraError(err) {
+    if (!err) {
+      return false;
+    }
+    if (CAMERA_RETRYABLE_ERROR_NAMES.has(err.name || '')) {
+      return true;
+    }
+    const message = `${err.name || ''} ${err.message || ''}`.toLowerCase();
+    return CAMERA_RETRYABLE_MESSAGE_SNIPPETS.some(snippet => message.includes(snippet));
+  }
+
+  async function retryTransientCameraStart(startFn, retryLabel) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= CAMERA_RETRY_DELAYS_MS.length; attempt += 1) {
+      try {
+        return await startFn(attempt);
+      } catch (err) {
+        lastError = err;
+        if (!isRetryableCameraError(err) || attempt === CAMERA_RETRY_DELAYS_MS.length) {
+          throw err;
+        }
+        releaseCameraStream();
+        releaseVideoElement();
+        setStatus(retryLabel || 'Réactivation caméra...');
+        await wait(CAMERA_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+    throw lastError;
+  }
+
+  async function handleCameraStartFailure(err) {
+    if (isPermissionCameraError(err)) {
+      setStatus('Accès caméra refusé.');
+    } else if (isRetryableCameraError(err)) {
+      setStatus('Caméra indisponible. Réessayez.');
+    } else {
+      setStatus('Démarrage caméra impossible.');
+    }
+    await stopScan();
   }
 
   function dispatchValueEvent(input) {
@@ -203,40 +318,10 @@
   async function stopScan() {
     scanning = false;
     detector = null;
-    if (zxingReader) {
-      try {
-        zxingReader.reset();
-      } catch (err) {
-        // Ignore reset errors.
-      }
-      zxingReader = null;
-    }
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      stream = null;
-    }
-    if (video && video.srcObject && !stream) {
-      const videoStream = video.srcObject;
-      if (videoStream && videoStream.getTracks) {
-        videoStream.getTracks().forEach(track => track.stop());
-      }
-    }
-    if (video) {
-      try {
-        video.pause();
-      } catch (err) {
-        // Ignore pause errors.
-      }
-      video.srcObject = null;
-      video.removeAttribute('src');
-      if (typeof video.load === 'function') {
-        try {
-          video.load();
-        } catch (err) {
-          // Ignore load errors.
-        }
-      }
-    }
+    scanStartInFlight = false;
+    resetZxingReader();
+    releaseCameraStream();
+    releaseVideoElement();
     if (overlay) {
       overlay.classList.remove('active');
     }
@@ -311,7 +396,6 @@
       await stopScan();
       return;
     }
-    zxingReader = new ZXing.BrowserMultiFormatReader();
     scanning = true;
     setStatus('Scan en cours...');
     if (overlay) {
@@ -332,22 +416,30 @@
       }
     };
     try {
-      if (typeof zxingReader.decodeFromConstraints === 'function') {
-        await zxingReader.decodeFromConstraints(
-          { audio: false, video: { facingMode: { ideal: 'environment' } } },
-          video,
-          callback
-        );
-      } else {
-        await zxingReader.decodeFromVideoDevice(null, video, callback);
-      }
+      await retryTransientCameraStart(async attempt => {
+        if (attempt > 0) {
+          resetZxingReader();
+        }
+        zxingReader = new ZXing.BrowserMultiFormatReader();
+        if (typeof zxingReader.decodeFromConstraints === 'function') {
+          return zxingReader.decodeFromConstraints(
+            { audio: false, video: { facingMode: { ideal: 'environment' } } },
+            video,
+            callback
+          );
+        }
+        return zxingReader.decodeFromVideoDevice(null, video, callback);
+      }, 'Réactivation caméra...');
     } catch (err) {
-      setStatus('Accès caméra refusé.');
-      await stopScan();
+      await handleCameraStartFailure(err);
     }
   }
 
   async function startScan(input) {
+    if (scanStartInFlight || scanning) {
+      return;
+    }
+    scanStartInFlight = true;
     activeInput = input;
     setScanMode('barcode');
     setStatus('Chargement du scanner...');
@@ -364,13 +456,16 @@
         formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
       });
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false
-        });
+        stream = await retryTransientCameraStart(
+          () =>
+            navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'environment' },
+              audio: false
+            }),
+          'Réactivation caméra...'
+        );
       } catch (err) {
-        setStatus('Accès caméra refusé.');
-        await stopScan();
+        await handleCameraStartFailure(err);
         return;
       }
       if (video) {
@@ -386,6 +481,7 @@
     } else {
       await startZXingScan();
     }
+    scanStartInFlight = false;
   }
 
   function ensureOcr() {

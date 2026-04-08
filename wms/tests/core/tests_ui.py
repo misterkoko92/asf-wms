@@ -327,7 +327,7 @@ class ScanUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
-    def test_scan_pack_barcode_detector_resolves_product_select_and_restarts_cleanly(self):
+    def test_scan_pack_barcode_detector_restarts_without_video_load_reset(self):
         Product.objects.create(
             sku="UI-002",
             barcode="UI-BAR-002",
@@ -340,11 +340,15 @@ class ScanUiTests(StaticLiveServerTestCase):
         init_script = """
 window.__scanCodes = ['UI-BAR-002', 'UI-BAR-002'];
 window.__getUserMediaCalls = 0;
+window.__detectCalls = 0;
 window.__videoLoadCalls = 0;
 Object.defineProperty(navigator, 'mediaDevices', {
   value: {
     getUserMedia: async () => {
       window.__getUserMediaCalls += 1;
+      if (window.__videoLoadCalls > 0) {
+        throw new Error('camera-reset-blocked');
+      }
       return new MediaStream();
     },
   },
@@ -352,6 +356,7 @@ Object.defineProperty(navigator, 'mediaDevices', {
 });
 window.BarcodeDetector = class {
   async detect() {
+    window.__detectCalls += 1;
     const code = window.__scanCodes.shift();
     return code ? [{ rawValue: code }] : [];
   }
@@ -389,7 +394,7 @@ HTMLMediaElement.prototype.load = function() {
                 "() => !document.getElementById('scan-overlay').classList.contains('active')"
             )
             page.wait_for_function(
-                "() => window.__getUserMediaCalls === 1 && window.__videoLoadCalls >= 1"
+                "() => window.__getUserMediaCalls === 1 && window.__detectCalls === 1"
             )
             self.assertNotEqual(
                 page.evaluate(
@@ -403,11 +408,301 @@ HTMLMediaElement.prototype.load = function() {
             scan_button.tap()
             page.wait_for_function("() => window.__getUserMediaCalls === 2")
             page.wait_for_function(
-                "() => !document.getElementById('scan-overlay').classList.contains('active')"
+                "() => window.__detectCalls === 2"
+                " && window.__scanCodes.length === 0"
+                " && !document.getElementById('scan-overlay').classList.contains('active')"
             )
             self.assertEqual(
                 page.locator("#id_pack_line_1_product_code").input_value(),
                 "UI-002",
+            )
+            self.assertNotIn(
+                "Accès caméra refusé.",
+                page.locator("#scan-status").inner_text(),
+            )
+            self.assertEqual(page.evaluate("() => window.__videoLoadCalls"), 0)
+            context.close()
+            browser.close()
+
+    def test_scan_pack_zxing_fallback_restarts_without_video_load_reset(self):
+        Product.objects.create(
+            sku="UI-003",
+            barcode="UI-BAR-003",
+            name="UI Fallback Product",
+            weight_g=120,
+            volume_cm3=180,
+            default_location=self.location,
+            qr_code_image="qr_codes/test-zxing.png",
+        )
+        init_script = """
+window.__scanCodes = ['UI-BAR-003', 'UI-BAR-003'];
+window.__decodeFromConstraintsCalls = 0;
+window.__videoLoadCalls = 0;
+window.__zxingResetCalls = 0;
+Object.defineProperty(navigator, 'mediaDevices', {
+  value: {
+    getUserMedia: async () => new MediaStream(),
+  },
+  configurable: true,
+});
+delete window.BarcodeDetector;
+window.ZXingBrowser = {
+  BrowserMultiFormatReader: class {
+    async decodeFromConstraints(_constraints, _video, callback) {
+      window.__decodeFromConstraintsCalls += 1;
+      if (window.__videoLoadCalls > 0) {
+        throw new Error('camera-reset-blocked');
+      }
+      const code = window.__scanCodes.shift();
+      if (code) {
+        callback({ text: code });
+      }
+    }
+    reset() {
+      window.__zxingResetCalls += 1;
+    }
+  }
+};
+HTMLMediaElement.prototype.play = function() {
+  return Promise.resolve();
+};
+HTMLMediaElement.prototype.pause = function() {};
+HTMLMediaElement.prototype.load = function() {
+  window.__videoLoadCalls += 1;
+};
+"""
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context(
+                browser,
+                init_script=init_script,
+                viewport={"width": 390, "height": 844},
+                is_mobile=True,
+                has_touch=True,
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}{reverse('scan:scan_pack')}",
+                wait_until="domcontentloaded",
+            )
+            scan_button = page.locator('[data-scan-target="id_pack_line_1_product_code"]')
+            page.wait_for_selector('[data-scan-target="id_pack_line_1_product_code"]')
+
+            scan_button.tap()
+            page.wait_for_function(
+                "() => document.getElementById('id_pack_line_1_product_code').value === 'UI-003'"
+            )
+            page.wait_for_function(
+                "() => window.__decodeFromConstraintsCalls === 1"
+                " && window.__scanCodes.length === 1"
+                " && !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+
+            scan_button.tap()
+            page.wait_for_function(
+                "() => window.__decodeFromConstraintsCalls === 2"
+                " && window.__scanCodes.length === 0"
+                " && !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+            self.assertEqual(
+                page.locator("#id_pack_line_1_product_code").input_value(),
+                "UI-003",
+            )
+            self.assertNotIn(
+                "Accès caméra refusé.",
+                page.locator("#scan-status").inner_text(),
+            )
+            self.assertEqual(page.evaluate("() => window.__videoLoadCalls"), 0)
+            self.assertGreaterEqual(page.evaluate("() => window.__zxingResetCalls"), 1)
+            context.close()
+            browser.close()
+
+    def test_scan_pack_barcode_detector_retries_transient_camera_restart(self):
+        Product.objects.create(
+            sku="UI-002",
+            barcode="UI-BAR-002",
+            name="UI Barcode Product",
+            weight_g=120,
+            volume_cm3=180,
+            default_location=self.location,
+            qr_code_image="qr_codes/test-barcode.png",
+        )
+        Product.objects.create(
+            sku="UI-003",
+            barcode="UI-BAR-003",
+            name="UI Barcode Product 2",
+            weight_g=120,
+            volume_cm3=180,
+            default_location=self.location,
+            qr_code_image="qr_codes/test-barcode-2.png",
+        )
+        init_script = """
+window.__scanCodes = ['UI-BAR-002', 'UI-BAR-003'];
+window.__getUserMediaCalls = 0;
+window.__detectCalls = 0;
+window.__transientRestartFailures = 1;
+Object.defineProperty(navigator, 'mediaDevices', {
+  value: {
+    getUserMedia: async () => {
+      window.__getUserMediaCalls += 1;
+      if (window.__getUserMediaCalls > 1 && window.__transientRestartFailures > 0) {
+        window.__transientRestartFailures -= 1;
+        const err = new Error('camera-restarting');
+        err.name = 'AbortError';
+        throw err;
+      }
+      return new MediaStream();
+    },
+  },
+  configurable: true,
+});
+window.BarcodeDetector = class {
+  async detect() {
+    window.__detectCalls += 1;
+    const code = window.__scanCodes.shift();
+    return code ? [{ rawValue: code }] : [];
+  }
+};
+HTMLMediaElement.prototype.play = function() {
+  return Promise.resolve();
+};
+HTMLMediaElement.prototype.pause = function() {};
+"""
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context(
+                browser,
+                init_script=init_script,
+                viewport={"width": 390, "height": 844},
+                is_mobile=True,
+                has_touch=True,
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}{reverse('scan:scan_pack')}",
+                wait_until="domcontentloaded",
+            )
+            scan_button = page.locator('[data-scan-target="id_pack_line_1_product_code"]')
+            page.wait_for_selector('[data-scan-target="id_pack_line_1_product_code"]')
+
+            scan_button.tap()
+            page.wait_for_function(
+                "() => document.getElementById('id_pack_line_1_product_code').value === 'UI-002'"
+            )
+            page.wait_for_function(
+                "() => window.__getUserMediaCalls === 1"
+                " && window.__detectCalls === 1"
+                " && !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+
+            scan_button.tap()
+            page.wait_for_function(
+                "() => document.getElementById('id_pack_line_1_product_code').value === 'UI-003'"
+            )
+            page.wait_for_function(
+                "() => window.__getUserMediaCalls === 3"
+                " && window.__detectCalls === 2"
+                " && window.__transientRestartFailures === 0"
+                " && !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+            self.assertNotIn(
+                "Accès caméra refusé.",
+                page.locator("#scan-status").inner_text(),
+            )
+            context.close()
+            browser.close()
+
+    def test_scan_pack_zxing_fallback_retries_transient_camera_restart(self):
+        Product.objects.create(
+            sku="UI-002",
+            barcode="UI-BAR-002",
+            name="UI Fallback Product",
+            weight_g=120,
+            volume_cm3=180,
+            default_location=self.location,
+            qr_code_image="qr_codes/test-zxing.png",
+        )
+        Product.objects.create(
+            sku="UI-003",
+            barcode="UI-BAR-003",
+            name="UI Fallback Product 2",
+            weight_g=120,
+            volume_cm3=180,
+            default_location=self.location,
+            qr_code_image="qr_codes/test-zxing-2.png",
+        )
+        init_script = """
+window.__scanCodes = ['UI-BAR-002', 'UI-BAR-003'];
+window.__decodeFromConstraintsCalls = 0;
+window.__transientRestartFailures = 1;
+Object.defineProperty(navigator, 'mediaDevices', {
+  value: {
+    getUserMedia: async () => new MediaStream(),
+  },
+  configurable: true,
+});
+delete window.BarcodeDetector;
+window.ZXingBrowser = {
+  BrowserMultiFormatReader: class {
+    async decodeFromConstraints(_constraints, _video, callback) {
+      window.__decodeFromConstraintsCalls += 1;
+      if (window.__decodeFromConstraintsCalls > 1 && window.__transientRestartFailures > 0) {
+        window.__transientRestartFailures -= 1;
+        const err = new Error('camera-restarting');
+        err.name = 'AbortError';
+        throw err;
+      }
+      const code = window.__scanCodes.shift();
+      if (code) {
+        callback({ text: code });
+      }
+    }
+    reset() {}
+  }
+};
+HTMLMediaElement.prototype.play = function() {
+  return Promise.resolve();
+};
+HTMLMediaElement.prototype.pause = function() {};
+"""
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context(
+                browser,
+                init_script=init_script,
+                viewport={"width": 390, "height": 844},
+                is_mobile=True,
+                has_touch=True,
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}{reverse('scan:scan_pack')}",
+                wait_until="domcontentloaded",
+            )
+            scan_button = page.locator('[data-scan-target="id_pack_line_1_product_code"]')
+            page.wait_for_selector('[data-scan-target="id_pack_line_1_product_code"]')
+
+            scan_button.tap()
+            page.wait_for_function(
+                "() => document.getElementById('id_pack_line_1_product_code').value === 'UI-002'"
+            )
+            page.wait_for_function(
+                "() => window.__decodeFromConstraintsCalls === 1"
+                " && !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+
+            scan_button.tap()
+            page.wait_for_function(
+                "() => document.getElementById('id_pack_line_1_product_code').value === 'UI-003'"
+            )
+            page.wait_for_function(
+                "() => window.__decodeFromConstraintsCalls === 3"
+                " && window.__transientRestartFailures === 0"
+                " && !document.getElementById('scan-overlay').classList.contains('active')"
+            )
+            self.assertNotIn(
+                "Accès caméra refusé.",
+                page.locator("#scan-status").inner_text(),
             )
             context.close()
             browser.close()
