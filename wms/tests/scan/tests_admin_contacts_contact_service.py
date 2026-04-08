@@ -8,6 +8,7 @@ from wms.admin_contacts_contact_service import (
     save_contact_from_form,
 )
 from wms.models import (
+    AssociationRecipient,
     Destination,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
@@ -137,6 +138,75 @@ class AdminContactsContactServiceTests(TestCase):
         organization.refresh_from_db()
         self.assertEqual(organization.legal_form, "association")
         self.assertEqual(organization.beneficiary_count, 120)
+
+    def test_edit_existing_recipient_overwrites_shared_fields_and_refreshes_projection(self):
+        shipper_org = save_contact_from_form(
+            {
+                "business_type": "shipper",
+                "organization_name": "ASF",
+                "first_name": "Jean",
+                "last_name": "Dupont",
+                "is_active": True,
+            }
+        )
+        organization = save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan",
+                "first_name": "Alice",
+                "last_name": "Martin",
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "is_active": True,
+            }
+        )
+        legacy_projection = AssociationRecipient.objects.create(
+            association_contact=shipper_org,
+            synced_contact=organization,
+            destination=self.destination,
+            name="Hopital Abidjan",
+            structure_name="Hopital Abidjan",
+            contact_first_name="Alice",
+            contact_last_name="Martin",
+            legal_form="association",
+            beneficiary_count=120,
+            address_line1="1 Rue Source",
+            city="Abidjan",
+            country="COTE D'IVOIRE",
+            is_active=True,
+        )
+
+        updated = save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan Renove",
+                "first_name": "Aicha",
+                "last_name": "Traore",
+                "email": "aicha.traore@example.com",
+                "phone": "+33111111111",
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "public_sector",
+                "beneficiary_count": 250,
+                "address_line1": "20 Avenue Renovee",
+                "city": "Abidjan",
+                "country": "COTE D'IVOIRE",
+                "is_active": True,
+            },
+            editing_contact=organization,
+        )
+
+        organization.refresh_from_db()
+        legacy_projection.refresh_from_db()
+        self.assertEqual(updated.id, organization.id)
+        self.assertEqual(organization.name, "Hopital Abidjan Renove")
+        self.assertEqual(organization.legal_form, "public_sector")
+        self.assertEqual(organization.beneficiary_count, 250)
+        self.assertEqual(legacy_projection.structure_name, "Hopital Abidjan Renove")
+        self.assertEqual(legacy_projection.contact_first_name, "Aicha")
+        self.assertEqual(legacy_projection.contact_last_name, "Traore")
 
     def test_create_correspondent_marks_stopover_and_destination_contact(self):
         organization = save_contact_from_form(

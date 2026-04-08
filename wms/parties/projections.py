@@ -60,3 +60,47 @@ def refresh_legacy_association_recipient_projection(
     legacy_projection.is_active = bool(is_active)
     legacy_projection.save()
     return legacy_projection
+
+
+def refresh_legacy_association_recipient_projections_for_runtime(
+    *,
+    recipient_organization,
+    shipment_contact,
+):
+    organization = recipient_organization.organization
+    address = organization.get_effective_address()
+    projections = list(
+        AssociationRecipient.objects.filter(
+            synced_contact=organization,
+            destination=recipient_organization.destination,
+        ).select_related("association_contact")
+    )
+    refreshed = []
+    for projection in projections:
+        refreshed.append(
+            refresh_legacy_association_recipient_projection(
+                projection=projection,
+                association_contact=projection.association_contact,
+                synced_contact=organization,
+                recipient_organization=recipient_organization,
+                shipment_contact=shipment_contact,
+                structure_name=organization.name,
+                contact_title=shipment_contact.contact.title,
+                contact_first_name=shipment_contact.contact.first_name,
+                contact_last_name=shipment_contact.contact.last_name,
+                emails=shipment_contact.contact.email or organization.email or "",
+                phones=shipment_contact.contact.phone or organization.phone or "",
+                address_line1=getattr(address, "address_line1", ""),
+                address_line2=getattr(address, "address_line2", ""),
+                postal_code=getattr(address, "postal_code", ""),
+                city=getattr(address, "city", ""),
+                country=getattr(address, "country", "France"),
+                legal_form=organization.legal_form or "",
+                beneficiary_count=organization.beneficiary_count,
+                notes=organization.notes or "",
+                notify_deliveries=projection.notify_deliveries,
+                is_delivery_contact=projection.is_delivery_contact,
+                is_active=projection.is_active,
+            )
+        )
+    return refreshed

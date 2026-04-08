@@ -11,14 +11,19 @@ from django.urls import reverse
 from contacts.models import Contact, ContactType
 from wms.forms_admin_contacts_contact import ContactCrudForm
 from wms.models import (
+    AssociationProfile,
+    AssociationRecipient,
     CartonFormat,
     Destination,
     DocumentReviewStatus,
     DocumentScanStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     Product,
     ProductKitItem,
     RecipientStructureDocument,
     RecipientStructureDocumentType,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
@@ -395,6 +400,157 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mettre à jour le contact")
         self.assertNotContains(response, "Valider le destinataire")
+
+    def test_scan_admin_contacts_recipient_update_refreshes_shipper_and_recipient_portal_views(
+        self,
+    ):
+        shipper_user = get_user_model().objects.create_user(
+            username="portal-shipper-refresh",
+            password="pass1234",
+            email="portal-shipper-refresh@example.com",
+        )
+        recipient_user = get_user_model().objects.create_user(
+            username="portal-recipient-refresh",
+            password="pass1234",
+            email="portal-recipient-refresh@example.com",
+        )
+        shipper_org = Contact.objects.create(
+            name="Association Refresh",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_referent = Contact.objects.create(
+            name="Jean Refresh",
+            first_name="Jean",
+            last_name="Refresh",
+            contact_type=ContactType.PERSON,
+            organization=shipper_org,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        AssociationProfile.objects.create(
+            user=shipper_user,
+            contact=shipper_org,
+            must_change_password=False,
+        )
+        recipient_org = Contact.objects.create(
+            name="Hopital Abidjan Source",
+            contact_type=ContactType.ORGANIZATION,
+            legal_form="association",
+            beneficiary_count=120,
+            is_active=True,
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        recipient_person = Contact.objects.create(
+            name="Alice Martin",
+            first_name="Alice",
+            last_name="Martin",
+            email="alice.martin@example.com",
+            phone="+33101010101",
+            contact_type=ContactType.PERSON,
+            organization=recipient_org,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=recipient_person,
+            is_active=True,
+        )
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+            is_active=True,
+        )
+        legacy_projection = AssociationRecipient.objects.create(
+            association_contact=shipper_org,
+            synced_contact=recipient_org,
+            destination=self.destination,
+            name="Hopital Abidjan Source",
+            structure_name="Hopital Abidjan Source",
+            contact_title="dr",
+            contact_first_name="Alice",
+            contact_last_name="Martin",
+            emails="alice.martin@example.com",
+            phones="+33101010101",
+            address_line1="1 Rue Source",
+            city="Abidjan",
+            country="COTE D'IVOIRE",
+            legal_form="association",
+            beneficiary_count=120,
+            is_delivery_contact=True,
+            is_active=True,
+        )
+        PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "save_contact",
+                "editing_contact_id": str(recipient_org.id),
+                "business_type": "recipient",
+                "entity_type": ContactType.ORGANIZATION,
+                "organization_name": "Hopital Abidjan Renove",
+                "legal_form": "public_sector",
+                "beneficiary_count": "250",
+                "title": "dr",
+                "first_name": "Aicha",
+                "last_name": "Traore",
+                "email": "aicha.traore@example.com",
+                "phone": "+33111111111",
+                "address_line1": "20 Avenue Renovee",
+                "postal_code": "01001",
+                "city": "Abidjan",
+                "country": "COTE D'IVOIRE",
+                "destination_id": str(self.destination.id),
+                "allowed_shipper_ids": [str(shipper_org.id)],
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        self.client.force_login(shipper_user)
+        shipper_portal_response = self.client.get(
+            f"{reverse('portal:portal_recipients')}?edit={legacy_projection.id}"
+        )
+
+        self.assertEqual(shipper_portal_response.status_code, 200)
+        self.assertEqual(
+            shipper_portal_response.context["form_data"]["structure_name"],
+            "Hopital Abidjan Renove",
+        )
+        self.assertEqual(
+            shipper_portal_response.context["form_data"]["beneficiary_count"],
+            "250",
+        )
+
+        self.client.force_login(recipient_user)
+        recipient_portal_response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(recipient_portal_response.status_code, 200)
+        self.assertEqual(
+            recipient_portal_response.context["recipient_structure_name"],
+            "Hopital Abidjan Renove",
+        )
+        self.assertEqual(
+            recipient_portal_response.context["recipient_beneficiary_count"],
+            250,
+        )
 
     def test_scan_admin_contacts_directory_exposes_inline_actions(self):
         self.client.force_login(self.superuser)

@@ -180,6 +180,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - recipient product preference editing from both portal recipient detail and scan admin recipient cockpit
 - canonical recipient shared-profile writes, document upserts, and product-preference upserts through `wms/application/parties/use_cases.py`
 - shipper portal recipient create/update now write the canonical shipment-party graph first and only refresh `AssociationRecipient` as a compatibility projection
+- scan/admin recipient shared-field edits from `scan/contacts` now also route through the same application use-case layer and refresh any matching legacy `AssociationRecipient` projections before portal shipper views re-read them
 - once a `PortalAccessGrant(recipient_admin)` exists for the synced `ShipmentRecipientOrganization`, shipper-side recipient maintenance becomes read-only on both `/portal/recipients/?edit=<id>` and `/portal/recipients/<id>/`
 - synchronization from `AssociationRecipient` compatibility projections to operational contact structures
 - shipper/recipient authorization chain
@@ -197,8 +198,11 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
+- `wms/tests/scan/tests_admin_contacts_contact_service.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_views_scan_admin.py`
+- `wms/tests/views/tests_views_scan_admin_shipment_parties.py`
 - `api/tests/tests_ui_endpoints.py`
 
 ### Docs that must stay aligned

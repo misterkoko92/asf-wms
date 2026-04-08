@@ -442,15 +442,18 @@ Current V3.3 contract:
 - portal recipient destination changes now keep the same synced structure contact when possible and create or reuse a destination-scoped recipient runtime row instead of forcing a second synced organization contact
 - `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync, shared recipient-profile writes, document upserts, recipient-product preference upserts, and recipient-contact resolution
 - shipper portal recipient create/update flows in `wms/views_portal_account.py` must route shared-profile writes through `wms/application/parties/use_cases.py`; direct `AssociationRecipient` mutation is no longer the shared contract
+- scan/admin recipient shared-field edits in `wms/admin_contacts_contact_service.py` must also route shared runtime writes through `wms/application/parties/use_cases.py::update_runtime_recipient_shared_profile(...)` instead of rebuilding shipment-party mutations inline
 - when an active `PortalAccessGrant` with role `recipient_admin` exists for the synced `ShipmentRecipientOrganization`, shipper portal recipient shared fields and product-preference edits become read-only and the HTML portal must surface that lock explicitly
 - `wms/portal_recipient_sync.py` remains a compatibility adapter and should not grow new orchestration logic again
 - `wms/admin_contacts_merge_service.py` remains a compatibility adapter and should not grow graph mutation logic again
 - `wms/scan_admin_contacts_cockpit.py` keeps forms and user-facing validation/messages, but delegates merge mutations to `wms/parties/merge.py`
+- scan/admin editing of an existing recipient/correspondent contact is an explicit overwrite of the current shared fields; merge-style “fill only missing fields” remains reserved for explicit duplicate-resolution actions
 
 Maintenance rule:
 
 - if a portal recipient sync change affects graph orchestration, destination reuse, or recipient-contact resolution, update `wms/parties/sync.py` or `wms/application/parties/use_cases.py` first, then keep compatibility wrappers thin
 - if a canonical shipment-party write still needs a legacy `AssociationRecipient`, route the compatibility refresh through `wms/parties/projections.py` instead of rebuilding portal projection logic in views or wrappers
+- if a scan/admin recipient edit must stay visible in shipper portal and recipient portal, keep the write in `wms/application/parties/use_cases.py` and let `wms/parties/projections.py` refresh compatibility rows instead of patching portal reads
 - if an admin contact merge or shipment-party cockpit merge changes graph mutation semantics, update `wms/parties/merge.py` first, then keep scan/admin wrappers thin
 - if a caller resolves or mutates `ShipmentRecipientOrganization`, prefer destination-aware helpers or explicit `(organization, destination)` filters over organization-only lookups
 - do not reintroduce validated/active selector duplication back into `wms/shipment_party_registry.py` or `wms/shipment_party_rules.py`
@@ -462,8 +465,10 @@ Reference tests:
 - `wms/tests/core/tests_parties_merge.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/core/tests_parties_use_cases.py`
+- `wms/tests/scan/tests_admin_contacts_contact_service.py`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+- `wms/tests/views/tests_views_scan_admin.py`
 
 ### Recipient Product Preference Contract
 

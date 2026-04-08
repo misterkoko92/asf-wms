@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -247,6 +248,36 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
 
         self.assertEqual(delete_response.status_code, 302)
         self.assertFalse(self.recipient_organization.product_preferences.exists())
+
+    def test_scan_admin_recipient_detail_uses_shared_preference_use_case(self):
+        self.client.force_login(self.superuser)
+
+        with mock.patch(
+            "wms.views_scan_admin.save_recipient_product_preference",
+            create=True,
+            return_value=mock.Mock(),
+        ) as save_preference:
+            response = self.client.post(
+                self._detail_url(),
+                {
+                    "action": "save_recipient_preference",
+                    "product_id": str(self.product.id),
+                    "status": "allowed",
+                    "quantity_target": "15",
+                    "period_unit": "month",
+                    "notes": "Stock utile",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        save_preference.assert_called_once()
+        self.assertEqual(
+            save_preference.call_args.kwargs["recipient_organization"],
+            self.recipient_organization,
+        )
+        self.assertEqual(save_preference.call_args.kwargs["product"], self.product)
+        self.assertEqual(save_preference.call_args.kwargs["status"], "allowed")
+        self.assertEqual(save_preference.call_args.kwargs["quantity_target"], 15)
 
     def test_scan_admin_recipient_detail_shows_preference_coverage_in_product_table(self):
         self.client.force_login(self.superuser)

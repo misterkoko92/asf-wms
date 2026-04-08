@@ -23,6 +23,7 @@ from .admin_contacts_crud import (
     handle_contact_submission,
     handle_destination_submission,
 )
+from .application.parties.use_cases import save_recipient_product_preference
 from .forms_scan_admin_carton_formats import CartonFormatCrudForm
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import (
@@ -723,21 +724,17 @@ def scan_admin_recipient_organization_detail(request, recipient_organization_id)
                     )
 
                 created = preference is None
-                if preference is None:
-                    preference = RecipientProductPreference(
+                try:
+                    save_recipient_product_preference(
                         recipient_organization=recipient_organization,
                         product=form_data["product"],
-                        created_by=request.user,
+                        status=form_data["status"],
+                        quantity_target=form_data.get("quantity_target_value"),
+                        period_unit=form_data["period_unit"],
+                        notes=form_data["notes"],
+                        source=RecipientProductPreferenceSource.SCAN_ADMIN,
+                        user=request.user,
                     )
-                preference.product = form_data["product"]
-                preference.status = form_data["status"]
-                preference.quantity_target = form_data.get("quantity_target_value")
-                preference.period_unit = form_data["period_unit"]
-                preference.notes = form_data["notes"]
-                preference.source = RecipientProductPreferenceSource.SCAN_ADMIN
-                preference.updated_by = request.user
-                try:
-                    preference.save()
                 except ValidationError as error:
                     preference_errors.extend(_flatten_validation_error_messages(error))
                     preference_form_data_by_product_id[form_data["product"].id] = form_data

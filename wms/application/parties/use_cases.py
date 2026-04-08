@@ -16,8 +16,12 @@ from wms.models import (
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
 )
-from wms.parties.projections import refresh_legacy_association_recipient_projection
+from wms.parties.projections import (
+    refresh_legacy_association_recipient_projection,
+    refresh_legacy_association_recipient_projections_for_runtime,
+)
 from wms.parties.sync import (
     resolve_portal_recipient_party_contact as resolve_portal_recipient_party_contact_runtime,
 )
@@ -39,6 +43,13 @@ class RecipientSharedProfileResult:
     shipment_contact: ShipmentRecipientContact
     link: ShipmentShipperRecipientLink
     legacy_projection: AssociationRecipient | None = None
+
+
+@dataclass(frozen=True)
+class RuntimeRecipientSharedProfileResult:
+    recipient_organization: ShipmentRecipientOrganization
+    shipment_contact: ShipmentRecipientContact
+    refreshed_legacy_projections: list[AssociationRecipient]
 
 
 def _build_projection_candidate(
@@ -307,6 +318,70 @@ def save_recipient_product_preference(
     preference.full_clean()
     preference.save()
     return preference
+
+
+def update_runtime_recipient_shared_profile(
+    *,
+    organization,
+    referent,
+    destination,
+    allowed_shipper_contacts=None,
+    is_correspondent=False,
+    is_active=True,
+    validation_status=ShipmentValidationStatus.VALIDATED,
+    refresh_legacy_projections=True,
+):
+    with transaction.atomic():
+        recipient_organization, _created = ShipmentRecipientOrganization.objects.update_or_create(
+            organization=organization,
+            destination=destination,
+            defaults={
+                "validation_status": validation_status,
+                "is_correspondent": is_correspondent,
+                "is_active": bool(is_active),
+            },
+        )
+        shipment_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+            recipient_organization=recipient_organization,
+            contact=referent,
+            defaults={"is_active": bool(is_active)},
+        )
+
+        if is_correspondent:
+            ShipmentRecipientOrganization.objects.filter(
+                destination=destination,
+                is_correspondent=True,
+            ).exclude(pk=recipient_organization.pk).update(is_correspondent=False)
+            destination.correspondent_contact = referent
+            destination.save(update_fields=["correspondent_contact"])
+        else:
+            for shipper_contact in allowed_shipper_contacts or []:
+                shipper = ensure_shipment_shipper(shipper_contact)
+                link = ensure_shipment_recipient_link(
+                    shipper=shipper,
+                    recipient_organization=recipient_organization,
+                )
+                ensure_authorized_recipient_contact(
+                    link=link,
+                    recipient_contact=shipment_contact,
+                    is_active=bool(is_active),
+                    set_as_default=True,
+                )
+
+        refreshed_legacy_projections = []
+        if refresh_legacy_projections:
+            refreshed_legacy_projections = (
+                refresh_legacy_association_recipient_projections_for_runtime(
+                    recipient_organization=recipient_organization,
+                    shipment_contact=shipment_contact,
+                )
+            )
+
+        return RuntimeRecipientSharedProfileResult(
+            recipient_organization=recipient_organization,
+            shipment_contact=shipment_contact,
+            refreshed_legacy_projections=refreshed_legacy_projections,
+        )
 
 
 def sync_portal_recipient(
