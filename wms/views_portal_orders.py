@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
@@ -7,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 from .application.parties.use_cases import resolve_portal_recipient_party_contact
 from .application.portal.dashboard_queries import (
     build_portal_dashboard_payload,
+    build_recipient_scope_home_payload,
     decorate_portal_dashboard_order,
 )
 from .contact_labels import build_shipment_recipient_select_label
@@ -21,6 +23,7 @@ from .models import (
     OrderDocument,
     OrderDocumentType,
     OrderReviewStatus,
+    PortalAccessRole,
     ProductCategory,
 )
 from .order_helpers import (
@@ -35,6 +38,7 @@ from .order_helpers import (
 from .order_notifications import send_portal_order_notifications
 from .portal_helpers import (
     build_destination_address,
+    get_association_profile,
     get_contact_address,
     get_default_carton_format,
 )
@@ -47,10 +51,15 @@ from .shipment_helpers import (
     shipment_shipper_from_contact,
 )
 from .upload_utils import validate_upload
-from .view_permissions import association_required
+from .view_permissions import (
+    association_required,
+    portal_scope_required,
+    require_association_profile,
+)
 from .view_utils import sorted_choices
 
 TEMPLATE_PORTAL_DASHBOARD = "portal/dashboard.html"
+TEMPLATE_PORTAL_RECIPIENT_SCOPE_HOME = "portal/recipient_scope_home.html"
 TEMPLATE_PORTAL_ORDER_CREATE = "portal/order_create.html"
 TEMPLATE_PORTAL_ORDER_DETAIL = "portal/order_detail.html"
 
@@ -514,10 +523,27 @@ def _build_order_detail_context(order):
 
 
 @login_required(login_url="portal:portal_login")
-@association_required
+@portal_scope_required
 @require_http_methods(["GET"])
 def portal_dashboard(request):
-    profile = request.association_profile
+    scope = request.portal_scope
+    if scope.role == PortalAccessRole.RECIPIENT_ADMIN and scope.recipient_organization is not None:
+        recipient_payload = build_recipient_scope_home_payload(
+            recipient_organization=scope.recipient_organization
+        )
+        return render(request, TEMPLATE_PORTAL_RECIPIENT_SCOPE_HOME, recipient_payload)
+
+    if scope.role != PortalAccessRole.SHIPPER_ADMIN:
+        raise PermissionDenied
+
+    association_profile_response = require_association_profile(request)
+    if not hasattr(association_profile_response, "contact"):
+        return association_profile_response
+    profile = (
+        association_profile_response
+        or scope.association_profile
+        or get_association_profile(request.user)
+    )
     dashboard_payload = build_portal_dashboard_payload(profile=profile)
     return render(
         request,

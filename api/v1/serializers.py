@@ -267,6 +267,8 @@ class UiPortalOrderCreateSerializer(serializers.Serializer):
 class UiPortalRecipientMutationSerializer(serializers.Serializer):
     destination_id = serializers.IntegerField()
     structure_name = serializers.CharField()
+    legal_form = serializers.CharField(required=False, allow_blank=True, default="")
+    beneficiary_count = serializers.IntegerField(required=False, allow_null=True, min_value=0)
     contact_title = serializers.CharField(required=False, allow_blank=True, default="")
     contact_last_name = serializers.CharField(required=False, allow_blank=True, default="")
     contact_first_name = serializers.CharField(required=False, allow_blank=True, default="")

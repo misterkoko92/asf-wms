@@ -237,6 +237,100 @@ class AssociationProfile(models.Model):
         return emails
 
 
+class PortalAccessRole(models.TextChoices):
+    SHIPPER_ADMIN = "shipper_admin", "Administrateur expediteur"
+    RECIPIENT_ADMIN = "recipient_admin", "Administrateur destinataire"
+
+
+class PortalAccessGrant(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="portal_access_grants",
+    )
+    role = models.CharField(
+        max_length=40,
+        choices=PortalAccessRole.choices,
+    )
+    shipper = models.ForeignKey(
+        "wms.ShipmentShipper",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="portal_access_grants",
+    )
+    recipient_organization = models.ForeignKey(
+        "wms.ShipmentRecipientOrganization",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="portal_access_grants",
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="portal_access_grants_created",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="portal_access_grants_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["user_id", "role", "id"]
+        constraints = [
+            _check_constraint_compat(
+                condition=(
+                    (
+                        models.Q(shipper__isnull=False)
+                        & models.Q(recipient_organization__isnull=True)
+                    )
+                    | (
+                        models.Q(shipper__isnull=True)
+                        & models.Q(recipient_organization__isnull=False)
+                    )
+                ),
+                name="wms_portal_access_grant_exactly_one_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "shipper"],
+                condition=models.Q(shipper__isnull=False),
+                name="wms_portal_access_grant_unique_shipper_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "recipient_organization"],
+                condition=models.Q(recipient_organization__isnull=False),
+                name="wms_portal_access_grant_unique_recipient_scope",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        target = self.shipper or self.recipient_organization
+        return f"{self.user} - {self.role} - {target}"
+
+    def clean(self):
+        super().clean()
+        if bool(self.shipper_id) == bool(self.recipient_organization_id):
+            raise ValidationError(
+                {
+                    "shipper": "Choisissez exactement un scope portal.",
+                    "recipient_organization": "Choisissez exactement un scope portal.",
+                }
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class AssociationContactTitle(models.TextChoices):
     MR = "mr", _("M.")
     MRS = "mrs", _("Mme")

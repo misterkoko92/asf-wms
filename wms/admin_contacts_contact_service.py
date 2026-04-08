@@ -7,18 +7,13 @@ from contacts.capabilities import ensure_contact_capability
 from contacts.models import Contact, ContactAddress, ContactType
 
 from .admin_contacts_duplicate_detection import find_similar_contacts
+from .application.parties.use_cases import update_runtime_recipient_shared_profile
 from .models import (
     Destination,
-    ShipmentRecipientContact,
-    ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentValidationStatus,
 )
-from .shipment_party_setup import (
-    ensure_authorized_recipient_contact,
-    ensure_shipment_recipient_link,
-    ensure_shipment_shipper,
-)
+from .shipment_party_setup import ensure_shipment_shipper
 
 
 def _primary_entity_type(cleaned_data) -> str:
@@ -219,42 +214,15 @@ def _ensure_recipient_runtime(*, organization, referent, cleaned_data, is_corres
     if destination is None:
         raise ValidationError("La destination destinataire est obligatoire.")
 
-    recipient_org, _created = ShipmentRecipientOrganization.objects.update_or_create(
+    result = update_runtime_recipient_shared_profile(
         organization=organization,
+        referent=referent,
         destination=destination,
-        defaults={
-            "validation_status": ShipmentValidationStatus.VALIDATED,
-            "is_correspondent": is_correspondent,
-            "is_active": bool(cleaned_data.get("is_active")),
-        },
+        allowed_shipper_contacts=_resolve_contact_list(cleaned_data.get("allowed_shipper_ids")),
+        is_correspondent=is_correspondent,
+        is_active=bool(cleaned_data.get("is_active")),
     )
-    recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
-        recipient_organization=recipient_org,
-        contact=referent,
-        defaults={"is_active": bool(cleaned_data.get("is_active"))},
-    )
-    if is_correspondent:
-        ShipmentRecipientOrganization.objects.filter(
-            destination=destination,
-            is_correspondent=True,
-        ).exclude(pk=recipient_org.pk).update(is_correspondent=False)
-        destination.correspondent_contact = referent
-        destination.save(update_fields=["correspondent_contact"])
-        return recipient_org
-
-    for shipper_org in _resolve_contact_list(cleaned_data.get("allowed_shipper_ids")):
-        shipper = ensure_shipment_shipper(shipper_org)
-        link = ensure_shipment_recipient_link(
-            shipper=shipper,
-            recipient_organization=recipient_org,
-        )
-        ensure_authorized_recipient_contact(
-            link=link,
-            recipient_contact=recipient_contact,
-            is_active=bool(cleaned_data.get("is_active")),
-            set_as_default=True,
-        )
-    return recipient_org
+    return result.recipient_organization
 
 
 def _ensure_capability(contact, business_type: str):
@@ -270,11 +238,11 @@ def _ensure_capability(contact, business_type: str):
 
 def save_contact_from_form(cleaned_data, *, editing_contact=None):
     business_type = (cleaned_data.get("business_type") or "").strip()
-    overwrite = (cleaned_data.get("duplicate_action") or "").strip() == "replace"
     duplicate_action = (cleaned_data.get("duplicate_action") or "").strip()
     duplicate_target_id = cleaned_data.get("duplicate_target_id")
 
     target_contact = editing_contact
+    overwrite = editing_contact is not None
     if duplicate_action in {"replace", "merge"}:
         target_contact = Contact.objects.filter(pk=duplicate_target_id).first()
         if target_contact is None:

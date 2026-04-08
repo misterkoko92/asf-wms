@@ -15,8 +15,16 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from contacts.models import Contact, ContactAddress, ContactType
+from wms.application.parties.use_cases import (
+    update_recipient_shared_profile,
+    update_runtime_recipient_shared_profile,
+)
 from wms.application.pilotage.pilotage_queries import build_scan_pilotage_payload
-from wms.application.portal.dashboard_queries import build_portal_dashboard_payload
+from wms.application.portal.dashboard_queries import (
+    build_portal_dashboard_payload,
+    build_recipient_scope_home_payload,
+)
 from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.carton_status_events import set_carton_status
 from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
@@ -41,6 +49,8 @@ from wms.models import (
     MovementType,
     Order,
     OrderReviewStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     PrintTemplate,
     PrintTemplateVersion,
     Product,
@@ -50,6 +60,8 @@ from wms.models import (
     ReceiptStatus,
     ReceiptType,
     Shipment,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
@@ -121,7 +133,7 @@ from wms.workflow_blockage_queue import (
 )
 from wms.workflow_observability import log_shipment_case_closed, log_workflow_event
 
-from .permissions import IsAssociationProfileUser, IsStaffUser
+from .permissions import IsAssociationProfileUser, IsPortalScopeUser, IsStaffUser
 from .serializers import (
     UiPortalAccountUpdateSerializer,
     UiPortalOrderCreateSerializer,
@@ -750,11 +762,206 @@ def _portal_recipient_row(recipient):
         "postal_code": recipient.postal_code or "",
         "city": recipient.city or "",
         "country": recipient.country or PORTAL_DEFAULT_COUNTRY,
+        "legal_form": recipient.legal_form or "",
+        "beneficiary_count": recipient.beneficiary_count,
         "notes": recipient.notes or "",
         "notify_deliveries": recipient.notify_deliveries,
         "is_delivery_contact": recipient.is_delivery_contact,
         "is_active": recipient.is_active,
     }
+
+
+def _portal_runtime_primary_recipient_contact(recipient_organization):
+    return (
+        ShipmentRecipientContact.objects.filter(
+            recipient_organization=recipient_organization,
+            is_active=True,
+        )
+        .select_related("contact")
+        .order_by("id")
+        .first()
+    )
+
+
+def _portal_runtime_recipient_row(recipient_organization):
+    recipient_organization = (
+        ShipmentRecipientOrganization.objects.filter(pk=recipient_organization.pk)
+        .select_related("organization", "destination")
+        .get()
+    )
+    organization = recipient_organization.organization
+    address = organization.get_effective_address()
+    shipment_recipient_contact = _portal_runtime_primary_recipient_contact(recipient_organization)
+    contact = shipment_recipient_contact.contact if shipment_recipient_contact is not None else None
+    return {
+        "id": recipient_organization.id,
+        "display_name": organization.name or "",
+        "destination_id": recipient_organization.destination_id,
+        "destination_label": str(recipient_organization.destination),
+        "structure_name": organization.name or "",
+        "contact_title": contact.title if contact is not None else "",
+        "contact_first_name": contact.first_name if contact is not None else "",
+        "contact_last_name": contact.last_name if contact is not None else "",
+        "phones": contact.phone if contact is not None else "",
+        "emails": contact.email if contact is not None else "",
+        "address_line1": address.address_line1 if address else "",
+        "address_line2": address.address_line2 if address else "",
+        "postal_code": address.postal_code if address else "",
+        "city": address.city if address else "",
+        "country": (address.country if address else "") or PORTAL_DEFAULT_COUNTRY,
+        "legal_form": organization.legal_form or "",
+        "beneficiary_count": organization.beneficiary_count,
+        "notes": organization.notes or "",
+        "notify_deliveries": False,
+        "is_delivery_contact": False,
+        "is_active": recipient_organization.is_active,
+    }
+
+
+def _portal_shipper_contact_from_request(request):
+    scope = getattr(request, "portal_scope", None)
+    if (
+        scope is not None
+        and scope.role == PortalAccessRole.SHIPPER_ADMIN
+        and scope.shipper is not None
+    ):
+        return scope.shipper.organization
+    profile = get_association_profile(request.user)
+    return profile.contact if profile is not None else None
+
+
+def _portal_profile_from_request(request):
+    scope = getattr(request, "portal_scope", None)
+    if scope is not None and scope.association_profile is not None:
+        return scope.association_profile
+    return get_association_profile(request.user)
+
+
+def _portal_recipient_scope_dashboard_payload(recipient_organization):
+    payload = build_recipient_scope_home_payload(recipient_organization=recipient_organization)
+    return {
+        "mode": "recipient",
+        "recipient": {
+            "recipient_organization_id": payload["recipient_organization"].id,
+            "structure_name": payload["recipient_structure_name"],
+            "destination_label": payload["recipient_destination_label"],
+            "legal_form_label": payload["recipient_legal_form_label"],
+            "beneficiary_count": payload["recipient_beneficiary_count"],
+            "address_lines": payload["recipient_address_lines"],
+            "notes": payload["recipient_notes"],
+            "contacts": payload["recipient_contact_rows"],
+            "documents": payload["recipient_document_rows"],
+            "preferences": payload["recipient_preference_rows"],
+        },
+    }
+
+
+def _update_portal_runtime_recipient_from_payload(*, recipient_organization, payload):
+    organization = recipient_organization.organization
+    organization_updated_fields = []
+    structure_name = (payload.get("structure_name") or "").strip()
+    if organization.name != structure_name:
+        organization.name = structure_name
+        organization_updated_fields.append("name")
+    legal_form = (payload.get("legal_form") or "").strip()
+    if organization.legal_form != legal_form:
+        organization.legal_form = legal_form
+        organization_updated_fields.append("legal_form")
+    beneficiary_count = payload.get("beneficiary_count")
+    if organization.beneficiary_count != beneficiary_count:
+        organization.beneficiary_count = beneficiary_count
+        organization_updated_fields.append("beneficiary_count")
+    notes = (payload.get("notes") or "").strip()
+    if organization.notes != notes:
+        organization.notes = notes
+        organization_updated_fields.append("notes")
+    if organization_updated_fields:
+        organization.save(update_fields=organization_updated_fields)
+
+    address = (
+        organization.addresses.filter(is_default=True).first() or organization.addresses.first()
+    )
+    if address is None:
+        address = ContactAddress(contact=organization, is_default=True)
+    address.address_line1 = (payload.get("address_line1") or "").strip()
+    address.address_line2 = (payload.get("address_line2") or "").strip()
+    address.postal_code = (payload.get("postal_code") or "").strip()
+    address.city = (payload.get("city") or "").strip()
+    address.country = (payload.get("country") or "").strip() or PORTAL_DEFAULT_COUNTRY
+    address.save()
+
+    shipment_recipient_contact = _portal_runtime_primary_recipient_contact(recipient_organization)
+    contact = shipment_recipient_contact.contact if shipment_recipient_contact is not None else None
+    if contact is None:
+        contact = Contact.objects.create(
+            contact_type=ContactType.PERSON,
+            organization=organization,
+            is_active=True,
+            name=structure_name or "Referent destinataire",
+        )
+        shipment_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=contact,
+            is_active=True,
+        )
+
+    contact_updated_fields = []
+    for field_name, value in (
+        ("title", (payload.get("contact_title") or "").strip()),
+        ("first_name", (payload.get("contact_first_name") or "").strip()),
+        ("last_name", (payload.get("contact_last_name") or "").strip()),
+        (
+            "email",
+            _split_multi_values(payload.get("emails", ""))[0]
+            if _split_multi_values(payload.get("emails", ""))
+            else "",
+        ),
+        (
+            "phone",
+            _split_multi_values(payload.get("phones", ""))[0]
+            if _split_multi_values(payload.get("phones", ""))
+            else "",
+        ),
+    ):
+        if getattr(contact, field_name) != value:
+            setattr(contact, field_name, value)
+            contact_updated_fields.append(field_name)
+    contact_name = (
+        " ".join(
+            part
+            for part in (
+                (contact.first_name or "").strip(),
+                (contact.last_name or "").strip(),
+            )
+            if part
+        ).strip()
+        or contact.name
+    )
+    if contact.name != contact_name:
+        contact.name = contact_name
+        contact_updated_fields.append("name")
+    if contact.organization_id != organization.id:
+        contact.organization = organization
+        contact_updated_fields.append("organization")
+    if contact_updated_fields:
+        contact.save(update_fields=contact_updated_fields)
+
+    allowed_shipper_contacts = [
+        link.shipper.organization
+        for link in recipient_organization.shipper_links.filter(
+            is_active=True,
+            shipper__is_active=True,
+            shipper__organization__is_active=True,
+        ).select_related("shipper__organization")
+    ]
+    return update_runtime_recipient_shared_profile(
+        organization=organization,
+        referent=contact,
+        destination=recipient_organization.destination,
+        allowed_shipper_contacts=allowed_shipper_contacts,
+        is_correspondent=recipient_organization.is_correspondent,
+        is_active=recipient_organization.is_active,
+    )
 
 
 def _portal_account_summary(profile):
@@ -2280,13 +2487,38 @@ class UiPortalOrdersView(APIView):
 
 
 class UiPortalRecipientsView(APIView):
-    permission_classes = [IsAssociationProfileUser]
+    permission_classes = [IsPortalScopeUser]
 
     def get(self, request):
-        profile = get_association_profile(request.user)
+        scope = request.portal_scope
+        if (
+            scope.role == PortalAccessRole.RECIPIENT_ADMIN
+            and scope.recipient_organization is not None
+        ):
+            recipient = _portal_runtime_recipient_row(scope.recipient_organization)
+            return Response(
+                {
+                    "mode": "recipient",
+                    "recipients": [recipient],
+                    "destinations": [
+                        {
+                            "id": scope.recipient_organization.destination_id,
+                            "label": str(scope.recipient_organization.destination),
+                        }
+                    ],
+                }
+            )
+
+        association_contact = _portal_shipper_contact_from_request(request)
+        if association_contact is None:
+            return api_error(
+                message="Acces portail expediteur indisponible.",
+                code="shipper_scope_required",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
         recipients = (
             AssociationRecipient.objects.filter(
-                association_contact=profile.contact,
+                association_contact=association_contact,
                 is_active=True,
             )
             .select_related("destination")
@@ -2306,7 +2538,21 @@ class UiPortalRecipientsView(APIView):
         )
 
     def post(self, request):
-        profile = get_association_profile(request.user)
+        scope = request.portal_scope
+        if scope.role != PortalAccessRole.SHIPPER_ADMIN:
+            return api_error(
+                message="Creation reservee au scope expediteur.",
+                code="shipper_scope_required",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
+
+        association_contact = _portal_shipper_contact_from_request(request)
+        if association_contact is None:
+            return api_error(
+                message="Acces portail expediteur indisponible.",
+                code="shipper_scope_required",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = UiPortalRecipientMutationSerializer(data=request.data)
         if not serializer.is_valid():
             return api_error(
@@ -2350,17 +2596,33 @@ class UiPortalRecipientsView(APIView):
                 },
             )
 
-        recipient_payload = _portal_recipient_payload(payload, destination)
-        recipient = AssociationRecipient.objects.create(
-            association_contact=profile.contact,
-            **recipient_payload,
+        result = update_recipient_shared_profile(
+            association_contact=association_contact,
+            destination=destination,
+            structure_name=(payload.get("structure_name") or "").strip(),
+            contact_title=(payload.get("contact_title") or "").strip(),
+            contact_last_name=(payload.get("contact_last_name") or "").strip(),
+            contact_first_name=(payload.get("contact_first_name") or "").strip(),
+            phones=(payload.get("phones") or "").strip(),
+            emails=(payload.get("emails") or "").strip(),
+            address_line1=(payload.get("address_line1") or "").strip(),
+            address_line2=(payload.get("address_line2") or "").strip(),
+            postal_code=(payload.get("postal_code") or "").strip(),
+            city=(payload.get("city") or "").strip(),
+            country=((payload.get("country") or "").strip() or PORTAL_DEFAULT_COUNTRY),
+            legal_form=(payload.get("legal_form") or "").strip(),
+            beneficiary_count=payload.get("beneficiary_count"),
+            notes=(payload.get("notes") or "").strip(),
+            notify_deliveries=bool(payload.get("notify_deliveries")),
+            is_delivery_contact=bool(payload.get("is_delivery_contact")),
+            persist_projection=True,
         )
-        sync_association_recipient_to_contact(recipient)
+        recipient = result.legacy_projection
         log_workflow_event(
             "ui_portal_recipient_created",
             user=request.user if request.user.is_authenticated else None,
             recipient_id=recipient.id,
-            association_contact_id=profile.contact_id,
+            association_contact_id=association_contact.id,
             destination_id=recipient.destination_id,
         )
         return Response(
@@ -2374,25 +2636,9 @@ class UiPortalRecipientsView(APIView):
 
 
 class UiPortalRecipientDetailView(APIView):
-    permission_classes = [IsAssociationProfileUser]
+    permission_classes = [IsPortalScopeUser]
 
     def patch(self, request, recipient_id):
-        profile = get_association_profile(request.user)
-        recipient = (
-            AssociationRecipient.objects.filter(
-                association_contact=profile.contact,
-                is_active=True,
-                pk=recipient_id,
-            )
-            .select_related("destination")
-            .first()
-        )
-        if recipient is None:
-            return api_error(
-                message="Destinataire introuvable.",
-                code="recipient_not_found",
-                http_status=status.HTTP_404_NOT_FOUND,
-            )
         serializer = UiPortalRecipientMutationSerializer(data=request.data)
         if not serializer.is_valid():
             return api_error(
@@ -2436,16 +2682,107 @@ class UiPortalRecipientDetailView(APIView):
                 },
             )
 
-        recipient_payload = _portal_recipient_payload(payload, destination)
-        for field_name, value in recipient_payload.items():
-            setattr(recipient, field_name, value)
-        recipient.save(update_fields=list(recipient_payload.keys()))
-        sync_association_recipient_to_contact(recipient)
+        scope = request.portal_scope
+        if (
+            scope.role == PortalAccessRole.RECIPIENT_ADMIN
+            and scope.recipient_organization is not None
+        ):
+            if scope.recipient_organization.id != recipient_id:
+                return api_error(
+                    message="Destinataire introuvable.",
+                    code="recipient_not_found",
+                    http_status=status.HTTP_404_NOT_FOUND,
+                )
+            result = _update_portal_runtime_recipient_from_payload(
+                recipient_organization=scope.recipient_organization,
+                payload=payload,
+            )
+            recipient_row = _portal_runtime_recipient_row(result.recipient_organization)
+            log_workflow_event(
+                "ui_portal_recipient_updated",
+                user=request.user if request.user.is_authenticated else None,
+                recipient_id=result.recipient_organization.id,
+                destination_id=result.recipient_organization.destination_id,
+            )
+            return Response(
+                {
+                    "ok": True,
+                    "message": "Destinataire modifie.",
+                    "recipient": recipient_row,
+                }
+            )
+
+        association_contact = _portal_shipper_contact_from_request(request)
+        if association_contact is None:
+            return api_error(
+                message="Acces portail expediteur indisponible.",
+                code="shipper_scope_required",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
+        recipient = (
+            AssociationRecipient.objects.filter(
+                association_contact=association_contact,
+                is_active=True,
+                pk=recipient_id,
+            )
+            .select_related("destination")
+            .first()
+        )
+        if recipient is None:
+            return api_error(
+                message="Destinataire introuvable.",
+                code="recipient_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        runtime_recipient_organization = None
+        if recipient.synced_contact_id and recipient.destination_id:
+            runtime_recipient_organization = ShipmentRecipientOrganization.objects.filter(
+                organization=recipient.synced_contact,
+                destination=recipient.destination,
+                is_active=True,
+            ).first()
+        if (
+            runtime_recipient_organization is not None
+            and PortalAccessGrant.objects.filter(
+                recipient_organization=runtime_recipient_organization,
+                role=PortalAccessRole.RECIPIENT_ADMIN,
+                is_active=True,
+            ).exists()
+        ):
+            return api_error(
+                message="Destinataire en lecture seule cote expediteur.",
+                code="recipient_read_only",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
+
+        result = update_recipient_shared_profile(
+            association_contact=association_contact,
+            destination=destination,
+            structure_name=(payload.get("structure_name") or "").strip(),
+            contact_title=(payload.get("contact_title") or "").strip(),
+            contact_last_name=(payload.get("contact_last_name") or "").strip(),
+            contact_first_name=(payload.get("contact_first_name") or "").strip(),
+            phones=(payload.get("phones") or "").strip(),
+            emails=(payload.get("emails") or "").strip(),
+            address_line1=(payload.get("address_line1") or "").strip(),
+            address_line2=(payload.get("address_line2") or "").strip(),
+            postal_code=(payload.get("postal_code") or "").strip(),
+            city=(payload.get("city") or "").strip(),
+            country=((payload.get("country") or "").strip() or PORTAL_DEFAULT_COUNTRY),
+            legal_form=(payload.get("legal_form") or "").strip(),
+            beneficiary_count=payload.get("beneficiary_count"),
+            notes=(payload.get("notes") or "").strip(),
+            notify_deliveries=bool(payload.get("notify_deliveries")),
+            is_delivery_contact=bool(payload.get("is_delivery_contact")),
+            persist_projection=True,
+            legacy_projection=recipient,
+        )
+        recipient = result.legacy_projection
         log_workflow_event(
             "ui_portal_recipient_updated",
             user=request.user if request.user.is_authenticated else None,
             recipient_id=recipient.id,
-            association_contact_id=profile.contact_id,
+            association_contact_id=association_contact.id,
             destination_id=recipient.destination_id,
         )
         return Response(
@@ -2532,13 +2869,27 @@ class UiPortalAccountView(APIView):
 
 
 class UiPortalDashboardView(APIView):
-    permission_classes = [IsAssociationProfileUser]
+    permission_classes = [IsPortalScopeUser]
 
     def get(self, request):
-        profile = get_association_profile(request.user)
+        scope = request.portal_scope
+        if (
+            scope.role == PortalAccessRole.RECIPIENT_ADMIN
+            and scope.recipient_organization is not None
+        ):
+            return Response(_portal_recipient_scope_dashboard_payload(scope.recipient_organization))
+
+        profile = _portal_profile_from_request(request)
+        if profile is None:
+            return api_error(
+                message="Acces portail expediteur indisponible.",
+                code="shipper_scope_required",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
         dashboard_payload = build_portal_dashboard_payload(profile=profile)
         return Response(
             {
+                "mode": "shipper",
                 "kpis": dashboard_payload["dashboard_kpis"],
                 "orders": dashboard_payload["order_rows"],
             }

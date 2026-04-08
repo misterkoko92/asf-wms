@@ -1,44 +1,166 @@
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
-from wms.application.parties.use_cases import sync_portal_recipient
-from wms.models import AssociationRecipient, Destination
+from wms.application.parties import use_cases
+from wms.models import (
+    AssociationRecipient,
+    Destination,
+    DocumentReviewStatus,
+    Product,
+    RecipientProductPreference,
+    RecipientProductPreferencePeriodUnit,
+    RecipientProductPreferenceSource,
+    RecipientProductPreferenceStatus,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
+)
 
 
 class PartiesUseCasesTests(TestCase):
-    def test_sync_portal_recipient_returns_structure_and_recipient_scope(self):
-        association = Contact.objects.create(
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="parties-use-cases-user",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        self.association = Contact.objects.create(
             name="Association V3",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        destination = Destination.objects.create(
+        self.correspondent = Contact.objects.create(
+            name="Correspondant V3",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.destination = Destination.objects.create(
             city="Bamako",
             iata_code="BKO",
             country="Mali",
             is_active=True,
-            correspondent_contact=Contact.objects.create(
-                name="Correspondant BKO",
-                contact_type=ContactType.ORGANIZATION,
-                is_active=True,
-            ),
+            correspondent_contact=self.correspondent,
         )
-        recipient = AssociationRecipient.objects.create(
-            association_contact=association,
-            destination=destination,
-            name="Hopital V3",
+        self.product = Product.objects.create(name="Gants V3")
+
+    def test_update_recipient_shared_profile_creates_runtime_and_legacy_projection(self):
+        result = use_cases.update_recipient_shared_profile(
+            association_contact=self.association,
+            destination=self.destination,
             structure_name="Hopital V3",
+            contact_first_name="Awa",
+            contact_last_name="Diallo",
             emails="hopital@example.org",
-            email="hopital@example.org",
             phones="+22370000000",
-            phone="+22370000000",
             address_line1="1 Rue V3",
             city="Bamako",
             country="Mali",
-            is_active=True,
+            legal_form="association",
+            beneficiary_count=42,
+            notes="Besoin urgent",
+            notify_deliveries=True,
+            is_delivery_contact=True,
+            persist_projection=True,
         )
 
-        result = sync_portal_recipient(recipient=recipient)
+        self.assertEqual(result.recipient_organization.destination, self.destination)
+        self.assertEqual(result.synced_contact.name, "Hopital V3")
+        self.assertEqual(result.shipment_contact.contact.email, "hopital@example.org")
+        self.assertIsNotNone(result.legacy_projection)
+        self.assertEqual(result.legacy_projection.synced_contact, result.synced_contact)
+        self.assertEqual(AssociationRecipient.objects.count(), 1)
 
-        self.assertIn("synced_contact_id", result)
-        self.assertIn("recipient_organization_id", result)
+    def test_save_recipient_product_preference_upserts_runtime_row(self):
+        shared_profile = use_cases.update_recipient_shared_profile(
+            association_contact=self.association,
+            destination=self.destination,
+            structure_name="Hopital Preferences",
+            emails="prefs@example.org",
+            phones="+22371111111",
+            address_line1="2 Rue Preferences",
+            city="Bamako",
+            country="Mali",
+            persist_projection=False,
+        )
+
+        first = use_cases.save_recipient_product_preference(
+            recipient_organization=shared_profile.recipient_organization,
+            product=self.product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=12,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            notes="Demande initiale",
+            source=RecipientProductPreferenceSource.PORTAL,
+            user=self.user,
+        )
+        second = use_cases.save_recipient_product_preference(
+            recipient_organization=shared_profile.recipient_organization,
+            product=self.product,
+            status=RecipientProductPreferenceStatus.ALLOWED,
+            quantity_target=18,
+            period_unit=RecipientProductPreferencePeriodUnit.MONTH,
+            notes="Validation scan",
+            source=RecipientProductPreferenceSource.SCAN_ADMIN,
+            user=self.user,
+        )
+
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(
+            RecipientProductPreference.objects.filter(
+                recipient_organization=shared_profile.recipient_organization,
+                product=self.product,
+            ).count(),
+            1,
+        )
+        second.refresh_from_db()
+        self.assertEqual(second.status, RecipientProductPreferenceStatus.ALLOWED)
+        self.assertEqual(second.quantity_target, 18)
+        self.assertEqual(second.period_unit, RecipientProductPreferencePeriodUnit.MONTH)
+        self.assertEqual(second.source, RecipientProductPreferenceSource.SCAN_ADMIN)
+
+    def test_upsert_recipient_structure_documents_replaces_same_type_document(self):
+        shared_profile = use_cases.update_recipient_shared_profile(
+            association_contact=self.association,
+            destination=self.destination,
+            structure_name="Hopital Documents",
+            emails="docs@example.org",
+            phones="+22372222222",
+            address_line1="3 Rue Documents",
+            city="Bamako",
+            country="Mali",
+            persist_projection=False,
+        )
+
+        first_documents = use_cases.upsert_recipient_structure_documents(
+            contact=shared_profile.synced_contact,
+            files_by_type={
+                RecipientStructureDocumentType.REGISTRATION_PROOF: SimpleUploadedFile(
+                    "proof-a.pdf",
+                    b"%PDF-1.7 first proof",
+                )
+            },
+            uploaded_by=self.user,
+        )
+        second_documents = use_cases.upsert_recipient_structure_documents(
+            contact=shared_profile.synced_contact,
+            files_by_type={
+                RecipientStructureDocumentType.REGISTRATION_PROOF: SimpleUploadedFile(
+                    "proof-b.pdf",
+                    b"%PDF-1.7 replacement proof",
+                )
+            },
+            uploaded_by=self.user,
+        )
+
+        self.assertEqual(len(first_documents), 1)
+        self.assertEqual(len(second_documents), 1)
+        self.assertEqual(first_documents[0].pk, second_documents[0].pk)
+        self.assertEqual(
+            RecipientStructureDocument.objects.filter(
+                contact=shared_profile.synced_contact,
+                doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            ).count(),
+            1,
+        )
+        second_documents[0].refresh_from_db()
+        self.assertEqual(second_documents[0].status, DocumentReviewStatus.PENDING)

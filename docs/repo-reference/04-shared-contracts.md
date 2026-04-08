@@ -236,6 +236,7 @@ Reference tests:
 Primary runtime sources:
 
 - `wms/views_portal_account.py`
+- `api/v1/ui_views.py`
 - `templates/portal/recipients.html`
 - `wms/models_domain/shipment_parties.py`
 - `wms/recipient_product_preferences.py`
@@ -245,6 +246,9 @@ Current contract:
 - the portal recipient edit flow at `/portal/recipients/?edit=<id>` exposes a dedicated
   `Préférences produits du destinataire` section backed by the synced
   `ShipmentRecipientOrganization` row for the same `(organization, destination)` scope
+- `GET /api/v1/ui/portal/recipients/` and `PATCH /api/v1/ui/portal/recipients/<id>/`
+  reuse the same shared runtime recipient scope instead of mutating `AssociationRecipient`
+  directly; a `recipient_admin` scope addresses the runtime `ShipmentRecipientOrganization.id`
 - portal users can create, edit, and delete recipient product preferences with native
   Bootstrap form controls on the same page as recipient editing; the form is anchored with
   `#recipient-product-preferences`
@@ -266,6 +270,8 @@ Maintenance rule:
 Reference tests:
 
 - `wms/tests/views/tests_views_portal.py`
+- `api/tests/tests_ui_endpoints.py`
+- `api/tests/tests_ui_e2e_workflows.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 
@@ -424,6 +430,7 @@ Primary runtime sources:
 - `wms/parties/selectors.py`
 - `wms/parties/invariants.py`
 - `wms/parties/sync.py`
+- `wms/parties/projections.py`
 - `wms/parties/merge.py`
 - `wms/application/parties/use_cases.py`
 - `wms/portal_recipient_sync.py`
@@ -435,17 +442,24 @@ Current V3.3 contract:
 - `wms/parties/selectors.py` is now the shared home for validated and active shipment-party selectors previously duplicated across registry and rules modules
 - `wms/parties/invariants.py` owns graph-level destination-scope checks that future sync and merge flows can reuse
 - `wms/parties/sync.py` now owns the portal-recipient sync orchestration and shipment-party contact resolution runtime
+- `wms/parties/projections.py` now owns legacy `AssociationRecipient` refresh logic when compatibility projections must follow canonical shipment-party writes
 - `wms/parties/merge.py` now owns the contact-graph and recipient-organization merge runtime used by scan admin and shipment-party cockpit adapters
 - `ShipmentRecipientOrganization` is now uniquely scoped by `(organization, destination)`; organization-only runtime assumptions are no longer a valid shared contract
 - portal recipient destination changes now keep the same synced structure contact when possible and create or reuse a destination-scoped recipient runtime row instead of forcing a second synced organization contact
-- `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync and recipient-contact resolution
+- `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync, shared recipient-profile writes, document upserts, recipient-product preference upserts, and recipient-contact resolution
+- shipper portal recipient create/update flows in `wms/views_portal_account.py` must route shared-profile writes through `wms/application/parties/use_cases.py`; direct `AssociationRecipient` mutation is no longer the shared contract
+- scan/admin recipient shared-field edits in `wms/admin_contacts_contact_service.py` must also route shared runtime writes through `wms/application/parties/use_cases.py::update_runtime_recipient_shared_profile(...)` instead of rebuilding shipment-party mutations inline
+- when an active `PortalAccessGrant` with role `recipient_admin` exists for the synced `ShipmentRecipientOrganization`, shipper portal recipient shared fields and product-preference edits become read-only and the HTML portal must surface that lock explicitly
 - `wms/portal_recipient_sync.py` remains a compatibility adapter and should not grow new orchestration logic again
 - `wms/admin_contacts_merge_service.py` remains a compatibility adapter and should not grow graph mutation logic again
 - `wms/scan_admin_contacts_cockpit.py` keeps forms and user-facing validation/messages, but delegates merge mutations to `wms/parties/merge.py`
+- scan/admin editing of an existing recipient/correspondent contact is an explicit overwrite of the current shared fields; merge-style “fill only missing fields” remains reserved for explicit duplicate-resolution actions
 
 Maintenance rule:
 
 - if a portal recipient sync change affects graph orchestration, destination reuse, or recipient-contact resolution, update `wms/parties/sync.py` or `wms/application/parties/use_cases.py` first, then keep compatibility wrappers thin
+- if a canonical shipment-party write still needs a legacy `AssociationRecipient`, route the compatibility refresh through `wms/parties/projections.py` instead of rebuilding portal projection logic in views or wrappers
+- if a scan/admin recipient edit must stay visible in shipper portal and recipient portal, keep the write in `wms/application/parties/use_cases.py` and let `wms/parties/projections.py` refresh compatibility rows instead of patching portal reads
 - if an admin contact merge or shipment-party cockpit merge changes graph mutation semantics, update `wms/parties/merge.py` first, then keep scan/admin wrappers thin
 - if a caller resolves or mutates `ShipmentRecipientOrganization`, prefer destination-aware helpers or explicit `(organization, destination)` filters over organization-only lookups
 - do not reintroduce validated/active selector duplication back into `wms/shipment_party_registry.py` or `wms/shipment_party_rules.py`
@@ -453,11 +467,14 @@ Maintenance rule:
 Reference tests:
 
 - `wms/tests/core/tests_parties_selectors.py`
+- `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/core/tests_parties_merge.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/core/tests_parties_use_cases.py`
+- `wms/tests/scan/tests_admin_contacts_contact_service.py`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+- `wms/tests/views/tests_views_scan_admin.py`
 
 ### Recipient Product Preference Contract
 
@@ -485,6 +502,7 @@ Current contract:
   as delivery evidence, and open assigned shipments as pipeline quantity
 - portal recipient detail and scan/admin recipient detail render the same canonical preference rows
   plus the same coverage summary semantics
+- if the synced recipient now has an active recipient portal grant, shipper-side portal preference controls become read-only on both the list edit surface and the recipient detail surface while scan/admin keeps the canonical maintenance path
 - scan shipment create/edit exposes per-carton compatibility metadata keyed by recipient runtime,
   blocks only explicit `refused` products, and records override rows when staff continues
 
@@ -707,15 +725,19 @@ Primary runtime sources:
 
 Current contract:
 
-- `wms/application/portal/dashboard_queries.py` is the shared composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
+- `wms/application/portal/dashboard_queries.py` owns both the shipper dashboard composition and the recipient-scope home composition for `/portal/`
+- `build_portal_dashboard_payload(profile=...)` remains the shared shipper composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
+- `build_recipient_scope_home_payload(recipient_organization=...)` feeds both the legacy recipient home rendered on `/portal/` and the recipient-scope branch of `GET /api/v1/ui/portal/dashboard/` when the active scope is `recipient_admin`
+- the portal UI API dashboard is now scope-aware and returns `mode="shipper"` or `mode="recipient"` so consumers can branch without re-deriving portal access rules
 - `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
 - portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
 - the HTML table and the UI API must stay aligned on the meaning of "next step" for pending review, correction, preparation, and tracked shipment states
 
 Maintenance rule:
 
-- if the association-facing dossier guidance changes, update the helper logic, the portal template, and the portal UI API in the same work
-- keep `wms/views_portal_orders.py` and `api/v1/ui_views.py` thin over `wms/application/portal/dashboard_queries.py`; do not let the two surfaces drift back to separate query composition during V3.1
+- if the shipper-facing dossier guidance changes, update the helper logic, the shipper portal template, and the portal UI API in the same work
+- if the recipient home fields, section anchors, or shell navigation change, update `wms/views_portal_orders.py`, `templates/portal/base.html`, `templates/portal/recipient_scope_home.html`, and the portal bootstrap/view tests in the same work
+- keep `wms/views_portal_orders.py` and `api/v1/ui_views.py` thin over `wms/application/portal/dashboard_queries.py`; do not let shipper composition drift back into duplicated query logic during V3.1
 - keep KPI naming stable while phase 1 stays local, so seed data and operator feedback can be compared across runs
 
 Reference tests:
@@ -970,7 +992,10 @@ Primary runtime sources:
 
 - `wms/models_domain/portal.py`
 - `wms/models_domain/shipment_parties.py`
+- `wms/portal_access.py`
 - `wms/portal_recipient_sync.py`
+- `wms/views_portal_auth.py`
+- `wms/portal_urls.py`
 - `wms/shipment_party_registry.py`
 - `wms/shipment_party_setup.py`
 - `wms/shipment_party_rules.py`
@@ -982,17 +1007,42 @@ Why it is shared:
 - portal recipient changes affect operational contacts
 - operational contacts affect shipment create/edit selectors
 - admin contact tools can repair or reshape the same graph
+- portal authentication and session scope selection now depend on the same shipper/recipient graph
 - permissions and default bindings rely on the same data chain
 - recipient structure compliance fields (`legal_form`, `beneficiary_count`) and uploaded structure documents now travel with the same graph
+
+Current auth scope contract:
+
+- `PortalAccessGrant` grants exactly one active scope per row: either a `ShipmentShipper` or a
+  `ShipmentRecipientOrganization`
+- `wms/portal_access.py` prefers explicit active grants and falls back to legacy
+  `AssociationProfile` scope resolution only when no explicit grant exists
+- portal login, password-set, and access-recovery eligibility accept either explicit grants or the
+  legacy profile fallback
+- when a portal user has exactly one scope, login auto-activates it in session; when a user has
+  multiple scopes, the session stays unbound until `/portal/scope-select/` resolves the active
+  scope
+- `/portal/` is now the first role-aware page: shipper scopes keep the order cockpit while
+  recipient scopes render a recipient home on the same shell
+- the remaining legacy pages guarded by `association_required` remain shipper-only, while the
+  recipient-specific maintenance contract now lives on the role-aware `/portal/` home and the
+  mirrored UI API endpoints under `/api/v1/ui/portal/*`
+- `python manage.py rebuild_recipient_party_graph --dry-run|--apply` is the compatibility repair
+  path for explicit shipper grants and stale `AssociationRecipient` projections when canonical
+  shipment-party runtime rows were merged or reshaped outside the portal adapters
 
 Maintenance rule:
 
 - never treat portal recipient edits as pure presentation changes
 - verify whether the change impacts synchronization, authorizations, default contacts, or scan selectors
+- keep `PortalAccessGrant`, legacy `AssociationProfile` fallback, `/portal/scope-select/`,
+  `portal_scope_required`, and `association_required` aligned in the same work while the portal is
+  still mid-transition
 - if recipient compliance fields or documents change, update portal creation/edit, synced `Contact`, `scan/contacts`, and admin merge/deduplication behavior together
 
 Reference tests:
 
+- `wms/tests/portal/tests_portal_access_grants.py`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 - `wms/tests/views/tests_views_scan_admin_shipment_parties.py`

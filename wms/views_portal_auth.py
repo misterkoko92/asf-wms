@@ -20,6 +20,13 @@ from django.views.decorators.http import require_http_methods
 from .auth_session import remember_me_requested
 from .client_ip import get_client_ip
 from .emailing import send_or_enqueue_email_safe
+from .models import PortalAccessRole
+from .portal_access import (
+    ACTIVE_PORTAL_SCOPE_SESSION_KEY,
+    PortalScope,
+    activate_portal_scope,
+    list_user_portal_scopes,
+)
 from .portal_helpers import get_association_profile
 from .view_permissions import association_required
 
@@ -27,12 +34,14 @@ TEMPLATE_LOGIN = "portal/login.html"
 TEMPLATE_SET_PASSWORD = "portal/set_password.html"  # nosec B105
 TEMPLATE_CHANGE_PASSWORD = "portal/change_password.html"  # nosec B105
 TEMPLATE_ACCESS_RECOVERY = "portal/access_recovery.html"
+TEMPLATE_SCOPE_SELECT = "portal/scope_select.html"
 
 ERROR_LOGIN_REQUIRED = _("Email et mot de passe requis.")
 ERROR_LOGIN_INVALID = _("Identifiants invalides.")
 ERROR_ACCOUNT_INACTIVE = _("Compte inactif.")
 ERROR_ACCOUNT_NOT_ACTIVE = _("Compte non activé par ASF.")
 ERROR_RECOVERY_EMAIL_REQUIRED = _("Email requis.")
+ERROR_SCOPE_REQUIRED = _("Choisissez un espace portail.")
 
 MESSAGE_PASSWORD_UPDATED = _("Mot de passe mis à jour.")  # nosec B105
 MESSAGE_RECOVERY_SUBMITTED = _(
@@ -48,6 +57,12 @@ RECOVERY_LEAD = _(
 RECOVERY_SUBMIT_LABEL = _("Recevoir le lien")
 RECOVERY_EMAIL_TEMPLATE = "emails/portal_forgot_password.txt"
 RECOVERY_EMAIL_SUBJECT = _("ASF WMS - Mot de passe oublié / Première connexion portail")
+SCOPE_SELECT_PAGE_TITLE = _("Choisir un accès portail")
+SCOPE_SELECT_HEADING = _("Choisissez votre espace")
+SCOPE_SELECT_LEAD = _(
+    "Sélectionnez l'espace portail que vous souhaitez utiliser pour cette session."
+)
+SCOPE_SELECT_SUBMIT_LABEL = _("Continuer")
 
 RECOVERY_THROTTLE_SECONDS_DEFAULT = 300
 
@@ -70,6 +85,19 @@ def _build_recovery_context(*, errors, email, success_message):
         "heading": RECOVERY_HEADING,
         "lead": RECOVERY_LEAD,
         "submit_label": RECOVERY_SUBMIT_LABEL,
+    }
+
+
+def _build_scope_select_context(*, errors, scope_choices, selected_scope_value, active_scope_value):
+    return {
+        "errors": errors,
+        "scope_choices": scope_choices,
+        "selected_scope_value": selected_scope_value,
+        "active_scope_value": active_scope_value,
+        "page_title": SCOPE_SELECT_PAGE_TITLE,
+        "heading": SCOPE_SELECT_HEADING,
+        "lead": SCOPE_SELECT_LEAD,
+        "submit_label": SCOPE_SELECT_SUBMIT_LABEL,
     }
 
 
@@ -143,8 +171,7 @@ def _resolve_recovery_user(*, email):
     if not user or not user.is_active:
         return None
 
-    profile = get_association_profile(user)
-    if not profile:
+    if not list_user_portal_scopes(user):
         return None
     return user
 
@@ -174,11 +201,76 @@ def _send_recovery_email(*, request, user, email):
     )
 
 
+def _scope_value(scope: PortalScope) -> str:
+    if scope.grant is not None:
+        return f"grant:{scope.grant.id}"
+    if scope.association_profile is not None:
+        return f"legacy:{scope.association_profile.id}"
+    return ""
+
+
+def _scope_label(scope: PortalScope) -> str:
+    if scope.shipper is not None:
+        return scope.shipper.organization.name or _("Expéditeur")
+    if scope.recipient_organization is not None:
+        organization_name = scope.recipient_organization.organization.name or _("Destinataire")
+        destination = scope.recipient_organization.destination
+        if destination and destination.city:
+            return f"{organization_name} ({destination.city})"
+        return organization_name
+    return _("Accès portail")
+
+
+def _scope_description(scope: PortalScope) -> str:
+    if scope.role == PortalAccessRole.SHIPPER_ADMIN:
+        return _("Espace expéditeur")
+    if scope.role == PortalAccessRole.RECIPIENT_ADMIN:
+        return _("Espace destinataire")
+    return _("Espace portail")
+
+
+def _build_scope_choices(scopes):
+    return [
+        {
+            "value": _scope_value(scope),
+            "label": _scope_label(scope),
+            "description": _scope_description(scope),
+        }
+        for scope in scopes
+    ]
+
+
+def _scope_from_submitted_value(scopes, submitted_value):
+    for scope in scopes:
+        if _scope_value(scope) == submitted_value:
+            return scope
+    return None
+
+
+def _redirect_for_portal_scope(request, *, scope, next_url=""):
+    activate_portal_scope(request, scope=scope)
+    if scope.association_profile and scope.association_profile.must_change_password:
+        return redirect("portal:portal_change_password")
+    if scope.role in {PortalAccessRole.SHIPPER_ADMIN, PortalAccessRole.RECIPIENT_ADMIN}:
+        return redirect(next_url or "portal:portal_dashboard")
+    return redirect(next_url or "portal:portal_dashboard")
+
+
+def _redirect_authenticated_portal_user(request, *, next_url=""):
+    scopes = list_user_portal_scopes(request.user)
+    if not scopes:
+        return None
+    if len(scopes) == 1:
+        return _redirect_for_portal_scope(request, scope=scopes[0], next_url=next_url)
+    request.session.pop(ACTIVE_PORTAL_SCOPE_SESSION_KEY, None)
+    return redirect("portal:portal_scope_select")
+
+
 def _portal_access_recovery(request):
     if request.user.is_authenticated:
-        profile = get_association_profile(request.user)
-        if profile:
-            return redirect("portal:portal_dashboard")
+        redirect_response = _redirect_authenticated_portal_user(request)
+        if redirect_response is not None:
+            return redirect_response
 
     errors = []
     email = ""
@@ -218,9 +310,9 @@ def _portal_access_recovery(request):
 @require_http_methods(["GET", "POST"])
 def portal_login(request):
     if request.user.is_authenticated:
-        profile = get_association_profile(request.user)
-        if profile:
-            return redirect("portal:portal_dashboard")
+        redirect_response = _redirect_authenticated_portal_user(request)
+        if redirect_response is not None:
+            return redirect_response
 
     errors = []
     identifier = ""
@@ -240,8 +332,8 @@ def portal_login(request):
             elif not user.is_active:
                 errors.append(ERROR_ACCOUNT_INACTIVE)
             else:
-                profile = get_association_profile(user)
-                if not profile:
+                scopes = list_user_portal_scopes(user)
+                if not scopes:
                     errors.append(ERROR_ACCOUNT_NOT_ACTIVE)
                     return render(
                         request,
@@ -254,9 +346,7 @@ def portal_login(request):
                         ),
                     )
                 login(request, user)
-                if profile and profile.must_change_password:
-                    return redirect("portal:portal_change_password")
-                return redirect(next_url or "portal:portal_dashboard")
+                return _redirect_authenticated_portal_user(request, next_url=next_url)
 
     return render(
         request,
@@ -281,6 +371,43 @@ def portal_logout(request):
     return redirect("portal:portal_login")
 
 
+@login_required(login_url="portal:portal_login")
+@require_http_methods(["GET", "POST"])
+def portal_scope_select(request):
+    scopes = list_user_portal_scopes(request.user)
+    if not scopes:
+        logout(request)
+        return redirect("portal:portal_login")
+
+    if request.method == "POST":
+        selected_scope_value = (request.POST.get("scope") or "").strip()
+        scope = _scope_from_submitted_value(scopes, selected_scope_value)
+        if scope is not None:
+            return _redirect_for_portal_scope(request, scope=scope)
+        errors = [ERROR_SCOPE_REQUIRED]
+    else:
+        selected_scope_value = ""
+        errors = []
+
+    active_scope_payload = request.session.get(ACTIVE_PORTAL_SCOPE_SESSION_KEY) or {}
+    active_scope_value = ""
+    if active_scope_payload.get("source") == "grant":
+        active_scope_value = f"grant:{active_scope_payload.get('grant_id')}"
+    elif active_scope_payload.get("source") == "legacy_association_profile":
+        active_scope_value = f"legacy:{active_scope_payload.get('association_profile_id')}"
+
+    return render(
+        request,
+        TEMPLATE_SCOPE_SELECT,
+        _build_scope_select_context(
+            errors=errors,
+            scope_choices=_build_scope_choices(scopes),
+            selected_scope_value=selected_scope_value,
+            active_scope_value=active_scope_value,
+        ),
+    )
+
+
 @require_http_methods(["GET", "POST"])
 def portal_set_password(request, uidb64, token):
     user = _get_user_from_uidb64(uidb64)
@@ -293,7 +420,10 @@ def portal_set_password(request, uidb64, token):
         form.save()
         _set_profile_password_changed(get_association_profile(user))
         login(request, user)
-        return redirect("portal:portal_dashboard")
+        redirect_response = _redirect_authenticated_portal_user(request)
+        if redirect_response is not None:
+            return redirect_response
+        return redirect("portal:portal_login")
 
     return render(request, TEMPLATE_SET_PASSWORD, {"form": form, "invalid": False})
 

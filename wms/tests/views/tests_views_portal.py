@@ -44,6 +44,8 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     OrderStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     Product,
     ProductCategory,
     ProductKitItem,
@@ -56,6 +58,7 @@ from wms.models import (
     RecipientStructureDocument,
     RecipientStructureDocumentType,
     Shipment,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
@@ -66,6 +69,7 @@ from wms.models import (
     ShipmentWorkflowProjection,
     Warehouse,
 )
+from wms.portal_access import ACTIVE_PORTAL_SCOPE_SESSION_KEY, PORTAL_SCOPE_SOURCE_GRANT
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.services import StockError
 from wms.shipment_party_setup import ensure_shipment_shipper
@@ -113,6 +117,45 @@ class PortalBaseTestCase(TestCase):
         )
         ensure_shipment_shipper(contact)
         return profile
+
+    @classmethod
+    def _create_shipper(cls, name="Shipper Scope"):
+        organization = cls._create_association_contact(name, with_address=True)
+        referent = Contact.objects.create(
+            name=f"Referent {name}",
+            first_name="Referent",
+            last_name=name,
+            contact_type=ContactType.PERSON,
+            organization=organization,
+            is_active=True,
+        )
+        return ShipmentShipper.objects.create(
+            organization=organization,
+            default_contact=referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+    @classmethod
+    def _create_recipient_organization(
+        cls,
+        *,
+        city="Paris",
+        country="France",
+        name="Recipient Scope",
+    ):
+        destination = cls._create_destination(city=city, country=country)
+        organization = Contact.objects.create(
+            name=name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        return ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
 
     @classmethod
     def _create_destination(cls, *, city="Paris", country="France"):
@@ -476,6 +519,133 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.change_password_url)
 
+    def test_portal_login_with_one_explicit_grant_activates_scope_and_redirects_directly(self):
+        user = self._create_portal_user("portal-auth-grant", "grant@example.com")
+        shipper = self._create_shipper(name="Grant Shipper")
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+
+        response = self.client.post(
+            self.login_url,
+            {"identifier": user.email, "password": "pass1234"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self.assertEqual(
+            self.client.session[ACTIVE_PORTAL_SCOPE_SESSION_KEY],
+            {
+                "source": PORTAL_SCOPE_SOURCE_GRANT,
+                "grant_id": grant.id,
+            },
+        )
+
+    def test_portal_login_with_one_explicit_recipient_grant_redirects_to_dashboard(self):
+        user = self._create_portal_user("portal-auth-recipient", "recipient@example.com")
+        recipient_organization = self._create_recipient_organization(name="Grant Recipient")
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        response = self.client.post(
+            self.login_url,
+            {"identifier": user.email, "password": "pass1234"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self.assertEqual(
+            self.client.session[ACTIVE_PORTAL_SCOPE_SESSION_KEY],
+            {
+                "source": PORTAL_SCOPE_SOURCE_GRANT,
+                "grant_id": grant.id,
+            },
+        )
+
+    def test_portal_login_with_multiple_grants_redirects_to_scope_selector(self):
+        user = self._create_portal_user("portal-auth-multi", "multi@example.com")
+        shipper = self._create_shipper(name="Multi Shipper")
+        recipient_organization = self._create_recipient_organization(name="Multi Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        response = self.client.post(
+            self.login_url,
+            {"identifier": user.email, "password": "pass1234"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/portal/scope-select/")
+        self.assertNotIn(ACTIVE_PORTAL_SCOPE_SESSION_KEY, self.client.session)
+
+    def test_portal_scope_select_get_lists_available_scopes(self):
+        user = self._create_portal_user("portal-auth-select", "select@example.com")
+        shipper = self._create_shipper(name="Select Shipper")
+        recipient_organization = self._create_recipient_organization(name="Select Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("portal:portal_scope_select"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select Shipper")
+        self.assertContains(response, "Select Recipient")
+        self.assertContains(response, "Espace expéditeur")
+        self.assertContains(response, "Espace destinataire")
+
+    def test_portal_scope_select_post_activates_selected_shipper_scope(self):
+        user = self._create_portal_user("portal-auth-choose", "choose@example.com")
+        shipper = self._create_shipper(name="Choose Shipper")
+        shipper_grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        recipient_organization = self._create_recipient_organization(name="Choose Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("portal:portal_scope_select"),
+            {"scope": f"grant:{shipper_grant.id}"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self.assertEqual(
+            self.client.session[ACTIVE_PORTAL_SCOPE_SESSION_KEY],
+            {
+                "source": PORTAL_SCOPE_SOURCE_GRANT,
+                "grant_id": shipper_grant.id,
+            },
+        )
+
     def test_portal_login_with_remember_me_keeps_persistent_session(self):
         user = self._create_portal_user("portal-auth-remember", "remember@example.com")
         self._create_profile(user)
@@ -796,6 +966,131 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             response.url,
             f"{reverse('portal:portal_recipients')}?blocked=missing_delivery_contact",
         )
+
+    def test_portal_order_create_denies_recipient_scope(self):
+        user = self._create_portal_user("portal-recipient-scope", "recipient-scope@example.com")
+        recipient_organization = self._create_recipient_organization(
+            city="Lyon",
+            name="Recipient Scope Only",
+        )
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_portal_dashboard_renders_recipient_scope_home_for_active_grant(self):
+        recipient_user = self._create_portal_user(
+            "portal-recipient-dashboard",
+            "recipient-dashboard@example.com",
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=self.delivery_recipient.synced_contact,
+            destination=self.destination,
+        )
+        grant = PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        recipient_contact = Contact.objects.create(
+            first_name="Aicha",
+            last_name="Traore",
+            email="aicha.traore@example.com",
+            phone="+223000001",
+            contact_type=ContactType.PERSON,
+            organization=recipient_organization.organization,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=recipient_contact,
+            is_active=True,
+        )
+        RecipientStructureDocument.objects.create(
+            contact=recipient_organization.organization,
+            doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            status=DocumentReviewStatus.APPROVED,
+            file=SimpleUploadedFile("recipient-proof.pdf", b"pdf"),
+            uploaded_by=self.user,
+        )
+        preference_product = Product.objects.create(name="Kit Hygiene Recipient")
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient_organization,
+            product=preference_product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=8,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        other_recipient = self._create_recipient_organization(
+            city="Lyon",
+            name="Other Recipient Scope",
+        )
+        other_contact = Contact.objects.create(
+            first_name="Nadia",
+            last_name="Diallo",
+            email="nadia.diallo@example.com",
+            contact_type=ContactType.PERSON,
+            organization=other_recipient.organization,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=other_recipient,
+            contact=other_contact,
+            is_active=True,
+        )
+        RecipientStructureDocument.objects.create(
+            contact=other_recipient.organization,
+            doc_type=RecipientStructureDocumentType.STATUTES,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("other-statutes.pdf", b"pdf"),
+            uploaded_by=self.user,
+        )
+        other_product = Product.objects.create(name="Kit Other Scope")
+        RecipientProductPreference.objects.create(
+            recipient_organization=other_recipient,
+            product=other_product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=3,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self.client.force_login(recipient_user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+
+        response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["recipient_organization"], recipient_organization)
+        self.assertContains(response, "Fiche destinataire")
+        self.assertContains(response, "Structure Test")
+        self.assertContains(response, "Aicha Traore")
+        self.assertContains(response, "Preuve d&#x27;enregistrement")
+        self.assertContains(response, "Kit Hygiene Recipient")
+        self.assertNotContains(response, "Other Recipient Scope")
+        self.assertNotContains(response, "Nadia Diallo")
+        self.assertNotContains(response, "Kit Other Scope")
 
     def test_portal_order_create_get_renders(self):
         with mock.patch(
@@ -2457,6 +2752,79 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             "pending",
         )
 
+    def test_portal_recipients_post_create_uses_canonical_shared_profile_use_case(self):
+        payload = self._build_recipient_payload(
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+        shared_contact = Contact.objects.create(
+            name="Structure Canonique",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipment_recipient = ShipmentRecipientOrganization.objects.create(
+            organization=shared_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        )
+        shipment_contact_person = Contact.objects.create(
+            name="Claire Martin",
+            first_name="Claire",
+            last_name="Martin",
+            organization=shared_contact,
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        shipper = ensure_shipment_shipper(self.profile.contact)
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            is_active=True,
+        )
+        mocked_result = SimpleNamespace(
+            synced_contact=shared_contact,
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            shipment_contact=shipment_contact_person,
+            link=link,
+            legacy_projection=None,
+        )
+
+        with (
+            mock.patch(
+                "wms.views_portal_account.update_recipient_shared_profile",
+                create=True,
+                return_value=mocked_result,
+            ) as update_shared_profile,
+            mock.patch(
+                "wms.views_portal_account.upsert_recipient_structure_documents",
+                create=True,
+                return_value=[],
+            ) as upsert_documents,
+        ):
+            response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipients_url)
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+        update_shared_profile.assert_called_once()
+        self.assertEqual(
+            update_shared_profile.call_args.kwargs["association_contact"],
+            self.profile.contact,
+        )
+        self.assertEqual(update_shared_profile.call_args.kwargs["destination"], self.destination)
+        self.assertEqual(
+            update_shared_profile.call_args.kwargs["structure_name"],
+            payload["structure_name"],
+        )
+        self.assertEqual(update_shared_profile.call_args.kwargs["beneficiary_count"], 120)
+        self.assertTrue(update_shared_profile.call_args.kwargs["persist_projection"])
+        upsert_documents.assert_called_once()
+        self.assertEqual(upsert_documents.call_args.kwargs["contact"], shared_contact)
+        self.assertTrue(upsert_documents.call_args.kwargs["queue_scan"])
+
     def test_portal_recipients_post_creates_structure_documents_and_queues_scan(self):
         payload = self._build_recipient_payload(
             legal_form="association",
@@ -2568,6 +2936,143 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertTrue(recipient.is_delivery_contact)
         self.assertIsNotNone(recipient.synced_contact_id)
         self.assertEqual(Contact.objects.filter(pk=recipient.synced_contact_id).count(), 1)
+
+    def test_portal_recipients_post_update_uses_canonical_shared_profile_use_case(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Before",
+            structure_name="Structure Before",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Before",
+            city="Paris",
+            country="France",
+            legal_form="association",
+            beneficiary_count=120,
+            is_active=True,
+        )
+        shared_contact = Contact.objects.create(
+            name="Structure Canonique Update",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipment_recipient = ShipmentRecipientOrganization.objects.create(
+            organization=shared_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        )
+        shipment_contact_person = Contact.objects.create(
+            name="Claire Martin",
+            first_name="Claire",
+            last_name="Martin",
+            organization=shared_contact,
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        shipper = ensure_shipment_shipper(self.profile.contact)
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            is_active=True,
+        )
+        mocked_result = SimpleNamespace(
+            synced_contact=shared_contact,
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            shipment_contact=shipment_contact_person,
+            link=link,
+            legacy_projection=recipient,
+        )
+
+        with mock.patch(
+            "wms.views_portal_account.update_recipient_shared_profile",
+            create=True,
+            return_value=mocked_result,
+        ) as update_shared_profile:
+            response = self.client.post(
+                self.recipients_url,
+                self._build_recipient_payload(
+                    action="update_recipient",
+                    recipient_id=str(recipient.id),
+                    destination_id=str(self.destination.id),
+                    structure_name="Structure After",
+                    contact_title="gen",
+                    contact_last_name="Martin",
+                    contact_first_name="Claire",
+                    emails="after@example.com",
+                    phones="+33123456789",
+                    address_line1="20 Rue After",
+                    address_line2="",
+                    postal_code="75003",
+                    city="Paris",
+                    country="France",
+                    legal_form="public_sector",
+                    beneficiary_count="250",
+                    notes="",
+                    notify_deliveries="1",
+                    is_delivery_contact="1",
+                ),
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipients_url)
+        update_shared_profile.assert_called_once()
+        self.assertEqual(update_shared_profile.call_args.kwargs["legacy_projection"], recipient)
+        self.assertEqual(update_shared_profile.call_args.kwargs["beneficiary_count"], 250)
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.structure_name, "Structure Before")
+        self.assertEqual(recipient.contact_title, "mr")
+        self.assertEqual(recipient.contact_last_name, "Durand")
+
+    def test_portal_recipients_post_update_becomes_read_only_when_recipient_grant_exists(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Shared Lock")
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        recipient_user = self._create_portal_user(
+            "recipient-shared-lock",
+            "recipient-shared-lock@example.com",
+        )
+        PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        response = self.client.post(
+            self.recipients_url,
+            self._build_recipient_payload(
+                action="update_recipient",
+                recipient_id=str(recipient.id),
+                destination_id=str(self.destination.id),
+                structure_name="Recipient Shared Updated",
+                contact_title="gen",
+                contact_last_name="Martin",
+                contact_first_name="Claire",
+                emails="after@example.com",
+                phones="+33123456789",
+                address_line1="20 Rue After",
+                address_line2="",
+                postal_code="75003",
+                city="Paris",
+                country="France",
+                legal_form="public_sector",
+                beneficiary_count="250",
+                notes="",
+                notify_deliveries="1",
+                is_delivery_contact="1",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "lecture seule")
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.structure_name, "Recipient Shared Lock")
+        self.assertEqual(recipient.contact_last_name, "")
 
     def test_portal_recipients_edit_shows_product_preferences_for_synced_recipient(self):
         recipient = AssociationRecipient.objects.create(

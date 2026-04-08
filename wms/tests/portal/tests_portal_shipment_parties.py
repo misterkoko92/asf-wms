@@ -16,6 +16,7 @@ from wms.models import (
     ShipmentValidationStatus,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
+from wms.shipment_party_setup import ensure_shipment_shipper
 
 
 class PortalShipmentPartyTests(TestCase):
@@ -44,6 +45,7 @@ class PortalShipmentPartyTests(TestCase):
             contact=self.association,
             must_change_password=False,
         )
+        ensure_shipment_shipper(self.association)
         self.client.force_login(self.user)
         self.recipients_url = reverse("portal:portal_recipients")
         self.order_create_url = reverse("portal:portal_order_create")
@@ -329,6 +331,67 @@ class PortalShipmentPartyTests(TestCase):
             ).count(),
             2,
         )
+
+    def test_portal_recipients_post_creates_shipper_link_for_runtime_recipient_organization(self):
+        shared_org = Contact.objects.create(
+            name="Hopital de Bamako",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ContactAddress.objects.create(
+            contact=shared_org,
+            address_line1="Adresse partagee",
+            city="Bamako",
+            country="Mali",
+            is_default=True,
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=shared_org,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            self.recipients_url,
+            {
+                "action": "create_recipient",
+                "destination_id": str(self.destination.id),
+                "structure_name": "Hopital de Bamako",
+                "contact_title": "dr",
+                "contact_last_name": "Martin",
+                "contact_first_name": "Claire",
+                "emails": "claire.martin@example.org",
+                "phones": "+22371111111",
+                "reuse_existing_structure": "1",
+                "address_line1": "Adresse locale",
+                "city": "Bamako",
+                "country": "Mali",
+                "legal_form": "association",
+                "beneficiary_count": "120",
+                "doc_registration_proof": SimpleUploadedFile(
+                    "registration-proof.pdf",
+                    b"%PDF-1.7 registration proof",
+                ),
+                "doc_statutes": SimpleUploadedFile(
+                    "statutes.pdf",
+                    b"%PDF-1.7 statutes",
+                ),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        portal_recipient = AssociationRecipient.objects.get(association_contact=self.association)
+        shipper = ShipmentShipper.objects.get(organization=self.association)
+        runtime_recipient_org = ShipmentRecipientOrganization.objects.get(
+            organization_id=portal_recipient.synced_contact_id,
+            destination=self.destination,
+        )
+        link = ShipmentShipperRecipientLink.objects.get(
+            shipper=shipper,
+            recipient_organization=runtime_recipient_org,
+        )
+        self.assertTrue(link.is_active)
 
     def test_portal_order_create_reads_allowed_destinations_from_shipment_parties(self):
         shared_org = Contact.objects.create(

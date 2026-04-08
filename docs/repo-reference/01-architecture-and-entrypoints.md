@@ -93,6 +93,7 @@ Practical rule:
 - Runtime modules: `wms/views_portal_auth.py`, `wms/views_portal_account.py`, `wms/views_portal_orders.py`, `wms/views_portal_billing.py`
 - Templates: `templates/portal/`
 - Static assets: `wms/static/portal/`
+- Auth/runtime note: `/portal/` is now active-scope based through `wms/portal_access.py`; the same shell can render a shipper cockpit or a recipient maintenance home depending on the active `PortalAccessGrant` or legacy fallback scope
 
 ### Volunteer
 
@@ -156,6 +157,8 @@ Important cross-cutting domain modules:
 - live V3.3 application entrypoint for portal shipment-party sync: `wms/application/parties/use_cases.py`
 - stable V3.3 package-root import surface for shipment-party orchestration:
   `wms/parties/__init__.py` and `wms/application/parties/__init__.py`
+- recipient graph reconciliation and compatibility rebuild tooling now live in
+  `wms/parties/rebuild.py` and `wms/management/commands/rebuild_recipient_party_graph.py`
 - `ShipmentRecipientOrganization` is now scoped by `(organization, destination)` rather than by organization globally, so destination-aware lookups are the default contract for portal and admin shipment-party flows
 - canonical recipient product preferences now live on `RecipientProductPreference`, still scoped by `ShipmentRecipientOrganization`; effective resolution order is `product -> most specific category -> unspecified`, and category-level `refused` is intentionally invalid
 - warehouse `run magasin` is a separate domain from `planning vols`; preparation proposals, snapshots, reservations, and scoring live under `wms/models_domain/preparation.py` and `wms/preparation/*` instead of extending `wms/models_domain/planning.py`

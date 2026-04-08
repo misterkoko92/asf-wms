@@ -32,6 +32,7 @@ Fallback if `uv` is blocked locally:
 - [ ] Confirm `INTEGRATION_API_KEY` for integration endpoints.
 - [ ] Run `python manage.py check_planning_pdf_runtime` and confirm `backend=excel_desktop`, `status=ready`.
 - [ ] Confirm backup available (SQLite file or MySQL dump).
+- [ ] If portal/contact/shipment-party scope changed, run `python manage.py rebuild_recipient_party_graph --dry-run` and review the reported grant/projection repair summary before deploy.
 - [ ] If scan frontend assets changed (`wms/static/scan/scan.js`, `wms/static/scan/scan.css`, manifest/icon), bump `CACHE_NAME` in `wms/views_scan_misc.py` (`wms-scan-vNN`).
 
 ## C) Deploy
@@ -57,7 +58,7 @@ Notes:
 - [ ] Always-on smoke: validate one shipment tracking or close action on an existing shipment.
 - [ ] Conditional smoke: if dashboard scope changed, validate one `Blocages workflow` row opens the expected dossier and claim/release works once.
 - [ ] Conditional smoke: if pilotage/settings scope changed, validate `/scan/settings/`, `/scan/dashboard/`, and `/scan/pilotage/` all expose `Seuils actifs`, the expected active preset label, and coherent planning thresholds.
-- [ ] Conditional smoke: if portal scope changed, validate portal login plus one nominal order or recipient update flow.
+- [ ] Conditional smoke: if portal scope changed, validate portal login plus one nominal shipper flow; if a `recipient_admin` grant is enabled in the target environment, also validate `/portal/` in recipient scope plus one recipient shared-data update.
 - [ ] Conditional smoke: if planning scope changed, validate run-list attention cards, one run input preparation path (`api`/`hybrid`) with either retained flights or an explicit `flight_import_failed` issue, cockpit access on an existing run/version, `Runtime PDF`, and strict `Planning.pdf` / `Planning.xlsx` artifact visibility, regeneration, or download if applicable.
 - [ ] Conditional smoke: if planning scope changed, validate one internal planning helper payload is blocked when no ready PDF exists and unblocked after a successful PDF export.
 - [ ] Conditional smoke: if billing scope changed, validate one nominal billing preview/export or payment/correction flow.

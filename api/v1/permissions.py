@@ -1,6 +1,7 @@
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 
+from wms.portal_access import resolve_active_portal_scope
 from wms.portal_helpers import get_association_profile
 
 
@@ -39,3 +40,14 @@ class IsAssociationProfileUser(IsAuthenticated):
         if not super().has_permission(request, view):
             return False
         return get_association_profile(request.user) is not None
+
+
+class IsPortalScopeUser(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        scope = resolve_active_portal_scope(request)
+        if scope is None:
+            return False
+        request.portal_scope = scope
+        return True

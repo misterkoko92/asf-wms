@@ -12,6 +12,10 @@ from rest_framework.test import APIClient
 
 from contacts.capabilities import ContactCapabilityType
 from contacts.models import Contact, ContactType
+from wms.application.parties.use_cases import (
+    update_recipient_shared_profile,
+    update_runtime_recipient_shared_profile,
+)
 from wms.application.portal.dashboard_queries import build_portal_dashboard_payload
 from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.models import (
@@ -35,6 +39,8 @@ from wms.models import (
     OpsPilotageSnapshot,
     Order,
     OrderReviewStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     PrintTemplate,
     PrintTemplateVersion,
     Product,
@@ -90,6 +96,10 @@ class UiApiEndpointsTests(TestCase):
         )
         cls.portal_user = user_model.objects.create_user(
             username="ui-api-portal",
+            password="pass1234",
+        )
+        cls.recipient_scope_user = user_model.objects.create_user(
+            username="ui-api-recipient-scope",
             password="pass1234",
         )
         cls.superuser_user = user_model.objects.create_user(
@@ -283,6 +293,11 @@ class UiApiEndpointsTests(TestCase):
         ShipmentRecipientOrganization.objects.filter(
             organization=cls.portal_recipient.synced_contact,
         ).update(validation_status=ShipmentValidationStatus.VALIDATED)
+        PortalAccessGrant.objects.create(
+            user=cls.recipient_scope_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=cls.shipment_recipient_organization,
+        )
 
     def setUp(self):
         self.staff_client = APIClient()
@@ -291,6 +306,8 @@ class UiApiEndpointsTests(TestCase):
         self.basic_client.force_authenticate(self.basic_user)
         self.portal_client = APIClient()
         self.portal_client.force_authenticate(self.portal_user)
+        self.recipient_scope_client = APIClient()
+        self.recipient_scope_client.force_authenticate(self.recipient_scope_user)
         self.superuser_client = APIClient()
         self.superuser_client.force_authenticate(self.superuser_user)
         self.role_clients = {
@@ -2161,6 +2178,21 @@ class UiApiEndpointsTests(TestCase):
         self.assertIn("orders", payload)
         self.assertEqual(payload["orders"][0]["id"], self.portal_order.id)
 
+    def test_ui_portal_dashboard_returns_recipient_scope_payload_for_active_grant(self):
+        response = self.recipient_scope_client.get("/api/v1/ui/portal/dashboard/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["mode"], "recipient")
+        self.assertEqual(
+            payload["recipient"]["recipient_organization_id"],
+            self.shipment_recipient_organization.id,
+        )
+        self.assertEqual(
+            payload["recipient"]["structure_name"],
+            self.recipient_contact.name,
+        )
+
     def test_ui_portal_dashboard_exposes_step_guidance_and_summary_counts(self):
         portal_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,
@@ -2604,6 +2636,64 @@ class UiApiEndpointsTests(TestCase):
             patch_response.json()["recipient"]["structure_name"],
             "New Structure Updated",
         )
+
+    def test_ui_portal_recipients_post_uses_shared_profile_use_case(self):
+        with mock.patch(
+            "api.v1.ui_views.update_recipient_shared_profile",
+            create=True,
+            wraps=update_recipient_shared_profile,
+        ) as update_shared_profile:
+            response = self.portal_client.post(
+                "/api/v1/ui/portal/recipients/",
+                {
+                    "destination_id": self.destination.id,
+                    "structure_name": "Canonical API Structure",
+                    "contact_title": AssociationContactTitle.MR,
+                    "contact_last_name": "Martin",
+                    "contact_first_name": "Luc",
+                    "phones": "0100000000",
+                    "emails": "luc.martin@example.org",
+                    "address_line1": "2 Rue Test",
+                    "postal_code": "75002",
+                    "city": "Paris",
+                    "country": "France",
+                    "notify_deliveries": True,
+                    "is_delivery_contact": True,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 201)
+        update_shared_profile.assert_called_once()
+
+    def test_ui_portal_recipient_patch_uses_active_recipient_scope(self):
+        with mock.patch(
+            "api.v1.ui_views.update_runtime_recipient_shared_profile",
+            create=True,
+            wraps=update_runtime_recipient_shared_profile,
+        ) as update_runtime_profile:
+            response = self.recipient_scope_client.patch(
+                f"/api/v1/ui/portal/recipients/{self.shipment_recipient_organization.id}/",
+                {
+                    "destination_id": self.destination.id,
+                    "structure_name": "UI Recipient Updated",
+                    "contact_title": AssociationContactTitle.MRS,
+                    "contact_last_name": "Diallo",
+                    "contact_first_name": "Aicha",
+                    "phones": "0100000001",
+                    "emails": "aicha.diallo@example.org",
+                    "address_line1": "3 Rue Test",
+                    "postal_code": "75003",
+                    "city": "Paris",
+                    "country": "France",
+                    "notify_deliveries": False,
+                    "is_delivery_contact": False,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        update_runtime_profile.assert_called_once()
 
     def test_ui_portal_account_patch_updates_profile(self):
         response = self.portal_client.patch(

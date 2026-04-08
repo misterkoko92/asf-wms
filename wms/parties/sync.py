@@ -68,7 +68,12 @@ def _recipient_person_name(recipient, *, primary_email: str) -> str:
 
 
 def get_synced_contact(recipient):
-    if not recipient.pk or not recipient.synced_contact_id:
+    if recipient is None:
+        return None
+    synced_contact = getattr(recipient, "synced_contact", None)
+    if synced_contact is not None:
+        return synced_contact
+    if not getattr(recipient, "synced_contact_id", None):
         return None
     return Contact.objects.filter(pk=recipient.synced_contact_id).first()
 
@@ -203,7 +208,8 @@ def _upsert_recipient_structure_contact(
     )
     if recipient.synced_contact_id != contact.id:
         recipient.synced_contact = contact
-        recipient.save(update_fields=["synced_contact"])
+        if getattr(recipient, "pk", None):
+            recipient.save(update_fields=["synced_contact"])
     return contact
 
 

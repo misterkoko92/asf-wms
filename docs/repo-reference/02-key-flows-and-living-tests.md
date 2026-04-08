@@ -147,6 +147,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 ### Main runtime files
 
 - `wms/views_portal_auth.py`
+- `wms/portal_access.py`
 - `wms/views_portal_account.py`
 - `wms/views_portal_orders.py`
 - `wms/views_portal_billing.py`
@@ -154,6 +155,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/application/parties/use_cases.py`
 - `wms/portal_order_handlers.py`
 - `wms/portal_recipient_sync.py`
+- `wms/parties/projections.py`
 - `wms/parties/selectors.py`
 - `wms/parties/sync.py`
 - `wms/view_permissions.py`
@@ -168,10 +170,20 @@ If you change shipment sequencing, status rules, document-first creation behavio
 ### What the flow covers
 
 - association authentication and account maintenance
-- portal dashboard cockpit KPIs and per-order next-step guidance
+- portal access resolution from explicit `PortalAccessGrant` rows with fallback to legacy `AssociationProfile`
+- single-scope portal activation in session, with `/portal/scope-select/` as the explicit chooser when a user has multiple portal scopes
+- `/portal/` now branches on the active scope: shipper scopes keep the order cockpit, recipient scopes land on a recipient home showing shared structure data, recipient contacts, structure documents, and explicit product preferences for exactly one `ShipmentRecipientOrganization`
+- legacy shipper pages outside `/portal/` remain guarded by the active portal scope in `wms/view_permissions.py`
+- portal shell navigation now adapts to the active scope, keeping shipper order/billing/recipient links unchanged while recipient scopes expose in-page anchors for identity, contacts, documents, and preferences
+- shipper portal dashboard cockpit KPIs and per-order next-step guidance
 - recipient list/detail/create/update
 - recipient product preference editing from both portal recipient detail and scan admin recipient cockpit
-- synchronization from `AssociationRecipient` to operational contact structures
+- canonical recipient shared-profile writes, document upserts, and product-preference upserts through `wms/application/parties/use_cases.py`
+- shipper portal recipient create/update now write the canonical shipment-party graph first and only refresh `AssociationRecipient` as a compatibility projection
+- scan/admin recipient shared-field edits from `scan/contacts` now also route through the same application use-case layer and refresh any matching legacy `AssociationRecipient` projections before portal shipper views re-read them
+- `python manage.py rebuild_recipient_party_graph --dry-run|--apply` is the deterministic repair path when explicit shipper grants or legacy `AssociationRecipient` projections must be rebuilt from the canonical shipment-party runtime
+- once a `PortalAccessGrant(recipient_admin)` exists for the synced `ShipmentRecipientOrganization`, shipper-side recipient maintenance becomes read-only on both `/portal/recipients/?edit=<id>` and `/portal/recipients/<id>/`
+- synchronization from `AssociationRecipient` compatibility projections to operational contact structures
 - shipper/recipient authorization chain
 - order creation from portal
 - downstream readiness for shipment creation
@@ -182,11 +194,17 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_portal_workflow_recipients_account_and_order`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+- `wms/tests/portal/tests_portal_access_grants.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
+- `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
+- `wms/tests/scan/tests_admin_contacts_contact_service.py`
+- `wms/tests/management/tests_management_rebuild_recipient_party_graph.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_views_scan_admin.py`
+- `wms/tests/views/tests_views_scan_admin_shipment_parties.py`
 - `api/tests/tests_ui_endpoints.py`
 
 ### Docs that must stay aligned
@@ -207,6 +225,9 @@ When a recipient structure can now exist on multiple destinations, avoid organiz
 Recipient management routes now include both the lightweight list at `/portal/recipients/` and
 the recipient cockpit detail at `/portal/recipients/<id>/`, so permission guards and
 portal-side navigation should treat both as part of the same maintenance surface.
+The same maintenance surface now has UI API mirrors at `/api/v1/ui/portal/dashboard/`,
+`/api/v1/ui/portal/recipients/`, and `/api/v1/ui/portal/recipients/<id>/`; scope-aware
+recipient changes must stay aligned across HTML and UI API.
 
 ## 3. Orders: Public / Portal / Admin Side Effects
 

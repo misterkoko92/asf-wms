@@ -39,19 +39,44 @@
               <img src="{% static 'scan/logo.jpg' %}" alt="" class="portal-brand-mark">
               <span class="portal-brand-copy">
                 <span class="portal-brand-eyebrow">Aviation Sans Frontières</span>
-                <span class="portal-brand-title">{% trans "Portail association" %}</span>
+                <span class="portal-brand-title">
+                  {% if request.portal_scope.role == "recipient_admin" %}
+                    {% trans "Portail destinataire" %}
+                  {% else %}
+                    {% trans "Portail association" %}
+                  {% endif %}
+                </span>
               </span>
             </a>
           </div>
           <div id="portal-masthead-utility" class="portal-masthead-utility ui-comp-actions" aria-label="{% trans "Navigation utilitaire portail" %}">
             {% include "includes/history_nav_buttons.html" with history_nav_prefix="portal" %}
-            <a
-              id="portal-account-link"
-              class="portal-utility-link{% if current == 'portal_account' %} is-active{% endif %}"
-              href="{% url 'portal:portal_account' %}"
-            >
-              {% trans "Compte" %}
-            </a>
+            {% if request.portal_scope_count|default:0 > 1 %}
+              <a
+                id="portal-scope-select-link"
+                class="portal-utility-link{% if current == 'portal_scope_select' %} is-active{% endif %}"
+                href="{% url 'portal:portal_scope_select' %}"
+              >
+                {% trans "Changer d'espace" %}
+              </a>
+            {% endif %}
+            {% if request.portal_scope.role == "shipper_admin" %}
+              <a
+                id="portal-account-link"
+                class="portal-utility-link{% if current == 'portal_account' %} is-active{% endif %}"
+                href="{% url 'portal:portal_account' %}"
+              >
+                {% trans "Compte" %}
+              </a>
+            {% elif request.portal_scope.role == "recipient_admin" %}
+              <a
+                id="portal-recipient-home-link"
+                class="portal-utility-link{% if current == 'portal_dashboard' %} is-active{% endif %}"
+                href="{% url 'portal:portal_dashboard' %}"
+              >
+                {% trans "Fiche" %}
+              </a>
+            {% endif %}
             <a
               id="portal-logout-link"
               class="portal-utility-link"
@@ -62,38 +87,58 @@
           </div>
         </div>
         <div class="portal-masthead-bottom d-none d-lg-flex">
-          <a
-            id="portal-order-create-cta"
-            class="btn btn-primary btn-sm portal-order-create-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
-            href="{% url 'portal:portal_order_create' %}"
-          >
-            {% trans "Nouvelle commande" %}
-          </a>
+          {% if request.portal_scope.role == "shipper_admin" %}
+            <a
+              id="portal-order-create-cta"
+              class="btn btn-primary btn-sm portal-order-create-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
+              href="{% url 'portal:portal_order_create' %}"
+            >
+              {% trans "Nouvelle commande" %}
+            </a>
+          {% endif %}
           <nav id="portal-primary-nav" class="portal-primary-nav" aria-label="{% trans "Navigation principale du portail" %}">
-            <a
-              class="portal-primary-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
-              href="{% url 'portal:portal_dashboard' %}"
-            >
-              {% trans "Commandes" %}
-            </a>
-            <a
-              class="portal-primary-link{% if current == 'portal_billing' or current == 'portal_billing_detail' %} is-active{% endif %}"
-              href="{% url 'portal:portal_billing' %}"
-            >
-              {% trans "Facturation" %}
-            </a>
-            <a
-              class="portal-primary-link{% if current == 'portal_recipients' %} is-active{% endif %}"
-              href="{% url 'portal:portal_recipients' %}"
-            >
-              {% trans "Destinataires" %}
-            </a>
-            <a
-              class="portal-primary-link{% if current == 'portal_account' %} is-active{% endif %}"
-              href="{% url 'portal:portal_account' %}"
-            >
-              {% trans "Compte" %}
-            </a>
+            {% if request.portal_scope.role == "recipient_admin" %}
+              <a
+                class="portal-primary-link{% if current == 'portal_dashboard' %} is-active{% endif %}"
+                href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-identity"
+              >
+                {% trans "Identité" %}
+              </a>
+              <a class="portal-primary-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-contacts">
+                {% trans "Contacts" %}
+              </a>
+              <a class="portal-primary-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-documents">
+                {% trans "Documents" %}
+              </a>
+              <a class="portal-primary-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-preferences">
+                {% trans "Préférences" %}
+              </a>
+            {% else %}
+              <a
+                class="portal-primary-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
+                href="{% url 'portal:portal_dashboard' %}"
+              >
+                {% trans "Commandes" %}
+              </a>
+              <a
+                class="portal-primary-link{% if current == 'portal_billing' or current == 'portal_billing_detail' %} is-active{% endif %}"
+                href="{% url 'portal:portal_billing' %}"
+              >
+                {% trans "Facturation" %}
+              </a>
+              <a
+                class="portal-primary-link{% if current == 'portal_recipients' %} is-active{% endif %}"
+                href="{% url 'portal:portal_recipients' %}"
+              >
+                {% trans "Destinataires" %}
+              </a>
+              <a
+                class="portal-primary-link{% if current == 'portal_account' %} is-active{% endif %}"
+                href="{% url 'portal:portal_account' %}"
+              >
+                {% trans "Compte" %}
+              </a>
+            {% endif %}
           </nav>
         </div>
       </header>
@@ -110,37 +155,57 @@
         </div>
         <div class="offcanvas-body">
           <nav class="portal-offcanvas-nav" aria-label="{% trans "Navigation mobile du portail" %}">
-            <a
-              class="portal-offcanvas-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
-              href="{% url 'portal:portal_dashboard' %}"
-            >
-              {% trans "Commandes" %}
-            </a>
-            <a
-              class="portal-offcanvas-link{% if current == 'portal_billing' or current == 'portal_billing_detail' %} is-active{% endif %}"
-              href="{% url 'portal:portal_billing' %}"
-            >
-              {% trans "Facturation" %}
-            </a>
-            <a
-              class="portal-offcanvas-link{% if current == 'portal_recipients' %} is-active{% endif %}"
-              href="{% url 'portal:portal_recipients' %}"
-            >
-              {% trans "Destinataires" %}
-            </a>
-            <a
-              class="portal-offcanvas-link{% if current == 'portal_account' %} is-active{% endif %}"
-              href="{% url 'portal:portal_account' %}"
-            >
-              {% trans "Compte" %}
-            </a>
+            {% if request.portal_scope.role == "recipient_admin" %}
+              <a
+                class="portal-offcanvas-link{% if current == 'portal_dashboard' %} is-active{% endif %}"
+                href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-identity"
+              >
+                {% trans "Identité" %}
+              </a>
+              <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-contacts">
+                {% trans "Contacts" %}
+              </a>
+              <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-documents">
+                {% trans "Documents" %}
+              </a>
+              <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-preferences">
+                {% trans "Préférences" %}
+              </a>
+            {% else %}
+              <a
+                class="portal-offcanvas-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
+                href="{% url 'portal:portal_dashboard' %}"
+              >
+                {% trans "Commandes" %}
+              </a>
+              <a
+                class="portal-offcanvas-link{% if current == 'portal_billing' or current == 'portal_billing_detail' %} is-active{% endif %}"
+                href="{% url 'portal:portal_billing' %}"
+              >
+                {% trans "Facturation" %}
+              </a>
+              <a
+                class="portal-offcanvas-link{% if current == 'portal_recipients' %} is-active{% endif %}"
+                href="{% url 'portal:portal_recipients' %}"
+              >
+                {% trans "Destinataires" %}
+              </a>
+              <a
+                class="portal-offcanvas-link{% if current == 'portal_account' %} is-active{% endif %}"
+                href="{% url 'portal:portal_account' %}"
+              >
+                {% trans "Compte" %}
+              </a>
+            {% endif %}
           </nav>
-          <a
-            class="btn btn-primary portal-offcanvas-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
-            href="{% url 'portal:portal_order_create' %}"
-          >
-            {% trans "Nouvelle commande" %}
-          </a>
+          {% if request.portal_scope.role == "shipper_admin" %}
+            <a
+              class="btn btn-primary portal-offcanvas-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
+              href="{% url 'portal:portal_order_create' %}"
+            >
+              {% trans "Nouvelle commande" %}
+            </a>
+          {% endif %}
         </div>
       </div>
 

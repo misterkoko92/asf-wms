@@ -10,11 +10,13 @@ from wms.models import (
     Destination,
     DocumentReviewStatus,
     ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
 )
+from wms.parties import projections
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
@@ -259,3 +261,78 @@ class PortalRecipientSyncTests(TestCase):
             active_defaults.first().recipient_contact.contact.email,
             "lucie.martin@example.org",
         )
+
+    def test_refresh_legacy_projection_updates_existing_association_recipient(self):
+        organization = Contact.objects.create(
+            name="Projection Runtime",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+            legal_form="association",
+            beneficiary_count=95,
+            email="projection-runtime@example.org",
+            phone="+22501020304",
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=self.destination_b,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        contact = Contact.objects.create(
+            name="Projection Referent",
+            first_name="Mariame",
+            last_name="Keita",
+            contact_type=ContactType.PERSON,
+            organization=organization,
+            email="projection-runtime@example.org",
+            phone="+22501020304",
+            is_active=True,
+        )
+        shipment_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=contact,
+            is_active=True,
+        )
+        projection = AssociationRecipient.objects.create(
+            association_contact=self.association,
+            destination=self.destination_a,
+            name="Ancienne Projection",
+            structure_name="Ancienne Projection",
+            emails="old@example.org",
+            email="old@example.org",
+            address_line1="1 Rue Ancienne",
+            city="Brazzaville",
+            country="Rep. du Congo",
+            is_active=True,
+        )
+
+        refreshed = projections.refresh_legacy_association_recipient_projection(
+            projection=projection,
+            association_contact=self.association,
+            synced_contact=organization,
+            recipient_organization=recipient_organization,
+            shipment_contact=shipment_contact,
+            structure_name="Projection Runtime",
+            contact_first_name="Mariame",
+            contact_last_name="Keita",
+            emails="projection-runtime@example.org",
+            phones="+22501020304",
+            address_line1="4 Rue Projection",
+            city="Abidjan",
+            country="Cote d'Ivoire",
+            legal_form="association",
+            beneficiary_count=95,
+            notes="Projection mise a jour",
+            notify_deliveries=True,
+            is_delivery_contact=True,
+            is_active=True,
+        )
+
+        self.assertEqual(refreshed.pk, projection.pk)
+        self.assertEqual(refreshed.destination, self.destination_b)
+        self.assertEqual(refreshed.synced_contact, organization)
+        self.assertEqual(refreshed.structure_name, "Projection Runtime")
+        self.assertEqual(refreshed.contact_first_name, "Mariame")
+        self.assertEqual(refreshed.contact_last_name, "Keita")
+        self.assertEqual(refreshed.legal_form, "association")
+        self.assertEqual(refreshed.beneficiary_count, 95)
