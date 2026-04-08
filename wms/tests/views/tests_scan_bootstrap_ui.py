@@ -842,6 +842,22 @@ class ScanBootstrapUiTests(TestCase):
             css_content,
         )
 
+    def test_scan_shell_css_restores_page_scroll_on_mobile(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "@media (max-width: 992px) {\n"
+            "  .scan-bootstrap-enabled body,\n"
+            "  body.scan-bootstrap-enabled {\n"
+            "    height: auto;\n"
+            "    min-height: 100dvh;\n"
+            "    overflow-y: auto;\n"
+            "    overflow-x: hidden;\n"
+            "  }",
+            css_content,
+        )
+
     def test_scan_prepare_kits_uses_full_width_top_panel_contract(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
         css_content = css_path.read_text(encoding="utf-8")
