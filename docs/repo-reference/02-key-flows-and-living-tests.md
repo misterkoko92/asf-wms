@@ -155,6 +155,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/application/parties/use_cases.py`
 - `wms/portal_order_handlers.py`
 - `wms/portal_recipient_sync.py`
+- `wms/parties/projections.py`
 - `wms/parties/selectors.py`
 - `wms/parties/sync.py`
 - `wms/view_permissions.py`
@@ -175,7 +176,8 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - portal dashboard cockpit KPIs and per-order next-step guidance
 - recipient list/detail/create/update
 - recipient product preference editing from both portal recipient detail and scan admin recipient cockpit
-- synchronization from `AssociationRecipient` to operational contact structures
+- canonical recipient shared-profile writes, document upserts, and product-preference upserts through `wms/application/parties/use_cases.py`
+- synchronization from `AssociationRecipient` compatibility projections to operational contact structures
 - shipper/recipient authorization chain
 - order creation from portal
 - downstream readiness for shipment creation
@@ -188,6 +190,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 - `wms/tests/portal/tests_portal_access_grants.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
+- `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
