@@ -49,8 +49,9 @@
     </form>
   </div>
   {{ products_json|json_script:"product-data" }}
+  <div id="scan-product-picker-config" data-picker-mode="{{ product_picker_mode }}" hidden></div>
   <datalist id="product-options">
-    {% for product in products_json %}
+    {% for product in products_json|slice:":40" %}
       <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
     {% endfor %}
   </datalist>
