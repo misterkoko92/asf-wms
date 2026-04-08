@@ -441,6 +441,8 @@ Current V3.3 contract:
 - `ShipmentRecipientOrganization` is now uniquely scoped by `(organization, destination)`; organization-only runtime assumptions are no longer a valid shared contract
 - portal recipient destination changes now keep the same synced structure contact when possible and create or reuse a destination-scoped recipient runtime row instead of forcing a second synced organization contact
 - `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync, shared recipient-profile writes, document upserts, recipient-product preference upserts, and recipient-contact resolution
+- shipper portal recipient create/update flows in `wms/views_portal_account.py` must route shared-profile writes through `wms/application/parties/use_cases.py`; direct `AssociationRecipient` mutation is no longer the shared contract
+- when an active `PortalAccessGrant` with role `recipient_admin` exists for the synced `ShipmentRecipientOrganization`, shipper portal recipient shared fields and product-preference edits become read-only and the HTML portal must surface that lock explicitly
 - `wms/portal_recipient_sync.py` remains a compatibility adapter and should not grow new orchestration logic again
 - `wms/admin_contacts_merge_service.py` remains a compatibility adapter and should not grow graph mutation logic again
 - `wms/scan_admin_contacts_cockpit.py` keeps forms and user-facing validation/messages, but delegates merge mutations to `wms/parties/merge.py`
@@ -489,6 +491,7 @@ Current contract:
   as delivery evidence, and open assigned shipments as pipeline quantity
 - portal recipient detail and scan/admin recipient detail render the same canonical preference rows
   plus the same coverage summary semantics
+- if the synced recipient now has an active recipient portal grant, shipper-side portal preference controls become read-only on both the list edit surface and the recipient detail surface while scan/admin keeps the canonical maintenance path
 - scan shipment create/edit exposes per-carton compatibility metadata keyed by recipient runtime,
   blocks only explicit `refused` products, and records override rows when staff continues
 

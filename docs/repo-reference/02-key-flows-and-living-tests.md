@@ -177,6 +177,8 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - recipient list/detail/create/update
 - recipient product preference editing from both portal recipient detail and scan admin recipient cockpit
 - canonical recipient shared-profile writes, document upserts, and product-preference upserts through `wms/application/parties/use_cases.py`
+- shipper portal recipient create/update now write the canonical shipment-party graph first and only refresh `AssociationRecipient` as a compatibility projection
+- once a `PortalAccessGrant(recipient_admin)` exists for the synced `ShipmentRecipientOrganization`, shipper-side recipient maintenance becomes read-only on both `/portal/recipients/?edit=<id>` and `/portal/recipients/<id>/`
 - synchronization from `AssociationRecipient` compatibility projections to operational contact structures
 - shipper/recipient authorization chain
 - order creation from portal

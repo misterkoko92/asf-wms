@@ -2625,6 +2625,79 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             "pending",
         )
 
+    def test_portal_recipients_post_create_uses_canonical_shared_profile_use_case(self):
+        payload = self._build_recipient_payload(
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+        shared_contact = Contact.objects.create(
+            name="Structure Canonique",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipment_recipient = ShipmentRecipientOrganization.objects.create(
+            organization=shared_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        )
+        shipment_contact_person = Contact.objects.create(
+            name="Claire Martin",
+            first_name="Claire",
+            last_name="Martin",
+            organization=shared_contact,
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        shipper = ensure_shipment_shipper(self.profile.contact)
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            is_active=True,
+        )
+        mocked_result = SimpleNamespace(
+            synced_contact=shared_contact,
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            shipment_contact=shipment_contact_person,
+            link=link,
+            legacy_projection=None,
+        )
+
+        with (
+            mock.patch(
+                "wms.views_portal_account.update_recipient_shared_profile",
+                create=True,
+                return_value=mocked_result,
+            ) as update_shared_profile,
+            mock.patch(
+                "wms.views_portal_account.upsert_recipient_structure_documents",
+                create=True,
+                return_value=[],
+            ) as upsert_documents,
+        ):
+            response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipients_url)
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+        update_shared_profile.assert_called_once()
+        self.assertEqual(
+            update_shared_profile.call_args.kwargs["association_contact"],
+            self.profile.contact,
+        )
+        self.assertEqual(update_shared_profile.call_args.kwargs["destination"], self.destination)
+        self.assertEqual(
+            update_shared_profile.call_args.kwargs["structure_name"],
+            payload["structure_name"],
+        )
+        self.assertEqual(update_shared_profile.call_args.kwargs["beneficiary_count"], 120)
+        self.assertTrue(update_shared_profile.call_args.kwargs["persist_projection"])
+        upsert_documents.assert_called_once()
+        self.assertEqual(upsert_documents.call_args.kwargs["contact"], shared_contact)
+        self.assertTrue(upsert_documents.call_args.kwargs["queue_scan"])
+
     def test_portal_recipients_post_creates_structure_documents_and_queues_scan(self):
         payload = self._build_recipient_payload(
             legal_form="association",
@@ -2736,6 +2809,143 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertTrue(recipient.is_delivery_contact)
         self.assertIsNotNone(recipient.synced_contact_id)
         self.assertEqual(Contact.objects.filter(pk=recipient.synced_contact_id).count(), 1)
+
+    def test_portal_recipients_post_update_uses_canonical_shared_profile_use_case(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Before",
+            structure_name="Structure Before",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Before",
+            city="Paris",
+            country="France",
+            legal_form="association",
+            beneficiary_count=120,
+            is_active=True,
+        )
+        shared_contact = Contact.objects.create(
+            name="Structure Canonique Update",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipment_recipient = ShipmentRecipientOrganization.objects.create(
+            organization=shared_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        )
+        shipment_contact_person = Contact.objects.create(
+            name="Claire Martin",
+            first_name="Claire",
+            last_name="Martin",
+            organization=shared_contact,
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        shipper = ensure_shipment_shipper(self.profile.contact)
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            is_active=True,
+        )
+        mocked_result = SimpleNamespace(
+            synced_contact=shared_contact,
+            shipper=shipper,
+            recipient_organization=shipment_recipient,
+            shipment_contact=shipment_contact_person,
+            link=link,
+            legacy_projection=recipient,
+        )
+
+        with mock.patch(
+            "wms.views_portal_account.update_recipient_shared_profile",
+            create=True,
+            return_value=mocked_result,
+        ) as update_shared_profile:
+            response = self.client.post(
+                self.recipients_url,
+                self._build_recipient_payload(
+                    action="update_recipient",
+                    recipient_id=str(recipient.id),
+                    destination_id=str(self.destination.id),
+                    structure_name="Structure After",
+                    contact_title="gen",
+                    contact_last_name="Martin",
+                    contact_first_name="Claire",
+                    emails="after@example.com",
+                    phones="+33123456789",
+                    address_line1="20 Rue After",
+                    address_line2="",
+                    postal_code="75003",
+                    city="Paris",
+                    country="France",
+                    legal_form="public_sector",
+                    beneficiary_count="250",
+                    notes="",
+                    notify_deliveries="1",
+                    is_delivery_contact="1",
+                ),
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipients_url)
+        update_shared_profile.assert_called_once()
+        self.assertEqual(update_shared_profile.call_args.kwargs["legacy_projection"], recipient)
+        self.assertEqual(update_shared_profile.call_args.kwargs["beneficiary_count"], 250)
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.structure_name, "Structure Before")
+        self.assertEqual(recipient.contact_title, "mr")
+        self.assertEqual(recipient.contact_last_name, "Durand")
+
+    def test_portal_recipients_post_update_becomes_read_only_when_recipient_grant_exists(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Shared Lock")
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        recipient_user = self._create_portal_user(
+            "recipient-shared-lock",
+            "recipient-shared-lock@example.com",
+        )
+        PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        response = self.client.post(
+            self.recipients_url,
+            self._build_recipient_payload(
+                action="update_recipient",
+                recipient_id=str(recipient.id),
+                destination_id=str(self.destination.id),
+                structure_name="Recipient Shared Updated",
+                contact_title="gen",
+                contact_last_name="Martin",
+                contact_first_name="Claire",
+                emails="after@example.com",
+                phones="+33123456789",
+                address_line1="20 Rue After",
+                address_line2="",
+                postal_code="75003",
+                city="Paris",
+                country="France",
+                legal_form="public_sector",
+                beneficiary_count="250",
+                notes="",
+                notify_deliveries="1",
+                is_delivery_contact="1",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "lecture seule")
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.structure_name, "Recipient Shared Lock")
+        self.assertEqual(recipient.contact_last_name, "")
 
     def test_portal_recipients_edit_shows_product_preferences_for_synced_recipient(self):
         recipient = AssociationRecipient.objects.create(

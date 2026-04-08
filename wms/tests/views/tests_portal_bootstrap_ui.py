@@ -25,6 +25,8 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     OrderStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     Product,
     RecipientProductPreference,
     RecipientProductPreferencePeriodUnit,
@@ -491,6 +493,59 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'value="save_recipient_preference"')
         self.assertContains(response, "Non précisé")
         self.assertNotContains(response, "Ajouter la préférence")
+
+    def test_portal_recipients_edit_with_recipient_grant_shows_read_only_contract(self):
+        recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")
+        sync_association_recipient_to_contact(recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        recipient_user = get_user_model().objects.create_user(
+            username="portal-bootstrap-recipient",
+            password="pass1234",  # pragma: allowlist secret
+            email="portal-bootstrap-recipient@example.com",
+        )
+        PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=shipment_recipient,
+        )
+
+        response = self.client.get(f"{reverse('portal:portal_recipients')}?edit={recipient.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "lecture seule")
+        self.assertContains(response, 'id="portal-recipient-read-only-banner"')
+        self.assertContains(response, 'id="portal-recipient-submit-disabled"')
+        self.assertContains(response, 'id="portal-recipient-read-only-fields" disabled')
+
+    def test_portal_recipient_detail_with_recipient_grant_disables_preference_actions(self):
+        recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")
+        sync_association_recipient_to_contact(recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        recipient_user = get_user_model().objects.create_user(
+            username="portal-bootstrap-recipient-detail",
+            password="pass1234",  # pragma: allowlist secret
+            email="portal-bootstrap-recipient-detail@example.com",
+        )
+        PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=shipment_recipient,
+        )
+
+        response = self.client.get(
+            reverse("portal:portal_recipient_detail", kwargs={"recipient_id": recipient.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "lecture seule")
+        self.assertContains(response, 'id="portal-recipient-detail-read-only-banner"')
+        self.assertNotContains(response, 'value="save_recipient_preference"')
 
     def test_portal_recipients_edit_exposes_product_preference_contract(self):
         recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")

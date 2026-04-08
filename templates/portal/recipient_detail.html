@@ -23,6 +23,11 @@
       </div>
     </div>
   </div>
+  {% if recipient_shared_fields_read_only %}
+    <div id="portal-recipient-detail-read-only-banner" class="scan-card portal-card card border-0 ui-comp-card">
+      <div class="scan-message error">{% trans "Cette fiche destinataire est en lecture seule dans le portail expéditeur car un accès destinataire est actif." %}</div>
+    </div>
+  {% endif %}
 
   <div class="scan-card portal-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title">{% trans "Identité" %}</h3>
@@ -91,35 +96,63 @@
                   </div>
                 </td>
                 <td>
-                  <select class="form-select ui-select--md" id="status_{{ row.product.id }}" name="status" form="recipient-preference-form-{{ row.product.id }}">
-                    {% for value, label in preference_status_choices %}
-                      <option value="{{ value }}" {% if row.form_data.status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
+                  {% if recipient_shared_fields_read_only %}
+                    {% if row.is_explicit and row.preference %}
+                      {{ row.preference.get_status_display }}
+                    {% else %}
+                      {% trans "Non précisé" %}
+                    {% endif %}
+                  {% else %}
+                    <select class="form-select ui-select--md" id="status_{{ row.product.id }}" name="status" form="recipient-preference-form-{{ row.product.id }}">
+                      {% for value, label in preference_status_choices %}
+                        <option value="{{ value }}" {% if row.form_data.status == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  {% endif %}
                 </td>
                 <td>
-                  <input class="form-control" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="recipient-preference-form-{{ row.product.id }}">
+                  {% if recipient_shared_fields_read_only %}
+                    {{ row.form_data.quantity_target|default:"-" }}
+                  {% else %}
+                    <input class="form-control" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="recipient-preference-form-{{ row.product.id }}">
+                  {% endif %}
                 </td>
                 <td>
-                  <select class="form-select ui-select--md" id="period_unit_{{ row.product.id }}" name="period_unit" form="recipient-preference-form-{{ row.product.id }}">
-                    <option value="">---------</option>
-                    {% for value, label in preference_period_choices %}
-                      <option value="{{ value }}" {% if row.form_data.period_unit == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
+                  {% if recipient_shared_fields_read_only %}
+                    {% if row.preference and row.preference.period_unit %}
+                      {{ row.preference.get_period_unit_display }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  {% else %}
+                    <select class="form-select ui-select--md" id="period_unit_{{ row.product.id }}" name="period_unit" form="recipient-preference-form-{{ row.product.id }}">
+                      <option value="">---------</option>
+                      {% for value, label in preference_period_choices %}
+                        <option value="{{ value }}" {% if row.form_data.period_unit == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  {% endif %}
                 </td>
                 <td>{% if row.coverage %}{{ row.coverage.delivered_quantity }}{% else %}-{% endif %}</td>
                 <td>{% if row.coverage %}{{ row.coverage.pipeline_quantity }}{% else %}-{% endif %}</td>
                 <td>{% if row.coverage %}{{ row.coverage.remaining_need }}{% else %}-{% endif %}</td>
                 <td class="w-25">
-                  <textarea class="form-control" id="notes_{{ row.product.id }}" name="notes" rows="2" form="recipient-preference-form-{{ row.product.id }}">{{ row.form_data.notes }}</textarea>
+                  {% if recipient_shared_fields_read_only %}
+                    {{ row.form_data.notes|default:"-" }}
+                  {% else %}
+                    <textarea class="form-control" id="notes_{{ row.product.id }}" name="notes" rows="2" form="recipient-preference-form-{{ row.product.id }}">{{ row.form_data.notes }}</textarea>
+                  {% endif %}
                 </td>
                 <td class="text-end">
-                  <form id="recipient-preference-form-{{ row.product.id }}" method="post" class="m-0">
-                    {% csrf_token %}
-                    <input type="hidden" name="product_id" value="{{ row.product.id }}">
-                    <button type="submit" name="action" value="save_recipient_preference" class="btn btn-primary btn-sm">{% trans "Enregistrer la ligne" %}</button>
-                  </form>
+                  {% if recipient_shared_fields_read_only %}
+                    -
+                  {% else %}
+                    <form id="recipient-preference-form-{{ row.product.id }}" method="post" class="m-0">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ row.product.id }}">
+                      <button type="submit" name="action" value="save_recipient_preference" class="btn btn-primary btn-sm">{% trans "Enregistrer la ligne" %}</button>
+                    </form>
+                  {% endif %}
                 </td>
               </tr>
             {% empty %}

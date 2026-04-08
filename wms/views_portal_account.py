@@ -13,7 +13,11 @@ from django.views.decorators.http import require_http_methods
 from contacts.models import RecipientLegalForm
 
 from .account_request_handlers import handle_account_request_form
-from .application.parties.use_cases import sync_portal_recipient
+from .application.parties.use_cases import (
+    save_recipient_product_preference,
+    update_recipient_shared_profile,
+    upsert_recipient_structure_documents,
+)
 from .country_choices import DEFAULT_COUNTRY, build_country_choices, is_known_country
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
@@ -29,13 +33,14 @@ from .models import (
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     Product,
     ProductCategory,
     RecipientProductPreference,
     RecipientProductPreferencePeriodUnit,
     RecipientProductPreferenceSource,
     RecipientProductPreferenceStatus,
-    RecipientStructureDocument,
     RecipientStructureDocumentType,
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
@@ -118,6 +123,9 @@ ERROR_RECIPIENT_PRODUCT_STATUS_INVALID = _("Statut produit invalide.")
 ERROR_RECIPIENT_PRODUCT_PERIOD_INVALID = _("Periode invalide.")
 ERROR_RECIPIENT_PREFERENCE_NOT_FOUND = _("Préférence produit introuvable.")
 ERROR_RECIPIENT_RUNTIME_REQUIRED = _("La structure destinataire operationnelle est introuvable.")
+ERROR_RECIPIENT_SHARED_READ_ONLY = _(
+    "Cette fiche destinataire est en lecture seule dans le portail expéditeur car un accès destinataire est actif."
+)
 ERROR_ASSOCIATION_NAME_REQUIRED = _("Nom de l'association requis.")
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse requise.")
 ERROR_CONTACT_ROWS_LIMIT = _("Maximum %(count)s contacts.")
@@ -443,61 +451,83 @@ def _build_recipient_payload(form_data):
     }
 
 
-def _create_recipient_structure_documents(*, recipient, uploaded_by, files):
-    if recipient.synced_contact_id is None:
-        return
+def _create_recipient_structure_documents(*, contact, uploaded_by, files):
+    if contact is None:
+        return []
 
-    uploaded_user = uploaded_by if getattr(uploaded_by, "is_authenticated", False) else None
+    files_by_type = {}
     for doc_type, field_name, _missing_error in RECIPIENT_STRUCTURE_DOCUMENT_FIELDS:
-        uploaded = files.get(field_name)
-        if not uploaded:
-            continue
-        document, _created = RecipientStructureDocument.objects.update_or_create(
-            contact=recipient.synced_contact,
-            doc_type=doc_type,
-            defaults={
-                "status": DocumentReviewStatus.PENDING,
-                "file": uploaded,
-                "scan_status": DocumentScanStatus.PENDING,
-                "scan_message": "Scan antivirus en cours.",
-                "scan_updated_at": None,
-                "uploaded_by": uploaded_user,
-                "reviewed_by": None,
-                "reviewed_at": None,
-            },
-        )
-        queue_document_scan(document)
+        uploaded = files.get(field_name) if files else None
+        if uploaded:
+            files_by_type[doc_type] = uploaded
+
+    return upsert_recipient_structure_documents(
+        contact=contact,
+        files_by_type=files_by_type,
+        uploaded_by=uploaded_by,
+        queue_scan=True,
+    )
 
 
 def _create_recipient(profile, form_data, *, uploaded_by=None, files=None):
     payload = _build_recipient_payload(form_data)
     with transaction.atomic():
-        recipient = AssociationRecipient.objects.create(
+        result = update_recipient_shared_profile(
             association_contact=profile.contact,
-            **payload,
-        )
-        sync_portal_recipient(
-            recipient=recipient,
+            destination=payload["destination"],
+            structure_name=payload["structure_name"],
+            contact_title=payload["contact_title"],
+            contact_first_name=payload["contact_first_name"],
+            contact_last_name=payload["contact_last_name"],
+            emails=payload["emails"],
+            phones=payload["phones"],
+            address_line1=payload["address_line1"],
+            address_line2=payload["address_line2"],
+            postal_code=payload["postal_code"],
+            city=payload["city"],
+            country=payload["country"],
+            legal_form=payload["legal_form"],
+            beneficiary_count=payload["beneficiary_count"],
+            notes=payload["notes"],
+            notify_deliveries=payload["notify_deliveries"],
+            is_delivery_contact=payload["is_delivery_contact"],
+            persist_projection=True,
             prefer_existing_structure=form_data["reuse_existing_structure"],
         )
         _create_recipient_structure_documents(
-            recipient=recipient,
+            contact=result.synced_contact,
             uploaded_by=uploaded_by,
             files=files or {},
         )
-    return recipient
+    return result.legacy_projection
 
 
 def _update_recipient(recipient, form_data):
     payload = _build_recipient_payload(form_data)
-    for field_name, value in payload.items():
-        setattr(recipient, field_name, value)
-    recipient.save(update_fields=list(payload.keys()))
-    sync_portal_recipient(
-        recipient=recipient,
+    result = update_recipient_shared_profile(
+        association_contact=recipient.association_contact,
+        destination=payload["destination"],
+        structure_name=payload["structure_name"],
+        contact_title=payload["contact_title"],
+        contact_first_name=payload["contact_first_name"],
+        contact_last_name=payload["contact_last_name"],
+        emails=payload["emails"],
+        phones=payload["phones"],
+        address_line1=payload["address_line1"],
+        address_line2=payload["address_line2"],
+        postal_code=payload["postal_code"],
+        city=payload["city"],
+        country=payload["country"],
+        legal_form=payload["legal_form"],
+        beneficiary_count=payload["beneficiary_count"],
+        notes=payload["notes"],
+        notify_deliveries=payload["notify_deliveries"],
+        is_delivery_contact=payload["is_delivery_contact"],
+        legacy_projection=recipient,
+        persist_projection=True,
         prefer_existing_structure=form_data["reuse_existing_structure"],
     )
-    return recipient
+    return result.legacy_projection or recipient
 
 
 def _get_recipient_for_profile(profile, recipient_id):
@@ -596,10 +626,21 @@ def _get_runtime_recipient_organization(recipient):
     )
 
 
+def _recipient_shared_fields_are_read_only(recipient_organization):
+    if recipient_organization is None:
+        return False
+    return PortalAccessGrant.objects.filter(
+        recipient_organization=recipient_organization,
+        role=PortalAccessRole.RECIPIENT_ADMIN,
+        is_active=True,
+    ).exists()
+
+
 def _build_recipient_detail_context(
     *,
     recipient,
     recipient_organization,
+    recipient_shared_fields_read_only=False,
     preference_errors=None,
     preference_form_data_by_product_id=None,
 ):
@@ -660,6 +701,7 @@ def _build_recipient_detail_context(
     return {
         "recipient": recipient,
         "recipient_organization": recipient_organization,
+        "recipient_shared_fields_read_only": recipient_shared_fields_read_only,
         "recipient_preferences": recipient_preferences,
         "recipient_product_rows": recipient_product_rows,
         "recipient_preference_coverage_rows": recipient_preference_coverage_rows,
@@ -837,7 +879,6 @@ def _save_product_preference(
     if errors:
         return None, errors
 
-    preference = None
     preference_id = parse_int(form_data["preference_id"])
     if preference_id is not None:
         preference = recipient_organization.product_preferences.filter(pk=preference_id).first()
@@ -847,28 +888,24 @@ def _save_product_preference(
         preference = recipient_organization.product_preferences.filter(product=product).first()
     elif scope_type == PRODUCT_PREFERENCE_SCOPE_CATEGORY and category is not None:
         preference = recipient_organization.product_preferences.filter(category=category).first()
-
-    if preference is None:
-        preference = RecipientProductPreference(
-            recipient_organization=recipient_organization,
-            created_by=user if getattr(user, "is_authenticated", False) else None,
-        )
-
-    preference.product = product if scope_type == PRODUCT_PREFERENCE_SCOPE_PRODUCT else None
-    preference.category = category if scope_type == PRODUCT_PREFERENCE_SCOPE_CATEGORY else None
-    preference.status = form_data["status"]
-    preference.quantity_target = quantity_target
-    preference.period_unit = period_unit
-    preference.notes = form_data["notes"]
-    preference.source = RecipientProductPreferenceSource.PORTAL
-    preference.updated_by = user if getattr(user, "is_authenticated", False) else None
+    else:
+        preference = None
 
     try:
-        preference.full_clean()
+        preference = save_recipient_product_preference(
+            recipient_organization=recipient_organization,
+            product=product if scope_type == PRODUCT_PREFERENCE_SCOPE_PRODUCT else None,
+            category=category if scope_type == PRODUCT_PREFERENCE_SCOPE_CATEGORY else None,
+            status=form_data["status"],
+            quantity_target=quantity_target,
+            period_unit=period_unit,
+            notes=form_data["notes"],
+            source=RecipientProductPreferenceSource.PORTAL,
+            user=user,
+        )
     except ValidationError as exc:
         return None, _product_preference_validation_messages(exc)
 
-    preference.save()
     return preference, []
 
 
@@ -1182,6 +1219,7 @@ def portal_recipients(request):
     errors = []
     form_data = _build_default_recipient_form_data()
     editing_recipient = None
+    recipient_shared_fields_read_only = False
     product_preference_errors = []
     product_preference_form_data = _build_default_product_preference_form_data()
     editing_product_preference = None
@@ -1210,6 +1248,15 @@ def portal_recipients(request):
                 editing_recipient = _get_recipient_for_profile(profile, recipient_id)
                 if editing_recipient is None:
                     errors.append(ERROR_RECIPIENT_NOT_FOUND)
+                else:
+                    recipient_organization = _get_shipment_recipient_for_association_recipient(
+                        editing_recipient
+                    )
+                    recipient_shared_fields_read_only = _recipient_shared_fields_are_read_only(
+                        recipient_organization
+                    )
+                    if recipient_shared_fields_read_only:
+                        errors.append(ERROR_RECIPIENT_SHARED_READ_ONLY)
             duplicate_recipient_suggestions = _build_duplicate_recipient_suggestions(
                 form_data=form_data,
                 editing_recipient=editing_recipient,
@@ -1241,8 +1288,13 @@ def portal_recipients(request):
                 recipient_organization = _get_shipment_recipient_for_association_recipient(
                     editing_recipient
                 )
+                recipient_shared_fields_read_only = _recipient_shared_fields_are_read_only(
+                    recipient_organization
+                )
                 if recipient_organization is None:
                     product_preference_errors.append(ERROR_RECIPIENT_PREFERENCE_RECIPIENT_REQUIRED)
+                elif recipient_shared_fields_read_only:
+                    product_preference_errors.append(ERROR_RECIPIENT_SHARED_READ_ONLY)
                 elif action == ACTION_DELETE_PRODUCT_PREFERENCE:
                     preference_id = parse_int(request.POST.get("preference_id"))
                     preference = recipient_organization.product_preferences.filter(
@@ -1286,6 +1338,9 @@ def portal_recipients(request):
                 recipient_organization = _get_shipment_recipient_for_association_recipient(
                     editing_recipient
                 )
+                recipient_shared_fields_read_only = _recipient_shared_fields_are_read_only(
+                    recipient_organization
+                )
                 preference_edit_id = parse_int(request.GET.get("preference_edit"))
                 if recipient_organization is not None and preference_edit_id is not None:
                     editing_product_preference = recipient_organization.product_preferences.filter(
@@ -1321,6 +1376,8 @@ def portal_recipients(request):
             "blocked_popup_message": blocked_popup_message,
             "duplicate_recipient_suggestions": duplicate_recipient_suggestions,
             "recipient_organization": recipient_organization,
+            "recipient_shared_fields_read_only": recipient_shared_fields_read_only,
+            "recipient_shared_read_only_message": ERROR_RECIPIENT_SHARED_READ_ONLY,
             "recipient_product_preferences": recipient_preference_rows,
             "product_preference_errors": product_preference_errors,
             "product_preference_form_data": product_preference_form_data,
@@ -1347,6 +1404,9 @@ def portal_recipient_detail(request, recipient_id):
     recipient = _get_portal_recipient_or_404(profile, recipient_id)
     recipient = _decorate_recipient_validation_statuses([recipient])[0]
     recipient_organization = _get_runtime_recipient_organization(recipient)
+    recipient_shared_fields_read_only = _recipient_shared_fields_are_read_only(
+        recipient_organization
+    )
     preference_errors = []
     preference_form_data_by_product_id = {}
 
@@ -1355,6 +1415,8 @@ def portal_recipient_detail(request, recipient_id):
         if action == ACTION_SAVE_RECIPIENT_PREFERENCE:
             if recipient_organization is None:
                 preference_errors.append(ERROR_RECIPIENT_RUNTIME_REQUIRED)
+            elif recipient_shared_fields_read_only:
+                preference_errors.append(ERROR_RECIPIENT_SHARED_READ_ONLY)
             else:
                 products = list(Product.objects.filter(is_active=True).order_by("name", "id"))
                 products_by_id = {product.id: product for product in products}
@@ -1377,21 +1439,17 @@ def portal_recipient_detail(request, recipient_id):
                         return redirect("portal:portal_recipient_detail", recipient_id=recipient.id)
 
                     created = preference is None
-                    if preference is None:
-                        preference = RecipientProductPreference(
+                    try:
+                        preference = save_recipient_product_preference(
                             recipient_organization=recipient_organization,
                             product=form_data["product"],
-                            created_by=request.user,
+                            status=form_data["status"],
+                            quantity_target=form_data.get("quantity_target_value"),
+                            period_unit=form_data["period_unit"],
+                            notes=form_data["notes"],
+                            source=RecipientProductPreferenceSource.PORTAL,
+                            user=request.user,
                         )
-                    preference.product = form_data["product"]
-                    preference.status = form_data["status"]
-                    preference.quantity_target = form_data.get("quantity_target_value")
-                    preference.period_unit = form_data["period_unit"]
-                    preference.notes = form_data["notes"]
-                    preference.source = RecipientProductPreferenceSource.PORTAL
-                    preference.updated_by = request.user
-                    try:
-                        preference.save()
                     except ValidationError as error:
                         preference_errors.extend(_flatten_validation_error_messages(error))
                         preference_form_data_by_product_id[form_data["product"].id] = form_data
@@ -1410,6 +1468,7 @@ def portal_recipient_detail(request, recipient_id):
         _build_recipient_detail_context(
             recipient=recipient,
             recipient_organization=recipient_organization,
+            recipient_shared_fields_read_only=recipient_shared_fields_read_only,
             preference_errors=preference_errors,
             preference_form_data_by_product_id=preference_form_data_by_product_id,
         ),
