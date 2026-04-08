@@ -181,6 +181,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - canonical recipient shared-profile writes, document upserts, and product-preference upserts through `wms/application/parties/use_cases.py`
 - shipper portal recipient create/update now write the canonical shipment-party graph first and only refresh `AssociationRecipient` as a compatibility projection
 - scan/admin recipient shared-field edits from `scan/contacts` now also route through the same application use-case layer and refresh any matching legacy `AssociationRecipient` projections before portal shipper views re-read them
+- `python manage.py rebuild_recipient_party_graph --dry-run|--apply` is the deterministic repair path when explicit shipper grants or legacy `AssociationRecipient` projections must be rebuilt from the canonical shipment-party runtime
 - once a `PortalAccessGrant(recipient_admin)` exists for the synced `ShipmentRecipientOrganization`, shipper-side recipient maintenance becomes read-only on both `/portal/recipients/?edit=<id>` and `/portal/recipients/<id>/`
 - synchronization from `AssociationRecipient` compatibility projections to operational contact structures
 - shipper/recipient authorization chain
@@ -199,6 +200,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`
 - `wms/tests/scan/tests_admin_contacts_contact_service.py`
+- `wms/tests/management/tests_management_rebuild_recipient_party_graph.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/views/tests_views_portal.py`
 - `wms/tests/views/tests_views_scan_admin.py`

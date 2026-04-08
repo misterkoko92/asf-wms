@@ -11,6 +11,7 @@ from wms.admin_contacts_merge_service import (
     merge_contacts,
 )
 from wms.models import (
+    AssociationRecipient,
     Destination,
     DocumentReviewStatus,
     DocumentScanStatus,
@@ -901,3 +902,88 @@ class AdminContactsMergeServiceTests(TestCase):
             ),
             {self.destination.id, other_destination.id},
         )
+
+    def test_merge_organization_can_be_reconciled_by_recipient_graph_rebuild(self):
+        from wms.parties.rebuild import rebuild_recipient_party_graph
+
+        shipper_org = Contact.objects.create(
+            name="ASF Merge Rebuild",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_person = Contact.objects.create(
+            name="Jean ASF Merge",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="ASF",
+            organization=shipper_org,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_person,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        source = Contact.objects.create(
+            name="Source Legacy Structure",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        target = Contact.objects.create(
+            name="Target Canonical Structure",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        source_referent = Contact.objects.create(
+            name="Alice Source",
+            contact_type=ContactType.PERSON,
+            first_name="Alice",
+            last_name="Source",
+            organization=source,
+            is_active=True,
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=source,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_org,
+            contact=source_referent,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_org,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
+        projection = AssociationRecipient.objects.create(
+            association_contact=shipper_org,
+            synced_contact=source,
+            destination=self.destination,
+            name="Source Legacy Structure",
+            structure_name="Source Legacy Structure",
+            address_line1="1 rue legacy",
+            city="Paris",
+            country="France",
+        )
+
+        merge_contacts(source_contact=source, target_contact=target)
+        projection.refresh_from_db()
+        self.assertEqual(projection.synced_contact, source)
+
+        rebuild_recipient_party_graph(apply=True)
+
+        projection.refresh_from_db()
+        recipient_org.refresh_from_db()
+        self.assertEqual(recipient_org.organization, target)
+        self.assertEqual(projection.synced_contact, target)
+        self.assertEqual(projection.structure_name, target.name)

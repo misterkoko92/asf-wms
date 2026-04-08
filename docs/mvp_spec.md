@@ -18,6 +18,8 @@ This document reflects the implemented product behavior as of **February 19, 202
 
 - `admin`: full settings and admin workflows.
 - `staff` (scan users): day-to-day WMS operations.
+- `portal shipper admin`: authenticated portal scope for orders, account maintenance, and shipper-owned recipient relation management.
+- `portal recipient admin`: authenticated portal scope for recipient shared data maintenance on the existing `/portal/` shell.
 - public tracking actor: can update shipment tracking through QR/token link (no login), with actor identity fields.
 
 ## Core domain objects
@@ -76,6 +78,15 @@ This document reflects the implemented product behavior as of **February 19, 202
 - Recipient governance:
   - recipient availability requires an active shipment-party authorization chain.
   - default shipper automation is handled through shipment-party services.
+  - recipient shared data is canonical on the shipment-party runtime and propagated back to legacy portal compatibility rows only as a projection.
+
+## Portal access model (implemented)
+
+- `/portal/` uses an active scope resolved from explicit `PortalAccessGrant` rows, with a legacy `AssociationProfile` fallback while shipper access remains in transition.
+- A single user can own shipper and recipient scopes; when multiple scopes exist, `/portal/scope-select/` binds the active scope in session.
+- Shipper scopes keep order and billing flows plus shipper-owned recipient relation management.
+- Recipient scopes land on a recipient home for one `ShipmentRecipientOrganization` and can maintain shared structure data, recipient contacts, structure documents, and product preferences.
+- Scan/admin, shipper portal, recipient portal, and the mirrored UI API are expected to converge on the same shipment-party write path.
 
 ## Shipment workflow (implemented)
 

@@ -98,6 +98,7 @@ Always check:
 - `wms/scan_admin_contacts_cockpit.py` as the compatibility adapter for shipment-party cockpit mutations
 - `wms/admin_contacts_merge_service.py` as the compatibility adapter for admin contact merge flows
 - `wms/parties/merge.py` when recipient organizations or contact graphs can be merged, deduplicated, or re-scoped
+- `wms/parties/rebuild.py` and `wms/management/commands/rebuild_recipient_party_graph.py` when canonical recipient graph repair or compatibility projection rebuilds are part of the rollout
 - `wms/views_scan_admin.py` and `templates/scan/includes/admin_contacts_contact_form.html` when admin must review the same recipient data
 
 Ask yourself:
@@ -114,6 +115,7 @@ Ask yourself:
 - do linked/default authorizations still stay unique and active?
 - can admin merge flows preserve or deduplicate the same recipient compliance documents without losing them?
 - do any organization-only recipient runtime lookups now need `(organization, destination)` scope instead?
+- does the rollout need `rebuild_recipient_party_graph --dry-run` before or after deploy to backfill explicit shipper grants or repair stale legacy recipient projections?
 - are existing portal tests still the right contract, or did the business rule itself change?
 
 Run or inspect first:

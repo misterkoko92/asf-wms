@@ -1024,8 +1024,12 @@ Current auth scope contract:
   scope
 - `/portal/` is now the first role-aware page: shipper scopes keep the order cockpit while
   recipient scopes render a recipient home on the same shell
-- the remaining legacy pages guarded by `association_required` remain shipper-only and must still
-  reject recipient scopes until recipient-specific maintenance views are introduced
+- the remaining legacy pages guarded by `association_required` remain shipper-only, while the
+  recipient-specific maintenance contract now lives on the role-aware `/portal/` home and the
+  mirrored UI API endpoints under `/api/v1/ui/portal/*`
+- `python manage.py rebuild_recipient_party_graph --dry-run|--apply` is the compatibility repair
+  path for explicit shipper grants and stale `AssociationRecipient` projections when canonical
+  shipment-party runtime rows were merged or reshaped outside the portal adapters
 
 Maintenance rule:
 
