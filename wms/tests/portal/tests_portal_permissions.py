@@ -2,11 +2,17 @@ import importlib
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.test import RequestFactory, TestCase
 
 from contacts.models import Contact, ContactType
-from wms.models import AssociationProfile, ShipmentShipper, ShipmentValidationStatus
+from wms.models import (
+    AssociationProfile,
+    PortalAccessRole,
+    ShipmentShipper,
+    ShipmentValidationStatus,
+)
 from wms.portal_permissions import (
     ASSOCIATION_PORTAL_GROUP_NAME,
     ASSOCIATION_PORTAL_PERMISSION_CODENAMES,
@@ -178,3 +184,53 @@ class PortalPermissionsTests(TestCase):
         self.assertEqual(len(scopes), 1)
         self.assertEqual(scopes[0].association_profile, profile)
         self.assertEqual(scopes[0].shipper, shipper)
+
+    def test_association_profile_without_runtime_shipper_can_bind_legacy_portal_scope(self):
+        user = get_user_model().objects.create_user(
+            username="portal-legacy-noshipper-user",
+            email="portal-legacy-noshipper-user@example.com",
+            password="pass1234",
+        )
+        contact = self._create_contact(name="Association Legacy No Shipper")
+        profile = AssociationProfile.objects.create(user=user, contact=contact)
+        portal_access = importlib.import_module("wms.portal_access")
+        view_permissions = importlib.import_module("wms.view_permissions")
+
+        request = RequestFactory().get("/portal/recipients/")
+        request.user = user
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+        request.portal_scope = portal_access.list_user_portal_scopes(user)[0]
+
+        response = view_permissions._bind_association_profile(request)
+
+        self.assertIsNone(response)
+        self.assertEqual(request.association_profile, profile)
+        self.assertIsNone(request.portal_scope.shipper)
+
+    def test_bind_association_profile_rejects_explicit_shipper_scope_without_shipper(self):
+        user = get_user_model().objects.create_user(
+            username="portal-invalid-explicit-scope-user",
+            email="portal-invalid-explicit-scope-user@example.com",
+            password="pass1234",
+        )
+        contact = self._create_contact(name="Association Invalid Explicit Scope")
+        AssociationProfile.objects.create(user=user, contact=contact)
+        portal_access = importlib.import_module("wms.portal_access")
+        view_permissions = importlib.import_module("wms.view_permissions")
+
+        request = RequestFactory().get("/portal/recipients/")
+        request.user = user
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+        request.portal_scope = portal_access.PortalScope(
+            source=portal_access.PORTAL_SCOPE_SOURCE_GRANT,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=None,
+            association_profile=None,
+        )
+
+        with self.assertRaises(PermissionDenied):
+            view_permissions._bind_association_profile(request)

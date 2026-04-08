@@ -159,7 +159,9 @@ def _bind_association_profile(request):
         if response is not None:
             return response
         scope = getattr(request, "portal_scope", None)
-    if scope is None or scope.role != PortalAccessRole.SHIPPER_ADMIN or scope.shipper is None:
+    if scope is None or scope.role != PortalAccessRole.SHIPPER_ADMIN:
+        raise PermissionDenied
+    if scope.shipper is None and scope.association_profile is None:
         raise PermissionDenied
 
     profile = scope.association_profile or get_association_profile(request.user)
