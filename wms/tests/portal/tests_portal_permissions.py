@@ -1,10 +1,12 @@
+import importlib
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
-from wms.models import AssociationProfile
+from wms.models import AssociationProfile, ShipmentShipper, ShipmentValidationStatus
 from wms.portal_permissions import (
     ASSOCIATION_PORTAL_GROUP_NAME,
     ASSOCIATION_PORTAL_PERMISSION_CODENAMES,
@@ -146,3 +148,33 @@ class PortalPermissionsTests(TestCase):
         user.save(update_fields=["email"])
         contact.refresh_from_db()
         self.assertEqual(contact.email, "user-after@example.com")
+
+    def test_association_profile_without_grant_still_resolves_legacy_shipper_scope(self):
+        user = get_user_model().objects.create_user(
+            username="portal-legacy-scope-user",
+            email="portal-legacy-scope-user@example.com",
+            password="pass1234",
+        )
+        contact = self._create_contact(name="Association Legacy Scope")
+        referent = Contact.objects.create(
+            name="Association Legacy Scope Referent",
+            first_name="Legacy",
+            last_name="Referent",
+            contact_type=ContactType.PERSON,
+            organization=contact,
+            is_active=True,
+        )
+        profile = AssociationProfile.objects.create(user=user, contact=contact)
+        shipper = ShipmentShipper.objects.create(
+            organization=contact,
+            default_contact=referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+        portal_access = importlib.import_module("wms.portal_access")
+        scopes = portal_access.list_user_portal_scopes(user)
+
+        self.assertEqual(len(scopes), 1)
+        self.assertEqual(scopes[0].association_profile, profile)
+        self.assertEqual(scopes[0].shipper, shipper)
