@@ -12,6 +12,8 @@ class ContactCapabilityType(models.TextChoices):
     DONOR = "donor", "Donateur"
     TRANSPORTER = "transporter", "Transporteur"
     VOLUNTEER = "volunteer", "Benevole"
+    PARTNER = "partner", "Partenaire"
+    OTHER = "other", "Autre"
 
 
 class RecipientLegalForm(models.TextChoices):

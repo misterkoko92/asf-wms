@@ -229,6 +229,8 @@ def _ensure_capability(contact, business_type: str):
     capability_map = {
         "donor": "donor",
         "transporter": "transporter",
+        "partner": "partner",
+        "other": "other",
         "volunteer": "volunteer",
     }
     capability = capability_map.get(business_type)

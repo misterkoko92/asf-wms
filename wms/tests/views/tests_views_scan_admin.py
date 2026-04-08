@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django import forms
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -21,6 +22,7 @@ from wms.models import (
     PortalAccessRole,
     Product,
     ProductKitItem,
+    RecipientProductPreference,
     RecipientStructureDocument,
     RecipientStructureDocumentType,
     ShipmentRecipientContact,
@@ -183,6 +185,45 @@ class ScanAdminViewTests(TestCase):
         correspondents = list(response.context["correspondents"])
         self.assertEqual(correspondents, [self.correspondent])
         self.assertNotIn(self.orphan_correspondent, correspondents)
+        self.assertContains(response, "Créer manuellement un contact dans l’accordéon")
+        self.assertContains(response, "Ajouter contact")
+        self.assertContains(response, "Partenaire")
+        self.assertContains(response, "Autre")
+
+    def test_scan_admin_contacts_keeps_legacy_admin_links_when_canonical_admin_urls_are_missing(
+        self,
+    ):
+        self.client.force_login(self.superuser)
+        canonical_models = (
+            PortalAccessGrant,
+            ShipmentRecipientOrganization,
+            RecipientProductPreference,
+            RecipientStructureDocument,
+        )
+        removed_registrations = {}
+        for model in canonical_models:
+            admin_instance = admin.site._registry.get(model)
+            if admin_instance is not None:
+                removed_registrations[model] = admin_instance.__class__
+                admin.site.unregister(model)
+
+        def restore_admin_registrations():
+            for model, admin_class in removed_registrations.items():
+                if model not in admin.site._registry:
+                    admin.site.register(model, admin_class)
+
+        self.addCleanup(restore_admin_registrations)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("admin:contacts_contact_changelist"))
+        self.assertContains(response, reverse("admin:contacts_contact_add"))
+        self.assertNotContains(response, "Admin Django canonique")
+        self.assertEqual(response.context["portal_access_admin_url"], "")
+        self.assertEqual(response.context["recipient_organization_admin_url"], "")
+        self.assertEqual(response.context["recipient_product_preference_admin_url"], "")
+        self.assertEqual(response.context["recipient_structure_document_admin_url"], "")
 
     def test_scan_admin_contacts_tables_use_collapse_and_table_tools(self):
         self.client.force_login(self.superuser)

@@ -3564,7 +3564,7 @@
         required.add('first_name');
         required.add('last_name');
       }
-      if (businessType === 'donor' || businessType === 'transporter') {
+      if (['donor', 'transporter', 'partner', 'other'].includes(businessType)) {
         required.add('entity_type');
         if (entityType === 'person') {
           required.add('first_name');
@@ -3648,7 +3648,7 @@
             !supportedBusinesses.length || supportedBusinesses.includes(businessType);
           let matchesEntity =
             !supportedEntities.length || supportedEntities.includes(entityType);
-          if (fieldGroup === 'person' && ['donor', 'transporter'].includes(businessType)) {
+          if (fieldGroup === 'person' && ['donor', 'transporter', 'partner', 'other'].includes(businessType)) {
             matchesEntity = entityType === 'person';
           }
           const shouldHide = !(matchesBusiness && matchesEntity);

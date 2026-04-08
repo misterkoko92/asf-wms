@@ -105,6 +105,10 @@ Ask yourself:
 
 - will scan shipment forms now show different shippers, recipients, or correspondents?
 - does a portal change also require an admin contacts cockpit change?
+- if scan/admin contact business types changed, did `contacts/models.py`,
+  `wms/forms_admin_contacts_contact.py`, `wms/admin_contacts_contact_service.py`,
+  `wms/admin_contacts_crud.py`, `wms/static/scan/scan.js`, and
+  `templates/scan/includes/admin_contacts_contact_form.html` stay aligned?
 - if recipient product preferences or periodic quantities changed, do portal recipient detail,
   scan/admin recipient detail, and scan shipment-create compatibility metadata still stay aligned?
 - should this logic be moved into `wms/parties/` instead of staying duplicated in portal/admin adapters?

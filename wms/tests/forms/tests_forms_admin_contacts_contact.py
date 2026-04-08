@@ -123,6 +123,36 @@ class ContactCrudFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("entity_type", form.errors)
 
+    def test_partner_requires_explicit_nature_choice(self):
+        form = ContactCrudForm(
+            data={
+                "business_type": "partner",
+                "organization_name": "Partenaire Test",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertNotIn("business_type", form.errors)
+        self.assertIn("entity_type", form.errors)
+
+    def test_other_requires_explicit_nature_choice(self):
+        form = ContactCrudForm(
+            data={
+                "business_type": "other",
+                "organization_name": "Autre Contact Test",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertNotIn("business_type", form.errors)
+        self.assertIn("entity_type", form.errors)
+
+    def test_business_type_choices_include_partner_and_other(self):
+        form = ContactCrudForm()
+
+        self.assertIn(("partner", "Partenaire"), form.fields["business_type"].choices)
+        self.assertIn(("other", "Autre"), form.fields["business_type"].choices)
+
     def test_allowed_shipper_queryset_only_lists_active_shippers(self):
         active_shipper_org = Contact.objects.create(
             name="ASF Active",

@@ -54,6 +54,44 @@ class AdminContactsContactServiceTests(TestCase):
             ).exists()
         )
 
+    def test_create_partner_adds_capability(self):
+        contact = save_contact_from_form(
+            {
+                "business_type": "partner",
+                "entity_type": ContactType.ORGANIZATION,
+                "organization_name": "Partenaire Lumiere",
+                "is_active": True,
+            }
+        )
+
+        self.assertEqual(contact.contact_type, ContactType.ORGANIZATION)
+        self.assertTrue(
+            ContactCapability.objects.filter(
+                contact=contact,
+                capability=ContactCapabilityType.PARTNER,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_create_other_adds_capability(self):
+        contact = save_contact_from_form(
+            {
+                "business_type": "other",
+                "entity_type": ContactType.ORGANIZATION,
+                "organization_name": "Autre Contact Historique",
+                "is_active": True,
+            }
+        )
+
+        self.assertEqual(contact.contact_type, ContactType.ORGANIZATION)
+        self.assertTrue(
+            ContactCapability.objects.filter(
+                contact=contact,
+                capability=ContactCapabilityType.OTHER,
+                is_active=True,
+            ).exists()
+        )
+
     def test_create_shipper_creates_organization_person_and_runtime(self):
         organization = save_contact_from_form(
             {
