@@ -132,6 +132,7 @@ DELETE_BATCHES = (
             "wms.RecipientStructureDocument",
             "wms.PublicAccountRequest",
             "wms.VolunteerAccountRequest",
+            "wms.PortalAccessGrant",
             "wms.AssociationPortalContact",
             "wms.AssociationRecipient",
             "wms.AssociationBillingChangeRequest",
