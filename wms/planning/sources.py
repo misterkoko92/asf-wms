@@ -161,13 +161,22 @@ def get_run_volunteers(run):
     return queryset
 
 
-def get_run_flights(run):
-    if run.flight_batch_id is None:
+def get_run_flights(run, *, flight_batches=None):
+    batch_ids = []
+    if flight_batches is not None:
+        batch_ids = [
+            batch.id if hasattr(batch, "id") else batch
+            for batch in flight_batches
+            if batch is not None
+        ]
+    elif run.flight_batch_id is not None:
+        batch_ids = [run.flight_batch_id]
+    if not batch_ids:
         return Flight.objects.none()
     return (
         Flight.objects.select_related("destination")
         .filter(
-            batch=run.flight_batch,
+            batch_id__in=batch_ids,
             departure_date__gte=run.week_start,
             departure_date__lte=run.week_end,
         )

@@ -11,5 +11,5 @@ class UnknownPlanningFlightProviderError(PlanningFlightProviderConfigurationErro
 
 
 class PlanningFlightProvider:
-    def fetch_flights(self, *, start_date, end_date):
+    def fetch_flights(self, *, start_date, end_date, destination_codes=None):
         raise NotImplementedError("Configure a concrete planning flight provider.")

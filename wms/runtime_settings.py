@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -13,6 +14,54 @@ def _safe_int(value, *, default, minimum):
     except (TypeError, ValueError):
         return default
     return max(minimum, resolved)
+
+
+def _safe_float(value, *, default, minimum):
+    try:
+        resolved = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, resolved)
+
+
+def _get_setting_or_env(name, *, default="", env_aliases=()):
+    value = getattr(settings, name, None)
+    if isinstance(value, str):
+        value = value.strip()
+    if value not in (None, ""):
+        return value
+    for env_name in (name, *env_aliases):
+        env_value = os.environ.get(env_name)
+        if env_value is None:
+            continue
+        env_value = env_value.strip()
+        if env_value:
+            return env_value
+    return default
+
+
+def _get_setting_or_env_int(name, *, default, minimum, env_aliases=()):
+    value = getattr(settings, name, None)
+    if value not in (None, ""):
+        return _safe_int(value, default=default, minimum=minimum)
+    for env_name in (name, *env_aliases):
+        env_value = os.environ.get(env_name)
+        if env_value in (None, ""):
+            continue
+        return _safe_int(env_value, default=default, minimum=minimum)
+    return default
+
+
+def _get_setting_or_env_float(name, *, default, minimum, env_aliases=()):
+    value = getattr(settings, name, None)
+    if value not in (None, ""):
+        return _safe_float(value, default=default, minimum=minimum)
+    for env_name in (name, *env_aliases):
+        env_value = os.environ.get(env_name)
+        if env_value in (None, ""):
+            continue
+        return _safe_float(env_value, default=default, minimum=minimum)
+    return default
 
 
 @dataclass(frozen=True)
@@ -39,6 +88,8 @@ class PlanningFlightApiConfig:
     base_url: str
     api_key: str
     timeout_seconds: int
+    max_calls_per_day: int
+    min_delay_seconds: float
     origin_iata: str
     operating_airline_code: str
     time_origin_type: str
@@ -177,23 +228,62 @@ def is_shipment_track_legacy_enabled() -> bool:
 
 def get_planning_flight_api_config() -> PlanningFlightApiConfig:
     return PlanningFlightApiConfig(
-        provider=(getattr(settings, "PLANNING_FLIGHT_API_PROVIDER", "airfrance_klm") or "")
+        provider=str(
+            _get_setting_or_env(
+                "PLANNING_FLIGHT_API_PROVIDER",
+                default="airfrance_klm",
+            )
+        )
         .strip()
         .lower(),
-        base_url=(getattr(settings, "PLANNING_FLIGHT_API_BASE_URL", "") or "").strip(),
-        api_key=(getattr(settings, "PLANNING_FLIGHT_API_KEY", "") or "").strip(),
-        timeout_seconds=_safe_int(
-            getattr(settings, "PLANNING_FLIGHT_API_TIMEOUT_SECONDS", 30),
+        base_url=str(_get_setting_or_env("PLANNING_FLIGHT_API_BASE_URL", default="")).strip(),
+        api_key=str(
+            _get_setting_or_env(
+                "PLANNING_FLIGHT_API_KEY",
+                default="",
+                env_aliases=("AF_API_KEY",),
+            )
+        ).strip(),
+        timeout_seconds=_get_setting_or_env_int(
+            "PLANNING_FLIGHT_API_TIMEOUT_SECONDS",
             default=30,
             minimum=1,
         ),
-        origin_iata=(getattr(settings, "PLANNING_FLIGHT_API_ORIGIN_IATA", "CDG") or "CDG")
+        max_calls_per_day=_get_setting_or_env_int(
+            "PLANNING_FLIGHT_API_MAX_CALLS_PER_DAY",
+            default=100,
+            minimum=1,
+            env_aliases=("AF_MAX_CALLS_PER_DAY",),
+        ),
+        min_delay_seconds=_get_setting_or_env_float(
+            "PLANNING_FLIGHT_API_MIN_DELAY_SECONDS",
+            default=1.1,
+            minimum=0.1,
+            env_aliases=("AF_MIN_DELAY_SECONDS",),
+        ),
+        origin_iata=str(
+            _get_setting_or_env(
+                "PLANNING_FLIGHT_API_ORIGIN_IATA",
+                default="CDG",
+            )
+        )
         .strip()
         .upper(),
-        operating_airline_code=(getattr(settings, "PLANNING_FLIGHT_API_AIRLINE_CODE", "AF") or "AF")
+        operating_airline_code=str(
+            _get_setting_or_env(
+                "PLANNING_FLIGHT_API_AIRLINE_CODE",
+                default="AF",
+            )
+        )
         .strip()
         .upper(),
-        time_origin_type=(getattr(settings, "PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE", "P") or "P")
+        time_origin_type=str(
+            _get_setting_or_env(
+                "PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE",
+                default="P",
+                env_aliases=("AF_TIME_ORIGIN_TYPE",),
+            )
+        )
         .strip()
         .upper(),
     )

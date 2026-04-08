@@ -278,7 +278,7 @@ Validate:
   - validate one tracking or close action on an existing shipment
 - Conditional smoke based on release scope:
   - if `portal` changed, validate portal login plus one nominal order or recipient update flow
-  - if `planning` changed, validate run-list attention cards, version cockpit access on an existing run, strict `Planning.pdf` / `Planning.xlsx` artifact regeneration, and download when relevant
+  - if `planning` changed, validate run-list attention cards, version cockpit access on an existing run, one run input preparation path (`api`/`hybrid`) with either retained flights or an explicit `flight_import_failed` issue, and strict `Planning.pdf` / `Planning.xlsx` artifact regeneration and download when relevant
   - if `billing` changed, validate one nominal billing preview/export or payment/correction flow
 
 ### Planning export artifact health

@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -18,6 +19,7 @@ from wms.planning.flight_providers.airfrance_klm import (
 from wms.planning.flight_sources import (
     build_planning_flight_api_client,
     collect_flight_batches,
+    import_api_flights,
     import_excel_flights,
 )
 from wms.runtime_settings import get_planning_flight_api_config
@@ -29,6 +31,8 @@ class PlanningFlightApiConfigTests(SimpleTestCase):
         PLANNING_FLIGHT_API_BASE_URL="https://example.test/flights",
         PLANNING_FLIGHT_API_KEY="test-api-key",  # pragma: allowlist secret
         PLANNING_FLIGHT_API_TIMEOUT_SECONDS=17,
+        PLANNING_FLIGHT_API_MAX_CALLS_PER_DAY=42,
+        PLANNING_FLIGHT_API_MIN_DELAY_SECONDS=1.8,
         PLANNING_FLIGHT_API_ORIGIN_IATA="CDG",
         PLANNING_FLIGHT_API_AIRLINE_CODE="AF",
         PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE="M",
@@ -40,6 +44,8 @@ class PlanningFlightApiConfigTests(SimpleTestCase):
         self.assertEqual(config.base_url, "https://example.test/flights")
         self.assertEqual(config.api_key, "test-api-key")
         self.assertEqual(config.timeout_seconds, 17)
+        self.assertEqual(config.max_calls_per_day, 42)
+        self.assertEqual(config.min_delay_seconds, 1.8)
         self.assertEqual(config.origin_iata, "CDG")
         self.assertEqual(config.operating_airline_code, "AF")
         self.assertEqual(config.time_origin_type, "M")
@@ -53,6 +59,50 @@ class PlanningFlightApiConfigTests(SimpleTestCase):
 
         self.assertIsInstance(client, AirFranceKlmFlightProvider)
         self.assertEqual(client.api_key, "test-api-key")
+
+    @override_settings(
+        PLANNING_FLIGHT_API_KEY="",
+        PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE="",
+    )
+    def test_runtime_config_reads_planning_flight_api_env_names(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "PLANNING_FLIGHT_API_KEY": "env-api-key",  # pragma: allowlist secret
+                "PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE": "I",
+            },
+            clear=False,
+        ):
+            config = get_planning_flight_api_config()
+
+        self.assertEqual(config.provider, "airfrance_klm")
+        self.assertEqual(config.api_key, "env-api-key")
+        self.assertEqual(config.time_origin_type, "I")
+
+    @override_settings(
+        PLANNING_FLIGHT_API_KEY="",
+        PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE="",
+        PLANNING_FLIGHT_API_MAX_CALLS_PER_DAY="",
+        PLANNING_FLIGHT_API_MIN_DELAY_SECONDS="",
+    )
+    def test_runtime_config_falls_back_to_scheduler_air_france_env_names(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "AF_API_KEY": "scheduler-api-key",  # pragma: allowlist secret
+                "AF_TIME_ORIGIN_TYPE": "M",
+                "AF_MAX_CALLS_PER_DAY": "100",
+                "AF_MIN_DELAY_SECONDS": "1.1",
+            },
+            clear=False,
+        ):
+            config = get_planning_flight_api_config()
+
+        self.assertEqual(config.provider, "airfrance_klm")
+        self.assertEqual(config.api_key, "scheduler-api-key")
+        self.assertEqual(config.time_origin_type, "M")
+        self.assertEqual(config.max_calls_per_day, 100)
+        self.assertEqual(config.min_delay_seconds, 1.1)
 
 
 class AirFranceKlmFlightProviderTests(SimpleTestCase):
@@ -150,6 +200,60 @@ class AirFranceKlmFlightProviderTests(SimpleTestCase):
 
         self.assertEqual(records, [])
 
+    def test_fetch_flights_queries_each_destination_when_codes_are_provided(self):
+        provider = AirFranceKlmFlightProvider(
+            base_url=DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
+            api_key="test-api-key",  # pragma: allowlist secret
+            timeout_seconds=17,
+            origin_iata="CDG",
+            operating_airline_code="AF",
+            time_origin_type="M",
+        )
+
+        with (
+            mock.patch(
+                "wms.planning.flight_providers.airfrance_klm.request.urlopen",
+                return_value=self._UrlOpenResponse(
+                    json.dumps({"operationalFlights": []}).encode("utf-8")
+                ),
+            ) as urlopen_mock,
+            mock.patch("wms.planning.flight_providers.airfrance_klm.time.sleep") as sleep_mock,
+        ):
+            records = provider.fetch_flights(
+                start_date=date(2026, 3, 9),
+                end_date=date(2026, 3, 15),
+                destination_codes=["run", "DLA"],
+            )
+
+        self.assertEqual(records, [])
+        self.assertEqual(urlopen_mock.call_count, 2)
+        requested_urls = [call.args[0].full_url for call in urlopen_mock.call_args_list]
+        self.assertIn("destination=RUN", requested_urls[0])
+        self.assertIn("destination=DLA", requested_urls[1])
+        sleep_mock.assert_called_once_with(1.1)
+
+    def test_fetch_flights_rejects_destination_count_above_limit(self):
+        provider = AirFranceKlmFlightProvider(
+            base_url=DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
+            api_key="test-api-key",  # pragma: allowlist secret
+            timeout_seconds=17,
+            max_calls_per_day=1,
+            min_delay_seconds=1.1,
+            origin_iata="CDG",
+            operating_airline_code="AF",
+            time_origin_type="M",
+        )
+
+        with self.assertRaisesRegex(
+            PlanningFlightProviderError,
+            "max_calls_per_day=1",
+        ):
+            provider.fetch_flights(
+                start_date=date(2026, 3, 9),
+                end_date=date(2026, 3, 15),
+                destination_codes=["ABJ", "DLA"],
+            )
+
 
 class FlightSourceTests(TestCase):
     def setUp(self):
@@ -204,6 +308,49 @@ class FlightSourceTests(TestCase):
         self.assertEqual(flight.routing, "CDG-ABJ")
         self.assertEqual(flight.route_pos, 1)
         self.assertEqual(flight.capacity_units, 12)
+
+    def test_import_api_flights_deduplicates_overlapping_destination_results(self):
+        class DuplicateApiClient:
+            def __init__(self):
+                self.called_with = None
+
+            def fetch_flights(self, *, start_date, end_date, destination_codes=None):
+                self.called_with = {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "destination_codes": destination_codes,
+                }
+                duplicate_row = {
+                    "flight_number": "af704",
+                    "departure_date": "2026-03-11",
+                    "departure_time": "09:45",
+                    "origin_iata": "cdg",
+                    "destination_iata": "abj",
+                    "routing": "CDG-ABJ",
+                    "route_pos": 1,
+                    "capacity_units": "15",
+                }
+                return [duplicate_row, dict(duplicate_row)]
+
+        api_client = DuplicateApiClient()
+
+        batch = import_api_flights(
+            start_date=date(2026, 3, 9),
+            end_date=date(2026, 3, 15),
+            destination_codes=["ABJ"],
+            client=api_client,
+        )
+
+        self.assertEqual(
+            api_client.called_with,
+            {
+                "start_date": date(2026, 3, 9),
+                "end_date": date(2026, 3, 15),
+                "destination_codes": ["ABJ"],
+            },
+        )
+        self.assertEqual(batch.flights.count(), 1)
+        self.assertEqual(batch.flights.get().flight_number, "AF704")
 
     def test_collect_hybrid_flight_batches_adds_api_rows(self):
         tmp_dir, path = self._write_excel_workbook()

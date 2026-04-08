@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime
 from urllib import error, parse, request
 
@@ -24,6 +25,8 @@ class AirFranceKlmFlightProvider(PlanningFlightProvider):
         base_url,
         api_key,
         timeout_seconds,
+        max_calls_per_day=100,
+        min_delay_seconds=1.1,
         origin_iata=DEFAULT_AIRFRANCE_KLM_ORIGIN_IATA,
         operating_airline_code=DEFAULT_AIRFRANCE_KLM_AIRLINE_CODE,
         time_origin_type=DEFAULT_AIRFRANCE_KLM_TIME_ORIGIN_TYPE,
@@ -31,6 +34,8 @@ class AirFranceKlmFlightProvider(PlanningFlightProvider):
         self.base_url = (base_url or DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL).strip()
         self.api_key = (api_key or "").strip()
         self.timeout_seconds = timeout_seconds
+        self.max_calls_per_day = max(1, int(max_calls_per_day or 100))
+        self.min_delay_seconds = max(0.1, float(min_delay_seconds or 1.1))
         self.origin_iata = (origin_iata or DEFAULT_AIRFRANCE_KLM_ORIGIN_IATA).strip().upper()
         self.operating_airline_code = (
             (operating_airline_code or DEFAULT_AIRFRANCE_KLM_AIRLINE_CODE).strip().upper()
@@ -44,27 +49,32 @@ class AirFranceKlmFlightProvider(PlanningFlightProvider):
             )
         self.time_origin_type = normalized_time_origin_type
 
-    def _build_url(self, *, start_date, end_date):
-        query = parse.urlencode(
-            {
-                "startRange": f"{start_date.isoformat()}T00:00:01Z",
-                "endRange": f"{end_date.isoformat()}T23:59:59Z",
-                "origin": self.origin_iata,
-                "operatingAirlineCode": self.operating_airline_code,
-                "timeOriginType": self.time_origin_type,
-            }
-        )
+    def _build_url(self, *, start_date, end_date, destination_code=None):
+        query_params = {
+            "startRange": f"{start_date.isoformat()}T00:00:01Z",
+            "endRange": f"{end_date.isoformat()}T23:59:59Z",
+            "origin": self.origin_iata,
+            "operatingAirlineCode": self.operating_airline_code,
+            "timeOriginType": self.time_origin_type,
+        }
+        if destination_code:
+            query_params["destination"] = destination_code
+        query = parse.urlencode(query_params)
         separator = "&" if "?" in self.base_url else "?"
         return f"{self.base_url}{separator}{query}"
 
-    def _read_payload(self, *, start_date, end_date):
+    def _read_payload(self, *, start_date, end_date, destination_code=None):
         if not self.api_key:
             raise PlanningFlightProviderConfigurationError(
                 "PLANNING_FLIGHT_API_KEY is required for planning API imports."
             )
 
         req = request.Request(
-            self._build_url(start_date=start_date, end_date=end_date),
+            self._build_url(
+                start_date=start_date,
+                end_date=end_date,
+                destination_code=destination_code,
+            ),
             method="GET",
             headers={
                 "API-Key": self.api_key,
@@ -97,13 +107,54 @@ class AirFranceKlmFlightProvider(PlanningFlightProvider):
             raise PlanningFlightProviderError("Planning flight API returned an unexpected payload.")
         return payload
 
-    def fetch_flights(self, *, start_date, end_date):
-        payload = self._read_payload(start_date=start_date, end_date=end_date)
-        return _extract_records(
-            payload,
-            origin_iata=self.origin_iata,
-            operating_airline_code=self.operating_airline_code,
-        )
+    def fetch_flights(self, *, start_date, end_date, destination_codes=None):
+        normalized_destination_codes = _normalize_destination_codes(destination_codes)
+        if not normalized_destination_codes:
+            payload = self._read_payload(start_date=start_date, end_date=end_date)
+            return _extract_records(
+                payload,
+                origin_iata=self.origin_iata,
+                operating_airline_code=self.operating_airline_code,
+            )
+
+        if len(normalized_destination_codes) > self.max_calls_per_day:
+            raise PlanningFlightProviderError(
+                "Planning flight API destination count "
+                f"({len(normalized_destination_codes)}) exceeds max_calls_per_day="
+                f"{self.max_calls_per_day}."
+            )
+
+        records = []
+        for destination_code in normalized_destination_codes:
+            payload = self._read_payload(
+                start_date=start_date,
+                end_date=end_date,
+                destination_code=destination_code,
+            )
+            records.extend(
+                _extract_records(
+                    payload,
+                    origin_iata=self.origin_iata,
+                    operating_airline_code=self.operating_airline_code,
+                )
+            )
+            if destination_code != normalized_destination_codes[-1]:
+                time.sleep(self.min_delay_seconds)
+        return records
+
+
+def _normalize_destination_codes(destination_codes):
+    if not destination_codes:
+        return []
+    normalized_codes = []
+    seen = set()
+    for raw_code in destination_codes:
+        code = str(raw_code or "").strip().upper()
+        if len(code) != 3 or code in seen:
+            continue
+        seen.add(code)
+        normalized_codes.append(code)
+    return normalized_codes
 
 
 def _pick_departure_iso_from_leg(leg):

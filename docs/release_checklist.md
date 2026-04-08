@@ -58,7 +58,7 @@ Notes:
 - [ ] Conditional smoke: if dashboard scope changed, validate one `Blocages workflow` row opens the expected dossier and claim/release works once.
 - [ ] Conditional smoke: if pilotage/settings scope changed, validate `/scan/settings/`, `/scan/dashboard/`, and `/scan/pilotage/` all expose `Seuils actifs`, the expected active preset label, and coherent planning thresholds.
 - [ ] Conditional smoke: if portal scope changed, validate portal login plus one nominal order or recipient update flow.
-- [ ] Conditional smoke: if planning scope changed, validate run-list attention cards, cockpit access on an existing run/version, `Runtime PDF`, and strict `Planning.pdf` / `Planning.xlsx` artifact visibility, regeneration, or download if applicable.
+- [ ] Conditional smoke: if planning scope changed, validate run-list attention cards, one run input preparation path (`api`/`hybrid`) with either retained flights or an explicit `flight_import_failed` issue, cockpit access on an existing run/version, `Runtime PDF`, and strict `Planning.pdf` / `Planning.xlsx` artifact visibility, regeneration, or download if applicable.
 - [ ] Conditional smoke: if planning scope changed, validate one internal planning helper payload is blocked when no ready PDF exists and unblocked after a successful PDF export.
 - [ ] Conditional smoke: if billing scope changed, validate one nominal billing preview/export or payment/correction flow.
 - [ ] Run `python manage.py process_email_queue --limit=100`
