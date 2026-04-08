@@ -1,4 +1,6 @@
+import importlib
 import re
+import sys
 from io import BytesIO
 from unittest import mock
 
@@ -55,6 +57,14 @@ class PlanningViewTests(TestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
+
+    def test_views_planning_import_does_not_eagerly_import_solver(self):
+        sys.modules.pop("wms.views_planning", None)
+        sys.modules.pop("wms.planning.solver", None)
+
+        importlib.import_module("wms.views_planning")
+
+        self.assertNotIn("wms.planning.solver", sys.modules)
 
     def make_version_with_assignment(self, *, status=PlanningVersionStatus.DRAFT):
         run = PlanningRun.objects.create(

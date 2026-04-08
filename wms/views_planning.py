@@ -55,8 +55,6 @@ from .planning.operator_mutations import (
     update_assignment,
 )
 from .planning.shipment_updates import apply_version_updates
-from .planning.snapshots import prepare_run_inputs
-from .planning.solver import solve_run
 from .planning.versioning import clone_version, diff_versions, publish_version
 from .print_pack_engine import PrintPackEngineError, generate_pack
 from .print_pack_graph import GraphPdfConversionError
@@ -76,6 +74,18 @@ ACTIVE_PLANNING_RUNS = "planning_runs"
 
 def _planning_helper_repo_root():
     return Path(__file__).resolve().parent.parent
+
+
+def prepare_run_inputs(run):
+    from .planning.snapshots import prepare_run_inputs as _prepare_run_inputs
+
+    return _prepare_run_inputs(run)
+
+
+def solve_run(run):
+    from .planning.solver import solve_run as _solve_run
+
+    return _solve_run(run)
 
 
 def _build_helper_install_context(request, version):
