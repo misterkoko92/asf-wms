@@ -9,6 +9,8 @@ from wms.models import (
     ShipmentUnitEquivalenceRule,
     VolunteerConstraint,
 )
+from wms.planning.flight_providers import PlanningFlightProviderError
+from wms.planning.flight_sources import collect_flight_batches
 from wms.planning.sources import (
     build_correspondent_reference,
     build_recipient_reference,
@@ -17,7 +19,7 @@ from wms.planning.sources import (
     get_run_shipments,
     get_run_volunteers,
 )
-from wms.planning.validation import get_destination_rule_map, validate_run_inputs
+from wms.planning.validation import create_issue, get_destination_rule_map, validate_run_inputs
 from wms.unit_equivalence import ShipmentUnitInput, resolve_shipment_unit_count
 
 
@@ -98,6 +100,38 @@ def _serialize_time(value):
     return value.isoformat(timespec="minutes")
 
 
+def _select_run_flight_anchor(run, *, flight_batches):
+    if run.flight_batch_id is not None:
+        for batch in flight_batches:
+            if batch.id == run.flight_batch_id:
+                return batch
+    return flight_batches[0] if flight_batches else None
+
+
+def _resolve_run_destination_codes(*, run, shipments):
+    destination_codes = []
+    seen = set()
+
+    def _append(code):
+        normalized = str(code or "").strip().upper()
+        if len(normalized) != 3 or normalized in seen:
+            return
+        seen.add(normalized)
+        destination_codes.append(normalized)
+
+    for shipment in shipments:
+        destination = getattr(shipment, "destination", None)
+        _append(getattr(destination, "iata_code", ""))
+
+    if run.parameter_set_id is None:
+        return destination_codes
+
+    rules = run.parameter_set.destination_rules.filter(is_active=True).select_related("destination")
+    for rule in rules:
+        _append(getattr(rule.destination, "iata_code", ""))
+    return destination_codes
+
+
 @transaction.atomic
 def prepare_run_inputs(run):
     run.issues.all().delete()
@@ -109,8 +143,40 @@ def prepare_run_inputs(run):
     run.save(update_fields=["status", "validation_summary", "updated_at"])
 
     shipments = list(get_run_shipments(run))
+    destination_codes = _resolve_run_destination_codes(run=run, shipments=shipments)
     volunteers = list(get_run_volunteers(run))
-    flights = list(get_run_flights(run))
+    flights = []
+    flight_batch_ids = []
+    try:
+        flight_batches = collect_flight_batches(
+            flight_mode=run.flight_mode,
+            start_date=run.week_start,
+            end_date=run.week_end,
+            excel_batch=run.flight_batch,
+            destination_codes=destination_codes,
+        )
+    except PlanningFlightProviderError as exc:
+        create_issue(
+            run=run,
+            code="flight_import_failed",
+            message=f"Impossible de charger les vols: {exc}",
+            source_model="wms.PlanningRun",
+            source_pk=run.pk,
+            severity=PlanningIssueSeverity.ERROR,
+            context={"flight_mode": run.flight_mode},
+        )
+        flight_batches = []
+    else:
+        flight_batch_ids = [batch.id for batch in flight_batches if batch is not None]
+        anchor_batch = _select_run_flight_anchor(run, flight_batches=flight_batches)
+        if anchor_batch is None:
+            if run.flight_batch_id is not None:
+                run.flight_batch = None
+                run.save(update_fields=["flight_batch", "updated_at"])
+        elif run.flight_batch_id != anchor_batch.id:
+            run.flight_batch = anchor_batch
+            run.save(update_fields=["flight_batch", "updated_at"])
+        flights = list(get_run_flights(run, flight_batches=flight_batches))
     destination_rule_map = get_destination_rule_map(run)
     equivalence_rules = list(
         ShipmentUnitEquivalenceRule.objects.filter(is_active=True).select_related(
@@ -190,6 +256,7 @@ def prepare_run_inputs(run):
         "shipment_count": len(shipments),
         "volunteer_count": len(volunteers),
         "flight_count": len(flights),
+        "flight_batch_ids": flight_batch_ids,
         "error_count": error_count,
         "warning_count": warning_count,
     }

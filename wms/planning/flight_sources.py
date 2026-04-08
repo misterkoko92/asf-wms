@@ -119,6 +119,25 @@ def _persist_batch(*, source, records, file_name="", checksum="", notes=""):
     return batch
 
 
+def _dedupe_normalized_records(records):
+    deduped = []
+    seen = set()
+    for record in records:
+        key = (
+            record["flight_number"],
+            record["departure_date"],
+            record["departure_time"],
+            record["origin_iata"],
+            record["destination_iata"],
+            record["route_pos"],
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(record)
+    return deduped
+
+
 def _append_batch_note(batch, note):
     if not batch or not note:
         return
@@ -153,6 +172,8 @@ def build_planning_flight_api_client():
             base_url=config.base_url,
             api_key=config.api_key,
             timeout_seconds=config.timeout_seconds,
+            max_calls_per_day=config.max_calls_per_day,
+            min_delay_seconds=config.min_delay_seconds,
             origin_iata=config.origin_iata,
             operating_airline_code=config.operating_airline_code,
             time_origin_type=config.time_origin_type,
@@ -162,12 +183,17 @@ def build_planning_flight_api_client():
     )
 
 
-def import_api_flights(*, start_date, end_date, client=None):
+def import_api_flights(*, start_date, end_date, destination_codes=None, client=None):
     api_client = client or build_planning_flight_api_client()
-    records = [
-        normalize_flight_record(row)
-        for row in api_client.fetch_flights(start_date=start_date, end_date=end_date)
-    ]
+    fetch_kwargs = {
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+    if destination_codes:
+        fetch_kwargs["destination_codes"] = list(destination_codes)
+    records = _dedupe_normalized_records(
+        [normalize_flight_record(row) for row in api_client.fetch_flights(**fetch_kwargs)]
+    )
     return _persist_batch(
         source="api",
         records=records,
@@ -175,7 +201,15 @@ def import_api_flights(*, start_date, end_date, client=None):
     )
 
 
-def collect_flight_batches(*, flight_mode, start_date, end_date, excel_batch=None, api_client=None):
+def collect_flight_batches(
+    *,
+    flight_mode,
+    start_date,
+    end_date,
+    excel_batch=None,
+    destination_codes=None,
+    api_client=None,
+):
     batches = []
     if flight_mode in {PlanningRunFlightMode.EXCEL, PlanningRunFlightMode.HYBRID} and excel_batch:
         batches.append(excel_batch)
@@ -185,6 +219,7 @@ def collect_flight_batches(*, flight_mode, start_date, end_date, excel_batch=Non
                 import_api_flights(
                     start_date=start_date,
                     end_date=end_date,
+                    destination_codes=destination_codes,
                     client=api_client,
                 )
             )

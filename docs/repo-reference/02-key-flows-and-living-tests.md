@@ -347,6 +347,9 @@ Document scan queue follows the same V3.2 durable-dispatch rule:
 - `templates/planning/run_list.html` is the action-oriented entry page with an attention block before history
 - `templates/planning/run_detail.html` exposes a single primary CTA and a short operator list of versions
 - `templates/planning/version_detail.html` is the operator cockpit and should stay ordered as `header -> priorities -> section nav -> planning capacity -> planning by flight -> secondary details`
+- `prepare_run_inputs(...)` must resolve flight batches from `flight_mode` through `wms/planning/flight_sources.py`; `api` mode records a blocking `flight_import_failed` issue when the provider import fails, while `hybrid` snapshots every retained Excel/API flight and keeps the existing Excel batch as the run anchor when present
+- when planning shipments or active destination rules expose IATA targets, Air France imports must query the provider per destination code instead of using a single broad request, then deduplicate overlapping multi-stop rows before persisting the API batch
+- planning flight API config resolves from Django settings first, then `PLANNING_FLIGHT_API_*` env vars, with compatibility aliases for `AF_API_KEY`, `AF_TIME_ORIGIN_TYPE`, `AF_MAX_CALLS_PER_DAY`, and `AF_MIN_DELAY_SECONDS` to reuse the scheduler Air France setup and its QPS pacing
 - the stats panel now includes the local flight-capacity summary cards `Vols en tension`, `Vols critiques`, `Vols en surcharge`, `Capacité restante totale`
 - the main planning block now starts with a compact `Charge vols` table ordered by load urgency before the detailed assignment groups
 - the exports block now regenerates a strict planning workbook plus a derived planning PDF from the vendored `Planning-maquette.xlsx`

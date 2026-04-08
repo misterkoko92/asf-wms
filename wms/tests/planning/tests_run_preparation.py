@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, time, timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -32,6 +33,7 @@ from wms.models import (
     VolunteerProfile,
     Warehouse,
 )
+from wms.planning.flight_providers import PlanningFlightProviderError
 from wms.planning.snapshots import prepare_run_inputs
 
 
@@ -218,3 +220,224 @@ class PlanningRunPreparationTests(TestCase):
         self.assertEqual(flight_snapshot.payload["origin_iata"], "CDG")
         self.assertEqual(flight_snapshot.payload["routing"], "CDG-ABJ")
         self.assertEqual(flight_snapshot.payload["route_pos"], 1)
+
+    @mock.patch("wms.planning.snapshots.collect_flight_batches")
+    def test_prepare_run_collects_api_flights_when_run_uses_api_mode(
+        self,
+        collect_flight_batches_mock,
+    ):
+        PlanningDestinationRule.objects.create(
+            parameter_set=self.parameter_set,
+            destination=self.destination,
+            label="ABJ weekly",
+            weekly_frequency=2,
+            max_cartons_per_flight=12,
+            priority=5,
+        )
+        self._create_shipment()
+
+        volunteer_user = get_user_model().objects.create_user(
+            username="volunteer-api@example.com",
+            email="volunteer-api@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        volunteer = VolunteerProfile.objects.create(user=volunteer_user)
+        VolunteerAvailability.objects.create(
+            volunteer=volunteer,
+            date=self.week_start + timedelta(days=1),
+            start_time=time(9, 0),
+            end_time=time(12, 0),
+        )
+
+        api_batch = FlightSourceBatch.objects.create(
+            source="api",
+            period_start=self.week_start,
+            period_end=self.week_end,
+            status="imported",
+        )
+        api_flight = Flight.objects.create(
+            batch=api_batch,
+            flight_number="AF702",
+            departure_date=self.week_start + timedelta(days=1),
+            departure_time=time(9, 45),
+            destination_iata="ABJ",
+            origin_iata="CDG",
+            routing="CDG-ABJ",
+            route_pos=1,
+            destination=self.destination,
+            capacity_units=20,
+        )
+        self.run.flight_mode = "api"
+        self.run.save(update_fields=["flight_mode"])
+        collect_flight_batches_mock.return_value = [api_batch]
+
+        prepare_run_inputs(self.run)
+
+        self.run.refresh_from_db()
+        collect_flight_batches_mock.assert_called_once_with(
+            flight_mode="api",
+            start_date=self.week_start,
+            end_date=self.week_end,
+            excel_batch=None,
+            destination_codes=["ABJ"],
+        )
+        self.assertEqual(self.run.status, PlanningRunStatus.READY)
+        self.assertEqual(self.run.flight_batch, api_batch)
+        self.assertEqual(
+            list(
+                PlanningFlightSnapshot.objects.filter(run=self.run).values_list(
+                    "flight_id",
+                    flat=True,
+                )
+            ),
+            [api_flight.id],
+        )
+        self.assertEqual(self.run.validation_summary["flight_count"], 1)
+
+    @mock.patch("wms.planning.snapshots.collect_flight_batches")
+    def test_prepare_run_combines_excel_and_api_flights_when_run_uses_hybrid_mode(
+        self,
+        collect_flight_batches_mock,
+    ):
+        PlanningDestinationRule.objects.create(
+            parameter_set=self.parameter_set,
+            destination=self.destination,
+            label="ABJ weekly",
+            weekly_frequency=2,
+            max_cartons_per_flight=12,
+            priority=5,
+        )
+        self._create_shipment()
+
+        volunteer_user = get_user_model().objects.create_user(
+            username="volunteer-hybrid@example.com",
+            email="volunteer-hybrid@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        VolunteerProfile.objects.create(user=volunteer_user)
+        VolunteerAvailability.objects.create(
+            volunteer=VolunteerProfile.objects.get(user=volunteer_user),
+            date=self.week_start + timedelta(days=1),
+            start_time=time(9, 0),
+            end_time=time(12, 0),
+        )
+
+        excel_batch = FlightSourceBatch.objects.create(
+            source="excel",
+            period_start=self.week_start,
+            period_end=self.week_end,
+            status="imported",
+        )
+        excel_flight = Flight.objects.create(
+            batch=excel_batch,
+            flight_number="AF701",
+            departure_date=self.week_start + timedelta(days=1),
+            departure_time=time(8, 30),
+            destination_iata="ABJ",
+            origin_iata="CDG",
+            routing="CDG-ABJ",
+            route_pos=1,
+            destination=self.destination,
+            capacity_units=12,
+        )
+        api_batch = FlightSourceBatch.objects.create(
+            source="api",
+            period_start=self.week_start,
+            period_end=self.week_end,
+            status="imported",
+        )
+        api_flight = Flight.objects.create(
+            batch=api_batch,
+            flight_number="AF702",
+            departure_date=self.week_start + timedelta(days=2),
+            departure_time=time(9, 45),
+            destination_iata="ABJ",
+            origin_iata="CDG",
+            routing="CDG-ABJ",
+            route_pos=1,
+            destination=self.destination,
+            capacity_units=20,
+        )
+        self.run.flight_mode = "hybrid"
+        self.run.flight_batch = excel_batch
+        self.run.save(update_fields=["flight_mode", "flight_batch"])
+        collect_flight_batches_mock.return_value = [excel_batch, api_batch]
+
+        prepare_run_inputs(self.run)
+
+        self.run.refresh_from_db()
+        collect_flight_batches_mock.assert_called_once_with(
+            flight_mode="hybrid",
+            start_date=self.week_start,
+            end_date=self.week_end,
+            excel_batch=excel_batch,
+            destination_codes=["ABJ"],
+        )
+        self.assertEqual(self.run.status, PlanningRunStatus.READY)
+        self.assertEqual(self.run.flight_batch, excel_batch)
+        self.assertCountEqual(
+            list(
+                PlanningFlightSnapshot.objects.filter(run=self.run).values_list(
+                    "flight_id",
+                    flat=True,
+                )
+            ),
+            [excel_flight.id, api_flight.id],
+        )
+        self.assertEqual(self.run.validation_summary["flight_count"], 2)
+
+    @mock.patch("wms.planning.snapshots.collect_flight_batches")
+    def test_prepare_run_records_blocking_issue_when_api_flight_import_fails(
+        self,
+        collect_flight_batches_mock,
+    ):
+        PlanningDestinationRule.objects.create(
+            parameter_set=self.parameter_set,
+            destination=self.destination,
+            label="ABJ weekly",
+            weekly_frequency=2,
+            max_cartons_per_flight=12,
+            priority=5,
+        )
+        self._create_shipment()
+        self.run.flight_mode = "api"
+        self.run.save(update_fields=["flight_mode"])
+        collect_flight_batches_mock.side_effect = PlanningFlightProviderError(
+            "API down",
+        )
+
+        prepare_run_inputs(self.run)
+
+        self.run.refresh_from_db()
+        issue = PlanningIssue.objects.get(run=self.run, code="flight_import_failed")
+        self.assertEqual(self.run.status, PlanningRunStatus.VALIDATION_FAILED)
+        self.assertEqual(issue.message, "Impossible de charger les vols: API down")
+        self.assertEqual(self.run.validation_summary["flight_count"], 0)
+        self.assertEqual(self.run.validation_summary["error_count"], 1)
+
+    @mock.patch("wms.planning.snapshots.collect_flight_batches")
+    def test_prepare_run_uses_destination_rules_when_no_shipment_is_ready(
+        self,
+        collect_flight_batches_mock,
+    ):
+        PlanningDestinationRule.objects.create(
+            parameter_set=self.parameter_set,
+            destination=self.destination,
+            label="ABJ weekly",
+            weekly_frequency=2,
+            max_cartons_per_flight=12,
+            priority=5,
+        )
+        self.run.flight_mode = "api"
+        self.run.save(update_fields=["flight_mode"])
+        collect_flight_batches_mock.return_value = []
+
+        prepare_run_inputs(self.run)
+
+        collect_flight_batches_mock.assert_called_once_with(
+            flight_mode="api",
+            start_date=self.week_start,
+            end_date=self.week_end,
+            excel_batch=None,
+            destination_codes=["ABJ"],
+        )
