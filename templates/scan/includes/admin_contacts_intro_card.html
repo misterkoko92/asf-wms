@@ -8,23 +8,33 @@
             </p>
         </div>
         <div class="d-flex flex-column gap-3">
-            <section aria-label="Admin Django canonique">
-                <h3 class="h6 mb-2">Admin Django canonique</h3>
-                <div class="ui-comp-actions d-flex flex-wrap gap-2">
-                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_portalaccessgrant_changelist' %}" target="_blank" rel="noopener">
-                        Accès portail
-                    </a>
-                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_shipmentrecipientorganization_changelist' %}" target="_blank" rel="noopener">
-                        Structures destinataires
-                    </a>
-                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_recipientproductpreference_changelist' %}" target="_blank" rel="noopener">
-                        Préférences produits
-                    </a>
-                    <a class="btn btn-tertiary btn-sm" href="{% url 'admin:wms_recipientstructuredocument_changelist' %}" target="_blank" rel="noopener">
-                        Documents structures
-                    </a>
-                </div>
-            </section>
+            {% if portal_access_admin_url or recipient_organization_admin_url or recipient_product_preference_admin_url or recipient_structure_document_admin_url %}
+                <section aria-label="Admin Django canonique">
+                    <h3 class="h6 mb-2">Admin Django canonique</h3>
+                    <div class="ui-comp-actions d-flex flex-wrap gap-2">
+                        {% if portal_access_admin_url %}
+                            <a class="btn btn-tertiary btn-sm" href="{{ portal_access_admin_url }}" target="_blank" rel="noopener">
+                                Accès portail
+                            </a>
+                        {% endif %}
+                        {% if recipient_organization_admin_url %}
+                            <a class="btn btn-tertiary btn-sm" href="{{ recipient_organization_admin_url }}" target="_blank" rel="noopener">
+                                Structures destinataires
+                            </a>
+                        {% endif %}
+                        {% if recipient_product_preference_admin_url %}
+                            <a class="btn btn-tertiary btn-sm" href="{{ recipient_product_preference_admin_url }}" target="_blank" rel="noopener">
+                                Préférences produits
+                            </a>
+                        {% endif %}
+                        {% if recipient_structure_document_admin_url %}
+                            <a class="btn btn-tertiary btn-sm" href="{{ recipient_structure_document_admin_url }}" target="_blank" rel="noopener">
+                                Documents structures
+                            </a>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endif %}
             <section aria-label="Admin Django legacy">
                 <h3 class="h6 mb-2">Admin Django legacy</h3>
                 <div class="ui-comp-actions d-flex flex-wrap gap-2">

@@ -1,10 +1,10 @@
 from urllib.parse import urlencode
 
-from django.contrib import messages
+from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.utils.translation import get_language
 from django.utils.translation import gettext as _
@@ -29,11 +29,13 @@ from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import (
     CartonFormat,
     Destination,
+    PortalAccessGrant,
     Product,
     RecipientProductPreference,
     RecipientProductPreferencePeriodUnit,
     RecipientProductPreferenceSource,
     RecipientProductPreferenceStatus,
+    RecipientStructureDocument,
     ShipmentRecipientOrganization,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
@@ -255,6 +257,15 @@ def _build_contacts_url(*, query, contact_filter, destination_filter="", edit_id
     if params:
         url = f"{url}?{urlencode(params)}"
     return url
+
+
+def _safe_registered_admin_url(*, model, viewname):
+    if model not in admin.site._registry:
+        return ""
+    try:
+        return reverse(viewname)
+    except NoReverseMatch:
+        return ""
 
 
 def _build_recipient_organization_detail_url(
@@ -648,6 +659,22 @@ def scan_admin_contacts(request):
             "contact_add_url": reverse("admin:contacts_contact_add"),
             "destination_admin_url": reverse("admin:wms_destination_changelist"),
             "destination_add_url": reverse("admin:wms_destination_add"),
+            "portal_access_admin_url": _safe_registered_admin_url(
+                model=PortalAccessGrant,
+                viewname="admin:wms_portalaccessgrant_changelist",
+            ),
+            "recipient_organization_admin_url": _safe_registered_admin_url(
+                model=ShipmentRecipientOrganization,
+                viewname="admin:wms_shipmentrecipientorganization_changelist",
+            ),
+            "recipient_product_preference_admin_url": _safe_registered_admin_url(
+                model=RecipientProductPreference,
+                viewname="admin:wms_recipientproductpreference_changelist",
+            ),
+            "recipient_structure_document_admin_url": _safe_registered_admin_url(
+                model=RecipientStructureDocument,
+                viewname="admin:wms_recipientstructuredocument_changelist",
+            ),
             "contact_action_merge_targets": list(
                 Contact.objects.filter(is_active=True)
                 .select_related("organization")
