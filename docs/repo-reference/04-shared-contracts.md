@@ -970,7 +970,10 @@ Primary runtime sources:
 
 - `wms/models_domain/portal.py`
 - `wms/models_domain/shipment_parties.py`
+- `wms/portal_access.py`
 - `wms/portal_recipient_sync.py`
+- `wms/views_portal_auth.py`
+- `wms/portal_urls.py`
 - `wms/shipment_party_registry.py`
 - `wms/shipment_party_setup.py`
 - `wms/shipment_party_rules.py`
@@ -982,17 +985,35 @@ Why it is shared:
 - portal recipient changes affect operational contacts
 - operational contacts affect shipment create/edit selectors
 - admin contact tools can repair or reshape the same graph
+- portal authentication and session scope selection now depend on the same shipper/recipient graph
 - permissions and default bindings rely on the same data chain
 - recipient structure compliance fields (`legal_form`, `beneficiary_count`) and uploaded structure documents now travel with the same graph
+
+Current auth scope contract:
+
+- `PortalAccessGrant` grants exactly one active scope per row: either a `ShipmentShipper` or a
+  `ShipmentRecipientOrganization`
+- `wms/portal_access.py` prefers explicit active grants and falls back to legacy
+  `AssociationProfile` scope resolution only when no explicit grant exists
+- portal login, password-set, and access-recovery eligibility accept either explicit grants or the
+  legacy profile fallback
+- when a portal user has exactly one scope, login auto-activates it in session; when a user has
+  multiple scopes, the session stays unbound until `/portal/scope-select/` resolves the active
+  scope
+- the current legacy `/portal/` pages guarded by `association_required` remain shipper-only and
+  must reject recipient scopes until recipient-specific views are introduced
 
 Maintenance rule:
 
 - never treat portal recipient edits as pure presentation changes
 - verify whether the change impacts synchronization, authorizations, default contacts, or scan selectors
+- keep `PortalAccessGrant`, legacy `AssociationProfile` fallback, `/portal/scope-select/`, and
+  `association_required` aligned in the same work while the portal is still mid-transition
 - if recipient compliance fields or documents change, update portal creation/edit, synced `Contact`, `scan/contacts`, and admin merge/deduplication behavior together
 
 Reference tests:
 
+- `wms/tests/portal/tests_portal_access_grants.py`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 - `wms/tests/views/tests_views_scan_admin_shipment_parties.py`

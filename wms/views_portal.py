@@ -11,6 +11,7 @@ from .views_portal_auth import (
     portal_forgot_password,
     portal_login,
     portal_logout,
+    portal_scope_select,
     portal_set_password,
 )
 from .views_portal_billing import (
@@ -25,6 +26,7 @@ from .views_portal_orders import (
 
 AUTH_EXPORTS = (
     "portal_login",
+    "portal_scope_select",
     "portal_forgot_password",
     "portal_logout",
     "portal_set_password",

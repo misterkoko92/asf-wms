@@ -147,6 +147,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 ### Main runtime files
 
 - `wms/views_portal_auth.py`
+- `wms/portal_access.py`
 - `wms/views_portal_account.py`
 - `wms/views_portal_orders.py`
 - `wms/views_portal_billing.py`
@@ -168,6 +169,9 @@ If you change shipment sequencing, status rules, document-first creation behavio
 ### What the flow covers
 
 - association authentication and account maintenance
+- portal access resolution from explicit `PortalAccessGrant` rows with fallback to legacy `AssociationProfile`
+- single-scope portal activation in session, with `/portal/scope-select/` as the explicit chooser when a user has multiple portal scopes
+- shipper-only legacy portal pages guarded by the active portal scope in `wms/view_permissions.py`
 - portal dashboard cockpit KPIs and per-order next-step guidance
 - recipient list/detail/create/update
 - recipient product preference editing from both portal recipient detail and scan admin recipient cockpit
@@ -182,6 +186,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_portal_workflow_recipients_account_and_order`
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+- `wms/tests/portal/tests_portal_access_grants.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
 - `wms/tests/portal/tests_portal_permissions.py`

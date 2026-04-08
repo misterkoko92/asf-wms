@@ -16,6 +16,7 @@ from .views_portal import (
     portal_order_detail,
     portal_recipient_detail,
     portal_recipients,
+    portal_scope_select,
     portal_set_password,
 )
 from .views_print import (
@@ -114,6 +115,7 @@ from .views_volunteer_auth import (
 
 PORTAL_EXPORTS = (
     "portal_login",
+    "portal_scope_select",
     "portal_forgot_password",
     "portal_logout",
     "portal_set_password",

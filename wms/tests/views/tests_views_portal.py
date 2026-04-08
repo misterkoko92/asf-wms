@@ -44,6 +44,8 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     OrderStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     Product,
     ProductCategory,
     ProductKitItem,
@@ -66,6 +68,7 @@ from wms.models import (
     ShipmentWorkflowProjection,
     Warehouse,
 )
+from wms.portal_access import ACTIVE_PORTAL_SCOPE_SESSION_KEY, PORTAL_SCOPE_SOURCE_GRANT
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.services import StockError
 from wms.shipment_party_setup import ensure_shipment_shipper
@@ -113,6 +116,45 @@ class PortalBaseTestCase(TestCase):
         )
         ensure_shipment_shipper(contact)
         return profile
+
+    @classmethod
+    def _create_shipper(cls, name="Shipper Scope"):
+        organization = cls._create_association_contact(name, with_address=True)
+        referent = Contact.objects.create(
+            name=f"Referent {name}",
+            first_name="Referent",
+            last_name=name,
+            contact_type=ContactType.PERSON,
+            organization=organization,
+            is_active=True,
+        )
+        return ShipmentShipper.objects.create(
+            organization=organization,
+            default_contact=referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+    @classmethod
+    def _create_recipient_organization(
+        cls,
+        *,
+        city="Paris",
+        country="France",
+        name="Recipient Scope",
+    ):
+        destination = cls._create_destination(city=city, country=country)
+        organization = Contact.objects.create(
+            name=name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        return ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
 
     @classmethod
     def _create_destination(cls, *, city="Paris", country="France"):
@@ -476,6 +518,109 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.change_password_url)
 
+    def test_portal_login_with_one_explicit_grant_activates_scope_and_redirects_directly(self):
+        user = self._create_portal_user("portal-auth-grant", "grant@example.com")
+        shipper = self._create_shipper(name="Grant Shipper")
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+
+        response = self.client.post(
+            self.login_url,
+            {"identifier": user.email, "password": "pass1234"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self.assertEqual(
+            self.client.session[ACTIVE_PORTAL_SCOPE_SESSION_KEY],
+            {
+                "source": PORTAL_SCOPE_SOURCE_GRANT,
+                "grant_id": grant.id,
+            },
+        )
+
+    def test_portal_login_with_multiple_grants_redirects_to_scope_selector(self):
+        user = self._create_portal_user("portal-auth-multi", "multi@example.com")
+        shipper = self._create_shipper(name="Multi Shipper")
+        recipient_organization = self._create_recipient_organization(name="Multi Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        response = self.client.post(
+            self.login_url,
+            {"identifier": user.email, "password": "pass1234"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/portal/scope-select/")
+        self.assertNotIn(ACTIVE_PORTAL_SCOPE_SESSION_KEY, self.client.session)
+
+    def test_portal_scope_select_get_lists_available_scopes(self):
+        user = self._create_portal_user("portal-auth-select", "select@example.com")
+        shipper = self._create_shipper(name="Select Shipper")
+        recipient_organization = self._create_recipient_organization(name="Select Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("portal:portal_scope_select"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select Shipper")
+        self.assertContains(response, "Select Recipient")
+        self.assertContains(response, "Espace expéditeur")
+        self.assertContains(response, "Espace destinataire")
+
+    def test_portal_scope_select_post_activates_selected_shipper_scope(self):
+        user = self._create_portal_user("portal-auth-choose", "choose@example.com")
+        shipper = self._create_shipper(name="Choose Shipper")
+        shipper_grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        recipient_organization = self._create_recipient_organization(name="Choose Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("portal:portal_scope_select"),
+            {"scope": f"grant:{shipper_grant.id}"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self.assertEqual(
+            self.client.session[ACTIVE_PORTAL_SCOPE_SESSION_KEY],
+            {
+                "source": PORTAL_SCOPE_SOURCE_GRANT,
+                "grant_id": shipper_grant.id,
+            },
+        )
+
     def test_portal_login_with_remember_me_keeps_persistent_session(self):
         user = self._create_portal_user("portal-auth-remember", "remember@example.com")
         self._create_profile(user)
@@ -796,6 +941,29 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             response.url,
             f"{reverse('portal:portal_recipients')}?blocked=missing_delivery_contact",
         )
+
+    def test_portal_order_create_denies_recipient_scope(self):
+        user = self._create_portal_user("portal-recipient-scope", "recipient-scope@example.com")
+        recipient_organization = self._create_recipient_organization(
+            city="Lyon",
+            name="Recipient Scope Only",
+        )
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 403)
 
     def test_portal_order_create_get_renders(self):
         with mock.patch(

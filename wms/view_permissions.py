@@ -9,9 +9,11 @@ from django.urls import NoReverseMatch, reverse
 from .helper_install import resolve_helper_installer_access
 from .models import (
     AssociationRecipient,
+    PortalAccessRole,
     ShipmentShipper,
     ShipmentValidationStatus,
 )
+from .portal_access import list_user_portal_scopes, resolve_active_portal_scope
 from .portal_helpers import get_association_profile
 from .scan_permissions import is_scan_view_allowed_for_user, user_is_preparateur
 
@@ -110,8 +112,17 @@ def association_required(view):
         return None
 
     def wrapped(request, *args, **kwargs):
-        profile = get_association_profile(request.user)
-        if not profile:
+        scope = resolve_active_portal_scope(request)
+        if scope is None:
+            scopes = list_user_portal_scopes(request.user)
+            if len(scopes) > 1:
+                return redirect("portal:portal_scope_select")
+            raise PermissionDenied
+        request.portal_scope = scope
+        if scope.role != PortalAccessRole.SHIPPER_ADMIN or scope.shipper is None:
+            raise PermissionDenied
+        profile = scope.association_profile or get_association_profile(request.user)
+        if profile is None:
             raise PermissionDenied
         if profile.must_change_password:
             change_url = reverse("portal:portal_change_password")

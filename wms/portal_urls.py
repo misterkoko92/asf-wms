@@ -6,6 +6,7 @@ app_name = "portal"
 
 urlpatterns = [
     path("login/", views.portal_login, name="portal_login"),
+    path("scope-select/", views.portal_scope_select, name="portal_scope_select"),
     path(
         "forgot-password/",
         views.portal_forgot_password,
