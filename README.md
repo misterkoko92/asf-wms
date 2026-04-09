@@ -182,6 +182,9 @@ Useful flags:
 Notes:
 - the dataset is fictional but keeps production-like formats and status shapes
 - the command output prints the seeded local users, default password, key URLs, and summary counts
+- portal coverage now includes explicit shipper scope users, a dedicated `recipient_admin` user, and a multi-scope portal user that exercises `/portal/scope-select/`
+- the seed now leaves one local planning run ready to solve, one solved planning run when `--with-planning-solve` is used, and several seeded warehouse preparation runs in generated, frozen, and converted states
+- the printed `default launch week` is the recommended window to reuse when you want to create a fresh `run magasin` or `run planning` manually from the UI
 - rerunning the same `--scenario` is idempotent; use a different scenario slug to keep multiple local namespaces side by side
 
 ## Admin workflows

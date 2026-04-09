@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -54,6 +54,9 @@ from wms.models import (
     CommunicationTemplate,
     Destination,
     DocumentReviewStatus,
+    Flight,
+    FlightSourceBatch,
+    FlightSourceBatchStatus,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
@@ -64,9 +67,19 @@ from wms.models import (
     OrderLine,
     OrderReviewStatus,
     OrderStatus,
+    PlanningDestinationRule,
+    PlanningParameterSet,
     PlanningRun,
+    PlanningRunFlightMode,
+    PlanningRunStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     PreparationDestinationRule,
     PreparationParameterSet,
+    PreparationRun,
+    PreparationRunStatus,
+    PreparationShipmentProposal,
+    PreparationShipmentProposalStatus,
     PreparationShipperMode,
     PreparationShipperRule,
     Product,
@@ -103,8 +116,12 @@ from wms.models import (
     VolunteerUnavailability,
     Warehouse,
 )
-from wms.planning.recipe_dataset import seed_recipe_dataset
+from wms.planning.snapshots import prepare_run_inputs
+from wms.planning.solver import solve_run
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
+from wms.preparation.conversion import convert_preparation_run
+from wms.preparation.generation import generate_preparation_run
+from wms.preparation.review import apply_preparation_review_action
 from wms.reset_operational_data import reset_operational_data
 from wms.scan_permissions import PREPARATEUR_GROUP_NAME
 from wms.shipment_party_setup import ensure_shipment_shipper
@@ -122,10 +139,20 @@ class LocalExhaustiveSeedSummary:
     billing_documents_count: int
     integration_events_count: int
     planning_runs_count: int
+    launch_week_start: date
+    launch_week_end: date
 
 
 def normalize_local_exhaustive_scenario_slug(raw_value: str) -> str:
     return slugify(raw_value).strip("-") or "local-exhaustive"
+
+
+def _default_local_launch_window(today: date | None = None) -> tuple[date, date]:
+    reference_date = today or timezone.localdate()
+    start_of_week = reference_date - timedelta(days=reference_date.weekday())
+    weeks_ahead = 1 if reference_date.weekday() <= 2 else 2
+    window_start = start_of_week + timedelta(weeks=weeks_ahead)
+    return window_start, window_start + timedelta(days=6)
 
 
 def seed_local_exhaustive_dataset(
@@ -139,15 +166,37 @@ def seed_local_exhaustive_dataset(
 ) -> LocalExhaustiveSeedSummary:
     normalized_slug = normalize_local_exhaustive_scenario_slug(scenario_slug)
     namespace = LocalExhaustiveSeedNamespace.from_slug(normalized_slug)
+    launch_week_start, launch_week_end = _default_local_launch_window()
     if fresh:
         reset_operational_data(apply=True)
-    _seed_shared_references(
+    seed_context = _seed_shared_references(
         namespace,
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
         with_queue_backlog=with_queue_backlog,
         with_demo_documents=with_demo_documents,
         with_e2e_baseline=with_e2e_baseline,
     )
-    _seed_planning_recipe(namespace, solve=with_planning_solve)
+    _seed_local_planning_runs(
+        namespace,
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
+        solve=with_planning_solve,
+        staff_user=seed_context["staff_user"],
+        association_profiles=seed_context["association_profiles"],
+        destinations=seed_context["destinations"],
+        recipients=seed_context["recipients"],
+        lots=seed_context["lots"],
+    )
+    _seed_preparation_runs(
+        namespace,
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
+        staff_user=seed_context["staff_user"],
+        preparation_parameter_set=seed_context["preparation_parameter_set"],
+        destinations=seed_context["destinations"],
+        association_profiles=seed_context["association_profiles"],
+    )
     return LocalExhaustiveSeedSummary(
         scenario_slug=namespace.slug,
         users_count=get_user_model().objects.filter(username__icontains=namespace.slug).count(),
@@ -165,6 +214,8 @@ def seed_local_exhaustive_dataset(
         planning_runs_count=PlanningRun.objects.filter(
             parameter_set__name__icontains=namespace.slug
         ).count(),
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
     )
 
 
@@ -186,6 +237,8 @@ def render_local_exhaustive_seed_summary(summary: LocalExhaustiveSeedSummary) ->
         f"- admin: scan-{summary.scenario_slug}-admin / {DEFAULT_LOCAL_PASSWORD}",
         f"- portal A: portal-{summary.scenario_slug}-a / {DEFAULT_LOCAL_PASSWORD}",
         f"- portal B: portal-{summary.scenario_slug}-b / {DEFAULT_LOCAL_PASSWORD}",
+        f"- portal recipient: portal-{summary.scenario_slug}-recipient / {DEFAULT_LOCAL_PASSWORD}",
+        f"- portal multi: portal-{summary.scenario_slug}-multi / {DEFAULT_LOCAL_PASSWORD}",
         f"- volunteer: volunteer-{summary.scenario_slug}-alice / {DEFAULT_LOCAL_PASSWORD}",
         "URLs:",
         "- scan dashboard: /scan/dashboard/",
@@ -194,7 +247,14 @@ def render_local_exhaustive_seed_summary(summary: LocalExhaustiveSeedSummary) ->
         "- orders: /scan/orders/",
         "- billing: /scan/billing/",
         "- portal: /portal/",
-        "- volunteer portal: /volunteer/",
+        "- portal scope select: /portal/scope-select/",
+        "- planning runs: /planning/",
+        "- planning run create: /planning/runs/new/",
+        "- volunteer portal: /benevole/",
+        (
+            f"- default launch week: "
+            f"{summary.launch_week_start.isoformat()} -> {summary.launch_week_end.isoformat()}"
+        ),
     ]
     return "\n".join(lines)
 
@@ -221,10 +281,12 @@ class LocalExhaustiveSeedNamespace:
 def _seed_shared_references(
     namespace: LocalExhaustiveSeedNamespace,
     *,
+    launch_week_start: date,
+    launch_week_end: date,
     with_queue_backlog: bool,
     with_demo_documents: bool,
     with_e2e_baseline: bool,
-) -> None:
+) -> dict[str, object]:
     _seed_groups()
     staff_user = _upsert_user(
         username=f"scan-{namespace.slug}-staff",
@@ -309,7 +371,7 @@ def _seed_shared_references(
         products=products,
         locations={"main": main_location, "overflow": overflow_location},
     )
-    _ensure_preparation_seed(
+    preparation_parameter_set = _ensure_preparation_seed(
         namespace,
         created_by=staff_user,
         categories=categories,
@@ -347,7 +409,17 @@ def _seed_shared_references(
         main_location=main_location,
         created_by=billing_user,
     )
-    _seed_volunteer_profiles(namespace)
+    volunteer_profiles = _seed_volunteer_profiles(
+        namespace,
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
+    )
+    _seed_portal_access_grants(
+        namespace,
+        created_by=staff_user,
+        association_profiles=[association_a, association_b],
+        recipients=[recipient_a, recipient_b],
+    )
     if with_e2e_baseline:
         _seed_e2e_baseline(
             namespace,
@@ -356,6 +428,20 @@ def _seed_shared_references(
             product=products["wheelchair"],
             created_by=staff_user,
         )
+    return {
+        "staff_user": staff_user,
+        "billing_user": billing_user,
+        "superuser": superuser,
+        "association_profiles": [association_a, association_b],
+        "destinations": [destination_a, destination_b],
+        "recipients": [recipient_a, recipient_b, recipient_c],
+        "lots": lots,
+        "products": products,
+        "categories": categories,
+        "main_location": main_location,
+        "preparation_parameter_set": preparation_parameter_set,
+        "volunteer_profiles": volunteer_profiles,
+    }
 
 
 def _seed_groups() -> None:
@@ -550,7 +636,7 @@ def _ensure_product_lots(
             products["wheelchair"],
             f"{namespace.upper_slug}-WH-01",
             ProductLotStatus.AVAILABLE,
-            30,
+            80,
             0,
             locations["main"],
         ),
@@ -558,7 +644,7 @@ def _ensure_product_lots(
             products["school"],
             f"{namespace.upper_slug}-SC-01",
             ProductLotStatus.AVAILABLE,
-            50,
+            80,
             0,
             locations["main"],
         ),
@@ -940,7 +1026,7 @@ def _ensure_preparation_seed(
     destinations: list[Destination],
     association_profiles: list[AssociationProfile],
     recipients: list[AssociationRecipient],
-) -> None:
+) -> PreparationParameterSet:
     parameter_set, _ = PreparationParameterSet.objects.update_or_create(
         name=f"{namespace.label} Run magasin",
         defaults={
@@ -1041,12 +1127,12 @@ def _ensure_preparation_seed(
             active_recipient_organizations.append(recipient_organization)
 
     if len(active_recipient_organizations) < 2:
-        return
+        return parameter_set
 
     shipper_a = shippers_by_contact_id.get(association_profiles[0].contact_id)
     shipper_b = shippers_by_contact_id.get(association_profiles[1].contact_id)
     if shipper_a is None or shipper_b is None:
-        return
+        return parameter_set
     recipient_a = active_recipient_organizations[0]
     recipient_b = active_recipient_organizations[1]
 
@@ -1131,6 +1217,7 @@ def _ensure_preparation_seed(
             "updated_by": created_by,
         },
     )
+    return parameter_set
 
 
 def _seed_operational_flow(
@@ -1727,7 +1814,80 @@ def _seed_receipts_and_billing_flow(
     )
 
 
-def _seed_volunteer_profiles(namespace: LocalExhaustiveSeedNamespace) -> None:
+def _seed_portal_access_grants(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    created_by,
+    association_profiles: list[AssociationProfile],
+    recipients: list[AssociationRecipient],
+) -> None:
+    shippers_by_contact_id = {
+        shipper.organization_id: shipper
+        for shipper in ShipmentShipper.objects.filter(
+            organization_id__in=[profile.contact_id for profile in association_profiles]
+        ).select_related("organization")
+    }
+    recipient_runtimes_by_key = {
+        (recipient_organization.organization_id, recipient_organization.destination_id): (
+            recipient_organization
+        )
+        for recipient_organization in ShipmentRecipientOrganization.objects.filter(
+            organization_id__in=[recipient.synced_contact_id for recipient in recipients],
+            destination_id__in=[recipient.destination_id for recipient in recipients],
+        ).select_related("organization", "destination")
+    }
+    shipper_a = shippers_by_contact_id.get(association_profiles[0].contact_id)
+    shipper_b = shippers_by_contact_id.get(association_profiles[1].contact_id)
+    recipient_scope = recipient_runtimes_by_key.get(
+        (recipients[0].synced_contact_id, recipients[0].destination_id)
+    )
+    if shipper_a is None or shipper_b is None or recipient_scope is None:
+        return
+
+    recipient_user = _upsert_user(
+        username=f"portal-{namespace.slug}-recipient",
+        email=_scenario_email("portal-recipient", namespace),
+    )
+    multi_user = _upsert_user(
+        username=f"portal-{namespace.slug}-multi",
+        email=_scenario_email("portal-multi", namespace),
+    )
+
+    grant_specs = (
+        (association_profiles[0].user, PortalAccessRole.SHIPPER_ADMIN, shipper_a, None),
+        (association_profiles[1].user, PortalAccessRole.SHIPPER_ADMIN, shipper_b, None),
+        (recipient_user, PortalAccessRole.RECIPIENT_ADMIN, None, recipient_scope),
+        (multi_user, PortalAccessRole.SHIPPER_ADMIN, shipper_b, None),
+        (multi_user, PortalAccessRole.RECIPIENT_ADMIN, None, recipient_scope),
+    )
+    for user, role, shipper, recipient_organization in grant_specs:
+        filters = {
+            "user": user,
+            "role": role,
+        }
+        if shipper is not None:
+            filters["shipper"] = shipper
+        else:
+            filters["recipient_organization"] = recipient_organization
+        PortalAccessGrant.objects.update_or_create(
+            **filters,
+            defaults={
+                "shipper": shipper,
+                "recipient_organization": recipient_organization,
+                "is_active": True,
+                "created_by": created_by,
+                "reviewed_by": created_by,
+                "reviewed_at": timezone.now(),
+            },
+        )
+
+
+def _seed_volunteer_profiles(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    launch_week_start: date,
+    launch_week_end: date,
+) -> list[VolunteerProfile]:
     volunteer_specs = (
         {
             "username": f"volunteer-{namespace.slug}-alice",
@@ -1737,7 +1897,10 @@ def _seed_volunteer_profiles(namespace: LocalExhaustiveSeedNamespace) -> None:
             "must_change_password": False,  # nosec B105
             "phone": "+33620000001",
             "city": "Paris",
-            "availability": [(date(2026, 3, 10), time(9, 0), time(12, 0))],
+            "availability": [
+                (launch_week_start + timedelta(days=1), time(9, 0), time(12, 0)),
+                (launch_week_start + timedelta(days=3), time(14, 0), time(18, 0)),
+            ],
             "max_colis_vol": 4,
         },
         {
@@ -1748,7 +1911,7 @@ def _seed_volunteer_profiles(namespace: LocalExhaustiveSeedNamespace) -> None:
             "must_change_password": True,  # nosec B105
             "phone": "+33620000002",
             "city": "Lyon",
-            "availability": [(date(2026, 3, 11), time(14, 0), time(18, 0))],
+            "availability": [(launch_week_start + timedelta(days=2), time(13, 0), time(17, 0))],
             "max_colis_vol": 2,
         },
         {
@@ -1759,10 +1922,11 @@ def _seed_volunteer_profiles(namespace: LocalExhaustiveSeedNamespace) -> None:
             "must_change_password": False,  # nosec B105
             "phone": "+33620000003",
             "city": "Marseille",
-            "availability": [(date(2026, 3, 12), time(8, 0), time(16, 0))],
+            "availability": [(launch_week_start + timedelta(days=5), time(8, 0), time(16, 0))],
             "max_colis_vol": 6,
         },
     )
+    profiles = []
     for spec in volunteer_specs:
         user = _upsert_user(
             username=spec["username"],
@@ -1786,6 +1950,7 @@ def _seed_volunteer_profiles(namespace: LocalExhaustiveSeedNamespace) -> None:
             defaults={"max_colis_vol": spec["max_colis_vol"]},
         )
         profile.availabilities.all().delete()
+        profile.unavailabilities.all().delete()
         for availability_date, start_time, end_time in spec["availability"]:
             VolunteerAvailability.objects.create(
                 volunteer=profile,
@@ -1795,8 +1960,406 @@ def _seed_volunteer_profiles(namespace: LocalExhaustiveSeedNamespace) -> None:
             )
         VolunteerUnavailability.objects.update_or_create(
             volunteer=profile,
-            date=date(2026, 3, 15),
+            date=launch_week_end,
         )
+        profiles.append(profile)
+    return profiles
+
+
+def _as_aware_datetime(target_date: date, *, hour: int, minute: int = 0):
+    return timezone.make_aware(datetime.combine(target_date, time(hour, minute)))
+
+
+def _ensure_launchable_flight_batch(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    launch_week_start: date,
+    launch_week_end: date,
+    destinations: list[Destination],
+) -> FlightSourceBatch:
+    destination_by_code = {destination.iata_code: destination for destination in destinations}
+    batch, _ = FlightSourceBatch.objects.update_or_create(
+        source="local_exhaustive",
+        file_name=f"{namespace.slug}-launchable-flights",
+        defaults={
+            "period_start": launch_week_start,
+            "period_end": launch_week_end,
+            "status": FlightSourceBatchStatus.IMPORTED,
+            "notes": f"{namespace.label} flights for launchable local planning and preparation.",
+        },
+    )
+    flight_specs = (
+        ("AF701", launch_week_start + timedelta(days=1), time(9, 30), "ABJ", 12),
+        ("AF703", launch_week_start + timedelta(days=3), time(10, 15), "ABJ", 12),
+        ("AF811", launch_week_start + timedelta(days=2), time(11, 0), "DKR", 10),
+        ("AF813", launch_week_start + timedelta(days=5), time(13, 30), "DKR", 10),
+    )
+    for route_pos, (
+        flight_number,
+        departure_date,
+        departure_time,
+        destination_code,
+        capacity_units,
+    ) in enumerate(flight_specs, start=1):
+        destination = destination_by_code.get(destination_code)
+        if destination is None:
+            continue
+        Flight.objects.update_or_create(
+            batch=batch,
+            flight_number=flight_number,
+            departure_date=departure_date,
+            destination_iata=destination_code,
+            route_pos=route_pos,
+            defaults={
+                "departure_time": departure_time,
+                "arrival_time": (
+                    datetime.combine(departure_date, departure_time) + timedelta(hours=6)
+                ).time(),
+                "origin_iata": "CDG",
+                "routing": f"CDG-{destination_code}",
+                "destination": destination,
+                "capacity_units": capacity_units,
+            },
+        )
+    return batch
+
+
+def _seed_local_planning_shipments(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    launch_week_start: date,
+    staff_user,
+    association_profiles: list[AssociationProfile],
+    destinations: list[Destination],
+    recipients: list[AssociationRecipient],
+    lots: dict[str, ProductLot],
+) -> list[Shipment]:
+    association_a, association_b = association_profiles
+    recipient_a, recipient_b = recipients[0], recipients[1]
+    destination_a, destination_b = destinations
+    shipment_specs = (
+        {
+            "reference": f"{namespace.shipment_prefix}-PLAN-001",
+            "association_profile": association_a,
+            "recipient": recipient_a,
+            "destination": destination_a,
+            "status": ShipmentStatus.PACKED,
+            "ready_at": _as_aware_datetime(
+                launch_week_start + timedelta(days=1),
+                hour=8,
+                minute=30,
+            ),
+            "lot": lots["wheelchair"],
+            "quantity": 3,
+            "carton_status": CartonStatus.PACKED,
+            "carton_code": "plan-abj-1",
+        },
+        {
+            "reference": f"{namespace.shipment_prefix}-PLAN-002",
+            "association_profile": association_a,
+            "recipient": recipient_a,
+            "destination": destination_a,
+            "status": ShipmentStatus.PLANNED,
+            "ready_at": _as_aware_datetime(
+                launch_week_start + timedelta(days=3),
+                hour=9,
+            ),
+            "lot": lots["school"],
+            "quantity": 4,
+            "carton_status": CartonStatus.LABELED,
+            "carton_code": "plan-abj-2",
+        },
+        {
+            "reference": f"{namespace.shipment_prefix}-PLAN-003",
+            "association_profile": association_b,
+            "recipient": recipient_b,
+            "destination": destination_b,
+            "status": ShipmentStatus.PACKED,
+            "ready_at": _as_aware_datetime(
+                launch_week_start + timedelta(days=2),
+                hour=10,
+                minute=15,
+            ),
+            "lot": lots["school"],
+            "quantity": 3,
+            "carton_status": CartonStatus.PACKED,
+            "carton_code": "plan-dkr-1",
+        },
+        {
+            "reference": f"{namespace.shipment_prefix}-PLAN-004",
+            "association_profile": association_b,
+            "recipient": recipient_b,
+            "destination": destination_b,
+            "status": ShipmentStatus.PLANNED,
+            "ready_at": _as_aware_datetime(
+                launch_week_start + timedelta(days=5),
+                hour=11,
+                minute=45,
+            ),
+            "lot": lots["thermometer"],
+            "quantity": 2,
+            "carton_status": CartonStatus.LABELED,
+            "carton_code": "plan-dkr-2",
+        },
+    )
+    shipments = []
+    for spec in shipment_specs:
+        shipment = _upsert_shipment(
+            reference=spec["reference"],
+            namespace=namespace,
+            status=spec["status"],
+            association_profile=spec["association_profile"],
+            recipient=spec["recipient"],
+            destination=spec["destination"],
+            created_by=staff_user,
+        )
+        _set_timestamp(shipment, ready_at=spec["ready_at"])
+        _seed_carton(
+            namespace,
+            code=spec["carton_code"],
+            lot=spec["lot"],
+            quantity=spec["quantity"],
+            status=spec["carton_status"],
+            shipment=shipment,
+            destination=spec["destination"],
+            user=staff_user,
+        )
+        shipments.append(shipment)
+    return shipments
+
+
+def _seed_local_planning_runs(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    launch_week_start: date,
+    launch_week_end: date,
+    solve: bool,
+    staff_user,
+    association_profiles: list[AssociationProfile],
+    destinations: list[Destination],
+    recipients: list[AssociationRecipient],
+    lots: dict[str, ProductLot],
+) -> None:
+    flight_batch = _ensure_launchable_flight_batch(
+        namespace,
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
+        destinations=destinations,
+    )
+    _seed_local_planning_shipments(
+        namespace,
+        launch_week_start=launch_week_start,
+        staff_user=staff_user,
+        association_profiles=association_profiles,
+        destinations=destinations,
+        recipients=recipients,
+        lots=lots,
+    )
+    parameter_set, _ = PlanningParameterSet.objects.update_or_create(
+        name=f"{namespace.label} Planning vols",
+        defaults={
+            "notes": f"{namespace.label} planning local launch set.",
+            "status": "draft",
+            "is_current": False,
+            "created_by": staff_user,
+        },
+    )
+    for destination, priority, weekly_frequency, max_cartons_per_flight in (
+        (destinations[0], 5, 2, 12),
+        (destinations[1], 3, 2, 10),
+    ):
+        PlanningDestinationRule.objects.update_or_create(
+            parameter_set=parameter_set,
+            destination=destination,
+            defaults={
+                "label": f"{namespace.label} {destination.iata_code}",
+                "weekly_frequency": weekly_frequency,
+                "max_cartons_per_flight": max_cartons_per_flight,
+                "priority": priority,
+                "is_active": True,
+            },
+        )
+
+    manual_run, manual_created = PlanningRun.objects.update_or_create(
+        parameter_set=parameter_set,
+        log_excerpt=f"local_exhaustive:{namespace.slug}:planning:manual",
+        defaults={
+            "week_start": launch_week_start,
+            "week_end": launch_week_end,
+            "flight_mode": PlanningRunFlightMode.EXCEL,
+            "flight_batch": flight_batch,
+            "status": PlanningRunStatus.DRAFT,
+            "created_by": staff_user,
+            "validation_summary": {},
+            "solver_payload": {},
+            "solver_result": {},
+        },
+    )
+    if manual_created or manual_run.status != PlanningRunStatus.READY:
+        prepare_run_inputs(manual_run)
+        manual_run.refresh_from_db()
+
+    if not solve:
+        return
+
+    solved_run, solved_created = PlanningRun.objects.update_or_create(
+        parameter_set=parameter_set,
+        log_excerpt=f"local_exhaustive:{namespace.slug}:planning:solved",
+        defaults={
+            "week_start": launch_week_start,
+            "week_end": launch_week_end,
+            "flight_mode": PlanningRunFlightMode.EXCEL,
+            "flight_batch": flight_batch,
+            "status": PlanningRunStatus.DRAFT,
+            "created_by": staff_user,
+            "validation_summary": {},
+            "solver_payload": {},
+            "solver_result": {},
+        },
+    )
+    if (
+        solved_created
+        or solved_run.status != PlanningRunStatus.SOLVED
+        or not solved_run.versions.exists()
+    ):
+        prepare_run_inputs(solved_run)
+        solved_run.refresh_from_db()
+        if solved_run.status == PlanningRunStatus.READY:
+            solve_run(solved_run)
+
+
+def _build_preparation_run(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    staff_user,
+    preparation_parameter_set: PreparationParameterSet,
+    notes: str,
+    launch_week_start: date,
+    launch_week_end: date,
+    shippers: list[ShipmentShipper],
+    destinations: list[Destination],
+    target_equivalent_units: int,
+    target_shipment_count: int,
+) -> PreparationRun:
+    existing_run = PreparationRun.objects.filter(
+        parameter_set=preparation_parameter_set,
+        notes=notes,
+    ).first()
+    if existing_run is not None:
+        return existing_run
+
+    run = PreparationRun.objects.create(
+        parameter_set=preparation_parameter_set,
+        created_by=staff_user,
+        target_equivalent_units=target_equivalent_units,
+        target_shipment_count=target_shipment_count,
+        target_shipment_size_units=10,
+        min_shipment_size_units=6,
+        max_shipment_size_units=18,
+        flight_window_start=launch_week_start,
+        flight_window_end=launch_week_end,
+        notes=notes,
+    )
+    generate_preparation_run(
+        run=run,
+        shippers=shippers,
+        destinations=destinations,
+    )
+    run.refresh_from_db()
+    return run
+
+
+def _seed_preparation_runs(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    launch_week_start: date,
+    launch_week_end: date,
+    staff_user,
+    preparation_parameter_set: PreparationParameterSet,
+    destinations: list[Destination],
+    association_profiles: list[AssociationProfile],
+) -> None:
+    shippers_by_contact_id = {
+        shipper.organization_id: shipper
+        for shipper in ShipmentShipper.objects.filter(
+            organization_id__in=[profile.contact_id for profile in association_profiles]
+        ).select_related("organization")
+    }
+    shipper_a = shippers_by_contact_id.get(association_profiles[0].contact_id)
+    shipper_b = shippers_by_contact_id.get(association_profiles[1].contact_id)
+    if shipper_a is None or shipper_b is None:
+        return
+
+    _build_preparation_run(
+        namespace,
+        staff_user=staff_user,
+        preparation_parameter_set=preparation_parameter_set,
+        notes=f"{namespace.label} seed generated preparation run",
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
+        shippers=[shipper_a],
+        destinations=[destinations[0]],
+        target_equivalent_units=12,
+        target_shipment_count=1,
+    )
+
+    frozen_run = _build_preparation_run(
+        namespace,
+        staff_user=staff_user,
+        preparation_parameter_set=preparation_parameter_set,
+        notes=f"{namespace.label} seed frozen preparation run",
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
+        shippers=[shipper_a, shipper_b],
+        destinations=destinations,
+        target_equivalent_units=20,
+        target_shipment_count=3,
+    )
+    if frozen_run.status == PreparationRunStatus.GENERATED:
+        proposals = list(frozen_run.shipment_proposals.order_by("id"))
+        if proposals:
+            apply_preparation_review_action(
+                run=frozen_run,
+                action="accept_selected",
+                selected_shipment_ids=[str(proposals[0].id)],
+                created_by=staff_user,
+            )
+        if len(proposals) > 1:
+            apply_preparation_review_action(
+                run=frozen_run,
+                action="reject_keep_draft",
+                selected_shipment_ids=[str(proposals[1].id)],
+                created_by=staff_user,
+            )
+        elif proposals:
+            extra_carton = list(proposals[0].carton_proposals.order_by("id")[1:2])
+            if extra_carton:
+                apply_preparation_review_action(
+                    run=frozen_run,
+                    action="reject_keep_draft",
+                    selected_carton_ids=[str(extra_carton[0].id)],
+                    created_by=staff_user,
+                )
+
+    converted_run = _build_preparation_run(
+        namespace,
+        staff_user=staff_user,
+        preparation_parameter_set=preparation_parameter_set,
+        notes=f"{namespace.label} seed converted preparation run",
+        launch_week_start=launch_week_start,
+        launch_week_end=launch_week_end,
+        shippers=[shipper_b],
+        destinations=[destinations[1]],
+        target_equivalent_units=8,
+        target_shipment_count=1,
+    )
+    if converted_run.status == PreparationRunStatus.GENERATED:
+        apply_preparation_review_action(
+            run=converted_run,
+            action="accept_all",
+            created_by=staff_user,
+        )
+        convert_preparation_run(run=converted_run, created_by=staff_user)
 
 
 def _seed_e2e_baseline(
@@ -1841,13 +2404,6 @@ def _seed_e2e_baseline(
         is_staff=True,
     )
     del created_by
-
-
-def _seed_planning_recipe(namespace: LocalExhaustiveSeedNamespace, *, solve: bool) -> None:
-    seed_recipe_dataset(
-        scenario_slug=f"{namespace.slug}-recipe",
-        solve=solve,
-    )
 
 
 def _upsert_shipment(

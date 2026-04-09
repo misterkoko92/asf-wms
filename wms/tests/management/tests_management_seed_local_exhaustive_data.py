@@ -33,8 +33,14 @@ from wms.models import (
     OrderLine,
     PlanningRun,
     PlanningRunStatus,
+    PortalAccessGrant,
+    PortalAccessRole,
     PreparationDestinationRule,
     PreparationParameterSet,
+    PreparationRun,
+    PreparationRunStatus,
+    PreparationShipmentProposal,
+    PreparationShipmentProposalStatus,
     PreparationShipperRule,
     Product,
     ProductLot,
@@ -75,6 +81,9 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
         self.assertIn("users=", rendered)
         self.assertIn("shipments=", rendered)
         self.assertIn("planning_runs=", rendered)
+        self.assertIn("- portal recipient:", rendered)
+        self.assertIn("- portal multi:", rendered)
+        self.assertIn("- planning runs:", rendered)
 
     def test_command_creates_local_users_profiles_and_contact_roles(self):
         call_command("seed_local_exhaustive_data", "--scenario=users")
@@ -249,6 +258,92 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
                 validation_status="pending",
             ).exists()
         )
+
+    def test_command_creates_explicit_portal_access_grants_and_multi_scope_user(self):
+        call_command("seed_local_exhaustive_data", "--scenario=portal-grants")
+
+        shipper_user = get_user_model().objects.get(username="portal-portal-grants-a")
+        recipient_user = get_user_model().objects.get(username="portal-portal-grants-recipient")
+        multi_user = get_user_model().objects.get(username="portal-portal-grants-multi")
+
+        self.assertTrue(
+            PortalAccessGrant.objects.filter(
+                user=shipper_user,
+                role=PortalAccessRole.SHIPPER_ADMIN,
+                shipper__organization__name__contains="[LOCAL portal-grants] Association A",
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            PortalAccessGrant.objects.filter(
+                user=recipient_user,
+                role=PortalAccessRole.RECIPIENT_ADMIN,
+                recipient_organization__organization__name__contains="[LOCAL portal-grants] Structure ALPHA",
+                is_active=True,
+            ).exists()
+        )
+        self.assertEqual(
+            PortalAccessGrant.objects.filter(user=multi_user, is_active=True).count(),
+            2,
+        )
+        self.assertEqual(
+            set(
+                PortalAccessGrant.objects.filter(user=multi_user, is_active=True).values_list(
+                    "role", flat=True
+                )
+            ),
+            {PortalAccessRole.SHIPPER_ADMIN, PortalAccessRole.RECIPIENT_ADMIN},
+        )
+
+    def test_command_creates_preparation_runs_in_multiple_review_states(self):
+        call_command("seed_local_exhaustive_data", "--scenario=prep-runs")
+
+        runs = PreparationRun.objects.filter(parameter_set__name__icontains="[LOCAL prep-runs]")
+        self.assertTrue(runs.filter(status=PreparationRunStatus.GENERATED).exists())
+        self.assertTrue(runs.filter(status=PreparationRunStatus.FROZEN).exists())
+        self.assertTrue(runs.filter(status=PreparationRunStatus.CONVERTED).exists())
+        self.assertTrue(
+            PreparationShipmentProposal.objects.filter(
+                run__in=runs,
+                status=PreparationShipmentProposalStatus.ACCEPTED,
+            ).exists()
+        )
+        self.assertTrue(
+            PreparationShipmentProposal.objects.filter(
+                run__in=runs,
+                status__in=[
+                    PreparationShipmentProposalStatus.REJECTED,
+                    PreparationShipmentProposalStatus.PARTIAL,
+                ],
+            ).exists()
+        )
+        self.assertTrue(
+            Shipment.objects.filter(
+                preparation_proposals__run__in=runs,
+                status=ShipmentStatus.PICKING,
+            ).exists()
+        )
+
+    def test_command_creates_ready_and_solved_planning_runs_for_local_launch(self):
+        call_command(
+            "seed_local_exhaustive_data",
+            "--scenario=planning-launch",
+            "--with-planning-solve",
+        )
+
+        planning_runs = PlanningRun.objects.filter(
+            parameter_set__name__icontains="[LOCAL planning-launch] Planning",
+        )
+        ready_run = planning_runs.filter(status=PlanningRunStatus.READY).first()
+        solved_run = planning_runs.filter(status=PlanningRunStatus.SOLVED).first()
+
+        self.assertIsNotNone(ready_run)
+        self.assertIsNotNone(solved_run)
+        self.assertIsNotNone(ready_run.flight_batch_id)
+        self.assertTrue(ready_run.shipment_snapshots.exists())
+        self.assertTrue(ready_run.volunteer_snapshots.exists())
+        self.assertTrue(ready_run.flight_snapshots.exists())
+        self.assertTrue(solved_run.versions.exists())
 
     def test_command_is_idempotent_and_fresh_can_reset_previous_runtime_rows(self):
         Shipment.objects.create(
