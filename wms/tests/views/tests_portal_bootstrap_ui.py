@@ -411,8 +411,31 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "Documents structure")
         self.assertContains(response, "Préférences produits")
         self.assertContains(response, "Kit Recipient Bootstrap")
+        self.assertContains(response, reverse("portal:portal_recipient_profile"))
+        self.assertContains(response, "Modifier mes informations")
         self.assertContains(response, reverse("portal:portal_recipient_preferences"))
         self.assertContains(response, "Gérer les préférences produits")
+
+    def test_portal_recipient_profile_uses_bootstrap_forms_and_document_uploads(self):
+        self._activate_recipient_scope()
+
+        response = self.client.get(reverse("portal:portal_recipient_profile"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-card portal-card card border-0")
+        self.assertContains(response, "portal-page-intro")
+        self.assertContains(response, "ui-comp-form")
+        self.assertContains(response, "form-select")
+        self.assertContains(response, "form-control")
+        self.assertContains(response, 'name="destination_id"')
+        self.assertContains(response, 'name="structure_name"')
+        self.assertContains(response, 'name="contact_title"')
+        self.assertContains(response, 'name="emails"')
+        self.assertContains(response, 'name="doc_registration_proof"')
+        self.assertContains(response, 'name="doc_statutes"')
+        self.assertContains(response, "Modifier mes informations")
+        self.assertContains(response, "Documents structure")
+        self.assertContains(response, "btn btn-primary")
 
     def test_portal_billing_pages_use_bootstrap_tables(self):
         billing_document = BillingDocument.objects.create(
