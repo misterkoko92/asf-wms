@@ -153,6 +153,15 @@ class ContactCrudFormTests(TestCase):
         self.assertIn(("partner", "Partenaire"), form.fields["business_type"].choices)
         self.assertIn(("other", "Autre"), form.fields["business_type"].choices)
 
+    def test_business_type_choices_are_sorted_alphabetically(self):
+        form = ContactCrudForm()
+
+        choices = list(form.fields["business_type"].choices)
+
+        self.assertEqual(choices[0], ("", "Choisir..."))
+        labels = [label for value, label in choices[1:]]
+        self.assertEqual(labels, sorted(labels, key=lambda value: value.casefold()))
+
     def test_allowed_shipper_queryset_only_lists_active_shippers(self):
         active_shipper_org = Contact.objects.create(
             name="ASF Active",

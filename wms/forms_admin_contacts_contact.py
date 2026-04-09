@@ -9,8 +9,7 @@ from .country_choices import DEFAULT_COUNTRY, build_country_choices
 from .forms_admin_contacts_destination import DUPLICATE_ACTION_CHOICES
 from .models import Destination, ShipmentShipper
 
-BUSINESS_TYPE_CHOICES = (
-    ("", _("Choisir...")),
+BUSINESS_TYPE_OPTIONS = (
     ("shipper", _("Expéditeur")),
     ("recipient", _("Destinataire")),
     ("correspondent", _("Correspondant")),
@@ -21,6 +20,13 @@ BUSINESS_TYPE_CHOICES = (
     ("volunteer", _("Bénévole")),
 )
 
+
+def build_business_type_choices():
+    return (("", _("Choisir...")),) + tuple(
+        sorted(BUSINESS_TYPE_OPTIONS, key=lambda choice: str(choice[1]).casefold())
+    )
+
+
 ENTITY_TYPE_CHOICES = (
     ("", _("Choisir...")),
     (ContactType.ORGANIZATION, _("Structure")),
@@ -29,7 +35,7 @@ ENTITY_TYPE_CHOICES = (
 
 
 class ContactCrudForm(forms.Form):
-    business_type = forms.ChoiceField(choices=BUSINESS_TYPE_CHOICES, label=_("Type métier"))
+    business_type = forms.ChoiceField(choices=build_business_type_choices(), label=_("Type métier"))
     entity_type = forms.ChoiceField(
         choices=ENTITY_TYPE_CHOICES,
         required=False,
@@ -104,6 +110,7 @@ class ContactCrudForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["business_type"].choices = build_business_type_choices()
         current_country = self._current_country_value()
         self.fields["country"].choices = build_country_choices(
             current_country,

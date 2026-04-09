@@ -5,6 +5,8 @@ from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact
 
+from .country_choices import build_country_choices
+
 DUPLICATE_ACTION_CHOICES = (
     ("", _("Choisir...")),
     ("replace", _("Remplacer")),
@@ -16,7 +18,7 @@ DUPLICATE_ACTION_CHOICES = (
 class DestinationCrudForm(forms.Form):
     city = forms.CharField(max_length=120, label=_("Ville"))
     iata_code = forms.CharField(max_length=10, label=_("Code IATA"))
-    country = forms.CharField(max_length=80, label=_("Pays"))
+    country = forms.ChoiceField(choices=(), label=_("Pays"))
     correspondent_contact_id = forms.ModelChoiceField(
         queryset=Contact.objects.none(),
         required=False,
@@ -40,6 +42,10 @@ class DestinationCrudForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["country"].choices = build_country_choices(
+            self._current_country_value(),
+            include_blank=True,
+        )
         self.fields["correspondent_contact_id"].queryset = Contact.objects.filter(
             is_active=True
         ).order_by("name", "id")
@@ -49,10 +55,17 @@ class DestinationCrudForm(forms.Form):
                 widget.attrs.setdefault("class", "form-check-input")
             elif isinstance(widget, forms.HiddenInput):
                 continue
+            elif isinstance(widget, forms.Select):
+                widget.attrs.setdefault("class", "form-select ui-select--md")
             else:
                 widget.attrs.setdefault("class", "form-control")
         self.fields["correspondent_contact_id"].widget.attrs["class"] = "form-select ui-select--lg"
         self.fields["duplicate_action"].widget.attrs["class"] = "form-select ui-select--md"
+
+    def _current_country_value(self):
+        if self.is_bound:
+            return (self.data.get(self.add_prefix("country")) or "").strip()
+        return str(self.initial.get("country") or "").strip()
 
     def clean_city(self):
         return (self.cleaned_data.get("city") or "").strip()
