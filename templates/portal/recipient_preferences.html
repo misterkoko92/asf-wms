@@ -1,0 +1,115 @@
+{% extends "portal/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Gérer les préférences produits" %}{% endblock %}
+
+{% block content %}
+  {% url "portal:portal_dashboard" as portal_dashboard_url %}
+  <div class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <div>
+        <h2 class="ui-comp-title">{% trans "Gérer les préférences produits" %}</h2>
+        <p class="scan-help">
+          {{ recipient_structure_name|default:"-" }}
+          {% if recipient_destination_label %}· {{ recipient_destination_label }}{% endif %}
+        </p>
+      </div>
+      <div class="ui-comp-actions d-flex gap-2">
+        <a class="btn btn-secondary btn-sm" href="{{ portal_dashboard_url }}#portal-recipient-home-preferences">{% trans "Retour à la fiche" %}</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Préférences produits" %}</h3>
+    {% if preference_errors %}
+      <div class="scan-message error">
+        {% for error in preference_errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <p class="scan-help">
+      {% trans "Pilotez les produits ligne par ligne. Utilisez “Supprimer” pour retirer une règle explicite existante." %}
+    </p>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0 recipient-preference-table">
+        <thead>
+          <tr>
+            <th class="recipient-preference-col--product">{% trans "Produit" %}</th>
+            <th class="recipient-preference-col--estimate"><span class="recipient-preference-estimate-heading">{% trans "Qté par colis (estimation)" %}</span></th>
+            <th class="recipient-preference-col--status">{% trans "Statut" %}</th>
+            <th class="recipient-preference-col--quantity text-nowrap">{% trans "Quantité cible" %}</th>
+            <th class="recipient-preference-col--period">{% trans "Période" %}</th>
+            <th>{% trans "Livré" %}</th>
+            <th>{% trans "Pipeline" %}</th>
+            <th>{% trans "Reste a servir" %}</th>
+            <th class="recipient-preference-col--notes">{% trans "Notes" %}</th>
+            <th class="text-end">{% trans "Action" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in recipient_product_rows %}
+            <tr>
+              <td class="recipient-preference-col--product">
+                <div class="fw-semibold">{{ row.product.name }}</div>
+                <div class="small text-body-secondary">
+                  {% if row.is_explicit %}
+                    {% trans "Préférence explicite" %}
+                  {% else %}
+                    {% trans "Aucune règle explicite" %}
+                  {% endif %}
+                </div>
+              </td>
+              <td class="recipient-preference-col--estimate">{{ row.units_per_carton_estimate|default:"--" }}</td>
+              <td class="recipient-preference-col--status">
+                <select class="form-select ui-select--lg recipient-preference-input--status" id="status_{{ row.product.id }}" name="status" form="recipient-preference-form-{{ row.product.id }}">
+                  {% for value, label in preference_status_choices %}
+                    <option value="{{ value }}" {% if row.form_data.status == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td class="recipient-preference-col--quantity">
+                <input class="form-control recipient-preference-input--quantity" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="recipient-preference-form-{{ row.product.id }}">
+              </td>
+              <td class="recipient-preference-col--period">
+                <select class="form-select ui-select--lg recipient-preference-input--period" id="period_unit_{{ row.product.id }}" name="period_unit" form="recipient-preference-form-{{ row.product.id }}">
+                  <option value="">---------</option>
+                  {% for value, label in preference_period_choices %}
+                    <option value="{{ value }}" {% if row.form_data.period_unit == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>{% if row.coverage %}{{ row.coverage.delivered_quantity }}{% else %}-{% endif %}</td>
+              <td>{% if row.coverage %}{{ row.coverage.pipeline_quantity }}{% else %}-{% endif %}</td>
+              <td>{% if row.coverage %}{{ row.coverage.remaining_need }}{% else %}-{% endif %}</td>
+              <td class="recipient-preference-col--notes">
+                <textarea class="form-control recipient-preference-input--notes" id="notes_{{ row.product.id }}" name="notes" rows="2" form="recipient-preference-form-{{ row.product.id }}">{{ row.form_data.notes }}</textarea>
+              </td>
+              <td class="text-end">
+                <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                  <form id="recipient-preference-form-{{ row.product.id }}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ row.product.id }}">
+                    <button type="submit" name="action" value="save_recipient_preference" class="btn btn-primary btn-sm">{% trans "Enregistrer la ligne" %}</button>
+                  </form>
+                  {% if row.is_explicit and row.preference %}
+                    <form id="recipient-preference-delete-form-{{ row.product.id }}" method="post" class="m-0">
+                      {% csrf_token %}
+                      <input type="hidden" name="preference_id" value="{{ row.preference.id }}">
+                      <button type="submit" name="action" value="delete_recipient_preference" class="btn btn-secondary btn-sm">{% trans "Supprimer" %}</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="10" class="text-body-secondary">{% trans "Aucun produit actif dans le catalogue." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

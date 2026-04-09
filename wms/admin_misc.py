@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
@@ -57,6 +58,257 @@ class AssociationRecipientAdmin(admin.ModelAdmin):
         return obj.get_display_name()
 
     display_name.short_description = gettext_lazy("Destinataire")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(models.PortalAccessGrant)
+class PortalAccessGrantAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "role",
+        "shipper",
+        "recipient_organization",
+        "is_active",
+        "created_at",
+        "reviewed_at",
+    )
+    list_filter = ("role", "is_active")
+    search_fields = (
+        "user__username",
+        "user__email",
+        "shipper__organization__name",
+        "recipient_organization__organization__name",
+        "recipient_organization__destination__city",
+    )
+    autocomplete_fields = (
+        "user",
+        "recipient_organization",
+        "created_by",
+        "reviewed_by",
+    )
+    readonly_fields = ("created_at",)
+    list_select_related = (
+        "user",
+        "shipper__organization",
+        "recipient_organization__organization",
+        "recipient_organization__destination",
+        "created_by",
+        "reviewed_by",
+    )
+    fields = (
+        "user",
+        "role",
+        "shipper",
+        "recipient_organization",
+        "is_active",
+        "created_by",
+        "created_at",
+        "reviewed_by",
+        "reviewed_at",
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            readonly_fields.extend(
+                [
+                    "user",
+                    "role",
+                    "shipper",
+                    "recipient_organization",
+                    "created_by",
+                ]
+            )
+        return tuple(readonly_fields)
+
+
+@admin.register(models.ShipmentRecipientOrganization)
+class ShipmentRecipientOrganizationAdmin(admin.ModelAdmin):
+    list_display = (
+        "organization",
+        "destination",
+        "validation_status",
+        "is_correspondent",
+        "is_active",
+        "active_recipient_contact_count",
+        "active_shipper_link_count",
+        "active_portal_grant_count",
+    )
+    list_filter = ("validation_status", "is_correspondent", "is_active", "destination")
+    search_fields = (
+        "organization__name",
+        "destination__city",
+        "destination__iata_code",
+    )
+    autocomplete_fields = ("organization", "destination")
+    list_select_related = ("organization", "destination")
+    readonly_fields = (
+        "active_recipient_contact_count",
+        "active_shipper_link_count",
+        "active_portal_grant_count",
+    )
+    fields = (
+        "organization",
+        "destination",
+        "validation_status",
+        "is_correspondent",
+        "is_active",
+        "active_recipient_contact_count",
+        "active_shipper_link_count",
+        "active_portal_grant_count",
+    )
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.select_related("organization", "destination").annotate(
+            active_recipient_contact_count_value=Count(
+                "recipient_contacts",
+                filter=Q(recipient_contacts__is_active=True),
+                distinct=True,
+            ),
+            active_shipper_link_count_value=Count(
+                "shipper_links",
+                filter=Q(shipper_links__is_active=True),
+                distinct=True,
+            ),
+            active_portal_grant_count_value=Count(
+                "portal_access_grants",
+                filter=Q(portal_access_grants__is_active=True),
+                distinct=True,
+            ),
+        )
+
+    @admin.display(description=gettext_lazy("Référents actifs"))
+    def active_recipient_contact_count(self, obj):
+        return getattr(obj, "active_recipient_contact_count_value", 0)
+
+    @admin.display(description=gettext_lazy("Liens expéditeur actifs"))
+    def active_shipper_link_count(self, obj):
+        return getattr(obj, "active_shipper_link_count_value", 0)
+
+    @admin.display(description=gettext_lazy("Accès portail actifs"))
+    def active_portal_grant_count(self, obj):
+        return getattr(obj, "active_portal_grant_count_value", 0)
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            readonly_fields.extend(["organization", "destination"])
+        return tuple(readonly_fields)
+
+
+@admin.register(models.RecipientProductPreference)
+class RecipientProductPreferenceAdmin(admin.ModelAdmin):
+    list_display = (
+        "recipient_organization",
+        "target_label",
+        "status",
+        "quantity_target",
+        "period_unit",
+        "source",
+        "updated_at",
+    )
+    list_filter = ("status", "period_unit", "source")
+    search_fields = (
+        "recipient_organization__organization__name",
+        "recipient_organization__destination__city",
+        "product__name",
+        "category__name",
+    )
+    autocomplete_fields = (
+        "recipient_organization",
+        "product",
+        "category",
+        "created_by",
+        "updated_by",
+    )
+    list_select_related = (
+        "recipient_organization__organization",
+        "recipient_organization__destination",
+        "product",
+        "category",
+        "created_by",
+        "updated_by",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    fields = (
+        "recipient_organization",
+        "product",
+        "category",
+        "status",
+        "quantity_target",
+        "period_unit",
+        "notes",
+        "source",
+        "created_by",
+        "created_at",
+        "updated_by",
+        "updated_at",
+    )
+
+    @admin.display(description=gettext_lazy("Cible"))
+    def target_label(self, obj):
+        if obj.product_id:
+            return obj.product.name
+        if obj.category_id:
+            return obj.category.name
+        return "-"
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            readonly_fields.extend(["recipient_organization", "product", "category"])
+        return tuple(readonly_fields)
+
+
+@admin.register(models.RecipientStructureDocument)
+class RecipientStructureDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "contact",
+        "doc_type",
+        "status",
+        "scan_status",
+        "uploaded_at",
+        "reviewed_at",
+    )
+    list_filter = ("doc_type", "status", "scan_status")
+    search_fields = (
+        "contact__name",
+        "uploaded_by__username",
+        "uploaded_by__email",
+        "reviewed_by__username",
+        "reviewed_by__email",
+    )
+    autocomplete_fields = ("contact", "uploaded_by", "reviewed_by")
+    list_select_related = ("contact", "uploaded_by", "reviewed_by")
+    readonly_fields = ("uploaded_at", "scan_updated_at")
+    fields = (
+        "contact",
+        "doc_type",
+        "status",
+        "file",
+        "scan_status",
+        "scan_message",
+        "scan_updated_at",
+        "uploaded_by",
+        "uploaded_at",
+        "reviewed_by",
+        "reviewed_at",
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            readonly_fields.extend(["contact", "doc_type", "uploaded_by"])
+        return tuple(readonly_fields)
 
 
 class _OrderDocumentStatusMixin:

@@ -231,6 +231,53 @@ Reference tests:
 - `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 
+### Public Account Request Portal Contract
+
+Primary runtime sources:
+
+- `wms/account_request_handlers.py`
+- `wms/admin_account_request_approval.py`
+- `wms/models_domain/portal.py`
+- `wms/default_shipper_bindings.py`
+- `templates/scan/public_account_request.html`
+- `templates/emails/account_request_approved.txt`
+- `templates/emails/account_request_admin_notification.txt`
+
+Current contract:
+
+- public account requests support `shipper`, `recipient`, and `user`; legacy `association`
+  rows stay valid as shipper-equivalent data
+- `/portal/request-account/` exposes `Expediteur` and `Destinataire` choices in the HTML form;
+  the legacy backend `user` request type remains accepted for compatibility even though it is not
+  shown on that page
+- recipient requests must carry exactly one `Destination`; shipper requests do not
+- approved recipient requests do not create a legacy `AssociationProfile`
+- approved recipient requests must create or reactivate:
+  - the organization contact
+  - the destination-scoped `ShipmentRecipientOrganization`
+  - one active `ShipmentRecipientContact`
+  - one active `PortalAccessGrant(recipient_admin)`
+- recipient approval must also ensure the default ASF shipper binding through the shared
+  default-shipper helper path rather than duplicating link logic inside approval code
+- if the default ASF shipper cannot be resolved, recipient approval must fail explicitly instead
+  of validating a partially usable account
+
+Maintenance rule:
+
+- if public account request fields or account types change, keep the public form, approval flow,
+  approval emails, and portal-access provisioning aligned in the same work
+- if recipient portal provisioning changes, verify both the approval flow and the portal-login
+  scope-resolution behavior, because first-login and password-recovery flows depend on the same
+  access graph
+
+Reference tests:
+
+- `wms/tests/admin/tests_account_request_handlers.py`
+- `wms/tests/portal/tests_portal_role_review_gate.py`
+- `wms/tests/portal/tests_portal_access_grants.py`
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+
 ### Portal Recipient Product Preference Contract
 
 Primary runtime sources:
@@ -246,12 +293,20 @@ Current contract:
 - the portal recipient edit flow at `/portal/recipients/?edit=<id>` exposes a dedicated
   `Préférences produits du destinataire` section backed by the synced
   `ShipmentRecipientOrganization` row for the same `(organization, destination)` scope
+- recipient-scoped portal users keep the summary table on `/portal/` and use
+  `/portal/recipient/profile/` for direct maintenance of the active
+  `ShipmentRecipientOrganization` shared profile fields, main recipient contact, and structure
+  documents
+- recipient-scoped portal users keep the summary table on `/portal/` and use
+  `/portal/recipient/preferences/` for line-by-line maintenance of the active
+  `ShipmentRecipientOrganization` product preferences
 - `GET /api/v1/ui/portal/recipients/` and `PATCH /api/v1/ui/portal/recipients/<id>/`
   reuse the same shared runtime recipient scope instead of mutating `AssociationRecipient`
   directly; a `recipient_admin` scope addresses the runtime `ShipmentRecipientOrganization.id`
 - portal users can create, edit, and delete recipient product preferences with native
-  Bootstrap form controls on the same page as recipient editing; the form is anchored with
-  `#recipient-product-preferences`
+  Bootstrap form controls on the same page as recipient editing; the shipper form is anchored
+  with `#recipient-product-preferences`, while the recipient-scoped page exposes the same row
+  save semantics plus a dedicated `Supprimer` action for explicit preferences
 - portal status labels use operator-facing wording `Demandé`, `Autorisé`, and `Refusé` even
   though the model `TextChoices` labels remain shorter internally
 - category-level preferences are allowed for `requested` and `allowed`; category-level
@@ -264,6 +319,9 @@ Maintenance rule:
 
 - if recipient preference semantics change, keep the portal edit UI, shipment-party validation
   rules, and any preparation-run consumers aligned in the same work
+- if recipient-scoped profile maintenance changes, keep `/portal/recipient/profile/`, the
+  recipient dashboard summary, runtime shipment-party contacts, and refreshed
+  `AssociationRecipient` compatibility projections aligned in the same work
 - do not fork a second portal-specific preference model or scope; the portal stays on the shared
   shipment-party preference records
 
@@ -500,8 +558,12 @@ Current contract:
   must not mutate the canonical preference row
 - coverage metrics use the current local calendar week/month window, `ShipmentWorkflowProjection.delivered_at`
   as delivery evidence, and open assigned shipments as pipeline quantity
-- portal recipient detail and scan/admin recipient detail render the same canonical preference rows
-  plus the same coverage summary semantics
+- portal recipient detail, recipient-scoped portal preference maintenance, and scan/admin recipient
+  detail render the same canonical preference rows plus the same coverage summary semantics
+- those three line-by-line tables also expose the same computed `Qté par colis (estimation)` metadata,
+  derived from the default carton format and the shared weight/volume carton-capacity rule
+- when product and carton metadata are insufficient, the line-by-line tables must render `--` for that
+  estimate instead of inventing a fallback
 - if the synced recipient now has an active recipient portal grant, shipper-side portal preference controls become read-only on both the list edit surface and the recipient detail surface while scan/admin keeps the canonical maintenance path
 - scan shipment create/edit exposes per-carton compatibility metadata keyed by recipient runtime,
   blocks only explicit `refused` products, and records override rows when staff continues
@@ -514,6 +576,8 @@ Maintenance rule:
   the shared helper and every consumer
 - if coverage math changes, keep the period/window rules, delivery evidence source, and scan
   compatibility bucket logic aligned in the same work
+- if the line-by-line preference table columns change, keep portal shipper, portal recipient, and
+  scan/admin column order plus estimate semantics aligned in the same work
 
 Reference tests:
 
@@ -728,6 +792,8 @@ Current contract:
 - `wms/application/portal/dashboard_queries.py` owns both the shipper dashboard composition and the recipient-scope home composition for `/portal/`
 - `build_portal_dashboard_payload(profile=...)` remains the shared shipper composition layer for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
 - `build_recipient_scope_home_payload(recipient_organization=...)` feeds both the legacy recipient home rendered on `/portal/` and the recipient-scope branch of `GET /api/v1/ui/portal/dashboard/` when the active scope is `recipient_admin`
+- the recipient home at `/portal/` remains the lightweight summary surface, while
+  `/portal/recipient/profile/` is the maintenance surface for the same active recipient scope
 - the portal UI API dashboard is now scope-aware and returns `mode="shipper"` or `mode="recipient"` so consumers can branch without re-deriving portal access rules
 - `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
 - portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
@@ -1025,8 +1091,13 @@ Current auth scope contract:
 - `/portal/` is now the first role-aware page: shipper scopes keep the order cockpit while
   recipient scopes render a recipient home on the same shell
 - the remaining legacy pages guarded by `association_required` remain shipper-only, while the
-  recipient-specific maintenance contract now lives on the role-aware `/portal/` home and the
-  mirrored UI API endpoints under `/api/v1/ui/portal/*`
+  recipient-specific maintenance contract now lives on the role-aware `/portal/` home,
+  `/portal/recipient/profile/`, `/portal/recipient/preferences/`, and the mirrored UI API
+  endpoints under `/api/v1/ui/portal/*`
+- when a shipper scope comes from an explicit `PortalAccessGrant` and no legacy
+  `AssociationProfile` exists yet for that user, `association_required` can create the missing
+  bridge profile for the granted shipper organization on first access; an existing profile pointing
+  at a different organization still fails closed
 - `python manage.py rebuild_recipient_party_graph --dry-run|--apply` is the compatibility repair
   path for explicit shipper grants and stale `AssociationRecipient` projections when canonical
   shipment-party runtime rows were merged or reshaped outside the portal adapters

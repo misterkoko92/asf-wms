@@ -45,24 +45,25 @@
       {% trans "Pilotez le catalogue ligne par ligne. “Non précisé” retire la règle explicite et laisse le produit accepté sans validation forte." %}
     </p>
       <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
+        <table class="table table-sm align-middle mb-0 recipient-preference-table">
           <thead>
             <tr>
-              <th>{% trans "Produit" %}</th>
-              <th>{% trans "Statut" %}</th>
-              <th>{% trans "Quantité cible" %}</th>
-              <th>{% trans "Période" %}</th>
-              <th>{% trans "Livre" %}</th>
+              <th class="recipient-preference-col--product">{% trans "Produit" %}</th>
+              <th class="recipient-preference-col--estimate"><span class="recipient-preference-estimate-heading">{% trans "Qté par colis (estimation)" %}</span></th>
+              <th class="recipient-preference-col--status">{% trans "Statut" %}</th>
+              <th class="recipient-preference-col--quantity text-nowrap">{% trans "Quantité cible" %}</th>
+              <th class="recipient-preference-col--period">{% trans "Période" %}</th>
+              <th>{% trans "Livré" %}</th>
               <th>{% trans "Pipeline" %}</th>
               <th>{% trans "Reste a servir" %}</th>
-              <th>{% trans "Notes" %}</th>
+              <th class="recipient-preference-col--notes">{% trans "Notes" %}</th>
               <th class="text-end">{% trans "Action" %}</th>
             </tr>
           </thead>
           <tbody>
             {% for row in recipient_product_rows %}
               <tr>
-                <td>
+                <td class="recipient-preference-col--product">
                   <div class="fw-semibold">{{ row.product.name }}</div>
                   <div class="small text-body-secondary">
                     {% if row.is_explicit %}
@@ -72,18 +73,19 @@
                     {% endif %}
                   </div>
                 </td>
-                <td>
-                  <select class="form-select ui-select--md" id="status_{{ row.product.id }}" name="status" form="admin-recipient-preference-form-{{ row.product.id }}">
+                <td class="recipient-preference-col--estimate">{{ row.units_per_carton_estimate|default:"--" }}</td>
+                <td class="recipient-preference-col--status">
+                  <select class="form-select ui-select--lg recipient-preference-input--status" id="status_{{ row.product.id }}" name="status" form="admin-recipient-preference-form-{{ row.product.id }}">
                     {% for value, label in preference_status_choices %}
                       <option value="{{ value }}" {% if row.form_data.status == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                   </select>
                 </td>
-                <td>
-                  <input class="form-control" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="admin-recipient-preference-form-{{ row.product.id }}">
+                <td class="recipient-preference-col--quantity">
+                  <input class="form-control recipient-preference-input--quantity" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="admin-recipient-preference-form-{{ row.product.id }}">
                 </td>
-                <td>
-                  <select class="form-select ui-select--md" id="period_unit_{{ row.product.id }}" name="period_unit" form="admin-recipient-preference-form-{{ row.product.id }}">
+                <td class="recipient-preference-col--period">
+                  <select class="form-select ui-select--lg recipient-preference-input--period" id="period_unit_{{ row.product.id }}" name="period_unit" form="admin-recipient-preference-form-{{ row.product.id }}">
                     <option value="">---------</option>
                     {% for value, label in preference_period_choices %}
                       <option value="{{ value }}" {% if row.form_data.period_unit == value %}selected{% endif %}>{{ label }}</option>
@@ -93,8 +95,8 @@
                 <td>{% if row.coverage %}{{ row.coverage.delivered_quantity }}{% else %}-{% endif %}</td>
                 <td>{% if row.coverage %}{{ row.coverage.pipeline_quantity }}{% else %}-{% endif %}</td>
                 <td>{% if row.coverage %}{{ row.coverage.remaining_need }}{% else %}-{% endif %}</td>
-                <td class="w-25">
-                  <textarea class="form-control" id="notes_{{ row.product.id }}" name="notes" rows="2" form="admin-recipient-preference-form-{{ row.product.id }}">{{ row.form_data.notes }}</textarea>
+                <td class="recipient-preference-col--notes">
+                  <textarea class="form-control recipient-preference-input--notes" id="notes_{{ row.product.id }}" name="notes" rows="2" form="admin-recipient-preference-form-{{ row.product.id }}">{{ row.form_data.notes }}</textarea>
                 </td>
                 <td class="text-end">
                   <form id="admin-recipient-preference-form-{{ row.product.id }}" method="post" class="m-0">
@@ -109,7 +111,7 @@
               </tr>
             {% empty %}
               <tr>
-                <td colspan="9" class="text-body-secondary">{% trans "Aucun produit actif dans le catalogue." %}</td>
+                <td colspan="10" class="text-body-secondary">{% trans "Aucun produit actif dans le catalogue." %}</td>
               </tr>
             {% endfor %}
           </tbody>

@@ -3,9 +3,9 @@
 <div class="scan-card card border-0 ui-comp-card">
   <h2 class="ui-comp-title">{% trans "Création de compte" %}</h2>
   <p class="scan-help">
-    {% if lock_account_type_to_association %}
+    {% if lock_account_type_to_shipper %}
       {% blocktrans trimmed %}
-      Envoyez votre demande. Un administrateur ASF doit valider le compte association.
+      Envoyez votre demande. Un administrateur ASF doit valider le compte expediteur.
       {% endblocktrans %}
     {% else %}
       {% blocktrans trimmed %}

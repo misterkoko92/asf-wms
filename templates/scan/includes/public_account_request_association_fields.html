@@ -2,7 +2,7 @@
 
 <section id="association-fields" data-account-section="{{ ACCOUNT_TYPE_ASSOCIATION }}">
   <div class="scan-field">
-    <label class="form-label" for="association_name">{% trans "Nom de l'association" %}</label>
+    <label class="form-label" for="association_name">{% trans "Nom de la structure" %}</label>
     <input
       class="form-control"
       type="text"
@@ -17,6 +17,17 @@
   <div class="scan-field">
     <label class="form-label" for="phone">{% trans "Téléphone" %}</label>
     <input class="form-control" type="text" id="phone" name="phone" value="{{ form_data.phone }}">
+  </div>
+  <div class="scan-field" id="destination-field-wrapper" hidden>
+    <label class="form-label" for="destination_id">{% trans "Escale de livraison" %}</label>
+    <select class="form-select ui-select--md" id="destination_id" name="destination_id">
+      <option value="">{% trans "Choisir une escale" %}</option>
+      {% for destination in destinations %}
+        <option value="{{ destination.id }}" {% if form_data.destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
+          {{ destination.city }} ({{ destination.iata_code }}){% if destination.country %} - {{ destination.country }}{% endif %}
+        </option>
+      {% endfor %}
+    </select>
   </div>
   <div class="scan-field">
     <label class="form-label" for="line1">{% trans "Adresse" %}</label>

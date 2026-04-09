@@ -129,6 +129,8 @@ class PublicAccountRequestStatus(models.TextChoices):
 
 class PublicAccountRequestType(models.TextChoices):
     ASSOCIATION = "association", "Association"
+    SHIPPER = "shipper", "Expediteur"
+    RECIPIENT = "recipient", "Destinataire"
     USER = "user", "Utilisateur WMS"
 
 
@@ -156,6 +158,13 @@ class PublicAccountRequest(models.Model):
     postal_code = models.CharField(max_length=20, blank=True)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=80, default="France")
+    destination = models.ForeignKey(
+        "wms.Destination",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="public_account_requests",
+    )
     requested_username = models.CharField(max_length=150, blank=True)
     requested_password_hash = models.CharField(max_length=128, blank=True)
     notes = models.TextField(blank=True)

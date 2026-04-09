@@ -175,12 +175,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(dashboard_response, "scan/modules/shipments.js")
         self.assertContains(shipment_response, "scan/modules/shipments.js")
 
-    def test_scan_stock_uses_bootstrap_layout_and_keeps_table_tools(self):
+    def test_scan_stock_uses_bootstrap_layout_and_avoids_local_table_tools(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "row g-3")
         self.assertContains(response, "table table-sm table-hover")
-        self.assertContains(response, 'data-table-tools="1"')
+        self.assertNotContains(response, 'data-table-tools="1"')
         self.assertContains(response, "form-check form-switch")
         self.assertContains(response, "scan-inline-switch")
         self.assertContains(response, "scan-switch-control")
@@ -815,16 +815,43 @@ class ScanBootstrapUiTests(TestCase):
             ".scan-bootstrap-enabled .ui-number-input .form-control,\n"
             ".scan-bootstrap-enabled .ui-number-input-input {\n"
             "  min-width: 0;\n"
-            "  padding-left: calc(var(--wms-input-padding-x) + 3.85rem);",
+            "  padding-left: calc(var(--wms-input-padding-x) + 3.6rem);",
             css_content,
         )
         self.assertIn(
-            ".scan-bootstrap-enabled .ui-number-input-btn {\n" "  width: 1.5rem;",
+            ".scan-bootstrap-enabled .ui-number-input-btn {\n" "  width: 1.4rem;",
             css_content,
         )
         self.assertIn(
             ".scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-btn {\n"
-            "  width: 1.3rem;",
+            "  width: 1.2rem;",
+            css_content,
+        )
+
+    def test_scan_bootstrap_css_keeps_recipient_preference_table_headers_balanced(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--estimate {\n"
+            "  min-width: 7.75rem;\n"
+            "  white-space: normal;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--status {\n"
+            "  min-width: 11rem;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--quantity {\n"
+            "  width: 7.75rem;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-estimate-heading {\n"
+            "  display: inline-block;\n"
+            "  max-width: 8.25rem;",
             css_content,
         )
 
@@ -979,7 +1006,15 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="scan-admin-contacts-correspondents-card"')
         self.assertContains(response, "ui-comp-card", count=7)
         self.assertContains(response, 'data-admin-contacts-crud="1"')
-        self.assertContains(response, 'data-table-tools="1"', count=6)
+        self.assertContains(response, 'data-table-tools="1"', count=5)
+        content = response.content.decode()
+        directory_match = re.search(
+            r'(<div id="scan-admin-contacts-directory-card".*?)<div id="scan-admin-contacts-correspondents-card"',
+            content,
+            re.S,
+        )
+        self.assertIsNotNone(directory_match)
+        self.assertNotIn('data-table-tools="1"', directory_match.group(1))
         self.assertContains(response, 'id="scan-admin-contact-action-panel"')
         self.assertContains(response, 'value="set_default_authorized_recipient_contact"')
         self.assertContains(response, 'value="set_stopover_correspondent_recipient_organization"')
@@ -1561,7 +1596,7 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(error_response.status_code, 200)
         self.assertContains(error_response, "ui-comp-alert")
-        self.assertContains(error_response, "Nom de l&#x27;association requis.")
+        self.assertContains(error_response, "Nom de la structure requis.")
         self.assertContains(error_response, "Adresse requise.")
 
     def test_scan_dashboard_uses_bootstrap_filters(self):

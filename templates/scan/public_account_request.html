@@ -40,7 +40,7 @@
         <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
           {% csrf_token %}
 
-          {% if lock_account_type_to_association %}
+          {% if lock_account_type_to_shipper %}
             <input type="hidden" name="account_type" value="{{ ACCOUNT_TYPE_ASSOCIATION }}">
             <div class="scan-field">
               <label class="form-label" for="account_type_display">{% trans "Profil" %}</label>
@@ -48,7 +48,7 @@
                 class="form-control"
                 type="text"
                 id="account_type_display"
-                value="{% trans "Association" %}"
+                value="{% trans "Expéditeur" %}"
                 readonly
                 aria-readonly="true"
               >
@@ -57,8 +57,11 @@
             <div class="scan-field">
               <label class="form-label" for="account_type">{% trans "Profil" %}</label>
               <select class="form-select ui-select--md" id="account_type" name="account_type">
-                <option value="{{ ACCOUNT_TYPE_ASSOCIATION }}" {% if form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>{% trans "Association" %}</option>
-                <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>{% trans "Utilisateur WMS" %}</option>
+                <option value="{{ ACCOUNT_TYPE_SHIPPER }}" {% if form_data.account_type == ACCOUNT_TYPE_SHIPPER or form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>{% trans "Expéditeur" %}</option>
+                <option value="{{ ACCOUNT_TYPE_RECIPIENT }}" {% if form_data.account_type == ACCOUNT_TYPE_RECIPIENT %}selected{% endif %}>{% trans "Destinataire" %}</option>
+                {% if show_user_account_type %}
+                  <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>{% trans "Utilisateur WMS" %}</option>
+                {% endif %}
               </select>
             </div>
           {% endif %}
@@ -90,6 +93,8 @@
   <script>
     (function() {
       const ACCOUNT_TYPE_ASSOCIATION = "{{ ACCOUNT_TYPE_ASSOCIATION }}";
+      const ACCOUNT_TYPE_SHIPPER = "{{ ACCOUNT_TYPE_SHIPPER }}";
+      const ACCOUNT_TYPE_RECIPIENT = "{{ ACCOUNT_TYPE_RECIPIENT }}";
       const ACCOUNT_TYPE_USER = "{{ ACCOUNT_TYPE_USER }}";
 
       const contacts = JSON.parse(document.getElementById("association-data").textContent || "[]");
@@ -106,6 +111,8 @@
       const postalInput = document.getElementById("postal_code");
       const cityInput = document.getElementById("city");
       const countryInput = document.getElementById("country");
+      const destinationInput = document.getElementById("destination_id");
+      const destinationFieldWrapper = document.getElementById("destination-field-wrapper");
 
       const requestedUsernameInput = document.getElementById("requested_username");
       const password1Input = document.getElementById("password1");
@@ -116,6 +123,10 @@
         if (line1Input) line1Input.required = required;
       };
 
+      const setRecipientRequired = (required) => {
+        if (destinationInput) destinationInput.required = required;
+      };
+
       const setUserRequired = (required) => {
         if (requestedUsernameInput) requestedUsernameInput.required = required;
         if (password1Input) password1Input.required = required;
@@ -123,18 +134,25 @@
       };
 
       const toggleSections = () => {
-        const accountType = accountTypeInput ? accountTypeInput.value : ACCOUNT_TYPE_ASSOCIATION;
-        const isAssociation = accountType === ACCOUNT_TYPE_ASSOCIATION;
+        const accountType = accountTypeInput ? accountTypeInput.value : ACCOUNT_TYPE_SHIPPER;
+        const isAssociation = accountType === ACCOUNT_TYPE_ASSOCIATION
+          || accountType === ACCOUNT_TYPE_SHIPPER
+          || accountType === ACCOUNT_TYPE_RECIPIENT;
+        const isRecipient = accountType === ACCOUNT_TYPE_RECIPIENT;
         const isUser = accountType === ACCOUNT_TYPE_USER;
 
         if (associationSection) {
           associationSection.hidden = !isAssociation;
+        }
+        if (destinationFieldWrapper) {
+          destinationFieldWrapper.hidden = !isRecipient;
         }
         if (userSection) {
           userSection.hidden = !isUser;
         }
 
         setAssociationRequired(isAssociation);
+        setRecipientRequired(isRecipient);
         setUserRequired(isUser);
       };
 

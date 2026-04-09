@@ -27,7 +27,7 @@ TEMPLATE_PUBLIC_ORDER_SUMMARY = "print/order_summary.html"
 DEFAULT_COUNTRY = "France"
 MESSAGE_PUBLIC_ORDER_SENT = "Commande envoyée. L'équipe ASF va la traiter rapidement."
 
-ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
+ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de la structure requis."
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_PRODUCTS_REQUIRED = "Ajoutez au moins un produit."
 ERROR_THROTTLE_LIMIT = (

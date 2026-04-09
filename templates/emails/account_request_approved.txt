@@ -1,12 +1,24 @@
 {% load i18n %}{% blocktrans with association_name=association_name %}Bonjour {{ association_name }},{% endblocktrans %}
 
+{% if account_type == "recipient" %}
+{% trans "Votre compte destinataire a été validé par ASF." %}
+{% elif account_type == "shipper" %}
+{% trans "Votre compte expéditeur a été validé par ASF." %}
+{% else %}
 {% trans "Votre compte association a été validé par ASF." %}
+{% endif %}
 
 {% trans "Identifiant" %}: {{ email }}
 {% trans "Pour définir votre mot de passe, utilisez ce lien sécurisé:" %}
 {{ set_password_url }}
 
+{% if account_type == "recipient" %}
+{% trans "Connexion destinataire" %}:
+{% elif account_type == "shipper" %}
+{% trans "Connexion expéditeur" %}:
+{% else %}
 {% trans "Connexion association" %}:
+{% endif %}
 {{ login_url }}
 
 {% trans "Si vous n'êtes pas à l'origine de cette demande, merci de contacter ASF." %}

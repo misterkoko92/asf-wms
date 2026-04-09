@@ -170,13 +170,27 @@ If you change shipment sequencing, status rules, document-first creation behavio
 ### What the flow covers
 
 - association authentication and account maintenance
+- public account requests now distinguish `shipper`, `recipient`, and `user`, while legacy
+  `association` rows remain accepted as shipper-equivalent during approval
+- recipient public account requests must choose exactly one delivery stop up front because
+  recipient portal access is scoped to one `ShipmentRecipientOrganization (organization,
+  destination)`
+- ASF approval of a recipient public account request now provisions the validated runtime
+  recipient organization, one minimal active recipient contact, one
+  `PortalAccessGrant(recipient_admin)`, and the default ASF shipper binding in the same flow
 - portal access resolution from explicit `PortalAccessGrant` rows with fallback to legacy `AssociationProfile`
 - single-scope portal activation in session, with `/portal/scope-select/` as the explicit chooser when a user has multiple portal scopes
+- when a shipper scope comes from an explicit grant and the user still has no legacy `AssociationProfile`,
+  `association_required` can bridge that missing shipper profile from the granted `ShipmentShipper`
+  organization so the shipper cockpit remains reachable after `/portal/scope-select/`
 - `/portal/` now branches on the active scope: shipper scopes keep the order cockpit, recipient scopes land on a recipient home showing shared structure data, recipient contacts, structure documents, and explicit product preferences for exactly one `ShipmentRecipientOrganization`
+- recipient scopes can now jump from the home summary at `/portal/` to `/portal/recipient/profile/` for direct maintenance of the active recipient structure identity, main contact, address, notes, and structure documents
+- recipient scopes can now jump from the home summary at `/portal/` to `/portal/recipient/preferences/` for line-by-line product preference maintenance on that active `ShipmentRecipientOrganization`
 - legacy shipper pages outside `/portal/` remain guarded by the active portal scope in `wms/view_permissions.py`
 - portal shell navigation now adapts to the active scope, keeping shipper order/billing/recipient links unchanged while recipient scopes expose in-page anchors for identity, contacts, documents, and preferences
 - shipper portal dashboard cockpit KPIs and per-order next-step guidance
 - recipient list/detail/create/update
+- recipient-scoped profile editing for structure, main contact, address, notes, and documents
 - recipient product preference editing from both portal recipient detail and scan admin recipient cockpit
 - canonical recipient shared-profile writes, document upserts, and product-preference upserts through `wms/application/parties/use_cases.py`
 - shipper portal recipient create/update now write the canonical shipment-party graph first and only refresh `AssociationRecipient` as a compatibility projection
@@ -196,6 +210,8 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 - `wms/tests/portal/tests_portal_access_grants.py`
+- `wms/tests/admin/tests_account_request_handlers.py`
+- `wms/tests/portal/tests_portal_role_review_gate.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
@@ -224,8 +240,9 @@ If you change recipient fields, validation, shipment-party eligibility, default 
 Also inspect the shipment-party registry and sync layers. A portal-only change is often not portal-only in practice.
 When a recipient structure can now exist on multiple destinations, avoid organization-only runtime lookups and assertions.
 Recipient management routes now include both the lightweight list at `/portal/recipients/` and
-the recipient cockpit detail at `/portal/recipients/<id>/`, so permission guards and
-portal-side navigation should treat both as part of the same maintenance surface.
+the recipient cockpit detail at `/portal/recipients/<id>/`, while recipient scopes also use
+`/portal/recipient/preferences/` as the dedicated product-preference maintenance page. Permission
+guards and portal-side navigation should treat all three as part of the same maintenance surface.
 The same maintenance surface now has UI API mirrors at `/api/v1/ui/portal/dashboard/`,
 `/api/v1/ui/portal/recipients/`, and `/api/v1/ui/portal/recipients/<id>/`; scope-aware
 recipient changes must stay aligned across HTML and UI API.

@@ -27,6 +27,16 @@ urlpatterns = [
     path("billing/<int:document_id>/", views.portal_billing_detail, name="portal_billing_detail"),
     path("recipients/", views.portal_recipients, name="portal_recipients"),
     path(
+        "recipient/preferences/",
+        views.portal_recipient_preferences,
+        name="portal_recipient_preferences",
+    ),
+    path(
+        "recipient/profile/",
+        views.portal_recipient_profile,
+        name="portal_recipient_profile",
+    ),
+    path(
         "recipients/<int:recipient_id>/",
         views.portal_recipient_detail,
         name="portal_recipient_detail",

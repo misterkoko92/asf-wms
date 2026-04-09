@@ -8,7 +8,7 @@
     <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
       <div>
         <h2 class="ui-comp-title">{% trans "Fiche destinataire" %}</h2>
-        <p class="scan-help">{% trans "Consultez les informations partagées de votre structure, les référents, les documents et les besoins produits." %}</p>
+        <p class="scan-help">{% trans "Consultez et mettez à jour les informations partagées de votre structure, les référents, les documents et les besoins produits." %}</p>
       </div>
       <div>
         <span class="{{ recipient_validation_status_display.badge_class }}">
@@ -19,7 +19,10 @@
   </div>
 
   <div id="portal-recipient-home-identity" class="scan-card portal-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title">{% trans "Identité structure" %}</h3>
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <h3 class="ui-comp-title mb-0">{% trans "Identité structure" %}</h3>
+      <a class="btn btn-primary btn-sm" href="{% url 'portal:portal_recipient_profile' %}">{% trans "Modifier mes informations" %}</a>
+    </div>
     <dl class="row mb-0">
       <dt class="col-sm-3">{% trans "Structure" %}</dt>
       <dd class="col-sm-9">{{ recipient_structure_name|default:"-" }}</dd>
@@ -103,7 +106,10 @@
   </div>
 
   <div id="portal-recipient-home-preferences" class="scan-card portal-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title">{% trans "Préférences produits" %}</h3>
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <h3 class="ui-comp-title mb-0">{% trans "Préférences produits" %}</h3>
+      <a class="btn btn-primary btn-sm" href="{% url 'portal:portal_recipient_preferences' %}">{% trans "Gérer les préférences produits" %}</a>
+    </div>
     {% if recipient_preference_rows %}
       <div class="scan-table-wrap table-responsive">
         <table class="portal-table scan-table table table-sm table-hover">
