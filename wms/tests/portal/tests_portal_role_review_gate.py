@@ -283,3 +283,195 @@ class PortalRoleReviewGateTests(TestCase):
                 is_active=True,
             ).exists()
         )
+
+    def test_approve_recipient_account_request_rejects_missing_destination(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-recipient-missing-destination",
+            email="admin-recipient-missing-destination@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.RECIPIENT,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Recipient Missing Destination",
+            email="recipient-missing-destination@example.org",
+            phone="+22370000000",
+            address_line1="1 Rue Recipient",
+            address_line2="",
+            postal_code="",
+            city="Bamako",
+            country="Mali",
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+        )
+
+        self.assertFalse(ok)
+        self.assertEqual(reason, "destination manquante")
+
+    def test_approve_recipient_account_request_rejects_missing_default_shipper(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-recipient-missing-shipper",
+            email="admin-recipient-missing-shipper@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.RECIPIENT,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Recipient Missing Default Shipper",
+            email="recipient-missing-shipper@example.org",
+            phone="+22370000000",
+            address_line1="1 Rue Recipient",
+            address_line2="",
+            postal_code="",
+            city="Bamako",
+            country="Mali",
+            destination=self.destination,
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+        )
+
+        self.assertFalse(ok)
+        self.assertEqual(reason, "expediteur ASF manquant")
+
+    def test_approve_recipient_account_request_reactivates_existing_scope_objects(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-recipient-reactivation",
+            email="admin-recipient-reactivation@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        prior_reviewer = get_user_model().objects.create_user(
+            username="prior-recipient-reviewer",
+            email="prior-recipient-reviewer@example.org",
+            password="pass1234",
+            is_staff=True,
+        )
+        approved_user = get_user_model().objects.create_user(
+            username="reactivated-recipient@example.org",
+            email="reactivated-recipient@example.org",
+            password="pass1234",
+            is_active=False,
+        )
+        asf_contact = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        asf_shipper = ensure_shipment_shipper(
+            asf_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        recipient_contact = Contact.objects.create(
+            name="Recipient Reactivation Scope",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+            email=approved_user.email,
+            phone="+22361111111",
+        )
+        primary_person = Contact.objects.create(
+            contact_type=ContactType.PERSON,
+            organization=recipient_contact,
+            first_name="Primary",
+            last_name="Recipient",
+            name="Primary Recipient",
+            email="old-recipient@example.org",
+            phone="+22362222222",
+            is_active=True,
+            use_organization_address=True,
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        shipment_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=primary_person,
+            is_active=True,
+        )
+        PortalAccessGrant.objects.create(
+            user=approved_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+            is_active=False,
+            reviewed_by=prior_reviewer,
+        )
+        ShipmentRecipientOrganization.objects.filter(pk=recipient_organization.pk).update(
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=False,
+        )
+        ShipmentRecipientContact.objects.filter(pk=shipment_recipient_contact.pk).update(
+            is_active=False
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.RECIPIENT,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name=recipient_contact.name,
+            email=approved_user.email,
+            phone="+22370000000",
+            address_line1="1 Rue Reactivation",
+            address_line2="",
+            postal_code="",
+            city="Bamako",
+            country="Mali",
+            destination=self.destination,
+            contact=recipient_contact,
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        approved_user.refresh_from_db()
+        recipient_organization.refresh_from_db()
+        shipment_recipient_contact.refresh_from_db()
+        grant = PortalAccessGrant.objects.get(
+            user=approved_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        primary_person.refresh_from_db()
+
+        self.assertTrue(approved_user.is_active)
+        self.assertEqual(
+            recipient_organization.validation_status, ShipmentValidationStatus.VALIDATED
+        )
+        self.assertTrue(recipient_organization.is_active)
+        self.assertTrue(shipment_recipient_contact.is_active)
+        self.assertEqual(grant.reviewed_by, admin_user)
+        self.assertEqual(grant.created_by, admin_user)
+        self.assertIsNotNone(grant.reviewed_at)
+        self.assertTrue(grant.is_active)
+        self.assertEqual(primary_person.email, approved_user.email)
+        self.assertEqual(primary_person.phone, account_request.phone)
+        self.assertTrue(
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper=asf_shipper,
+                recipient_organization=recipient_organization,
+                is_active=True,
+            ).exists()
+        )
