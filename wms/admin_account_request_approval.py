@@ -9,9 +9,13 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
-from contacts.models import Contact, ContactAddress
+from contacts.models import Contact, ContactAddress, ContactType
 
 from . import models
+from .default_shipper_bindings import (
+    _resolve_default_shipper,
+    ensure_default_shipper_links_for_recipient_organization_id,
+)
 from .portal_permissions import assign_association_portal_group
 from .shipment_party_setup import ensure_shipment_shipper
 
@@ -20,6 +24,8 @@ ACCOUNT_ACCESS_USER_NOT_FOUND = gettext_lazy("Utilisateur introuvable.")
 ACCOUNT_ACCESS_MISSING_BASE_URL = gettext_lazy(
     "SITE_BASE_URL non configurée, utiliser l'URL du site."
 )
+RECIPIENT_DEFAULT_CONTACT_FIRST_NAME = "Referent"
+RECIPIENT_DEFAULT_CONTACT_LAST_NAME = "Portail"
 
 
 def describe_account_request_skip_reason(reason):
@@ -27,6 +33,8 @@ def describe_account_request_skip_reason(reason):
         "email reserve": _("email reserve"),
         "username manquant": _("username manquant"),
         "username reserve": _("username reserve"),
+        "destination manquante": _("destination manquante"),
+        "expediteur ASF manquant": _("expediteur ASF manquant"),
     }
     return reason_labels.get(reason, reason)
 
@@ -60,6 +68,83 @@ def build_portal_urls_from_base_url(*, site_base_url, user):
     )
 
 
+def _ensure_contact_address(*, contact, account_request):
+    address = (
+        contact.get_effective_address()
+        if hasattr(contact, "get_effective_address")
+        else contact.addresses.filter(is_default=True).first() or contact.addresses.first()
+    )
+    if address is None:
+        address = ContactAddress(contact=contact, is_default=True)
+    address.address_line1 = account_request.address_line1
+    address.address_line2 = account_request.address_line2
+    address.postal_code = account_request.postal_code
+    address.city = account_request.city
+    address.country = account_request.country or "France"
+    address.phone = account_request.phone
+    address.email = account_request.email
+    address.is_default = True
+    address.save()
+    return address
+
+
+def _ensure_portal_user(*, user_model, existing_user, account_request):
+    user = existing_user
+    if not user:
+        user = user_model.objects.create_user(
+            username=account_request.email,
+            email=account_request.email,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+    user_updates = []
+    if user.username != account_request.email:
+        user.username = account_request.email
+        user_updates.append("username")
+    if user.email != account_request.email:
+        user.email = account_request.email
+        user_updates.append("email")
+    if not user.is_active:
+        user.is_active = True
+        user_updates.append("is_active")
+    if user_updates:
+        user.save(update_fields=user_updates)
+    return user
+
+
+def _ensure_recipient_default_contact(*, organization, account_request):
+    contact = (
+        organization.members.filter(
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        .order_by("id")
+        .first()
+    )
+    if contact is None:
+        contact = Contact(
+            contact_type=ContactType.PERSON,
+            organization=organization,
+            is_active=True,
+            use_organization_address=True,
+        )
+
+    contact.contact_type = ContactType.PERSON
+    contact.organization = organization
+    contact.first_name = contact.first_name or RECIPIENT_DEFAULT_CONTACT_FIRST_NAME
+    contact.last_name = contact.last_name or RECIPIENT_DEFAULT_CONTACT_LAST_NAME
+    contact.name = (
+        " ".join(part for part in [contact.first_name, contact.last_name] if part).strip()
+        or organization.name
+    )
+    contact.email = account_request.email or contact.email
+    contact.phone = account_request.phone or contact.phone
+    contact.use_organization_address = True
+    contact.is_active = True
+    contact.save()
+    return contact
+
+
 def approve_account_request(
     *,
     request,
@@ -71,6 +156,7 @@ def approve_account_request(
     existing_user = user_model.objects.filter(email__iexact=account_request.email).first()
     if existing_user and (existing_user.is_staff or existing_user.is_superuser):
         return False, "email reserve"
+    is_recipient_request = account_request.account_type == models.PublicAccountRequestType.RECIPIENT
 
     if account_request.account_type == models.PublicAccountRequestType.USER:
         requested_username = (
@@ -132,6 +218,12 @@ def approve_account_request(
         )
         return True, ""
 
+    if is_recipient_request:
+        if account_request.destination_id is None:
+            return False, "destination manquante"
+        if _resolve_default_shipper() is None:
+            return False, "expediteur ASF manquant"
+
     user = existing_user
     with transaction.atomic():
         contact = account_request.contact
@@ -154,42 +246,91 @@ def approve_account_request(
         if contact_updates:
             contact.save(update_fields=contact_updates)
 
-        address = (
-            contact.get_effective_address()
-            if hasattr(contact, "get_effective_address")
-            else contact.addresses.filter(is_default=True).first() or contact.addresses.first()
+        _ensure_contact_address(contact=contact, account_request=account_request)
+        user = _ensure_portal_user(
+            user_model=user_model,
+            existing_user=user,
+            account_request=account_request,
         )
-        if not address:
-            ContactAddress.objects.create(
-                contact=contact,
-                address_line1=account_request.address_line1,
-                address_line2=account_request.address_line2,
-                postal_code=account_request.postal_code,
-                city=account_request.city,
-                country=account_request.country or "France",
-                phone=account_request.phone,
-                email=account_request.email,
-                is_default=True,
-            )
 
-        if not user:
-            user = user_model.objects.create_user(
-                username=account_request.email,
-                email=account_request.email,
+        if is_recipient_request:
+            recipient_organization, _created = (
+                models.ShipmentRecipientOrganization.objects.get_or_create(
+                    organization=contact,
+                    destination=account_request.destination,
+                    defaults={
+                        "validation_status": models.ShipmentValidationStatus.VALIDATED,
+                        "is_active": True,
+                    },
+                )
             )
-            user.set_unusable_password()
-            user.save(update_fields=["password"])
+            recipient_updates = []
+            if (
+                recipient_organization.validation_status
+                != models.ShipmentValidationStatus.VALIDATED
+            ):
+                recipient_organization.validation_status = models.ShipmentValidationStatus.VALIDATED
+                recipient_updates.append("validation_status")
+            if not recipient_organization.is_active:
+                recipient_organization.is_active = True
+                recipient_updates.append("is_active")
+            if recipient_updates:
+                recipient_organization.save(update_fields=recipient_updates)
 
-        profile, created = models.AssociationProfile.objects.get_or_create(
-            user=user,
-            defaults={"contact": contact},
-        )
-        if not created and profile.contact_id != contact.id:
-            profile.contact = contact
-        profile.must_change_password = True
-        profile.save(update_fields=["contact", "must_change_password"])
-        assign_association_portal_group(user)
-        ensure_shipment_shipper(contact)
+            recipient_contact = _ensure_recipient_default_contact(
+                organization=contact,
+                account_request=account_request,
+            )
+            shipment_recipient_contact, created = (
+                models.ShipmentRecipientContact.objects.get_or_create(
+                    recipient_organization=recipient_organization,
+                    contact=recipient_contact,
+                    defaults={"is_active": True},
+                )
+            )
+            if not created and not shipment_recipient_contact.is_active:
+                shipment_recipient_contact.is_active = True
+                shipment_recipient_contact.save(update_fields=["is_active"])
+
+            grant, _grant_created = models.PortalAccessGrant.objects.get_or_create(
+                user=user,
+                role=models.PortalAccessRole.RECIPIENT_ADMIN,
+                recipient_organization=recipient_organization,
+                defaults={
+                    "is_active": True,
+                    "created_by": request.user,
+                    "reviewed_by": request.user,
+                    "reviewed_at": timezone.now(),
+                },
+            )
+            grant_updates = []
+            if not grant.is_active:
+                grant.is_active = True
+                grant_updates.append("is_active")
+            if grant.reviewed_by_id != getattr(request.user, "id", None):
+                grant.reviewed_by = request.user
+                grant_updates.append("reviewed_by")
+            if grant.reviewed_at is None:
+                grant.reviewed_at = timezone.now()
+                grant_updates.append("reviewed_at")
+            if grant.created_by_id is None and getattr(request.user, "id", None):
+                grant.created_by = request.user
+                grant_updates.append("created_by")
+            if grant_updates:
+                grant.save(update_fields=grant_updates)
+
+            ensure_default_shipper_links_for_recipient_organization_id(recipient_organization.id)
+        else:
+            profile, created = models.AssociationProfile.objects.get_or_create(
+                user=user,
+                defaults={"contact": contact},
+            )
+            if not created and profile.contact_id != contact.id:
+                profile.contact = contact
+            profile.must_change_password = True
+            profile.save(update_fields=["contact", "must_change_password"])
+            assign_association_portal_group(user)
+            ensure_shipment_shipper(contact)
 
         models.AccountDocument.objects.filter(
             account_request=account_request,
@@ -206,6 +347,7 @@ def approve_account_request(
         "emails/account_request_approved.txt",
         {
             "association_name": contact.name,
+            "account_type": account_request.account_type,
             "email": account_request.email,
             "set_password_url": set_password_url,
             "login_url": login_url,
@@ -244,8 +386,13 @@ def build_account_access_lines(*, account_request, site_base_url):
             site_base_url=site_base_url,
             user=user,
         )
+        profile_label = _("Profil: Association")
+        if account_request.account_type == models.PublicAccountRequestType.SHIPPER:
+            profile_label = _("Profil: Expediteur")
+        elif account_request.account_type == models.PublicAccountRequestType.RECIPIENT:
+            profile_label = _("Profil: Destinataire")
         lines = [
-            _("Profil: Association"),
+            profile_label,
             _("Email: %(email)s") % {"email": account_request.email or "-"},
             _("Login: %(url)s") % {"url": login_url},
             _("Lien definir mot de passe: %(url)s") % {"url": set_password_url},

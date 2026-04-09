@@ -1956,4 +1956,6 @@ def portal_account_request(request):
         request,
         link=None,
         redirect_url=reverse("portal:portal_account_request"),
+        allow_user_request=True,
+        show_user_account_type=False,
     )

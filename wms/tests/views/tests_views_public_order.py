@@ -177,7 +177,7 @@ class PublicOrderViewsTests(TestCase):
                             ):
                                 response = self.client.post(self.public_order_url, {})
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Nom de l'association requis.", response.context["errors"])
+        self.assertIn("Nom de la structure requis.", response.context["errors"])
         self.assertIn("Adresse requise.", response.context["errors"])
         self.assertIn("Ajoutez au moins un produit.", response.context["errors"])
         create_mock.assert_not_called()

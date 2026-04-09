@@ -845,18 +845,19 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-control")
         self.assertContains(response, "btn btn-primary")
 
-    def test_portal_account_request_locks_profile_to_association(self):
+    def test_portal_account_request_exposes_shipper_and_recipient_profiles(self):
         self.client.logout()
         response = self.client.get(reverse("portal:portal_account_request"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
+        self.assertContains(response, 'id="account_type"')
+        self.assertContains(response, "Expéditeur")
+        self.assertContains(response, "Destinataire")
+        self.assertNotContains(
             response,
             '<input type="hidden" name="account_type" value="association">',
             html=True,
         )
-        self.assertContains(response, "Association")
-        self.assertNotContains(response, 'id="account_type"')
         self.assertNotContains(response, "Utilisateur WMS")
 
     def test_portal_pages_use_design_component_classes(self):

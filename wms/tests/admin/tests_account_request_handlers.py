@@ -12,6 +12,7 @@ from wms import account_request_handlers
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
+    Destination,
     DocumentScanStatus,
     IntegrationDirection,
     IntegrationEvent,
@@ -154,6 +155,18 @@ class AccountRequestHelpersTests(TestCase):
 class AccountRequestFormHandlerTests(TestCase):
     def setUp(self):
         self.url = reverse("portal:portal_account_request")
+        self.correspondent = Contact.objects.create(
+            name="Correspondent Request",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        self.destination = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO-REQ",
+            country="Mali",
+            correspondent_contact=self.correspondent,
+            is_active=True,
+        )
 
     def _payload(self, **overrides):
         payload = {
@@ -183,6 +196,24 @@ class AccountRequestFormHandlerTests(TestCase):
         payload.update(overrides)
         return payload
 
+    def _recipient_payload(self, **overrides):
+        payload = {
+            "account_type": "recipient",
+            "association_name": "Recipient Test",
+            "email": "recipient@example.com",
+            "phone": "+22370000000",
+            "line1": "1 Rue Recipient",
+            "line2": "",
+            "postal_code": "",
+            "city": "Bamako",
+            "country": "Mali",
+            "notes": "Recipient request",
+            "contact_id": "",
+            "destination_id": str(self.destination.id),
+        }
+        payload.update(overrides)
+        return payload
+
     def test_form_validates_required_fields(self):
         response = self.client.post(
             self.url,
@@ -190,7 +221,7 @@ class AccountRequestFormHandlerTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Nom de l'association requis.", response.context["errors"])
+        self.assertIn("Nom de la structure requis.", response.context["errors"])
         self.assertIn("Email requis.", response.context["errors"])
         self.assertIn("Adresse requise.", response.context["errors"])
 
@@ -318,6 +349,26 @@ class AccountRequestFormHandlerTests(TestCase):
             "Une demande est déjà en attente pour ce nom d'utilisateur.",
             response.context["errors"],
         )
+
+    def test_recipient_form_requires_destination(self):
+        response = self.client.post(
+            self.url,
+            self._recipient_payload(destination_id=""),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Escale de livraison requise.", response.context["errors"])
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
+    def test_recipient_form_creates_request_with_destination(self, _get_admin_emails_mock):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, self._recipient_payload())
+
+        self.assertEqual(response.status_code, 302)
+        request_obj = PublicAccountRequest.objects.get(email="recipient@example.com")
+        self.assertEqual(request_obj.account_type, "recipient")
+        self.assertEqual(request_obj.destination_id, self.destination.id)
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=300)
     def test_form_releases_throttle_slot_when_request_creation_fails(self):

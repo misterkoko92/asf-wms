@@ -1,6 +1,6 @@
 {% load i18n %}{% trans "Nouvelle demande de compte" %}
 
-{% trans "Type de profil" %}: {% if account_type == "user" %}{% trans "Utilisateur WMS" %}{% else %}{% trans "Association" %}{% endif %}
+{% trans "Type de profil" %}: {% if account_type == "user" %}{% trans "Utilisateur WMS" %}{% elif account_type == "recipient" %}{% trans "Destinataire" %}{% elif account_type == "shipper" %}{% trans "Expéditeur" %}{% else %}{% trans "Association" %}{% endif %}
 {% trans "Association / entité" %}: {{ association_name }}
 {% if account_type == "user" %}
 {% trans "Nom d'utilisateur demandé" %}: {{ requested_username|default:"-" }}
