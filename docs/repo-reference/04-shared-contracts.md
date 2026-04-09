@@ -246,12 +246,16 @@ Current contract:
 - the portal recipient edit flow at `/portal/recipients/?edit=<id>` exposes a dedicated
   `Préférences produits du destinataire` section backed by the synced
   `ShipmentRecipientOrganization` row for the same `(organization, destination)` scope
+- recipient-scoped portal users keep the summary table on `/portal/` and use
+  `/portal/recipient/preferences/` for line-by-line maintenance of the active
+  `ShipmentRecipientOrganization` product preferences
 - `GET /api/v1/ui/portal/recipients/` and `PATCH /api/v1/ui/portal/recipients/<id>/`
   reuse the same shared runtime recipient scope instead of mutating `AssociationRecipient`
   directly; a `recipient_admin` scope addresses the runtime `ShipmentRecipientOrganization.id`
 - portal users can create, edit, and delete recipient product preferences with native
-  Bootstrap form controls on the same page as recipient editing; the form is anchored with
-  `#recipient-product-preferences`
+  Bootstrap form controls on the same page as recipient editing; the shipper form is anchored
+  with `#recipient-product-preferences`, while the recipient-scoped page exposes the same row
+  save semantics plus a dedicated `Supprimer` action for explicit preferences
 - portal status labels use operator-facing wording `Demandé`, `Autorisé`, and `Refusé` even
   though the model `TextChoices` labels remain shorter internally
 - category-level preferences are allowed for `requested` and `allowed`; category-level
@@ -500,8 +504,12 @@ Current contract:
   must not mutate the canonical preference row
 - coverage metrics use the current local calendar week/month window, `ShipmentWorkflowProjection.delivered_at`
   as delivery evidence, and open assigned shipments as pipeline quantity
-- portal recipient detail and scan/admin recipient detail render the same canonical preference rows
-  plus the same coverage summary semantics
+- portal recipient detail, recipient-scoped portal preference maintenance, and scan/admin recipient
+  detail render the same canonical preference rows plus the same coverage summary semantics
+- those three line-by-line tables also expose the same computed `Qté par colis (estimation)` metadata,
+  derived from the default carton format and the shared weight/volume carton-capacity rule
+- when product and carton metadata are insufficient, the line-by-line tables must render `--` for that
+  estimate instead of inventing a fallback
 - if the synced recipient now has an active recipient portal grant, shipper-side portal preference controls become read-only on both the list edit surface and the recipient detail surface while scan/admin keeps the canonical maintenance path
 - scan shipment create/edit exposes per-carton compatibility metadata keyed by recipient runtime,
   blocks only explicit `refused` products, and records override rows when staff continues
@@ -514,6 +522,8 @@ Maintenance rule:
   the shared helper and every consumer
 - if coverage math changes, keep the period/window rules, delivery evidence source, and scan
   compatibility bucket logic aligned in the same work
+- if the line-by-line preference table columns change, keep portal shipper, portal recipient, and
+  scan/admin column order plus estimate semantics aligned in the same work
 
 Reference tests:
 

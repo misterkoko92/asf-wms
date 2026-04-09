@@ -738,6 +738,50 @@ body.scan-bootstrap-enabled {
   width: min(100%, var(--wms-select-width-xl));
 }
 
+.scan-bootstrap-enabled .recipient-preference-table {
+  min-width: 1180px;
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--product {
+  min-width: 15rem;
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--estimate {
+  min-width: 9rem;
+  white-space: nowrap;
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--status {
+  min-width: 12rem;
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--quantity {
+  width: 7rem;
+  min-width: 7rem;
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--period {
+  min-width: 12rem;
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--notes {
+  width: 15rem;
+  min-width: 12rem;
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-input--status,
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-input--period {
+  width: min(100%, 16rem);
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-input--quantity {
+  width: min(100%, 6rem);
+}
+
+.scan-bootstrap-enabled .recipient-preference-table .recipient-preference-input--notes {
+  min-width: 12rem;
+}
+
 .scan-bootstrap-enabled .form-control::placeholder,
 .scan-bootstrap-enabled .form-select::placeholder {
   color: var(--wms-input-placeholder);

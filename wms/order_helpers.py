@@ -80,8 +80,8 @@ def attach_order_documents_to_shipment(order, shipment):
         )
 
 
-def estimate_cartons_for_line(*, product, quantity, carton_format):
-    if not carton_format:
+def estimate_units_per_carton(*, product, carton_format):
+    if not carton_format or not product:
         return None
     weight_g = get_product_weight_g(product)
     volume = get_product_volume_cm3(product)
@@ -101,9 +101,12 @@ def estimate_cartons_for_line(*, product, quantity, carton_format):
         max_by_weight = int(carton_format.max_weight_g // weight_g)
         max_by_weight = max(1, max_by_weight)
     if max_by_volume and max_by_weight:
-        max_units = min(max_by_volume, max_by_weight)
-    else:
-        max_units = max_by_volume or max_by_weight
+        return min(max_by_volume, max_by_weight)
+    return max_by_volume or max_by_weight
+
+
+def estimate_cartons_for_line(*, product, quantity, carton_format):
+    max_units = estimate_units_per_carton(product=product, carton_format=carton_format)
     if not max_units:
         return None
     return int(math.ceil(quantity / max_units))
