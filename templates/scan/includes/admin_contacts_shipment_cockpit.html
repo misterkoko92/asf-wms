@@ -166,6 +166,7 @@
                     <input type="hidden" name="q" value="{{ query }}">
                     <input type="hidden" name="contact_type" value="{{ contact_filter }}">
                     <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <input type="hidden" name="page" value="{{ contacts_page.number }}">
                     <div class="col-12">
                         <label class="form-label" for="scan-shipment-link-id">{% trans "Lien expéditeur → destinataire" %}</label>
                         <select id="scan-shipment-link-id"
@@ -217,6 +218,7 @@
                     <input type="hidden" name="q" value="{{ query }}">
                     <input type="hidden" name="contact_type" value="{{ contact_filter }}">
                     <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <input type="hidden" name="page" value="{{ contacts_page.number }}">
                     <div class="col-12">
                         <label class="form-label" for="scan-stopover-correspondent-id">
                             {% trans "Structure destinataire correspondante" %}
@@ -255,6 +257,7 @@
                     <input type="hidden" name="q" value="{{ query }}">
                     <input type="hidden" name="contact_type" value="{{ contact_filter }}">
                     <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <input type="hidden" name="page" value="{{ contacts_page.number }}">
                     <div class="col-12">
                         <label class="form-label" for="scan-merge-source-recipient-organization">{% trans "Structure source" %}</label>
                         <select id="scan-merge-source-recipient-organization"

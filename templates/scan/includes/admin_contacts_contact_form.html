@@ -5,6 +5,7 @@
     <input type="hidden" name="q" value="{{ query }}">
     <input type="hidden" name="contact_type" value="{{ contact_filter }}">
     <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+    <input type="hidden" name="page" value="{{ contacts_page.number }}">
     <input type="hidden" name="editing_contact_id" value="{{ editing_contact.id|default:'' }}">
     {{ contact_form.duplicate_candidates_count }}
     {% if contact_form.non_field_errors %}
@@ -420,7 +421,7 @@
             {% endif %}
         </button>
         {% if contact_form_mode == "edit" %}
-            <a class="btn btn-tertiary" href="{% url 'scan:scan_admin_contacts' %}">{% trans "Annuler" %}</a>
+            <a class="btn btn-tertiary" href="{{ contacts_current_url }}">{% trans "Annuler" %}</a>
         {% endif %}
     </div>
 </form>

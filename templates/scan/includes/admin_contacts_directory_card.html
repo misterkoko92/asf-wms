@@ -3,9 +3,10 @@
     <details class="scan-admin-table-accordion" id="scan-admin-contacts-directory">
         <summary class="scan-admin-table-summary">
             <span>{% trans "Répertoire des contacts" %}</span>
+            <span class="badge text-bg-light ui-comp-count-badge">{{ contacts_total_count }}</span>
         </summary>
         <div class="scan-table-wrap table-responsive">
-            <table class="scan-table table table-sm table-hover" data-table-tools="1">
+            <table class="scan-table table table-sm table-hover">
                 <thead>
                     <tr>
                         <th>{% trans "Nom" %}</th>
@@ -42,7 +43,7 @@
                                         data-contact-id="{{ contact.id }}"
                                         data-contact-type="{{ contact.contact_type }}"
                                         data-contact-name="{{ contact.name|escapejs }}"
-                                        data-edit-url="{% url 'scan:scan_admin_contacts' %}?edit={{ contact.id }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if contact_filter != 'all' %}&amp;contact_type={{ contact_filter|urlencode }}{% endif %}{% if destination_filter %}&amp;destination_id={{ destination_filter|urlencode }}{% endif %}">
+                                        data-edit-url="{% url 'scan:scan_admin_contacts' %}?edit={{ contact.id }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if contact_filter != 'all' %}&amp;contact_type={{ contact_filter|urlencode }}{% endif %}{% if destination_filter %}&amp;destination_id={{ destination_filter|urlencode }}{% endif %}{% if contacts_page.number > 1 %}&amp;page={{ contacts_page.number }}{% endif %}">
                                     <option value="">{% trans "Voir les choix" %}</option>
                                     <option value="edit">{% trans "Modifier" %}</option>
                                     <option value="deactivate">{% trans "Désactiver" %}</option>
@@ -58,6 +59,19 @@
                 </tbody>
             </table>
         </div>
+        {% if contacts_page.has_other_pages %}
+            <div class="scan-filter-actions ui-comp-actions d-flex flex-wrap gap-2 align-items-center mt-3 px-3 pb-3">
+                <span class="scan-help ui-comp-note">
+                    {% blocktrans with current=contacts_page.number total=contacts_page.paginator.num_pages %}Page {{ current }} / {{ total }}{% endblocktrans %}
+                </span>
+                {% if contacts_page.has_previous %}
+                    <a class="btn btn-tertiary btn-sm" href="{{ contacts_page_prev_url }}">{% trans "Page précédente" %}</a>
+                {% endif %}
+                {% if contacts_page.has_next %}
+                    <a class="btn btn-tertiary btn-sm" href="{{ contacts_page_next_url }}">{% trans "Page suivante" %}</a>
+                {% endif %}
+            </div>
+        {% endif %}
     </details>
     {% include "scan/includes/admin_contacts_directory_action_panel.html" %}
     <div class="visually-hidden" aria-hidden="true">

@@ -1,3 +1,4 @@
+from django.core.paginator import Paginator
 from django.db.models import (
     DateTimeField,
     F,
@@ -14,6 +15,7 @@ from django.db.models.functions import Coalesce
 from .models import Product, ProductCategory, ProductLot, StockMovement, Warehouse
 
 CATEGORY_FILTER_MAX_LEVELS = 4
+STOCK_PAGE_SIZE = 100
 
 
 def _parse_bool_query_param(value):
@@ -76,6 +78,7 @@ def build_stock_context(request):
     category_id = (request.GET.get("category") or "").strip()
     warehouse_id = (request.GET.get("warehouse") or "").strip()
     sort = (request.GET.get("sort") or "name").strip()
+    page_number = (request.GET.get("page") or "1").strip()
     include_zero = _parse_bool_query_param(request.GET.get("include_zero"))
     category_filter_context = _build_category_filter_context(selected_category_id=category_id)
 
@@ -133,12 +136,33 @@ def build_stock_context(request):
         "category": "category__name",
     }
     products = products.order_by(sort_map.get(sort, "name"), "name")
+    paginator = Paginator(products, STOCK_PAGE_SIZE)
+    products_page = paginator.get_page(page_number)
 
     warehouses = Warehouse.objects.all().order_by("name")
 
+    def build_page_url(target_page):
+        params = request.GET.copy()
+        if target_page <= 1:
+            params.pop("page", None)
+        else:
+            params["page"] = str(target_page)
+        encoded = params.urlencode()
+        return f"?{encoded}" if encoded else "?"
+
     return {
         "active": "stock",
-        "products": products,
+        "products": products_page.object_list,
+        "products_page": products_page,
+        "products_total_count": paginator.count,
+        "products_page_prev_url": (
+            build_page_url(products_page.previous_page_number())
+            if products_page.has_previous()
+            else ""
+        ),
+        "products_page_next_url": (
+            build_page_url(products_page.next_page_number()) if products_page.has_next() else ""
+        ),
         "categories": category_filter_context["categories"],
         "category_labels_by_id": category_filter_context["category_labels_by_id"],
         "category_paths_by_id": category_filter_context["category_paths_by_id"],

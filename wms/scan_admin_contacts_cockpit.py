@@ -6,6 +6,7 @@ from difflib import SequenceMatcher
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count, Q
 from django.utils.translation import gettext as _
 
 from contacts.models import Contact, ContactType
@@ -248,63 +249,63 @@ def _normalize_destination_id(destination_id):
 
 
 def _build_shipment_party_shippers(destination_id=None):
-    queryset = ShipmentShipper.objects.select_related("organization", "default_contact").filter(
-        organization__is_active=True
+    active_link_filter = Q(
+        recipient_links__is_active=True,
+        recipient_links__recipient_organization__is_active=True,
+        recipient_links__recipient_organization__organization__is_active=True,
+        recipient_links__recipient_organization__destination__is_active=True,
     )
     resolved_destination_id = _normalize_destination_id(destination_id)
     if resolved_destination_id is not None:
-        queryset = queryset.filter(
-            recipient_links__is_active=True,
-            recipient_links__recipient_organization__is_active=True,
-            recipient_links__recipient_organization__organization__is_active=True,
-            recipient_links__recipient_organization__destination__is_active=True,
-            recipient_links__recipient_organization__destination_id=resolved_destination_id,
-        ).distinct()
-    shippers = list(queryset.order_by("organization__name", "id"))
-    for shipper in shippers:
-        active_links = shipper.recipient_links.filter(
-            is_active=True,
-            recipient_organization__is_active=True,
-            recipient_organization__organization__is_active=True,
+        active_link_filter &= Q(
+            recipient_links__recipient_organization__destination_id=resolved_destination_id
         )
-        if resolved_destination_id is not None:
-            active_links = active_links.filter(
-                recipient_organization__destination_id=resolved_destination_id
+    queryset = (
+        ShipmentShipper.objects.select_related("organization", "default_contact")
+        .filter(organization__is_active=True)
+        .annotate(
+            active_link_count=Count(
+                "recipient_links",
+                filter=active_link_filter,
+                distinct=True,
             )
-        shipper.active_link_count = active_links.count()
-    return shippers
+        )
+    )
+    if resolved_destination_id is not None:
+        queryset = queryset.filter(active_link_count__gt=0)
+    return list(queryset.order_by("organization__name", "id"))
 
 
 def _build_shipment_party_recipient_organizations(destination_id=None):
-    queryset = ShipmentRecipientOrganization.objects.select_related(
-        "organization", "destination"
-    ).filter(
-        organization__is_active=True,
-        destination__is_active=True,
+    queryset = (
+        ShipmentRecipientOrganization.objects.select_related("organization", "destination")
+        .filter(
+            organization__is_active=True,
+            destination__is_active=True,
+        )
+        .annotate(
+            active_recipient_contact_count=Count(
+                "recipient_contacts",
+                filter=Q(
+                    recipient_contacts__is_active=True,
+                    recipient_contacts__contact__is_active=True,
+                ),
+                distinct=True,
+            ),
+            active_link_count=Count(
+                "shipper_links",
+                filter=Q(
+                    shipper_links__is_active=True,
+                    shipper_links__shipper__organization__is_active=True,
+                ),
+                distinct=True,
+            ),
+        )
     )
     resolved_destination_id = _normalize_destination_id(destination_id)
     if resolved_destination_id is not None:
         queryset = queryset.filter(destination_id=resolved_destination_id)
-    recipient_organizations = list(
-        queryset.order_by("destination__city", "organization__name", "id")
-    )
-    for recipient_organization in recipient_organizations:
-        recipient_organization.active_recipient_contact_count = (
-            recipient_organization.recipient_contacts.filter(
-                is_active=True,
-                contact__is_active=True,
-            ).count()
-        )
-        active_links = recipient_organization.shipper_links.filter(
-            is_active=True,
-            shipper__organization__is_active=True,
-        )
-        if resolved_destination_id is not None:
-            active_links = active_links.filter(
-                recipient_organization__destination_id=resolved_destination_id
-            )
-        recipient_organization.active_link_count = active_links.count()
-    return recipient_organizations
+    return list(queryset.order_by("destination__city", "organization__name", "id"))
 
 
 def _build_shipment_party_links(destination_id=None):
@@ -412,14 +413,5 @@ def build_cockpit_context(*, query: str, filters: dict, destination_id: str = ""
         ),
         "cockpit_shipment_authorization_options": _build_shipment_party_authorization_options(
             shipment_links
-        ),
-        "cockpit_destinations": list(
-            Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
-        ),
-        "cockpit_organizations": list(
-            Contact.objects.filter(
-                contact_type=ContactType.ORGANIZATION,
-                is_active=True,
-            ).order_by("name", "id")
         ),
     }

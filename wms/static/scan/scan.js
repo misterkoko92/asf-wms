@@ -830,7 +830,11 @@
       return;
     }
 
-    const useSelectFilter = true;
+    const pickerConfig = document.getElementById('scan-product-picker-config');
+    const preferredPickerMode = pickerConfig ? pickerConfig.dataset.pickerMode || '' : '';
+    const useSelectFilter = preferredPickerMode
+      ? preferredPickerMode === 'filter_select'
+      : products.length <= 250;
 
     const sortedProducts = [...products].sort((a, b) =>
       (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })

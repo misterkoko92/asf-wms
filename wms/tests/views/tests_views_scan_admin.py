@@ -186,7 +186,9 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(correspondents, [self.correspondent])
         self.assertNotIn(self.orphan_correspondent, correspondents)
         self.assertContains(response, "Créer manuellement un contact dans l’accordéon")
-        self.assertContains(response, "Ajouter contact")
+        self.assertNotContains(response, "Admin Django legacy")
+        self.assertNotContains(response, "Ajouter contact")
+        self.assertNotContains(response, "Ajouter destination")
         self.assertContains(response, "Partenaire")
         self.assertContains(response, "Autre")
 
@@ -232,7 +234,7 @@ class ScanAdminViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-admin-table-accordion")
-        self.assertContains(response, 'data-table-tools="1"', count=6)
+        self.assertContains(response, 'data-table-tools="1"', count=5)
         self.assertNotContains(response, 'scan-admin-table-accordion" open')
 
     def test_scan_admin_contacts_renders_creation_cards_before_filters(self):
@@ -676,10 +678,31 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, 'name="action" value="update_contact"')
         self.assertNotContains(response, 'name="action" value="delete_contact"')
         self.assertNotContains(response, "Mode legacy désactivé")
-        self.assertContains(response, reverse("admin:contacts_contact_changelist"))
-        self.assertContains(response, reverse("admin:contacts_contact_add"))
-        self.assertContains(response, reverse("admin:wms_destination_changelist"))
-        self.assertContains(response, reverse("admin:wms_destination_add"))
+        self.assertNotContains(response, "Admin Django legacy")
+        self.assertNotContains(response, "Ajouter contact")
+        self.assertNotContains(response, "Ajouter destination")
+
+    def test_scan_admin_contacts_paginates_directory_and_limits_merge_targets(self):
+        self.client.force_login(self.superuser)
+        for index in range(105):
+            Contact.objects.create(
+                name=f"Contact pagination {index:03d}",
+                contact_type=ContactType.ORGANIZATION,
+                is_active=True,
+            )
+
+        response = self.client.get(
+            reverse("scan:scan_admin_contacts"),
+            {"q": "Contact pagination"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["contacts_total_count"], 105)
+        self.assertEqual(len(response.context["contacts"]), 100)
+        self.assertEqual(response.context["contacts_page"].number, 1)
+        self.assertTrue(response.context["contacts_page"].has_next())
+        self.assertEqual(len(response.context["contact_action_merge_targets"]), 100)
+        self.assertContains(response, "Page 1 / 2")
 
     def test_scan_admin_contacts_rejects_removed_legacy_create_contact_action(self):
         self.client.force_login(self.superuser)

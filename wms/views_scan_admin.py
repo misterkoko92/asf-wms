@@ -2,6 +2,7 @@ from urllib.parse import urlencode
 
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
@@ -99,6 +100,7 @@ CONTACT_FILTER_CHOICES = (
     (ContactType.PERSON, "Personne"),
 )
 CONTACT_FILTER_VALUES = {choice[0] for choice in CONTACT_FILTER_CHOICES}
+ADMIN_CONTACTS_PAGE_SIZE = 100
 
 PRODUCT_SELECTION_MODE_SELECTION = "selection"
 PRODUCT_SELECTION_MODE_ALL_FILTERED = "all_filtered"
@@ -234,18 +236,21 @@ def _normalize_destination_filter(raw_value):
     return value
 
 
-def _build_contacts_redirect(*, query, contact_filter, destination_filter="", edit_id=None):
+def _build_contacts_redirect(
+    *, query, contact_filter, destination_filter="", edit_id=None, page=None
+):
     return redirect(
         _build_contacts_url(
             query=query,
             contact_filter=contact_filter,
             destination_filter=destination_filter,
             edit_id=edit_id,
+            page=page,
         )
     )
 
 
-def _build_contacts_url(*, query, contact_filter, destination_filter="", edit_id=None):
+def _build_contacts_url(*, query, contact_filter, destination_filter="", edit_id=None, page=None):
     params = {}
     if query:
         params["q"] = query
@@ -255,6 +260,9 @@ def _build_contacts_url(*, query, contact_filter, destination_filter="", edit_id
         params["destination_id"] = destination_filter
     if edit_id:
         params["edit"] = str(edit_id)
+    resolved_page = _parse_int(page)
+    if resolved_page and resolved_page > 1:
+        params["page"] = str(resolved_page)
     url = reverse("scan:scan_admin_contacts")
     if params:
         url = f"{url}?{urlencode(params)}"
@@ -293,7 +301,7 @@ def _build_recipient_organization_detail_url(
     return url
 
 
-def _build_pending_recipient_validations(*, query, contact_filter, destination_filter):
+def _build_pending_recipient_validations(*, query, contact_filter, destination_filter, page=None):
     pending_recipient_validations = (
         ShipmentRecipientOrganization.objects.filter(
             validation_status=ShipmentValidationStatus.PENDING,
@@ -331,6 +339,7 @@ def _build_pending_recipient_validations(*, query, contact_filter, destination_f
                     contact_filter=contact_filter,
                     destination_filter=destination_filter,
                     edit_id=recipient_validation.organization_id,
+                    page=page,
                 ),
             }
         )
@@ -492,6 +501,7 @@ def scan_admin_contacts(request):
     _require_superuser(request)
     query = (request.GET.get("q") or request.POST.get("q") or "").strip()
     edit_contact_id = (request.GET.get("edit") or "").strip()
+    page = (request.GET.get("page") or request.POST.get("page") or "").strip()
     cockpit_filters = parse_cockpit_filters(
         role=request.GET.get("role") or request.POST.get("role") or "",
         shipper_org_id=request.GET.get("shipper_org_id")
@@ -509,7 +519,10 @@ def scan_admin_contacts(request):
         Contact.objects.select_related("organization").order_by("name", "id"),
         contact_filter,
     )
-    contacts = _apply_contact_query(base_contacts_qs, query)
+    contacts_qs = _apply_contact_query(base_contacts_qs, query)
+    contacts_paginator = Paginator(contacts_qs, ADMIN_CONTACTS_PAGE_SIZE)
+    contacts_page = contacts_paginator.get_page(page)
+    contacts = list(contacts_page.object_list)
 
     correspondents = _apply_contact_filter(
         Contact.objects.filter(
@@ -517,6 +530,14 @@ def scan_admin_contacts(request):
             destinations_as_correspondent__is_active=True,
         )
         .select_related("organization")
+        .prefetch_related(
+            Prefetch(
+                "destinations_as_correspondent",
+                queryset=Destination.objects.filter(is_active=True).order_by(
+                    "city", "iata_code", "id"
+                ),
+            )
+        )
         .distinct()
         .order_by("name", "id"),
         contact_filter,
@@ -539,6 +560,7 @@ def scan_admin_contacts(request):
                     query=query,
                     contact_filter=contact_filter,
                     destination_filter=destination_filter,
+                    page=page,
                 )
             crud_context.update(
                 {
@@ -557,6 +579,7 @@ def scan_admin_contacts(request):
                     query=query,
                     contact_filter=contact_filter,
                     destination_filter=destination_filter,
+                    page=page,
                 )
             crud_context.update(
                 {
@@ -573,6 +596,7 @@ def scan_admin_contacts(request):
                 query=query,
                 contact_filter=contact_filter,
                 destination_filter=destination_filter,
+                page=page,
             )
         elif action == ACTION_MERGE_CONTACT:
             outcome = handle_contact_merge(request.POST)
@@ -581,6 +605,7 @@ def scan_admin_contacts(request):
                 query=query,
                 contact_filter=contact_filter,
                 destination_filter=destination_filter,
+                page=page,
             )
         elif action == ACTION_SET_DEFAULT_AUTHORIZED_RECIPIENT_CONTACT:
             ok, message = set_default_authorized_recipient_contact(data=request.POST)
@@ -592,6 +617,7 @@ def scan_admin_contacts(request):
                 query=query,
                 contact_filter=contact_filter,
                 destination_filter=destination_filter,
+                page=page,
             )
         elif action == ACTION_SET_STOPOVER_CORRESPONDENT_RECIPIENT_ORGANIZATION:
             ok, message = set_stopover_correspondent_recipient_organization(data=request.POST)
@@ -603,6 +629,7 @@ def scan_admin_contacts(request):
                 query=query,
                 contact_filter=contact_filter,
                 destination_filter=destination_filter,
+                page=page,
             )
         elif action == ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS:
             ok, message = merge_shipment_recipient_organizations(data=request.POST)
@@ -614,6 +641,7 @@ def scan_admin_contacts(request):
                 query=query,
                 contact_filter=contact_filter,
                 destination_filter=destination_filter,
+                page=page,
             )
         else:
             messages.error(request, _("Action de contact non reconnue."))
@@ -639,9 +667,16 @@ def scan_admin_contacts(request):
         query=query,
         contact_filter=contact_filter,
         destination_filter=destination_filter,
+        page=page,
     )
     editing_contact_requires_recipient_validation = _editing_contact_requires_recipient_validation(
         crud_context.get("editing_contact")
+    )
+    current_contacts_url = _build_contacts_url(
+        query=query,
+        contact_filter=contact_filter,
+        destination_filter=destination_filter,
+        page=contacts_page.number,
     )
 
     return render(
@@ -661,6 +696,29 @@ def scan_admin_contacts(request):
                 editing_contact_requires_recipient_validation
             ),
             "contacts": contacts,
+            "contacts_page": contacts_page,
+            "contacts_total_count": contacts_paginator.count,
+            "contacts_page_prev_url": (
+                _build_contacts_url(
+                    query=query,
+                    contact_filter=contact_filter,
+                    destination_filter=destination_filter,
+                    page=contacts_page.previous_page_number(),
+                )
+                if contacts_page.has_previous()
+                else ""
+            ),
+            "contacts_page_next_url": (
+                _build_contacts_url(
+                    query=query,
+                    contact_filter=contact_filter,
+                    destination_filter=destination_filter,
+                    page=contacts_page.next_page_number(),
+                )
+                if contacts_page.has_next()
+                else ""
+            ),
+            "contacts_current_url": current_contacts_url,
             "correspondents": correspondents,
             "contacts_admin_url": reverse("admin:contacts_contact_changelist"),
             "contact_add_url": reverse("admin:contacts_contact_add"),
@@ -682,11 +740,7 @@ def scan_admin_contacts(request):
                 model=RecipientStructureDocument,
                 viewname="admin:wms_recipientstructuredocument_changelist",
             ),
-            "contact_action_merge_targets": list(
-                Contact.objects.filter(is_active=True)
-                .select_related("organization")
-                .order_by("name", "id")
-            ),
+            "contact_action_merge_targets": contacts,
             "destination_form_open": bool(
                 crud_context["destination_form"].is_bound
                 or crud_context["destination_duplicate_candidates"]
