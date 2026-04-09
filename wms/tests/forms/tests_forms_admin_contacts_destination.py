@@ -1,3 +1,4 @@
+from django import forms
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
@@ -65,8 +66,23 @@ class DestinationCrudFormTests(TestCase):
     def test_select_widgets_use_shared_select_size_classes(self):
         form = DestinationCrudForm()
 
+        self.assertIn("ui-select--md", form.fields["country"].widget.attrs["class"])
         self.assertIn(
             "ui-select--lg",
             form.fields["correspondent_contact_id"].widget.attrs["class"],
         )
         self.assertIn("ui-select--md", form.fields["duplicate_action"].widget.attrs["class"])
+
+    def test_country_field_uses_shared_country_choices_sorted_alphabetically(self):
+        form = DestinationCrudForm()
+
+        country_field = form.fields["country"]
+
+        self.assertIsInstance(country_field, forms.ChoiceField)
+        self.assertEqual(country_field.choices[0], ("", "---------"))
+        choice_values = [value for value, _label in country_field.choices[1:]]
+        self.assertIn("France", choice_values)
+        self.assertIn("Bénin", choice_values)
+        self.assertIn("Togo", choice_values)
+        self.assertIn("Canada", choice_values)
+        self.assertEqual(choice_values, sorted(choice_values, key=lambda value: value.casefold()))

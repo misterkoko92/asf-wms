@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from django import forms
@@ -277,6 +278,15 @@ class ScanAdminViewTests(TestCase):
             response.content.decode("utf-8"),
             r'<select[^>]+(?:id="id_country"[^>]+name="country"|name="country"[^>]+id="id_country")',
         )
+
+    def test_scan_admin_contacts_renders_two_country_selects(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        self.assertEqual(len(re.findall(r'<select[^>]+name="country"', html)), 2)
 
     def test_scan_admin_contacts_exposes_shared_select_size_classes(self):
         self.client.force_login(self.superuser)
