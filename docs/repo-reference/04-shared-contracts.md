@@ -231,6 +231,53 @@ Reference tests:
 - `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 
+### Public Account Request Portal Contract
+
+Primary runtime sources:
+
+- `wms/account_request_handlers.py`
+- `wms/admin_account_request_approval.py`
+- `wms/models_domain/portal.py`
+- `wms/default_shipper_bindings.py`
+- `templates/scan/public_account_request.html`
+- `templates/emails/account_request_approved.txt`
+- `templates/emails/account_request_admin_notification.txt`
+
+Current contract:
+
+- public account requests support `shipper`, `recipient`, and `user`; legacy `association`
+  rows stay valid as shipper-equivalent data
+- `/portal/request-account/` exposes `Expediteur` and `Destinataire` choices in the HTML form;
+  the legacy backend `user` request type remains accepted for compatibility even though it is not
+  shown on that page
+- recipient requests must carry exactly one `Destination`; shipper requests do not
+- approved recipient requests do not create a legacy `AssociationProfile`
+- approved recipient requests must create or reactivate:
+  - the organization contact
+  - the destination-scoped `ShipmentRecipientOrganization`
+  - one active `ShipmentRecipientContact`
+  - one active `PortalAccessGrant(recipient_admin)`
+- recipient approval must also ensure the default ASF shipper binding through the shared
+  default-shipper helper path rather than duplicating link logic inside approval code
+- if the default ASF shipper cannot be resolved, recipient approval must fail explicitly instead
+  of validating a partially usable account
+
+Maintenance rule:
+
+- if public account request fields or account types change, keep the public form, approval flow,
+  approval emails, and portal-access provisioning aligned in the same work
+- if recipient portal provisioning changes, verify both the approval flow and the portal-login
+  scope-resolution behavior, because first-login and password-recovery flows depend on the same
+  access graph
+
+Reference tests:
+
+- `wms/tests/admin/tests_account_request_handlers.py`
+- `wms/tests/portal/tests_portal_role_review_gate.py`
+- `wms/tests/portal/tests_portal_access_grants.py`
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+
 ### Portal Recipient Product Preference Contract
 
 Primary runtime sources:

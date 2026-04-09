@@ -170,6 +170,14 @@ If you change shipment sequencing, status rules, document-first creation behavio
 ### What the flow covers
 
 - association authentication and account maintenance
+- public account requests now distinguish `shipper`, `recipient`, and `user`, while legacy
+  `association` rows remain accepted as shipper-equivalent during approval
+- recipient public account requests must choose exactly one delivery stop up front because
+  recipient portal access is scoped to one `ShipmentRecipientOrganization (organization,
+  destination)`
+- ASF approval of a recipient public account request now provisions the validated runtime
+  recipient organization, one minimal active recipient contact, one
+  `PortalAccessGrant(recipient_admin)`, and the default ASF shipper binding in the same flow
 - portal access resolution from explicit `PortalAccessGrant` rows with fallback to legacy `AssociationProfile`
 - single-scope portal activation in session, with `/portal/scope-select/` as the explicit chooser when a user has multiple portal scopes
 - `/portal/` now branches on the active scope: shipper scopes keep the order cockpit, recipient scopes land on a recipient home showing shared structure data, recipient contacts, structure documents, and explicit product preferences for exactly one `ShipmentRecipientOrganization`
@@ -197,6 +205,8 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - `wms/tests/portal/tests_portal_recipient_sync.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 - `wms/tests/portal/tests_portal_access_grants.py`
+- `wms/tests/admin/tests_account_request_handlers.py`
+- `wms/tests/portal/tests_portal_role_review_gate.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`

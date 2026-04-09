@@ -10,9 +10,12 @@ from wms.models import (
     AssociationProfile,
     AssociationRecipient,
     Destination,
+    PortalAccessGrant,
+    PortalAccessRole,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
@@ -207,3 +210,76 @@ class PortalRoleReviewGateTests(TestCase):
         shipper = ShipmentShipper.objects.get(organization=account_request.contact)
         self.assertTrue(shipper.is_active)
         self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
+
+    def test_approve_recipient_account_request_creates_recipient_scope_and_asf_binding(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-recipient-role-review",
+            email="admin-recipient-role-review@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        asf_contact = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ensure_shipment_shipper(
+            asf_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type="recipient",
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Recipient Review Pending",
+            email="new-recipient@example.org",
+            phone="+22370000000",
+            address_line1="1 Rue Recipient",
+            address_line2="",
+            postal_code="",
+            city="Bamako",
+            country="Mali",
+            destination=self.destination,
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        account_request.refresh_from_db()
+        self.assertEqual(account_request.status, PublicAccountRequestStatus.APPROVED)
+        approved_user = get_user_model().objects.get(email=account_request.email)
+        self.assertFalse(AssociationProfile.objects.filter(user=approved_user).exists())
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=account_request.contact,
+            destination=self.destination,
+        )
+        self.assertEqual(shipment_recipient.validation_status, ShipmentValidationStatus.VALIDATED)
+        self.assertTrue(shipment_recipient.is_active)
+        self.assertTrue(
+            PortalAccessGrant.objects.filter(
+                user=approved_user,
+                role=PortalAccessRole.RECIPIENT_ADMIN,
+                recipient_organization=shipment_recipient,
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            ShipmentRecipientContact.objects.filter(
+                recipient_organization=shipment_recipient,
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper__organization=asf_contact,
+                recipient_organization=shipment_recipient,
+                is_active=True,
+            ).exists()
+        )

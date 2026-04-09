@@ -13,7 +13,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
-from contacts.models import Contact
+from contacts.models import Contact, ContactType
 
 from .client_ip import get_client_ip
 from .contact_payloads import build_shipper_contact_payload
@@ -23,6 +23,7 @@ from .emailing import get_admin_emails, get_group_emails, send_or_enqueue_email_
 from .models import (
     AccountDocument,
     AccountDocumentType,
+    Destination,
     DocumentReviewStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
@@ -39,10 +40,11 @@ DEFAULT_COUNTRY = "France"
 TEMPLATE_PUBLIC_ACCOUNT_REQUEST = "scan/public_account_request.html"
 ADMIN_PUBLIC_ACCOUNT_REQUEST_CHANGE_LIST = "admin:wms_publicaccountrequest_changelist"
 
-ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
+ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de la structure requis."
 ERROR_ACCOUNT_TYPE_INVALID = "Type de profil invalide."
 ERROR_EMAIL_REQUIRED = "Email requis."
 ERROR_ADDRESS_REQUIRED = "Adresse requise."
+ERROR_DESTINATION_REQUIRED = "Escale de livraison requise."
 ERROR_USERNAME_REQUIRED = "Nom d'utilisateur requis."
 ERROR_PASSWORD_REQUIRED = "Mot de passe requis."  # nosec B105
 ERROR_PASSWORD_CONFIRMATION_REQUIRED = (  # nosec B105
@@ -70,7 +72,7 @@ ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 
 def _build_account_request_form_defaults():
     return {
-        "account_type": PublicAccountRequestType.ASSOCIATION,
+        "account_type": PublicAccountRequestType.SHIPPER,
         "association_name": "",
         "requested_username": "",
         "password1": "",
@@ -82,6 +84,7 @@ def _build_account_request_form_defaults():
         "postal_code": "",
         "city": "",
         "country": DEFAULT_COUNTRY,
+        "destination_id": "",
         "notes": "",
         "contact_id": "",
     }
@@ -89,7 +92,7 @@ def _build_account_request_form_defaults():
 
 def _extract_account_request_form_data(post_data):
     requested_account_type = (post_data.get("account_type") or "").strip().lower()
-    account_type = requested_account_type or PublicAccountRequestType.ASSOCIATION
+    account_type = requested_account_type or PublicAccountRequestType.SHIPPER
     return {
         "account_type": account_type,
         "association_name": (post_data.get("association_name") or "").strip(),
@@ -103,13 +106,25 @@ def _extract_account_request_form_data(post_data):
         "postal_code": (post_data.get("postal_code") or "").strip(),
         "city": (post_data.get("city") or "").strip(),
         "country": (post_data.get("country") or DEFAULT_COUNTRY).strip(),
+        "destination_id": (post_data.get("destination_id") or "").strip(),
         "notes": (post_data.get("notes") or "").strip(),
         "contact_id": (post_data.get("contact_id") or "").strip(),
     }
 
 
-def _is_association_request(form_data):
-    return form_data.get("account_type") == PublicAccountRequestType.ASSOCIATION
+def _is_shipper_request(form_data):
+    return form_data.get("account_type") in {
+        PublicAccountRequestType.ASSOCIATION,
+        PublicAccountRequestType.SHIPPER,
+    }
+
+
+def _is_recipient_request(form_data):
+    return form_data.get("account_type") == PublicAccountRequestType.RECIPIENT
+
+
+def _is_structure_request(form_data):
+    return _is_shipper_request(form_data) or _is_recipient_request(form_data)
 
 
 def _is_user_request(form_data):
@@ -142,22 +157,29 @@ def _append_password_validation_errors(form_data, errors):
         errors.extend(exc.messages)
 
 
-def _append_required_field_errors(form_data, errors):
-    if form_data["account_type"] not in {
+def _append_required_field_errors(form_data, errors, *, allow_user_request):
+    allowed_account_types = {
         PublicAccountRequestType.ASSOCIATION,
-        PublicAccountRequestType.USER,
-    }:
+        PublicAccountRequestType.SHIPPER,
+        PublicAccountRequestType.RECIPIENT,
+    }
+    if allow_user_request:
+        allowed_account_types.add(PublicAccountRequestType.USER)
+
+    if form_data["account_type"] not in allowed_account_types:
         errors.append(ERROR_ACCOUNT_TYPE_INVALID)
         return
 
     if not form_data["email"]:
         errors.append(ERROR_EMAIL_REQUIRED)
 
-    if _is_association_request(form_data):
+    if _is_structure_request(form_data):
         if not form_data["association_name"]:
             errors.append(ERROR_ASSOCIATION_NAME_REQUIRED)
         if not form_data["line1"]:
             errors.append(ERROR_ADDRESS_REQUIRED)
+        if _is_recipient_request(form_data) and not form_data["destination_id"]:
+            errors.append(ERROR_DESTINATION_REQUIRED)
         return
 
     if not form_data["requested_username"]:
@@ -166,7 +188,11 @@ def _append_required_field_errors(form_data, errors):
 
 
 def _collect_account_request_uploads(files, errors, *, account_type):
-    if account_type != PublicAccountRequestType.ASSOCIATION:
+    if account_type not in {
+        PublicAccountRequestType.ASSOCIATION,
+        PublicAccountRequestType.SHIPPER,
+        PublicAccountRequestType.RECIPIENT,
+    }:
         return []
 
     uploads = []
@@ -209,25 +235,30 @@ def _has_pending_request_for_username(username):
 
 
 def _resolve_account_request_contact(form_data):
-    if not _is_association_request(form_data):
+    if not _is_structure_request(form_data):
         return None
     contact = None
     contact_id = parse_int(form_data["contact_id"])
     if contact_id:
-        contact = Contact.objects.filter(id=contact_id, is_active=True).first()
+        contact = Contact.objects.filter(
+            id=contact_id,
+            is_active=True,
+            contact_type=ContactType.ORGANIZATION,
+        ).first()
     if contact:
         return contact
     return Contact.objects.filter(
         name__iexact=form_data["association_name"],
         is_active=True,
+        contact_type=ContactType.ORGANIZATION,
     ).first()
 
 
 def _create_account_request(*, link, contact, form_data):
-    is_association = _is_association_request(form_data)
+    is_structure_request = _is_structure_request(form_data)
     association_name = (
         form_data["association_name"]
-        if is_association
+        if is_structure_request
         else (form_data["requested_username"] or form_data["email"])
     )
     return PublicAccountRequest.objects.create(
@@ -236,15 +267,18 @@ def _create_account_request(*, link, contact, form_data):
         account_type=form_data["account_type"],
         association_name=association_name,
         email=form_data["email"],
-        phone=form_data["phone"] if is_association else "",
-        address_line1=form_data["line1"] if is_association else "",
-        address_line2=form_data["line2"] if is_association else "",
-        postal_code=form_data["postal_code"] if is_association else "",
-        city=form_data["city"] if is_association else "",
-        country=(form_data["country"] or DEFAULT_COUNTRY) if is_association else "",
-        requested_username=form_data["requested_username"] if not is_association else "",
+        phone=form_data["phone"] if is_structure_request else "",
+        address_line1=form_data["line1"] if is_structure_request else "",
+        address_line2=form_data["line2"] if is_structure_request else "",
+        postal_code=form_data["postal_code"] if is_structure_request else "",
+        city=form_data["city"] if is_structure_request else "",
+        country=(form_data["country"] or DEFAULT_COUNTRY) if is_structure_request else "",
+        destination_id=parse_int(form_data["destination_id"])
+        if _is_recipient_request(form_data)
+        else None,
+        requested_username=form_data["requested_username"] if not is_structure_request else "",
         requested_password_hash=(
-            make_password(form_data["password1"]) if not is_association else ""
+            make_password(form_data["password1"]) if not is_structure_request else ""
         ),
         notes=form_data["notes"],
     )
@@ -269,18 +303,35 @@ def _build_admin_account_request_url(request):
     return f"{base_url}{reverse(ADMIN_PUBLIC_ACCOUNT_REQUEST_CHANGE_LIST)}"
 
 
-def _render_account_request_form(request, *, link, contact_payload, form_data, errors):
+def _render_account_request_form(
+    request,
+    *,
+    link,
+    contact_payload,
+    form_data,
+    errors,
+    show_user_account_type,
+    lock_account_type_to_shipper,
+):
     return render(
         request,
         TEMPLATE_PUBLIC_ACCOUNT_REQUEST,
         {
             "link": link,
             "contacts": contact_payload,
+            "destinations": Destination.objects.filter(is_active=True).order_by(
+                "city",
+                "country",
+                "iata_code",
+            ),
             "form_data": form_data,
             "errors": errors,
-            "lock_account_type_to_association": link is None,
+            "lock_account_type_to_shipper": lock_account_type_to_shipper,
             "ACCOUNT_TYPE_ASSOCIATION": PublicAccountRequestType.ASSOCIATION,
+            "ACCOUNT_TYPE_SHIPPER": PublicAccountRequestType.SHIPPER,
+            "ACCOUNT_TYPE_RECIPIENT": PublicAccountRequestType.RECIPIENT,
             "ACCOUNT_TYPE_USER": PublicAccountRequestType.USER,
+            "show_user_account_type": show_user_account_type,
         },
     )
 
@@ -400,14 +451,28 @@ def _queue_account_request_emails(
     transaction.on_commit(_send_notifications)
 
 
-def handle_account_request_form(request, *, link=None, redirect_url=""):
+def handle_account_request_form(
+    request,
+    *,
+    link=None,
+    redirect_url="",
+    allow_user_request=True,
+    show_user_account_type=None,
+    lock_account_type_to_shipper=False,
+):
     contact_payload = build_shipper_contact_payload()
     form_data = _build_account_request_form_defaults()
     errors = []
+    if show_user_account_type is None:
+        show_user_account_type = allow_user_request
 
     if request.method == "POST":
         form_data = _extract_account_request_form_data(request.POST)
-        _append_required_field_errors(form_data, errors)
+        _append_required_field_errors(
+            form_data,
+            errors,
+            allow_user_request=allow_user_request,
+        )
 
         uploads = _collect_account_request_uploads(
             request.FILES,
@@ -472,4 +537,6 @@ def handle_account_request_form(request, *, link=None, redirect_url=""):
         contact_payload=contact_payload,
         form_data=form_data,
         errors=errors,
+        show_user_account_type=show_user_account_type,
+        lock_account_type_to_shipper=lock_account_type_to_shipper,
     )
