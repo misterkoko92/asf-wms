@@ -5,6 +5,7 @@
     <input type="hidden" name="q" value="{{ query }}">
     <input type="hidden" name="contact_type" value="{{ contact_filter }}">
     <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+    <input type="hidden" name="page" value="{{ contacts_page.number }}">
     {{ destination_form.duplicate_candidates_count }}
     {% if destination_form.non_field_errors %}
         <div class="col-12">

@@ -1,9 +1,19 @@
 from types import SimpleNamespace
 
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import SimpleTestCase, TestCase
+from django.test.utils import CaptureQueriesContext
 
 from contacts.models import Contact, ContactType
+from wms.models import (
+    Destination,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+)
 from wms.scan_admin_contacts_cockpit import (
     _find_similar_organizations,
     _format_duplicate_message,
@@ -13,6 +23,7 @@ from wms.scan_admin_contacts_cockpit import (
     _resolve_active_organization,
     _to_int,
     _validation_message,
+    build_cockpit_context,
     parse_cockpit_filters,
 )
 
@@ -70,3 +81,100 @@ class ScanAdminContactsCockpitHelperDbTests(TestCase):
         self.assertEqual(_find_similar_organizations(name="   "), [])
         matches = _find_similar_organizations(name="Aviation Sans Frontiere", limit=1)
         self.assertEqual(len(matches), 1)
+
+    def test_build_cockpit_context_avoids_n_plus_one_count_queries(self):
+        destination_contact = Contact.objects.create(
+            name="Correspondant Bamako",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="ML",
+            correspondent_contact=destination_contact,
+        )
+        shipper_org = Contact.objects.create(
+            name="ASF France",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_person = Contact.objects.create(
+            name="Alice ASF",
+            contact_type=ContactType.PERSON,
+            organization=shipper_org,
+            is_active=True,
+        )
+        recipient_org = Contact.objects.create(
+            name="Hopital Point G",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_person = Contact.objects.create(
+            name="Dr Diallo",
+            contact_type=ContactType.PERSON,
+            organization=recipient_org,
+            is_active=True,
+        )
+        second_recipient_org = Contact.objects.create(
+            name="CSRef Commune I",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        second_recipient_person = Contact.objects.create(
+            name="Dr Traore",
+            contact_type=ContactType.PERSON,
+            organization=second_recipient_org,
+            is_active=True,
+        )
+
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_person,
+            is_active=True,
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+        second_recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=second_recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+        primary_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_organization,
+            contact=recipient_person,
+            is_active=True,
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=second_recipient_organization,
+            contact=second_recipient_person,
+            is_active=True,
+        )
+        primary_link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+            is_active=True,
+        )
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=second_recipient_organization,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=primary_link,
+            recipient_contact=primary_recipient_contact,
+            is_active=True,
+            is_default=True,
+        )
+
+        with CaptureQueriesContext(connection) as context:
+            cockpit_context = build_cockpit_context(query="", filters={}, destination_id="")
+
+        self.assertEqual(len(cockpit_context["cockpit_shipment_shippers"]), 1)
+        self.assertEqual(len(cockpit_context["cockpit_shipment_recipient_organizations"]), 2)
+        self.assertEqual(len(cockpit_context["cockpit_shipment_links"]), 2)
+        self.assertEqual(len(cockpit_context["cockpit_shipment_authorization_options"]), 1)
+        self.assertLessEqual(len(context.captured_queries), 6)

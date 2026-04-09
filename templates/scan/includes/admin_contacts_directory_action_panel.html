@@ -19,6 +19,7 @@
         <input type="hidden" name="q" value="{{ query }}">
         <input type="hidden" name="contact_type" value="{{ contact_filter }}">
         <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+        <input type="hidden" name="page" value="{{ contacts_page.number }}">
         <input type="hidden" name="action" id="scan-admin-contact-action-value" value="">
         <input type="hidden" name="contact_id" id="scan-admin-contact-action-contact-id" value="">
         <input type="hidden" name="source_contact_id" id="scan-admin-contact-action-source-id" value="">
@@ -38,6 +39,7 @@
                     </option>
                 {% endfor %}
             </select>
+            <div class="form-text">{% trans "La fusion propose les contacts de la page filtrée courante." %}</div>
         </div>
         <div class="col-12 d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-primary" id="scan-admin-contact-action-submit">
