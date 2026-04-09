@@ -647,6 +647,47 @@ class PortalAuthViewsTests(PortalBaseTestCase):
             },
         )
 
+    def test_portal_scope_select_post_shipper_scope_lands_on_dashboard_without_403(self):
+        user = self._create_portal_user("portal-auth-choose-follow", "choose-follow@example.com")
+        shipper = self._create_shipper(name="Choose Follow Shipper")
+        shipper_grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        recipient_organization = self._create_recipient_organization(name="Choose Follow Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        AssociationRecipient.objects.create(
+            association_contact=shipper.organization,
+            destination=self._create_destination(city="Dakar", country="Senegal"),
+            name="Delivery Contact",
+            structure_name="Delivery Contact",
+            email="delivery-contact@example.com",
+            address_line1="1 Rue Livraison",
+            city="Dakar",
+            country="Senegal",
+            is_delivery_contact=True,
+            is_active=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("portal:portal_scope_select"),
+            {"scope": f"grant:{shipper_grant.id}"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.request["PATH_INFO"], self.dashboard_url)
+        self.assertContains(response, "Commandes en attente")
+        self.assertTrue(
+            AssociationProfile.objects.filter(user=user, contact=shipper.organization).exists()
+        )
+
     def test_portal_login_with_remember_me_keeps_persistent_session(self):
         user = self._create_portal_user("portal-auth-remember", "remember@example.com")
         self._create_profile(user)

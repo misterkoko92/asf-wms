@@ -172,6 +172,9 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - association authentication and account maintenance
 - portal access resolution from explicit `PortalAccessGrant` rows with fallback to legacy `AssociationProfile`
 - single-scope portal activation in session, with `/portal/scope-select/` as the explicit chooser when a user has multiple portal scopes
+- when a shipper scope comes from an explicit grant and the user still has no legacy `AssociationProfile`,
+  `association_required` can bridge that missing shipper profile from the granted `ShipmentShipper`
+  organization so the shipper cockpit remains reachable after `/portal/scope-select/`
 - `/portal/` now branches on the active scope: shipper scopes keep the order cockpit, recipient scopes land on a recipient home showing shared structure data, recipient contacts, structure documents, and explicit product preferences for exactly one `ShipmentRecipientOrganization`
 - recipient scopes can now jump from the home summary at `/portal/` to `/portal/recipient/preferences/` for line-by-line product preference maintenance on that active `ShipmentRecipientOrganization`
 - legacy shipper pages outside `/portal/` remain guarded by the active portal scope in `wms/view_permissions.py`

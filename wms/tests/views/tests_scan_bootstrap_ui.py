@@ -815,16 +815,43 @@ class ScanBootstrapUiTests(TestCase):
             ".scan-bootstrap-enabled .ui-number-input .form-control,\n"
             ".scan-bootstrap-enabled .ui-number-input-input {\n"
             "  min-width: 0;\n"
-            "  padding-left: calc(var(--wms-input-padding-x) + 3.85rem);",
+            "  padding-left: calc(var(--wms-input-padding-x) + 3.6rem);",
             css_content,
         )
         self.assertIn(
-            ".scan-bootstrap-enabled .ui-number-input-btn {\n" "  width: 1.5rem;",
+            ".scan-bootstrap-enabled .ui-number-input-btn {\n" "  width: 1.4rem;",
             css_content,
         )
         self.assertIn(
             ".scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-btn {\n"
-            "  width: 1.3rem;",
+            "  width: 1.2rem;",
+            css_content,
+        )
+
+    def test_scan_bootstrap_css_keeps_recipient_preference_table_headers_balanced(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--estimate {\n"
+            "  min-width: 7.75rem;\n"
+            "  white-space: normal;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--status {\n"
+            "  min-width: 11rem;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-table .recipient-preference-col--quantity {\n"
+            "  width: 7.75rem;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .recipient-preference-estimate-heading {\n"
+            "  display: inline-block;\n"
+            "  max-width: 8.25rem;",
             css_content,
         )
 

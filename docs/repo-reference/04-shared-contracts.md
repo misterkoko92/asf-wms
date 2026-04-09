@@ -1037,6 +1037,10 @@ Current auth scope contract:
 - the remaining legacy pages guarded by `association_required` remain shipper-only, while the
   recipient-specific maintenance contract now lives on the role-aware `/portal/` home and the
   mirrored UI API endpoints under `/api/v1/ui/portal/*`
+- when a shipper scope comes from an explicit `PortalAccessGrant` and no legacy
+  `AssociationProfile` exists yet for that user, `association_required` can create the missing
+  bridge profile for the granted shipper organization on first access; an existing profile pointing
+  at a different organization still fails closed
 - `python manage.py rebuild_recipient_party_graph --dry-run|--apply` is the compatibility repair
   path for explicit shipper grants and stale `AssociationRecipient` projections when canonical
   shipment-party runtime rows were merged or reshaped outside the portal adapters

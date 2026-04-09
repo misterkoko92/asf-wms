@@ -690,6 +690,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm align-middle")
         self.assertContains(response, "recipient-preference-table")
         self.assertContains(response, "recipient-preference-col--estimate")
+        self.assertContains(response, "recipient-preference-estimate-heading")
         self.assertContains(response, "recipient-preference-input--status")
         self.assertContains(response, "recipient-preference-input--quantity")
         self.assertContains(response, "recipient-preference-input--period")
