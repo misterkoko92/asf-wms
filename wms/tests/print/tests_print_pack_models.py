@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
+from django.test import TestCase, TransactionTestCase
 
 from wms.models import (
     GeneratedPrintArtifact,
@@ -106,6 +108,22 @@ class PrintPackModelTests(TestCase):
             "shipment.carton_total_count",
         )
         self.assertEqual(picking_mappings["D11"].source_key, "shipment.reference")
+
+        packing_carton_doc = PrintPackDocument.objects.get(
+            pack__code="B",
+            doc_type="packing_list_carton",
+            variant="per_carton_single",
+        )
+        packing_carton_mappings = {
+            mapping.cell_ref: mapping
+            for mapping in PrintCellMapping.objects.filter(pack_document=packing_carton_doc)
+        }
+        self.assertEqual(packing_carton_mappings["B9"].source_key, "carton.code")
+        self.assertTrue(packing_carton_mappings["B9"].required)
+        self.assertEqual(
+            packing_carton_mappings["B12"].source_key,
+            "carton.items[].product_name",
+        )
 
         contact_label_doc = PrintPackDocument.objects.get(
             pack__code="C",
@@ -225,3 +243,67 @@ class PrintPackModelTests(TestCase):
         self.assertEqual(shipment_note_mappings["B20"].transform, "upper")
         self.assertEqual(shipment_note_mappings["B21"].transform, "upper")
         self.assertEqual(shipment_note_mappings["B28"].transform, "upper")
+
+
+class PrintPackMigrationTests(TransactionTestCase):
+    migrate_from = ("wms", "0115_publicaccountrequest_destination_and_more")
+    migrate_to = ("wms", "0116_fix_pack_b_packing_list_carton_mapping")
+
+    def test_fix_pack_b_packing_list_carton_mapping_moves_carton_code_to_b9(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+
+        old_pack_document_model = old_apps.get_model("wms", "PrintPackDocument")
+        old_print_cell_mapping_model = old_apps.get_model("wms", "PrintCellMapping")
+        old_pack_document = old_pack_document_model.objects.get(
+            pack__code="B",
+            doc_type="packing_list_carton",
+            variant="per_carton_single",
+        )
+        self.assertTrue(
+            old_print_cell_mapping_model.objects.filter(
+                pack_document=old_pack_document,
+                worksheet_name="Feuil1",
+                cell_ref="B10",
+                source_key="carton.code",
+            ).exists()
+        )
+        self.assertFalse(
+            old_print_cell_mapping_model.objects.filter(
+                pack_document=old_pack_document,
+                worksheet_name="Feuil1",
+                cell_ref="B9",
+                source_key="carton.code",
+            ).exists()
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+
+        new_pack_document_model = new_apps.get_model("wms", "PrintPackDocument")
+        new_print_cell_mapping_model = new_apps.get_model("wms", "PrintCellMapping")
+        new_pack_document = new_pack_document_model.objects.get(
+            pack__code="B",
+            doc_type="packing_list_carton",
+            variant="per_carton_single",
+        )
+        self.assertTrue(
+            new_print_cell_mapping_model.objects.filter(
+                pack_document=new_pack_document,
+                worksheet_name="Feuil1",
+                cell_ref="B9",
+                source_key="carton.code",
+                required=True,
+            ).exists()
+        )
+        self.assertFalse(
+            new_print_cell_mapping_model.objects.filter(
+                pack_document=new_pack_document,
+                worksheet_name="Feuil1",
+                cell_ref="B10",
+                source_key="carton.code",
+            ).exists()
+        )
