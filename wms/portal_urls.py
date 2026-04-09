@@ -32,6 +32,11 @@ urlpatterns = [
         name="portal_recipient_preferences",
     ),
     path(
+        "recipient/profile/",
+        views.portal_recipient_profile,
+        name="portal_recipient_profile",
+    ),
+    path(
         "recipients/<int:recipient_id>/",
         views.portal_recipient_detail,
         name="portal_recipient_detail",

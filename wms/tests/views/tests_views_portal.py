@@ -647,6 +647,47 @@ class PortalAuthViewsTests(PortalBaseTestCase):
             },
         )
 
+    def test_portal_scope_select_post_shipper_scope_lands_on_dashboard_without_403(self):
+        user = self._create_portal_user("portal-auth-choose-follow", "choose-follow@example.com")
+        shipper = self._create_shipper(name="Choose Follow Shipper")
+        shipper_grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        recipient_organization = self._create_recipient_organization(name="Choose Follow Recipient")
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        AssociationRecipient.objects.create(
+            association_contact=shipper.organization,
+            destination=self._create_destination(city="Dakar", country="Senegal"),
+            name="Delivery Contact",
+            structure_name="Delivery Contact",
+            email="delivery-contact@example.com",
+            address_line1="1 Rue Livraison",
+            city="Dakar",
+            country="Senegal",
+            is_delivery_contact=True,
+            is_active=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("portal:portal_scope_select"),
+            {"scope": f"grant:{shipper_grant.id}"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.request["PATH_INFO"], self.dashboard_url)
+        self.assertContains(response, "Commandes en attente")
+        self.assertTrue(
+            AssociationProfile.objects.filter(user=user, contact=shipper.organization).exists()
+        )
+
     def test_portal_login_with_remember_me_keeps_persistent_session(self):
         user = self._create_portal_user("portal-auth-remember", "remember@example.com")
         self._create_profile(user)
@@ -2237,6 +2278,9 @@ class PortalAccountViewsTests(PortalBaseTestCase):
     def _recipient_preferences_url(self):
         return reverse("portal:portal_recipient_preferences")
 
+    def _recipient_profile_url(self):
+        return reverse("portal:portal_recipient_profile")
+
     def _create_synced_recipient(self, *, structure_name="Recipient Detail"):
         recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
@@ -2263,6 +2307,30 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             "quantity_target": "10",
             "period_unit": "week",
             "notes": "Urgent",
+        }
+        payload.update(overrides)
+        return payload
+
+    def _build_recipient_profile_payload(self, recipient_organization, **overrides):
+        payload = {
+            "action": "update_recipient_profile",
+            "destination_id": str(recipient_organization.destination_id),
+            "structure_name": recipient_organization.organization.name or "Structure recipient",
+            "contact_title": "mrs",
+            "contact_last_name": "Diallo",
+            "contact_first_name": "Awa",
+            "emails": "recipient-scope@example.com; second@example.com",
+            "phones": "+33101010101; +33602020202",
+            "address_line1": "12 Rue Recipient",
+            "address_line2": "Batiment B",
+            "postal_code": "69001",
+            "city": "Lyon",
+            "country": "France",
+            "legal_form": "association",
+            "beneficiary_count": "42",
+            "notes": "Notes destinataire",
+            "notify_deliveries": "1",
+            "is_delivery_contact": "1",
         }
         payload.update(overrides)
         return payload
@@ -2701,6 +2769,152 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(row["form_data"]["quantity_target"], "5")
         self.assertEqual(row["form_data"]["period_unit"], "week")
         self.assertEqual(row["form_data"]["notes"], "Conserver la saisie")
+
+    def test_portal_recipient_profile_denies_shipper_scope(self):
+        response = self.client.get(self._recipient_profile_url())
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_portal_recipient_profile_get_shows_active_recipient_form_for_recipient_scope(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Profile")
+        recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.get(self._recipient_profile_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["recipient_organization"], recipient_organization)
+        self.assertContains(response, "Modifier mes informations")
+        self.assertContains(response, "Recipient Scope Profile")
+        self.assertContains(response, str(recipient_organization.destination))
+        self.assertContains(response, 'name="destination_id"')
+        self.assertContains(response, 'name="structure_name"')
+        self.assertContains(response, 'name="doc_registration_proof"')
+        self.assertContains(response, 'name="doc_statutes"')
+
+    def test_portal_recipient_profile_post_updates_shared_profile_for_recipient_scope(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Profile")
+        recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.post(
+            self._recipient_profile_url(),
+            self._build_recipient_profile_payload(
+                recipient_organization,
+                structure_name="Structure Recipient Scope Updated",
+                contact_title="mr",
+                contact_last_name="Sow",
+                contact_first_name="Mamadou",
+                emails="recipient-updated@example.com",
+                phones="+33699998888",
+                address_line1="45 Rue Scope",
+                address_line2="Etage 2",
+                postal_code="13001",
+                city="Marseille",
+                beneficiary_count="75",
+                notes="Profil modifie par le destinataire",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self._recipient_profile_url())
+        recipient_organization.refresh_from_db()
+        organization = recipient_organization.organization
+        organization.refresh_from_db()
+        self.assertEqual(organization.name, "Structure Recipient Scope Updated")
+        self.assertEqual(organization.legal_form, "association")
+        self.assertEqual(organization.beneficiary_count, 75)
+        self.assertEqual(organization.notes, "Profil modifie par le destinataire")
+        address = organization.get_effective_address()
+        self.assertIsNotNone(address)
+        self.assertEqual(address.address_line1, "45 Rue Scope")
+        self.assertEqual(address.address_line2, "Etage 2")
+        self.assertEqual(address.postal_code, "13001")
+        self.assertEqual(address.city, "Marseille")
+        self.assertEqual(address.country, "France")
+        shipment_contact = ShipmentRecipientContact.objects.get(
+            recipient_organization=recipient_organization,
+            is_active=True,
+        )
+        contact = shipment_contact.contact
+        self.assertEqual(contact.title, "mr")
+        self.assertEqual(contact.first_name, "Mamadou")
+        self.assertEqual(contact.last_name, "Sow")
+        self.assertEqual(contact.email, "recipient-updated@example.com")
+        self.assertEqual(contact.phone, "+33699998888")
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.structure_name, "Structure Recipient Scope Updated")
+        self.assertEqual(recipient.legal_form, "association")
+        self.assertEqual(recipient.beneficiary_count, 75)
+        self.assertEqual(recipient.notes, "Profil modifie par le destinataire")
+        self.assertEqual(recipient.contact_title, "mr")
+        self.assertEqual(recipient.contact_first_name, "Mamadou")
+        self.assertEqual(recipient.contact_last_name, "Sow")
+        self.assertEqual(recipient.emails, "recipient-updated@example.com")
+        self.assertEqual(recipient.phones, "+33699998888")
+
+        home_response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(home_response.status_code, 200)
+        self.assertContains(home_response, "Structure Recipient Scope Updated")
+        self.assertContains(home_response, "Mamadou Sow")
+        self.assertContains(home_response, "45 Rue Scope")
+        self.assertContains(home_response, "Profil modifie par le destinataire")
+
+    def test_portal_recipient_profile_post_upserts_structure_documents(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Docs")
+        recipient_organization, recipient_user = self._activate_recipient_scope(recipient)
+        RecipientStructureDocument.objects.create(
+            contact=recipient_organization.organization,
+            doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            status=DocumentReviewStatus.APPROVED,
+            file=SimpleUploadedFile("existing-proof.pdf", b"%PDF-1.4 existing proof"),
+            uploaded_by=self.user,
+        )
+
+        response = self.client.post(
+            self._recipient_profile_url(),
+            self._build_recipient_profile_payload(
+                recipient_organization,
+                doc_registration_proof=SimpleUploadedFile(
+                    "updated-proof.pdf",
+                    b"%PDF-1.7 updated proof",
+                ),
+                doc_statutes=SimpleUploadedFile(
+                    "recipient-statutes.pdf",
+                    b"%PDF-1.7 recipient statutes",
+                ),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self._recipient_profile_url())
+        documents = list(
+            RecipientStructureDocument.objects.filter(
+                contact=recipient_organization.organization
+            ).order_by("doc_type")
+        )
+        self.assertEqual(len(documents), 2)
+        proof = next(
+            document
+            for document in documents
+            if document.doc_type == RecipientStructureDocumentType.REGISTRATION_PROOF
+        )
+        statutes = next(
+            document
+            for document in documents
+            if document.doc_type == RecipientStructureDocumentType.STATUTES
+        )
+        self.assertIn("updated-proof", proof.file.name.rsplit("/", 1)[-1])
+        self.assertIn("recipient-statutes", statutes.file.name.rsplit("/", 1)[-1])
+        self.assertEqual(proof.status, DocumentReviewStatus.PENDING)
+        self.assertEqual(statutes.status, DocumentReviewStatus.PENDING)
+        self.assertEqual(proof.scan_status, DocumentScanStatus.PENDING)
+        self.assertEqual(statutes.scan_status, DocumentScanStatus.PENDING)
+        self.assertEqual(proof.uploaded_by, recipient_user)
+        self.assertEqual(statutes.uploaded_by, recipient_user)
+        self.assertEqual(IntegrationEvent.objects.count(), 2)
+        home_response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertContains(home_response, "updated-proof")
+        self.assertContains(home_response, "recipient-statutes")
 
     def test_portal_recipient_detail_shows_preference_coverage_in_product_table(self):
         recipient = self._create_synced_recipient()
