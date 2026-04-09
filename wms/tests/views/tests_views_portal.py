@@ -3587,6 +3587,8 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             mock.ANY,
             link=None,
             redirect_url=self.account_request_url,
+            allow_user_request=True,
+            show_user_account_type=False,
         )
 
     def test_portal_account_request_billing_preferences_creates_change_request(self):
