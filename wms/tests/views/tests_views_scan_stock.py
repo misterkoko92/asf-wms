@@ -205,6 +205,7 @@ class ScanStockViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "<th>Actions</th>", html=True)
         self.assertNotContains(response, "Ouvrir")
+        self.assertNotContains(response, 'data-table-tools="1"')
 
     def test_scan_stock_paginates_large_product_lists(self):
         for index in range(EXPECTED_STOCK_PAGE_SIZE + 5):

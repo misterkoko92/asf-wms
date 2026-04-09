@@ -175,12 +175,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(dashboard_response, "scan/modules/shipments.js")
         self.assertContains(shipment_response, "scan/modules/shipments.js")
 
-    def test_scan_stock_uses_bootstrap_layout_and_keeps_table_tools(self):
+    def test_scan_stock_uses_bootstrap_layout_and_avoids_local_table_tools(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "row g-3")
         self.assertContains(response, "table table-sm table-hover")
-        self.assertContains(response, 'data-table-tools="1"')
+        self.assertNotContains(response, 'data-table-tools="1"')
         self.assertContains(response, "form-check form-switch")
         self.assertContains(response, "scan-inline-switch")
         self.assertContains(response, "scan-switch-control")
@@ -979,7 +979,15 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="scan-admin-contacts-correspondents-card"')
         self.assertContains(response, "ui-comp-card", count=7)
         self.assertContains(response, 'data-admin-contacts-crud="1"')
-        self.assertContains(response, 'data-table-tools="1"', count=6)
+        self.assertContains(response, 'data-table-tools="1"', count=5)
+        content = response.content.decode()
+        directory_match = re.search(
+            r'(<div id="scan-admin-contacts-directory-card".*?)<div id="scan-admin-contacts-correspondents-card"',
+            content,
+            re.S,
+        )
+        self.assertIsNotNone(directory_match)
+        self.assertNotIn('data-table-tools="1"', directory_match.group(1))
         self.assertContains(response, 'id="scan-admin-contact-action-panel"')
         self.assertContains(response, 'value="set_default_authorized_recipient_contact"')
         self.assertContains(response, 'value="set_stopover_correspondent_recipient_organization"')
