@@ -1569,7 +1569,7 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(error_response.status_code, 200)
         self.assertContains(error_response, "ui-comp-alert")
-        self.assertContains(error_response, "Nom de l&#x27;association requis.")
+        self.assertContains(error_response, "Nom de la structure requis.")
         self.assertContains(error_response, "Adresse requise.")
 
     def test_scan_dashboard_uses_bootstrap_filters(self):
