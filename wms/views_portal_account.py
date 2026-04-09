@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import EmailValidator
 from django.db import transaction
 from django.db.models import Q
@@ -45,7 +45,8 @@ from .models import (
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
 )
-from .portal_helpers import get_contact_address
+from .order_helpers import estimate_units_per_carton
+from .portal_helpers import get_contact_address, get_default_carton_format
 from .recipient_product_preferences import (
     UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS,
     list_effective_recipient_product_preferences,
@@ -58,11 +59,13 @@ from .view_permissions import (
     BLOCKED_REASON_MISSING_DELIVERY_CONTACT,
     BLOCKED_REASON_QUERY_PARAM,
     association_required,
+    portal_scope_required,
 )
 from .view_utils import sorted_choices
 
 TEMPLATE_RECIPIENTS = "portal/recipients.html"
 TEMPLATE_RECIPIENT_DETAIL = "portal/recipient_detail.html"
+TEMPLATE_RECIPIENT_PREFERENCES = "portal/recipient_preferences.html"
 TEMPLATE_ACCOUNT = "portal/account.html"
 
 ACTION_CREATE_RECIPIENT = "create_recipient"
@@ -649,6 +652,7 @@ def _build_recipient_detail_context(
     recipient_preference_coverage_rows = []
     recipient_product_rows = []
     if recipient_organization is not None:
+        carton_format = get_default_carton_format()
         recipient_preferences = list(
             RecipientProductPreference.objects.filter(recipient_organization=recipient_organization)
             .select_related("product")
@@ -686,6 +690,10 @@ def _build_recipient_detail_context(
                     _build_preference_form_data_from_effective_preference(effective_preference),
                 ),
                 "coverage": coverages_by_product_id.get(effective_preference.product.pk),
+                "units_per_carton_estimate": estimate_units_per_carton(
+                    product=effective_preference.product,
+                    carton_format=carton_format,
+                ),
             }
             for effective_preference in effective_preferences
         ]
@@ -713,6 +721,30 @@ def _build_recipient_detail_context(
         "preference_period_choices": list(RecipientProductPreferencePeriodUnit.choices),
         "preference_products": preference_products,
     }
+
+
+def _build_recipient_preferences_context(
+    *,
+    recipient_organization,
+    preference_errors=None,
+    preference_form_data_by_product_id=None,
+):
+    context = _build_recipient_detail_context(
+        recipient=None,
+        recipient_organization=recipient_organization,
+        recipient_shared_fields_read_only=False,
+        preference_errors=preference_errors,
+        preference_form_data_by_product_id=preference_form_data_by_product_id,
+    )
+    context.update(
+        {
+            "recipient_structure_name": recipient_organization.organization.name or "-",
+            "recipient_destination_label": str(recipient_organization.destination)
+            if recipient_organization.destination
+            else "-",
+        }
+    )
+    return context
 
 
 def _build_duplicate_recipient_suggestions(*, form_data, editing_recipient=None):
@@ -1396,6 +1428,92 @@ def portal_recipients(request):
     )
 
 
+def _handle_recipient_preference_post(
+    *,
+    request,
+    recipient_organization,
+    success_url,
+    recipient_shared_fields_read_only=False,
+):
+    preference_errors = []
+    preference_form_data_by_product_id = {}
+    action = request.POST.get("action")
+    if action not in {
+        ACTION_SAVE_RECIPIENT_PREFERENCE,
+        ACTION_DELETE_RECIPIENT_PREFERENCE,
+    }:
+        return None, preference_errors, preference_form_data_by_product_id
+
+    if recipient_organization is None:
+        preference_errors.append(ERROR_RECIPIENT_RUNTIME_REQUIRED)
+        return None, preference_errors, preference_form_data_by_product_id
+
+    if recipient_shared_fields_read_only:
+        preference_errors.append(ERROR_RECIPIENT_SHARED_READ_ONLY)
+        return None, preference_errors, preference_form_data_by_product_id
+
+    if action == ACTION_DELETE_RECIPIENT_PREFERENCE:
+        preference_id = parse_int(request.POST.get("preference_id"))
+        preference = (
+            RecipientProductPreference.objects.filter(
+                recipient_organization=recipient_organization,
+                pk=preference_id,
+            ).first()
+            if preference_id is not None
+            else None
+        )
+        if preference is None:
+            preference_errors.append(ERROR_RECIPIENT_PREFERENCE_NOT_FOUND)
+            return None, preference_errors, preference_form_data_by_product_id
+        preference.delete()
+        messages.success(request, MESSAGE_RECIPIENT_PREFERENCE_DELETED)
+        return redirect(success_url), preference_errors, preference_form_data_by_product_id
+
+    products = list(Product.objects.filter(is_active=True).order_by("name", "id"))
+    products_by_id = {product.id: product for product in products}
+    form_data = _extract_preference_form_data(request.POST)
+    preference_errors.extend(_prepare_preference_form_data(form_data, products_by_id))
+
+    if preference_errors:
+        product_id = parse_int(request.POST.get("product_id"))
+        if product_id is not None:
+            preference_form_data_by_product_id[product_id] = form_data
+        return None, preference_errors, preference_form_data_by_product_id
+
+    preference = RecipientProductPreference.objects.filter(
+        recipient_organization=recipient_organization,
+        product=form_data["product"],
+    ).first()
+    if form_data["status"] == UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS:
+        if preference is not None:
+            preference.delete()
+            messages.success(request, MESSAGE_RECIPIENT_PREFERENCE_DELETED)
+        return redirect(success_url), preference_errors, preference_form_data_by_product_id
+
+    created = preference is None
+    try:
+        save_recipient_product_preference(
+            recipient_organization=recipient_organization,
+            product=form_data["product"],
+            status=form_data["status"],
+            quantity_target=form_data.get("quantity_target_value"),
+            period_unit=form_data["period_unit"],
+            notes=form_data["notes"],
+            source=RecipientProductPreferenceSource.PORTAL,
+            user=request.user,
+        )
+    except ValidationError as error:
+        preference_errors.extend(_flatten_validation_error_messages(error))
+        preference_form_data_by_product_id[form_data["product"].id] = form_data
+        return None, preference_errors, preference_form_data_by_product_id
+
+    messages.success(
+        request,
+        MESSAGE_RECIPIENT_PREFERENCE_ADDED if created else MESSAGE_RECIPIENT_PREFERENCE_UPDATED,
+    )
+    return redirect(success_url), preference_errors, preference_form_data_by_product_id
+
+
 @login_required(login_url="portal:portal_login")
 @association_required
 @require_http_methods(["GET", "POST"])
@@ -1411,56 +1529,19 @@ def portal_recipient_detail(request, recipient_id):
     preference_form_data_by_product_id = {}
 
     if request.method == "POST":
-        action = request.POST.get("action")
-        if action == ACTION_SAVE_RECIPIENT_PREFERENCE:
-            if recipient_organization is None:
-                preference_errors.append(ERROR_RECIPIENT_RUNTIME_REQUIRED)
-            elif recipient_shared_fields_read_only:
-                preference_errors.append(ERROR_RECIPIENT_SHARED_READ_ONLY)
-            else:
-                products = list(Product.objects.filter(is_active=True).order_by("name", "id"))
-                products_by_id = {product.id: product for product in products}
-                form_data = _extract_preference_form_data(request.POST)
-                preference_errors.extend(_prepare_preference_form_data(form_data, products_by_id))
-
-                if preference_errors:
-                    product_id = parse_int(request.POST.get("product_id"))
-                    if product_id is not None:
-                        preference_form_data_by_product_id[product_id] = form_data
-                else:
-                    preference = RecipientProductPreference.objects.filter(
-                        recipient_organization=recipient_organization,
-                        product=form_data["product"],
-                    ).first()
-                    if form_data["status"] == UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS:
-                        if preference is not None:
-                            preference.delete()
-                            messages.success(request, MESSAGE_RECIPIENT_PREFERENCE_DELETED)
-                        return redirect("portal:portal_recipient_detail", recipient_id=recipient.id)
-
-                    created = preference is None
-                    try:
-                        preference = save_recipient_product_preference(
-                            recipient_organization=recipient_organization,
-                            product=form_data["product"],
-                            status=form_data["status"],
-                            quantity_target=form_data.get("quantity_target_value"),
-                            period_unit=form_data["period_unit"],
-                            notes=form_data["notes"],
-                            source=RecipientProductPreferenceSource.PORTAL,
-                            user=request.user,
-                        )
-                    except ValidationError as error:
-                        preference_errors.extend(_flatten_validation_error_messages(error))
-                        preference_form_data_by_product_id[form_data["product"].id] = form_data
-                    else:
-                        success_message = (
-                            MESSAGE_RECIPIENT_PREFERENCE_ADDED
-                            if created
-                            else MESSAGE_RECIPIENT_PREFERENCE_UPDATED
-                        )
-                        messages.success(request, success_message)
-                        return redirect("portal:portal_recipient_detail", recipient_id=recipient.id)
+        response, preference_errors, preference_form_data_by_product_id = (
+            _handle_recipient_preference_post(
+                request=request,
+                recipient_organization=recipient_organization,
+                success_url=reverse(
+                    "portal:portal_recipient_detail",
+                    kwargs={"recipient_id": recipient.id},
+                ),
+                recipient_shared_fields_read_only=recipient_shared_fields_read_only,
+            )
+        )
+        if response is not None:
+            return response
 
     return render(
         request,
@@ -1469,6 +1550,44 @@ def portal_recipient_detail(request, recipient_id):
             recipient=recipient,
             recipient_organization=recipient_organization,
             recipient_shared_fields_read_only=recipient_shared_fields_read_only,
+            preference_errors=preference_errors,
+            preference_form_data_by_product_id=preference_form_data_by_product_id,
+        ),
+    )
+
+
+@login_required(login_url="portal:portal_login")
+@portal_scope_required
+@require_http_methods(["GET", "POST"])
+def portal_recipient_preferences(request):
+    scope = request.portal_scope
+    if scope.role != PortalAccessRole.RECIPIENT_ADMIN or scope.recipient_organization is None:
+        raise PermissionDenied
+
+    recipient_organization = get_object_or_404(
+        ShipmentRecipientOrganization.objects.select_related("organization", "destination"),
+        pk=scope.recipient_organization.pk,
+        is_active=True,
+    )
+    preference_errors = []
+    preference_form_data_by_product_id = {}
+
+    if request.method == "POST":
+        response, preference_errors, preference_form_data_by_product_id = (
+            _handle_recipient_preference_post(
+                request=request,
+                recipient_organization=recipient_organization,
+                success_url=reverse("portal:portal_recipient_preferences"),
+            )
+        )
+        if response is not None:
+            return response
+
+    return render(
+        request,
+        TEMPLATE_RECIPIENT_PREFERENCES,
+        _build_recipient_preferences_context(
+            recipient_organization=recipient_organization,
             preference_errors=preference_errors,
             preference_form_data_by_product_id=preference_form_data_by_product_id,
         ),

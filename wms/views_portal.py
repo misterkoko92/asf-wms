@@ -4,6 +4,7 @@ from .views_portal_account import (
     portal_account,
     portal_account_request,
     portal_recipient_detail,
+    portal_recipient_preferences,
     portal_recipients,
 )
 from .views_portal_auth import (
@@ -42,6 +43,7 @@ ORDER_EXPORTS = (
 ACCOUNT_EXPORTS = (
     "portal_recipients",
     "portal_recipient_detail",
+    "portal_recipient_preferences",
     "portal_account",
     "portal_account_request",
 )

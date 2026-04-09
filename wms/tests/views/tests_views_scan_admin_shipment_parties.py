@@ -10,6 +10,7 @@ from django.utils import timezone
 from contacts.models import Contact, ContactType
 from wms.models import (
     Carton,
+    CartonFormat,
     CartonItem,
     CartonStatus,
     Destination,
@@ -192,6 +193,27 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         self.assertContains(response, self.product.name)
         self.assertContains(response, preference.get_status_display())
         self.assertContains(response, "Enregistrer la ligne")
+
+    def test_scan_admin_recipient_detail_shows_units_per_carton_estimate(self):
+        self.client.force_login(self.superuser)
+        CartonFormat.objects.create(
+            name="Carton standard",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        self.product.weight_g = 500
+        self.product.volume_cm3 = 1000
+        self.product.save(update_fields=["weight_g", "volume_cm3"])
+
+        response = self.client.get(self._detail_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Qté par colis (estimation)")
+        self.assertContains(response, 'class="recipient-preference-col--estimate">16</td>')
+        self.assertContains(response, 'class="recipient-preference-col--estimate">--</td>')
 
     def test_scan_admin_recipient_detail_can_create_update_and_clear_preference(self):
         self.client.force_login(self.superuser)

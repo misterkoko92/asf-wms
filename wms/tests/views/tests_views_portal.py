@@ -31,6 +31,7 @@ from wms.models import (
     BillingDocumentLine,
     BillingIssue,
     Carton,
+    CartonFormat,
     CartonItem,
     CartonStatus,
     Destination,
@@ -1088,6 +1089,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Aicha Traore")
         self.assertContains(response, "Preuve d&#x27;enregistrement")
         self.assertContains(response, "Kit Hygiene Recipient")
+        self.assertContains(response, reverse("portal:portal_recipient_preferences"))
+        self.assertContains(response, "Gérer les préférences produits")
         self.assertNotContains(response, "Other Recipient Scope")
         self.assertNotContains(response, "Nadia Diallo")
         self.assertNotContains(response, "Kit Other Scope")
@@ -2231,6 +2234,9 @@ class PortalAccountViewsTests(PortalBaseTestCase):
     def _detail_url(self, recipient):
         return reverse("portal:portal_recipient_detail", kwargs={"recipient_id": recipient.id})
 
+    def _recipient_preferences_url(self):
+        return reverse("portal:portal_recipient_preferences")
+
     def _create_synced_recipient(self, *, structure_name="Recipient Detail"):
         recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
@@ -2260,6 +2266,29 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         }
         payload.update(overrides)
         return payload
+
+    def _activate_recipient_scope(self, recipient):
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        recipient_user = self._create_portal_user(
+            f"recipient-pref-{recipient.id}",
+            f"recipient-pref-{recipient.id}@example.com",
+        )
+        grant = PortalAccessGrant.objects.create(
+            user=recipient_user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(recipient_user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+        return recipient_organization, recipient_user
 
     def test_portal_recipients_get_lists_active_recipients(self):
         active = AssociationRecipient.objects.create(
@@ -2371,6 +2400,29 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Enregistrer la ligne")
         self.assertContains(response, "Recipient Detail")
         self.assertContains(response, "Lyon")
+
+    def test_portal_recipient_detail_context_includes_units_per_carton_estimate(self):
+        recipient = self._create_synced_recipient()
+        CartonFormat.objects.create(
+            name="Carton standard",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        self.product.weight_g = 500
+        self.product.volume_cm3 = 1000
+        self.product.save(update_fields=["weight_g", "volume_cm3"])
+
+        response = self.client.get(self._detail_url(recipient))
+
+        self.assertEqual(response.status_code, 200)
+        rows_by_product_id = {
+            row["product"].id: row for row in response.context["recipient_product_rows"]
+        }
+        self.assertEqual(rows_by_product_id[self.product.id]["units_per_carton_estimate"], 16)
+        self.assertIsNone(rows_by_product_id[self.other_product.id]["units_per_carton_estimate"])
 
     def test_portal_recipient_detail_rejects_other_association_recipient(self):
         other_user = self._create_portal_user("portal-account-other", "other@example.com")
@@ -2526,6 +2578,129 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 destination=recipient.destination,
             ).product_preferences.exists()
         )
+
+    def test_portal_recipient_preferences_denies_shipper_scope(self):
+        response = self.client.get(self._recipient_preferences_url())
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_portal_recipient_preferences_get_shows_empty_preferences_state_for_recipient_scope(
+        self,
+    ):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Home")
+        recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.get(self._recipient_preferences_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["recipient_organization"], recipient_organization)
+        self.assertEqual(response.context["recipient_preferences"], [])
+        self.assertEqual(len(response.context["recipient_product_rows"]), 2)
+        self.assertContains(response, "Gérer les préférences produits")
+        self.assertContains(response, "Compresses")
+        self.assertContains(response, "Bandages")
+        self.assertContains(response, "Enregistrer la ligne")
+        self.assertContains(response, "Recipient Scope Home")
+
+    def test_portal_recipient_preferences_show_units_per_carton_estimate_and_fallback(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Estimate")
+        self._activate_recipient_scope(recipient)
+        CartonFormat.objects.create(
+            name="Carton standard",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        self.product.weight_g = 500
+        self.product.volume_cm3 = 1000
+        self.product.save(update_fields=["weight_g", "volume_cm3"])
+
+        response = self.client.get(self._recipient_preferences_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Qté par colis (estimation)")
+        self.assertContains(response, 'class="recipient-preference-col--estimate">16</td>')
+        self.assertContains(response, 'class="recipient-preference-col--estimate">--</td>')
+
+    def test_portal_recipient_preferences_post_adds_requested_preference_for_recipient_scope(
+        self,
+    ):
+        recipient = self._create_synced_recipient()
+        recipient_organization, recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.post(
+            self._recipient_preferences_url(),
+            self._build_preference_row_payload(),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self._recipient_preferences_url())
+        preference = recipient_organization.product_preferences.get(product=self.product)
+        self.assertEqual(preference.status, "requested")
+        self.assertEqual(preference.quantity_target, 10)
+        self.assertEqual(preference.period_unit, "week")
+        self.assertEqual(preference.notes, "Urgent")
+        self.assertEqual(preference.source, "portal")
+        self.assertEqual(preference.created_by, recipient_user)
+        self.assertEqual(preference.updated_by, recipient_user)
+
+    def test_portal_recipient_preferences_post_deletes_explicit_preference(self):
+        recipient = self._create_synced_recipient()
+        recipient_organization, recipient_user = self._activate_recipient_scope(recipient)
+        preference = recipient_organization.product_preferences.create(
+            product=self.product,
+            status="requested",
+            quantity_target=4,
+            period_unit="week",
+            source="portal",
+            created_by=recipient_user,
+            updated_by=recipient_user,
+        )
+
+        response = self.client.post(
+            self._recipient_preferences_url(),
+            {
+                "action": "delete_recipient_preference",
+                "preference_id": str(preference.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self._recipient_preferences_url())
+        self.assertFalse(
+            recipient_organization.product_preferences.filter(pk=preference.id).exists()
+        )
+
+    def test_portal_recipient_preferences_post_rejects_refused_preference_with_quantity(self):
+        recipient = self._create_synced_recipient()
+        self._activate_recipient_scope(recipient)
+
+        response = self.client.post(
+            self._recipient_preferences_url(),
+            self._build_preference_row_payload(
+                status="refused",
+                quantity_target="5",
+                period_unit="week",
+                notes="Conserver la saisie",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "La quantite cible est interdite pour un produit refuse.",
+            response.context["preference_errors"],
+        )
+        row = next(
+            row
+            for row in response.context["recipient_product_rows"]
+            if row["product"].id == self.product.id
+        )
+        self.assertEqual(row["form_data"]["status"], "refused")
+        self.assertEqual(row["form_data"]["quantity_target"], "5")
+        self.assertEqual(row["form_data"]["period_unit"], "week")
+        self.assertEqual(row["form_data"]["notes"], "Conserver la saisie")
 
     def test_portal_recipient_detail_shows_preference_coverage_in_product_table(self):
         recipient = self._create_synced_recipient()

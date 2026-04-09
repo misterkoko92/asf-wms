@@ -103,7 +103,10 @@
   </div>
 
   <div id="portal-recipient-home-preferences" class="scan-card portal-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title">{% trans "Préférences produits" %}</h3>
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <h3 class="ui-comp-title mb-0">{% trans "Préférences produits" %}</h3>
+      <a class="btn btn-primary btn-sm" href="{% url 'portal:portal_recipient_preferences' %}">{% trans "Gérer les préférences produits" %}</a>
+    </div>
     {% if recipient_preference_rows %}
       <div class="scan-table-wrap table-responsive">
         <table class="portal-table scan-table table table-sm table-hover">

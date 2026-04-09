@@ -40,6 +40,8 @@ from .models import (
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
 )
+from .order_helpers import estimate_units_per_carton
+from .portal_helpers import get_default_carton_format
 from .product_label_printing import (
     render_product_labels_response,
     render_product_qr_labels_response,
@@ -407,6 +409,7 @@ def _build_admin_recipient_preference_context(
     preference_form_data_by_product_id=None,
 ):
     preference_products = list(Product.objects.filter(is_active=True).order_by("name", "id"))
+    carton_format = get_default_carton_format()
     recipient_preferences = list(
         RecipientProductPreference.objects.filter(recipient_organization=recipient_organization)
         .select_related("product")
@@ -453,6 +456,10 @@ def _build_admin_recipient_preference_context(
                     ),
                 ),
                 "coverage": coverages_by_product_id.get(effective_preference.product.pk),
+                "units_per_carton_estimate": estimate_units_per_carton(
+                    product=effective_preference.product,
+                    carton_format=carton_format,
+                ),
             }
             for effective_preference in effective_preferences
         ],

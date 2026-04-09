@@ -18,6 +18,7 @@ from wms.models import (
     BillingDocument,
     BillingDocumentKind,
     BillingDocumentLine,
+    CartonFormat,
     Destination,
     DocumentReviewStatus,
     Order,
@@ -410,6 +411,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "Documents structure")
         self.assertContains(response, "Préférences produits")
         self.assertContains(response, "Kit Recipient Bootstrap")
+        self.assertContains(response, reverse("portal:portal_recipient_preferences"))
+        self.assertContains(response, "Gérer les préférences produits")
 
     def test_portal_billing_pages_use_bootstrap_tables(self):
         billing_document = BillingDocument.objects.create(
@@ -645,6 +648,62 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "lecture seule")
         self.assertContains(response, 'id="portal-recipient-detail-read-only-banner"')
         self.assertNotContains(response, 'value="save_recipient_preference"')
+
+    def test_portal_recipient_preferences_uses_bootstrap_cards_and_actions(self):
+        recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")
+        sync_association_recipient_to_contact(recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        CartonFormat.objects.create(
+            name="Carton standard",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        product = Product.objects.get(name="Produit Bootstrap")
+        product.weight_g = 500
+        product.volume_cm3 = 1000
+        product.save(update_fields=["weight_g", "volume_cm3"])
+        RecipientProductPreference.objects.create(
+            recipient_organization=shipment_recipient,
+            product=Product.objects.create(name="Kit Recipient Preferences Bootstrap"),
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=4,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+            source=RecipientProductPreferenceSource.PORTAL,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        self._activate_recipient_scope()
+
+        response = self.client.get(reverse("portal:portal_recipient_preferences"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-card portal-card card border-0")
+        self.assertContains(response, "portal-page-intro")
+        self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, "Préférences produits")
+        self.assertContains(response, "table table-sm align-middle")
+        self.assertContains(response, "recipient-preference-table")
+        self.assertContains(response, "recipient-preference-col--estimate")
+        self.assertContains(response, "recipient-preference-input--status")
+        self.assertContains(response, "recipient-preference-input--quantity")
+        self.assertContains(response, "recipient-preference-input--period")
+        self.assertContains(response, "recipient-preference-input--notes")
+        self.assertContains(response, "form-select")
+        self.assertContains(response, "form-control")
+        self.assertContains(response, 'name="product_id"')
+        self.assertContains(response, 'name="status"')
+        self.assertContains(response, 'value="save_recipient_preference"')
+        self.assertContains(response, 'value="delete_recipient_preference"')
+        self.assertContains(response, "Kit Recipient Preferences Bootstrap")
+        self.assertContains(response, "Qté par colis (estimation)")
+        self.assertContains(response, ">16<", html=False)
+        self.assertContains(response, ">--<", html=False)
 
     def test_portal_recipients_edit_exposes_product_preference_contract(self):
         recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")

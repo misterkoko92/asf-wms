@@ -173,6 +173,7 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - portal access resolution from explicit `PortalAccessGrant` rows with fallback to legacy `AssociationProfile`
 - single-scope portal activation in session, with `/portal/scope-select/` as the explicit chooser when a user has multiple portal scopes
 - `/portal/` now branches on the active scope: shipper scopes keep the order cockpit, recipient scopes land on a recipient home showing shared structure data, recipient contacts, structure documents, and explicit product preferences for exactly one `ShipmentRecipientOrganization`
+- recipient scopes can now jump from the home summary at `/portal/` to `/portal/recipient/preferences/` for line-by-line product preference maintenance on that active `ShipmentRecipientOrganization`
 - legacy shipper pages outside `/portal/` remain guarded by the active portal scope in `wms/view_permissions.py`
 - portal shell navigation now adapts to the active scope, keeping shipper order/billing/recipient links unchanged while recipient scopes expose in-page anchors for identity, contacts, documents, and preferences
 - shipper portal dashboard cockpit KPIs and per-order next-step guidance
@@ -224,8 +225,9 @@ If you change recipient fields, validation, shipment-party eligibility, default 
 Also inspect the shipment-party registry and sync layers. A portal-only change is often not portal-only in practice.
 When a recipient structure can now exist on multiple destinations, avoid organization-only runtime lookups and assertions.
 Recipient management routes now include both the lightweight list at `/portal/recipients/` and
-the recipient cockpit detail at `/portal/recipients/<id>/`, so permission guards and
-portal-side navigation should treat both as part of the same maintenance surface.
+the recipient cockpit detail at `/portal/recipients/<id>/`, while recipient scopes also use
+`/portal/recipient/preferences/` as the dedicated product-preference maintenance page. Permission
+guards and portal-side navigation should treat all three as part of the same maintenance surface.
 The same maintenance surface now has UI API mirrors at `/api/v1/ui/portal/dashboard/`,
 `/api/v1/ui/portal/recipients/`, and `/api/v1/ui/portal/recipients/<id>/`; scope-aware
 recipient changes must stay aligned across HTML and UI API.
