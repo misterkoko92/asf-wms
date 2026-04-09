@@ -1,0 +1,149 @@
+{% extends "portal/base.html" %}
+{% load i18n wms_ui %}
+
+{% block title %}{% trans "Modifier mes informations" %}{% endblock %}
+
+{% block content %}
+  {% url "portal:portal_dashboard" as portal_dashboard_url %}
+  {% translate "Enregistrer" as submit_label %}
+  {% translate "Retour à la fiche destinataire" as back_label %}
+
+  <div id="portal-recipient-profile-intro" class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+      <div>
+        <h2 class="ui-comp-title">{% trans "Modifier mes informations" %}</h2>
+        <p class="scan-help">{% trans "Mettez à jour les informations de votre structure, votre contact principal et vos documents." %}</p>
+      </div>
+      <div class="ui-comp-actions">
+        <span class="{{ recipient_validation_status_display.badge_class }}">
+          {{ recipient_validation_status_display.label }}
+        </span>
+        <a class="btn btn-tertiary btn-sm" href="{{ portal_dashboard_url }}">{{ back_label }}</a>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_recipient_profile">
+    <input type="hidden" name="destination_id" value="{{ form_data.destination_id }}">
+
+    <div id="portal-recipient-profile-form" class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">{% trans "Informations structure" %}</h3>
+      {% if errors %}
+        <div class="scan-message error">
+          {% for error in errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="scan-field">
+        <label class="form-label" for="recipient_destination_label">{% trans "Escale de livraison" %}</label>
+        <input class="form-control" type="text" id="recipient_destination_label" value="{{ recipient_destination_label }}" readonly>
+      </div>
+
+      <div id="recipient-structure-row" class="portal-recipient-grid-3">
+        <div class="scan-field">
+          <label class="form-label" for="structure_name">{% trans "Nom de la structure" %}</label>
+          <input class="form-control" type="text" id="structure_name" name="structure_name" value="{{ form_data.structure_name }}" required>
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="legal_form">{% trans "Forme juridique" %}</label>
+          <select class="form-select ui-select--md" id="legal_form" name="legal_form" required>
+            <option value="">---------</option>
+            {% for value, label in legal_form_choices %}
+              <option value="{{ value }}" {% if form_data.legal_form == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
+          <input class="form-control" type="number" min="0" step="1" id="beneficiary_count" name="beneficiary_count" value="{{ form_data.beneficiary_count }}" required>
+        </div>
+      </div>
+
+      {% include "portal/includes/recipient_contact_fields.html" %}
+
+      <div class="scan-field">
+        <label class="form-label" for="address_line1">{% trans "Adresse" %}</label>
+        <input class="form-control" type="text" id="address_line1" name="address_line1" value="{{ form_data.address_line1 }}" required>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="address_line2">{% trans "Complément adresse" %}</label>
+        <input class="form-control" type="text" id="address_line2" name="address_line2" value="{{ form_data.address_line2 }}">
+      </div>
+      <div class="portal-recipient-grid-3-equal">
+        <div class="scan-field">
+          <label class="form-label" for="postal_code">{% trans "Code postal" %}</label>
+          <input class="form-control" type="text" id="postal_code" name="postal_code" value="{{ form_data.postal_code }}">
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="city">{% trans "Ville" %}</label>
+          <input class="form-control" type="text" id="city" name="city" value="{{ form_data.city }}">
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="country">{% trans "Pays" %}</label>
+          <select class="form-select ui-select--md" id="country" name="country">
+            {% for value, label in country_choices %}
+              <option value="{{ value }}" {% if form_data.country == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="scan-field">
+        <label class="form-label" for="notes">{% trans "Notes / Autres informations" %}</label>
+        <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+      </div>
+
+      <div class="scan-field">
+        <label class="form-label">{% trans "Options" %}</label>
+        {% include "portal/includes/recipient_flags.html" %}
+      </div>
+    </div>
+
+    <div id="portal-recipient-profile-documents" class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">{% trans "Documents structure" %}</h3>
+      {% if recipient_document_rows %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="portal-table scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Type" %}</th>
+                <th>{% trans "Statut" %}</th>
+                <th>{% trans "Fichier" %}</th>
+                <th>{% trans "Téléversé le" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in recipient_document_rows %}
+                <tr>
+                  <td>{{ row.doc_type_label }}</td>
+                  <td>{{ row.status_label }}</td>
+                  <td>{{ row.filename }}</td>
+                  <td>{{ row.uploaded_at|date:"d/m/Y" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help">{% trans "Aucun document structure disponible pour le moment." %}</p>
+      {% endif %}
+
+      <div class="portal-recipient-grid-2">
+        <div class="scan-field">
+          <label class="form-label" for="doc_registration_proof">{% trans "Preuve d'enregistrement" %}</label>
+          {% ui_file_input name="doc_registration_proof" field_id="doc_registration_proof" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" %}
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="doc_statutes">{% trans "Statut" %}</label>
+          {% ui_file_input name="doc_statutes" field_id="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" %}
+        </div>
+      </div>
+    </div>
+
+    {% ui_button label=submit_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
+  </form>
+{% endblock %}

@@ -10,6 +10,7 @@ from django.test import RequestFactory, TestCase
 from contacts.models import Contact, ContactType
 from wms.models import (
     AssociationProfile,
+    AssociationRecipient,
     Destination,
     PortalAccessGrant,
     PortalAccessRole,
@@ -304,7 +305,9 @@ class PortalPermissionsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/portal/scope-select/", response.url)
 
-    def test_bind_association_profile_rejects_shipper_grant_without_legacy_profile(self):
+    def test_bind_association_profile_creates_bridge_profile_for_shipper_grant_without_legacy_profile(
+        self,
+    ):
         user = get_user_model().objects.create_user(
             username="portal-grant-no-profile-user",
             email="portal-grant-no-profile-user@example.com",
@@ -325,6 +328,25 @@ class PortalPermissionsTests(TestCase):
             validation_status=ShipmentValidationStatus.VALIDATED,
             is_active=True,
         )
+        destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="Senegal",
+            correspondent_contact=Contact.objects.create(
+                name="Association Grant No Profile Correspondent",
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            ),
+            is_active=True,
+        )
+        AssociationRecipient.objects.create(
+            association_contact=contact,
+            destination=destination,
+            name="Association Grant No Profile Delivery",
+            structure_name="Association Grant No Profile Delivery",
+            is_delivery_contact=True,
+            is_active=True,
+        )
         PortalAccessGrant.objects.create(
             user=user,
             role=PortalAccessRole.SHIPPER_ADMIN,
@@ -337,9 +359,20 @@ class PortalPermissionsTests(TestCase):
         middleware = SessionMiddleware(lambda req: None)
         middleware.process_request(request)
         request.session.save()
+        portal_access = importlib.import_module("wms.portal_access")
+        request.portal_scope = portal_access.PortalScope(
+            source=portal_access.PORTAL_SCOPE_SOURCE_GRANT,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            grant=PortalAccessGrant.objects.get(user=user, shipper=shipper),
+            shipper=shipper,
+        )
 
-        with self.assertRaises(PermissionDenied):
-            view_permissions._bind_association_profile(request)
+        response = view_permissions._bind_association_profile(request)
+
+        self.assertIsNone(response)
+        self.assertEqual(request.association_profile.contact, contact)
+        self.assertEqual(request.association_profile.user, user)
+        self.assertTrue(AssociationProfile.objects.filter(user=user, contact=contact).exists())
 
     def test_bind_association_profile_returns_scope_select_redirect_when_scope_is_ambiguous(self):
         user = get_user_model().objects.create_user(

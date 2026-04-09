@@ -8,6 +8,7 @@ from django.urls import NoReverseMatch, reverse
 
 from .helper_install import resolve_helper_installer_access
 from .models import (
+    AssociationProfile,
     AssociationRecipient,
     PortalAccessRole,
     ShipmentShipper,
@@ -164,7 +165,7 @@ def _bind_association_profile(request):
     if scope.shipper is None and scope.association_profile is None:
         raise PermissionDenied
 
-    profile = scope.association_profile or get_association_profile(request.user)
+    profile = _resolve_scope_association_profile(request, scope=scope)
     if profile is None:
         raise PermissionDenied
 
@@ -204,6 +205,26 @@ def _bind_association_profile(request):
 
     request.association_profile = profile
     return None
+
+
+def _resolve_scope_association_profile(request, *, scope):
+    if scope.association_profile is not None:
+        return scope.association_profile
+
+    profile = get_association_profile(request.user)
+    if scope.shipper is None:
+        return profile
+
+    scope_contact_id = scope.shipper.organization_id
+    if profile is not None:
+        if profile.contact_id != scope_contact_id:
+            raise PermissionDenied
+        return profile
+
+    return AssociationProfile.objects.create(
+        user=request.user,
+        contact=scope.shipper.organization,
+    )
 
 
 def require_association_profile(request):
