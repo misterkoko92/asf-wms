@@ -1,0 +1,228 @@
+{% load i18n %}
+{% trans "Toutes catégories" as all_categories_label %}
+{% trans "Toutes sous-catégories" as all_subcategories_label %}
+{{ category_paths_by_id|json_script:"recipient-preference-category-paths-by-id" }}
+{{ category_labels_by_id|json_script:"recipient-preference-category-labels-by-id" }}
+{{ category_filter_max_depth|json_script:"recipient-preference-category-filter-max-depth" }}
+{{ selected_category_path|json_script:"recipient-preference-selected-category-path" }}
+<form method="get" class="scan-filters row g-3 ui-comp-form">
+  {% for field in preference_filter_hidden_fields %}
+    {% if field.value != "" %}
+      <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+    {% endif %}
+  {% endfor %}
+  <div class="scan-field col-12 col-md-6 col-lg-4">
+    <label class="form-label" for="id_preference_q">{% trans "Recherche" %}</label>
+    <input
+      type="text"
+      class="form-control"
+      id="id_preference_q"
+      name="preference_q"
+      value="{{ preference_query }}"
+      placeholder='{% trans "Nom du produit" %}'
+    >
+  </div>
+
+  <div class="scan-field col-12 col-md-6 col-lg-4">
+    <label class="form-label" for="id_preference_sort">{% trans "Tri" %}</label>
+    <select id="id_preference_sort" name="preference_sort" class="form-select ui-select--md">
+      {% for value, label in preference_sort_choices %}
+        <option value="{{ value }}" {% if preference_sort == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="scan-field col-12">
+    <input
+      type="hidden"
+      id="id_preference_category"
+      name="preference_category"
+      value="{{ preference_category_id }}"
+    >
+    <label class="form-label" for="recipient-preference-category-l1">{% trans "Catégorie" %}</label>
+    <div
+      id="recipient-preference-category-filters"
+      class="scan-filter-actions ui-comp-actions d-flex flex-wrap flex-xl-nowrap gap-2"
+      data-all-categories-label="{{ all_categories_label }}"
+      data-all-subcategories-label="{{ all_subcategories_label }}"
+    >
+      <select class="form-select form-select-sm ui-select--sm" id="recipient-preference-category-l1" data-filter-level="0">
+        <option value="">{{ all_categories_label }}</option>
+      </select>
+      <select class="form-select form-select-sm ui-select--sm" id="recipient-preference-category-l2" data-filter-level="1" hidden>
+        <option value="">{{ all_subcategories_label }} (L2)</option>
+      </select>
+      <select class="form-select form-select-sm ui-select--sm" id="recipient-preference-category-l3" data-filter-level="2" hidden>
+        <option value="">{{ all_subcategories_label }} (L3)</option>
+      </select>
+      <select class="form-select form-select-sm ui-select--sm" id="recipient-preference-category-l4" data-filter-level="3" hidden>
+        <option value="">{{ all_subcategories_label }} (L4)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="col-12 d-flex flex-wrap gap-2 align-items-center ui-comp-actions">
+    <button type="submit" class="btn btn-primary">{% trans "Filtrer" %}</button>
+    <a class="btn btn-tertiary" href="{{ preference_filter_reset_url }}">{% trans "Réinitialiser" %}</a>
+  </div>
+</form>
+
+<script>
+  (function () {
+    const categoryPathsByIdEl = document.getElementById('recipient-preference-category-paths-by-id');
+    const categoryLabelsByIdEl = document.getElementById('recipient-preference-category-labels-by-id');
+    const categoryFilterDepthEl = document.getElementById('recipient-preference-category-filter-max-depth');
+    const selectedCategoryPathEl = document.getElementById('recipient-preference-selected-category-path');
+    const categoryInput = document.getElementById('id_preference_category');
+    const filtersRoot = document.getElementById('recipient-preference-category-filters');
+    if (!categoryPathsByIdEl || !categoryLabelsByIdEl || !categoryInput || !filtersRoot) {
+      return;
+    }
+
+    let categoryPathsById = {};
+    let categoryLabelsById = {};
+    let categoryFilterMaxDepth = 0;
+    let selectedCategoryPath = [];
+    try {
+      categoryPathsById = JSON.parse(categoryPathsByIdEl.textContent || '{}');
+    } catch (err) {
+      categoryPathsById = {};
+    }
+    try {
+      categoryLabelsById = JSON.parse(categoryLabelsByIdEl.textContent || '{}');
+    } catch (err) {
+      categoryLabelsById = {};
+    }
+    try {
+      categoryFilterMaxDepth = parseInt(
+        categoryFilterDepthEl ? categoryFilterDepthEl.textContent || '0' : '0',
+        10
+      ) || 0;
+    } catch (err) {
+      categoryFilterMaxDepth = 0;
+    }
+    try {
+      selectedCategoryPath = JSON.parse(
+        selectedCategoryPathEl ? selectedCategoryPathEl.textContent || '[]' : '[]'
+      );
+    } catch (err) {
+      selectedCategoryPath = [];
+    }
+
+    const categorySelects = [
+      document.getElementById('recipient-preference-category-l1'),
+      document.getElementById('recipient-preference-category-l2'),
+      document.getElementById('recipient-preference-category-l3'),
+      document.getElementById('recipient-preference-category-l4'),
+    ].filter(Boolean);
+    const allCategoriesLabel = filtersRoot.dataset.allCategoriesLabel || 'Toutes catégories';
+    const allSubcategoriesLabel = filtersRoot.dataset.allSubcategoriesLabel || 'Toutes sous-catégories';
+
+    const categoryPrefixMatches = (path, prefix) =>
+      prefix.every((value, idx) => path[idx] === value);
+
+    const selectedPrefixForLevel = level => {
+      const prefix = [];
+      for (let idx = 0; idx < level; idx += 1) {
+        const value = (categorySelects[idx].value || '').trim();
+        if (!value) {
+          return null;
+        }
+        prefix.push(value);
+      }
+      return prefix;
+    };
+
+    const optionsForLevel = (level, prefix) => {
+      const optionsMap = new Map();
+      Object.entries(categoryPathsById).forEach(([categoryId, path]) => {
+        if (!Array.isArray(path) || path.length <= level) {
+          return;
+        }
+        if (!categoryPrefixMatches(path, prefix)) {
+          return;
+        }
+        const optionId = path[level];
+        if (!optionsMap.has(optionId)) {
+          optionsMap.set(optionId, categoryLabelsById[optionId] || categoryId);
+        }
+      });
+      return Array.from(optionsMap.entries()).sort((left, right) =>
+        String(left[1] || '').localeCompare(String(right[1] || ''), 'fr', {
+          sensitivity: 'base',
+        })
+      );
+    };
+
+    const setSelectOptions = (select, options, level, preferredValue) => {
+      select.innerHTML = '';
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent =
+        level === 0 ? allCategoriesLabel : `${allSubcategoriesLabel} (L${level + 1})`;
+      select.appendChild(empty);
+      options.forEach(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        select.appendChild(option);
+      });
+      if (preferredValue && options.some(([value]) => value === preferredValue)) {
+        select.value = preferredValue;
+      } else {
+        select.value = '';
+      }
+    };
+
+    const hideSelect = select => {
+      if (!select) {
+        return;
+      }
+      select.hidden = true;
+      select.value = '';
+    };
+
+    const syncCategoryInput = () => {
+      const selectedValues = categorySelects
+        .map(select => (select.value || '').trim())
+        .filter(Boolean);
+      categoryInput.value = selectedValues.length ? selectedValues[selectedValues.length - 1] : '';
+    };
+
+    const refreshLevelsFrom = startLevel => {
+      for (let level = startLevel; level < categorySelects.length; level += 1) {
+        const select = categorySelects[level];
+        if (level >= categoryFilterMaxDepth) {
+          hideSelect(select);
+          continue;
+        }
+        const prefix = selectedPrefixForLevel(level);
+        if (level > 0 && (!prefix || prefix.length !== level)) {
+          hideSelect(select);
+          continue;
+        }
+        const options = optionsForLevel(level, prefix || []);
+        if (!options.length) {
+          hideSelect(select);
+          continue;
+        }
+        select.hidden = false;
+        const preferredValue = selectedCategoryPath[level] || '';
+        const currentValue = level < startLevel ? select.value : '';
+        setSelectOptions(select, options, level, currentValue || preferredValue);
+      }
+      syncCategoryInput();
+    };
+
+    categorySelects.forEach((select, index) => {
+      select.addEventListener('change', () => {
+        selectedCategoryPath = categorySelects
+          .map(current => (current.value || '').trim())
+          .filter(Boolean);
+        refreshLevelsFrom(index + 1);
+      });
+    });
+
+    refreshLevelsFrom(0);
+  })();
+</script>

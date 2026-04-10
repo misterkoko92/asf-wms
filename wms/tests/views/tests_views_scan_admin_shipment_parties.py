@@ -16,6 +16,7 @@ from wms.models import (
     Destination,
     Location,
     Product,
+    ProductCategory,
     ProductLot,
     ProductLotStatus,
     RecipientProductPreference,
@@ -193,6 +194,11 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         self.assertContains(response, self.product.name)
         self.assertContains(response, preference.get_status_display())
         self.assertContains(response, "Enregistrer la ligne")
+        self.assertContains(response, 'id="id_preference_q"')
+        self.assertContains(response, 'id="id_preference_sort"')
+        self.assertContains(response, 'id="recipient-preference-category-l1"')
+        self.assertContains(response, 'id="id_preference_category"')
+        self.assertContains(response, 'name="preference_category"')
 
     def test_scan_admin_recipient_detail_shows_units_per_carton_estimate(self):
         self.client.force_login(self.superuser)
@@ -214,6 +220,73 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         self.assertContains(response, "Qté par colis (estimation)")
         self.assertContains(response, 'class="recipient-preference-col--estimate">16</td>')
         self.assertContains(response, 'class="recipient-preference-col--estimate">--</td>')
+
+    def test_scan_admin_recipient_detail_filters_and_sorts_catalog_rows(self):
+        self.client.force_login(self.superuser)
+        CartonFormat.objects.create(
+            name="Carton standard",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        category_root = ProductCategory.objects.create(name="Medical")
+        category_child = ProductCategory.objects.create(name="Dressings", parent=category_root)
+        category_other = ProductCategory.objects.create(name="Equipment")
+        self.product.name = "Compresses scan detail"
+        self.product.brand = "Zulu"
+        self.product.category = category_child
+        self.product.weight_g = 500
+        self.product.volume_cm3 = 1000
+        self.product.save(update_fields=["name", "brand", "category", "weight_g", "volume_cm3"])
+        self.other_product.name = "Bandages scan detail"
+        self.other_product.brand = "Alpha"
+        self.other_product.category = category_other
+        self.other_product.weight_g = 1000
+        self.other_product.volume_cm3 = 2000
+        self.other_product.save(
+            update_fields=["name", "brand", "category", "weight_g", "volume_cm3"]
+        )
+        third_product = Product.objects.create(
+            sku="SCAN-RECIP-PREF-003",
+            name="Compresses scan extra",
+            brand="Bravo",
+            category=category_child,
+            qr_code_image="qr_codes/scan_recip_pref_003.png",
+        )
+
+        filtered_response = self.client.get(
+            self._detail_url(),
+            {
+                "preference_q": "Compresses scan",
+                "preference_category": str(category_root.id),
+                "preference_sort": "brand",
+            },
+        )
+
+        self.assertEqual(filtered_response.status_code, 200)
+        self.assertEqual(
+            [row["product"].id for row in filtered_response.context["recipient_product_rows"]],
+            [third_product.id, self.product.id],
+        )
+        self.assertEqual(filtered_response.context["preference_query"], "Compresses scan")
+        self.assertEqual(
+            filtered_response.context["preference_category_id"],
+            str(category_root.id),
+        )
+        self.assertEqual(filtered_response.context["preference_sort"], "brand")
+
+        estimate_response = self.client.get(
+            self._detail_url(),
+            {"preference_sort": "units_per_carton_estimate"},
+        )
+
+        self.assertEqual(estimate_response.status_code, 200)
+        self.assertEqual(
+            [row["product"].id for row in estimate_response.context["recipient_product_rows"]],
+            [self.other_product.id, self.product.id, third_product.id],
+        )
 
     def test_scan_admin_recipient_detail_can_create_update_and_clear_preference(self):
         self.client.force_login(self.superuser)
@@ -270,6 +343,33 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
 
         self.assertEqual(delete_response.status_code, 302)
         self.assertFalse(self.recipient_organization.product_preferences.exists())
+
+    def test_scan_admin_recipient_detail_post_preserves_filter_querystring(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self._detail_url(),
+            {
+                "action": "save_recipient_preference",
+                "product_id": str(self.product.id),
+                "status": "allowed",
+                "quantity_target": "15",
+                "period_unit": "month",
+                "notes": "Stock utile",
+                "preference_q": "Compresses",
+                "preference_category": "17",
+                "preference_sort": "brand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            (
+                f"{self._detail_url()}"
+                "?preference_q=Compresses&preference_category=17&preference_sort=brand"
+            ),
+        )
 
     def test_scan_admin_recipient_detail_uses_shared_preference_use_case(self):
         self.client.force_login(self.superuser)

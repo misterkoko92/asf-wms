@@ -807,7 +807,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--lg", css_content)
         self.assertIn(".scan-bootstrap-enabled .form-select.ui-select--xl", css_content)
 
-    def test_scan_bootstrap_css_keeps_shared_number_input_controls_compact(self):
+    def test_shared_number_input_keeps_value_clear_of_left_controls(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
         css_content = css_path.read_text(encoding="utf-8")
 
@@ -815,11 +815,17 @@ class ScanBootstrapUiTests(TestCase):
             ".scan-bootstrap-enabled .ui-number-input .form-control,\n"
             ".scan-bootstrap-enabled .ui-number-input-input {\n"
             "  min-width: 0;\n"
-            "  padding-left: calc(var(--wms-input-padding-x) + 3.6rem);",
+            "  padding-left: calc(var(--wms-input-padding-x) + 4.25rem);",
             css_content,
         )
         self.assertIn(
             ".scan-bootstrap-enabled .ui-number-input-btn {\n" "  width: 1.4rem;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-input,\n"
+            ".scan-bootstrap-enabled .ui-number-input.is-sm .form-control {\n"
+            "  padding-left: calc(var(--wms-input-padding-x) + 3.5rem);",
             css_content,
         )
         self.assertIn(

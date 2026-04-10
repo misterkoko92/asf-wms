@@ -44,6 +44,7 @@
     <p class="scan-help">
       {% trans "Pilotez le catalogue ligne par ligne. “Non précisé” retire la règle explicite et laisse le produit accepté sans validation forte." %}
     </p>
+      {% include "includes/recipient_preference_filters.html" %}
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0 recipient-preference-table">
           <thead>
@@ -104,6 +105,9 @@
                     <input type="hidden" name="q" value="{{ query }}">
                     <input type="hidden" name="contact_type" value="{{ contact_filter }}">
                     <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <input type="hidden" name="preference_q" value="{{ preference_query }}">
+                    <input type="hidden" name="preference_category" value="{{ preference_category_id }}">
+                    <input type="hidden" name="preference_sort" value="{{ preference_sort }}">
                     <input type="hidden" name="product_id" value="{{ row.product.id }}">
                     <button type="submit" name="action" value="save_recipient_preference" class="btn btn-primary btn-sm">{% trans "Enregistrer la ligne" %}</button>
                   </form>

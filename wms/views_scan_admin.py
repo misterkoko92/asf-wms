@@ -6,7 +6,6 @@ from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
-from django.utils import timezone
 from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
@@ -41,16 +40,17 @@ from .models import (
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
 )
-from .order_helpers import estimate_units_per_carton
-from .portal_helpers import get_default_carton_format
 from .product_label_printing import (
     render_product_labels_response,
     render_product_qr_labels_response,
 )
+from .recipient_preference_view_helpers import (
+    build_recipient_preference_catalog_context,
+    build_recipient_preference_filter_url,
+    get_recipient_preference_filter_state,
+)
 from .recipient_product_preferences import (
     UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS,
-    list_effective_recipient_product_preferences,
-    list_recipient_product_coverages,
 )
 from .scan_admin_contacts_cockpit import (
     ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS,
@@ -416,82 +416,34 @@ def _build_admin_recipient_preference_context(
     destination_filter,
     preference_errors=None,
     preference_form_data_by_product_id=None,
+    filter_state=None,
+    preference_filter_reset_url="",
 ):
-    preference_products = list(Product.objects.filter(is_active=True).order_by("name", "id"))
-    carton_format = get_default_carton_format()
-    recipient_preferences = list(
-        RecipientProductPreference.objects.filter(recipient_organization=recipient_organization)
-        .select_related("product")
-        .order_by("product__name", "id")
-    )
-    effective_preferences = list_effective_recipient_product_preferences(
+    catalog_context = build_recipient_preference_catalog_context(
         recipient_organization=recipient_organization,
-        products=preference_products,
+        filter_state=filter_state or {},
+        build_form_data=_build_recipient_preference_form_data_from_effective_preference,
+        preference_form_data_by_product_id=preference_form_data_by_product_id,
     )
-    quantitative_products = [
-        effective_preference.product
-        for effective_preference in effective_preferences
-        if effective_preference.status
-        in {
-            RecipientProductPreferenceStatus.REQUESTED,
-            RecipientProductPreferenceStatus.ALLOWED,
-        }
-    ]
-    coverages_by_product_id = {
-        coverage.product.pk: coverage
-        for coverage in list_recipient_product_coverages(
-            recipient_organization=recipient_organization,
-            products=quantitative_products,
-            as_of=timezone.now(),
-        )
-    }
     return {
         "active": ACTIVE_SCAN_ADMIN_CONTACTS,
         "query": query,
         "contact_filter": contact_filter,
         "destination_filter": destination_filter,
         "recipient_organization": recipient_organization,
-        "recipient_preferences": recipient_preferences,
-        "recipient_product_rows": [
-            {
-                "product": effective_preference.product,
-                "preference": effective_preference.preference,
-                "status": effective_preference.status,
-                "is_explicit": effective_preference.is_explicit,
-                "form_data": (preference_form_data_by_product_id or {}).get(
-                    effective_preference.product.pk,
-                    _build_recipient_preference_form_data_from_effective_preference(
-                        effective_preference
-                    ),
-                ),
-                "coverage": coverages_by_product_id.get(effective_preference.product.pk),
-                "units_per_carton_estimate": estimate_units_per_carton(
-                    product=effective_preference.product,
-                    carton_format=carton_format,
-                ),
-            }
-            for effective_preference in effective_preferences
-        ],
-        "recipient_preference_coverage_rows": [
-            {
-                "preference": preference,
-                "coverage": coverages_by_product_id.get(preference.product_id),
-            }
-            for preference in recipient_preferences
-            if coverages_by_product_id.get(preference.product_id) is not None
-        ],
         "preference_errors": preference_errors or [],
-        "preference_products": preference_products,
-        "preference_status_choices": [
-            (UNSPECIFIED_RECIPIENT_PRODUCT_PREFERENCE_STATUS, _("Non précisé")),
-            *list(RecipientProductPreferenceStatus.choices),
-        ],
-        "preference_period_choices": list(RecipientProductPreferencePeriodUnit.choices),
         "back_url": _build_contacts_url(
             query=query,
             contact_filter=contact_filter,
             destination_filter=destination_filter,
         ),
+        "preference_filter_reset_url": preference_filter_reset_url,
+        "preference_filter_hidden_fields": [
+            {"name": "q", "value": query},
+            {"name": "contact_type", "value": contact_filter},
+            {"name": "destination_id", "value": destination_filter},
+        ],
+        **catalog_context,
     }
 
 
@@ -776,6 +728,13 @@ def scan_admin_recipient_organization_detail(request, recipient_organization_id)
         organization__is_active=True,
         destination__is_active=True,
     )
+    filter_state = get_recipient_preference_filter_state(request)
+    detail_url = _build_recipient_organization_detail_url(
+        recipient_organization_id=recipient_organization.id,
+        query=query,
+        contact_filter=contact_filter,
+        destination_filter=destination_filter,
+    )
     preference_errors = []
     preference_form_data_by_product_id = {}
 
@@ -803,11 +762,11 @@ def scan_admin_recipient_organization_detail(request, recipient_organization_id)
                         preference.delete()
                         messages.success(request, MESSAGE_RECIPIENT_PREFERENCE_DELETED)
                     return redirect(
-                        _build_recipient_organization_detail_url(
-                            recipient_organization_id=recipient_organization.id,
-                            query=query,
-                            contact_filter=contact_filter,
-                            destination_filter=destination_filter,
+                        build_recipient_preference_filter_url(
+                            detail_url,
+                            query=filter_state["query"],
+                            category_id=filter_state["category_id"],
+                            sort=filter_state["sort"],
                         )
                     )
 
@@ -836,11 +795,11 @@ def scan_admin_recipient_organization_detail(request, recipient_organization_id)
                         ),
                     )
                     return redirect(
-                        _build_recipient_organization_detail_url(
-                            recipient_organization_id=recipient_organization.id,
-                            query=query,
-                            contact_filter=contact_filter,
-                            destination_filter=destination_filter,
+                        build_recipient_preference_filter_url(
+                            detail_url,
+                            query=filter_state["query"],
+                            category_id=filter_state["category_id"],
+                            sort=filter_state["sort"],
                         )
                     )
         else:
@@ -856,6 +815,8 @@ def scan_admin_recipient_organization_detail(request, recipient_organization_id)
             destination_filter=destination_filter,
             preference_errors=preference_errors,
             preference_form_data_by_product_id=preference_form_data_by_product_id,
+            filter_state=filter_state,
+            preference_filter_reset_url=detail_url,
         ),
     )
 
