@@ -27,15 +27,22 @@ from wms.models import (
     PreparationShipperMode,
     PreparationShipperRule,
     Product,
+    ProductCategory,
     ProductKitItem,
     ProductLot,
     ProductLotStatus,
     PublicOrderLink,
     Receipt,
     ReceiptType,
+    RecipientProductPreference,
+    RecipientProductPreferencePeriodUnit,
+    RecipientProductPreferenceStatus,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentValidationStatus,
     Warehouse,
@@ -337,6 +344,104 @@ class ScanBootstrapUiTests(TestCase):
         nav_html = self._scan_sidebar_html(response)
         self.assertIn("Planning", nav_html)
         self.assertIn(reverse("planning:run_list"), nav_html)
+
+    def test_scan_recipient_needs_page_uses_bootstrap_filters_sidebar_and_tooltips(self):
+        recipient_org = Contact.objects.create(
+            name="Hopital Prioritaire",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        recipient_contact = Contact.objects.create(
+            first_name="Alice",
+            last_name="Need",
+            contact_type=ContactType.PERSON,
+            organization=recipient_org,
+            is_active=True,
+        )
+        authorized_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient,
+            contact=recipient_contact,
+            is_active=True,
+        )
+        shipper_org = Contact.objects.create(
+            name="Expediteur Bootstrap",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_contact = Contact.objects.create(
+            first_name="Eva",
+            last_name="Shipper",
+            contact_type=ContactType.PERSON,
+            organization=shipper_org,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=authorized_recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
+        category = ProductCategory.objects.create(name="Medical")
+        product = Product.objects.create(
+            sku="BOOT-NEEDS-001",
+            name="Produit Prioritaire",
+            category=category,
+            qr_code_image="qr_codes/boot-needs-001.png",
+            is_active=True,
+        )
+        RecipientProductPreference.objects.create(
+            recipient_organization=recipient,
+            product=product,
+            status=RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=4,
+            period_unit=RecipientProductPreferencePeriodUnit.WEEK,
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-BOOT-NEEDS-001",
+            received_on=date(2026, 1, 2),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=2,
+            location=Location.objects.first(),
+        )
+
+        response = self.client.get(reverse("scan:scan_recipient_needs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vue Besoins")
+        self.assertContains(response, 'id="scan-sidebar-stocks-group"')
+        self.assertContains(response, reverse("scan:scan_recipient_needs"))
+        self.assertContains(response, 'name="destination"')
+        self.assertContains(response, 'name="recipient"')
+        self.assertContains(response, 'name="category"')
+        self.assertContains(response, 'name="need_status"')
+        self.assertContains(response, 'name="priority"')
+        self.assertContains(response, "Expediteur(s) lie(s)")
+        self.assertContains(response, "Disponibilite Stock")
+        self.assertContains(response, "Priorite")
+        self.assertContains(response, "Periode")
+        self.assertContains(response, "Semaine")
+        self.assertContains(response, "Preparer la selection")
+        self.assertContains(response, 'name="selected_row_keys"')
+        self.assertContains(response, 'data-bs-toggle="tooltip"')
+        self.assertContains(response, "priority_help")
 
     def test_scan_nav_renders_expandable_sidebar_shell(self):
         self.client.force_login(self.superuser)

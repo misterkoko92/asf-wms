@@ -131,6 +131,9 @@ Creation behavior:
   - email queue health (`pending`, `processing`, `failed`, stale processing timeout),
   - workflow blockages (>72h),
   - SLA breach ratios per tracking segment.
+- `scan/recipient-needs/` provides a recipient-demand recap with destination / recipient /
+  category filters and per-product priority based on remaining need, current period deadline,
+  and shipment-delay SLA.
 - Workflow transitions are logged as structured JSON on logger `wms.workflow`.
 
 ## Non-goals (current perimeter)

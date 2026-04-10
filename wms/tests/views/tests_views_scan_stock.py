@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from unittest import mock
+from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
@@ -59,6 +60,138 @@ class ScanStockViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/stock.html")
         self.assertEqual(response.context_data, {"active": "stock", "rows": [1]})
+
+    def test_scan_recipient_needs_renders_context_from_helper(self):
+        fake_context = {
+            "active": "recipient_needs",
+            "rows": [
+                {
+                    "priority": "critical",
+                    "recipient_admin_url": reverse(
+                        "scan:scan_admin_recipient_organization_detail",
+                        args=[99],
+                    ),
+                }
+            ],
+            "destination_id": str(self.location.warehouse.id),
+            "recipient_id": "42",
+        }
+        with mock.patch(
+            "wms.views_scan_stock.build_scan_recipient_needs_context",
+            return_value=fake_context,
+        ):
+            with mock.patch(
+                "wms.views_scan_stock.render",
+                side_effect=self._render_stub,
+            ):
+                response = self.client.get(
+                    reverse("scan:scan_recipient_needs"),
+                    {
+                        "destination": "12",
+                        "recipient": "42",
+                    },
+                )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/recipient_needs_view.html")
+        self.assertEqual(response.context_data, fake_context)
+
+    def test_scan_recipient_needs_prepare_selected_redirects_to_prefilled_shipment_create(self):
+        fake_context = {
+            "rows": [
+                {
+                    "selection_key": "10:20",
+                    "can_prepare": True,
+                    "destination_id": 12,
+                    "prepare_shipper_contact_id": 34,
+                    "prepare_recipient_contact_id": 56,
+                    "prepare_product_code": "SKU-001",
+                    "prepare_quantity": 7,
+                }
+            ],
+            "destination_id": "12",
+            "recipient_id": "42",
+            "category_id": "9",
+            "need_status": "to_serve",
+            "priority": "high",
+        }
+        with mock.patch(
+            "wms.views_scan_stock.build_scan_recipient_needs_context",
+            return_value=fake_context,
+        ):
+            response = self.client.post(
+                reverse("scan:scan_recipient_needs"),
+                {
+                    "action": "prepare_selected",
+                    "selected_row_keys": ["10:20"],
+                    "destination": "12",
+                    "recipient": "42",
+                    "category": "9",
+                    "need_status": "to_serve",
+                    "priority": "high",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        parsed = urlparse(response["Location"])
+        self.assertEqual(parsed.path, reverse("scan:scan_shipment_create"))
+        query = parse_qs(parsed.query)
+        self.assertEqual(query["destination"], ["12"])
+        self.assertEqual(query["shipper_contact"], ["34"])
+        self.assertEqual(query["recipient_contact"], ["56"])
+        self.assertEqual(query["carton_count"], ["1"])
+        self.assertEqual(query["line_1_product_code"], ["SKU-001"])
+        self.assertEqual(query["line_1_quantity"], ["7"])
+
+    def test_scan_recipient_needs_prepare_selected_rejects_mixed_groups(self):
+        fake_context = {
+            "rows": [
+                {
+                    "selection_key": "10:20",
+                    "can_prepare": True,
+                    "destination_id": 12,
+                    "prepare_shipper_contact_id": 34,
+                    "prepare_recipient_contact_id": 56,
+                    "prepare_product_code": "SKU-001",
+                    "prepare_quantity": 7,
+                },
+                {
+                    "selection_key": "10:21",
+                    "can_prepare": True,
+                    "destination_id": 12,
+                    "prepare_shipper_contact_id": 99,
+                    "prepare_recipient_contact_id": 56,
+                    "prepare_product_code": "SKU-002",
+                    "prepare_quantity": 3,
+                },
+            ],
+            "destination_id": "12",
+            "recipient_id": "42",
+            "category_id": "",
+            "need_status": "to_serve",
+            "priority": "",
+        }
+        with mock.patch(
+            "wms.views_scan_stock.build_scan_recipient_needs_context",
+            return_value=fake_context,
+        ):
+            response = self.client.post(
+                reverse("scan:scan_recipient_needs"),
+                {
+                    "action": "prepare_selected",
+                    "selected_row_keys": ["10:20", "10:21"],
+                    "destination": "12",
+                    "recipient": "42",
+                    "category": "",
+                    "need_status": "to_serve",
+                    "priority": "",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            f'{reverse("scan:scan_recipient_needs")}?destination=12&recipient=42&need_status=to_serve',
+        )
 
     def test_scan_stock_update_get_renders_context(self):
         fake_form = object()

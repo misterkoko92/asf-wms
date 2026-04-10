@@ -116,6 +116,7 @@ Practical rule:
 - Integration/business API layer: `api/v1/views.py`, serializers and routers
 - Current V3.1 extracted query sources:
   - `wms/application/scan/dashboard_queries.py` is the shared composition source for the legacy scan dashboard and `GET /api/v1/ui/dashboard/`
+  - `wms/application/scan/recipient_needs_queries.py` is the shared composition source for the legacy scan recipient-needs cockpit under `/scan/recipient-needs/`
   - `wms/application/pilotage/pilotage_queries.py` is the shared composition source for the legacy pilotage cockpit and `GET /api/v1/ui/pilotage/`
   - `wms/application/portal/dashboard_queries.py` is the shared composition source for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
   - `wms/application/planning/version_detail_queries.py` is the shared GET composition source for `planning/version_detail`

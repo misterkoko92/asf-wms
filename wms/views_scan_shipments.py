@@ -1181,7 +1181,23 @@ def scan_carton_edit(request, carton_id):
 @require_http_methods(["GET", "POST"])
 def scan_shipment_create(request):
     destination_id = request.POST.get("destination") or request.GET.get("destination")
-    form = ScanShipmentForm(request.POST or None, destination_id=destination_id)
+    initial = {}
+    if request.method != "POST":
+        shipper_contact_id = (request.GET.get("shipper_contact") or "").strip()
+        recipient_contact_id = (request.GET.get("recipient_contact") or "").strip()
+        if destination_id:
+            initial["destination"] = destination_id
+        if shipper_contact_id:
+            initial["shipper_contact"] = shipper_contact_id
+        if recipient_contact_id:
+            initial["recipient_contact"] = recipient_contact_id
+        try:
+            carton_count = max(int((request.GET.get("carton_count") or "0").strip() or "0"), 0)
+        except ValueError:
+            carton_count = 0
+        if carton_count:
+            initial["carton_count"] = carton_count
+    form = ScanShipmentForm(request.POST or None, destination_id=destination_id, initial=initial)
     support = _build_shipment_form_support()
     line_errors = {}
     line_values = []
@@ -1195,8 +1211,12 @@ def scan_shipment_create(request):
         if response:
             return response
     else:
-        carton_count = form.initial.get("carton_count", 0) or 0
-        line_values = build_shipment_line_values(carton_count)
+        form_initial = getattr(form, "initial", {})
+        carton_count = int(initial.get("carton_count", form_initial.get("carton_count", 0)) or 0)
+        if request.GET:
+            line_values = build_shipment_line_values(carton_count, request.GET)
+        else:
+            line_values = build_shipment_line_values(carton_count)
 
     return _render_shipment_form(
         request,

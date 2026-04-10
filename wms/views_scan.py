@@ -47,13 +47,20 @@ from .views_scan_shipments import (
     scan_shipments_ready,
     scan_shipments_tracking,
 )
-from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
+from .views_scan_stock import (
+    scan_out,
+    scan_recipient_needs,
+    scan_stock,
+    scan_stock_update,
+    scan_sync,
+)
 
 SCAN_FLOW_EXPORTS = (
     "scan_root",
     "scan_dashboard",
     "scan_pilotage",
     "scan_stock",
+    "scan_recipient_needs",
     "scan_kits_view",
     "scan_local_document_helper_installer",
     "scan_cartons_ready",

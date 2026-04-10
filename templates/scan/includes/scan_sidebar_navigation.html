@@ -27,20 +27,21 @@
     <div class="scan-sidebar-group">
       <button
         id="scan-sidebar-stocks-toggle"
-        class="scan-sidebar-group-toggle{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %} active{% endif %}"
+        class="scan-sidebar-group-toggle{% if active == 'stock' or active == 'recipient_needs' or active == 'kits_view' or active == 'cartons_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %} active{% endif %}"
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#scan-sidebar-stocks-group"
-        aria-expanded="{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active == 'stock' or active == 'recipient_needs' or active == 'kits_view' or active == 'cartons_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %}true{% else %}false{% endif %}"
         aria-controls="scan-sidebar-stocks-group"
       >
         <span>Stocks</span>
       </button>
       <div
         id="scan-sidebar-stocks-group"
-        class="collapse scan-sidebar-group-links{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %} show{% endif %}"
+        class="collapse scan-sidebar-group-links{% if active == 'stock' or active == 'recipient_needs' or active == 'kits_view' or active == 'cartons_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %} show{% endif %}"
       >
         <a href="{% url 'scan:scan_stock' %}" class="scan-sidebar-child-link{% if active == 'stock' %} active{% endif %}">{% trans "Vue Stock" %}</a>
+        <a href="{% url 'scan:scan_recipient_needs' %}" class="scan-sidebar-child-link{% if active == 'recipient_needs' %} active{% endif %}">Vue Besoins</a>
         <a href="{% url 'scan:scan_kits_view' %}" class="scan-sidebar-child-link{% if active == 'kits_view' %} active{% endif %}">{% trans "Vue Kits" %}</a>
         <a href="{% url 'scan:scan_cartons_ready' %}" class="scan-sidebar-child-link{% if active == 'cartons_ready' %} active{% endif %}">{% trans "Vue Colis" %}</a>
         <a href="{% url 'scan:scan_orders_view' %}" class="scan-sidebar-child-link{% if active == 'orders_view' %} active{% endif %}">{% trans "Vue Commande" %}</a>
