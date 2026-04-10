@@ -259,6 +259,8 @@ Current contract:
   - one active `PortalAccessGrant(recipient_admin)`
 - recipient approval must also ensure the default ASF shipper binding through the shared
   default-shipper helper path rather than duplicating link logic inside approval code
+- the shared default-shipper helper now prefers the canonical ASF organization `Contact.asf_id`
+  before falling back to the historical `AVIATION SANS FRONTIERES` display-name match
 - if the default ASF shipper cannot be resolved, recipient approval must fail explicitly instead
   of validating a partially usable account
 
@@ -504,6 +506,9 @@ Current V3.3 contract:
 - `wms/parties/merge.py` now owns the contact-graph and recipient-organization merge runtime used by scan admin and shipment-party cockpit adapters
 - `ShipmentRecipientOrganization` is now uniquely scoped by `(organization, destination)`; organization-only runtime assumptions are no longer a valid shared contract
 - portal recipient destination changes now keep the same synced structure contact when possible and create or reuse a destination-scoped recipient runtime row instead of forcing a second synced organization contact
+- portal recipient sync and shared-profile writes may carry a transient `structure_asf_id`; when
+  present, runtime reuse must prefer that canonical contact identifier before exact-name structure
+  fallback
 - `wms/application/parties/use_cases.py` is the application-facing entrypoint for portal-recipient sync, shared recipient-profile writes, document upserts, recipient-product preference upserts, and recipient-contact resolution
 - shipper portal recipient create/update flows in `wms/views_portal_account.py` must route shared-profile writes through `wms/application/parties/use_cases.py`; direct `AssociationRecipient` mutation is no longer the shared contract
 - scan/admin recipient shared-field edits in `wms/admin_contacts_contact_service.py` must also route shared runtime writes through `wms/application/parties/use_cases.py::update_runtime_recipient_shared_profile(...)` instead of rebuilding shipment-party mutations inline

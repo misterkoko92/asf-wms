@@ -160,6 +160,33 @@ class PortalRecipientSyncTests(TestCase):
             ).exists()
         )
 
+    def test_sync_prefers_structure_asf_id_before_exact_name_match(self):
+        recipient = self._create_recipient()
+        legacy_structure = Contact.objects.create(
+            name=recipient.structure_name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=legacy_structure,
+            destination=self.destination_a,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        canonical_structure = Contact.objects.create(
+            name="Canonical Recipient Structure",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+            asf_id="ASF-RECIP-002",
+        )
+        recipient.structure_asf_id = "ASF-RECIP-002"
+
+        synced = sync_association_recipient_to_contact(recipient)
+        recipient.refresh_from_db()
+
+        self.assertEqual(synced, canonical_structure)
+        self.assertEqual(recipient.synced_contact_id, canonical_structure.id)
+
     def test_sync_updates_contact_when_recipient_changes_destination(self):
         recipient = self._create_recipient()
         synced = sync_association_recipient_to_contact(recipient)

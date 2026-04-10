@@ -2,6 +2,8 @@ from django.db import models
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 
+from .asf_ids import ensure_contact_asf_id
+
 
 class ContactType(models.TextChoices):
     ORGANIZATION = "organization", "Organization"
@@ -83,6 +85,8 @@ class Contact(models.Model):
             if full_name:
                 self.name = full_name
         super().save(*args, **kwargs)
+        if not (self.asf_id or "").strip():
+            ensure_contact_asf_id(self)
         if self.contact_type == ContactType.PERSON and self.use_organization_address:
             _sync_contact_address_from_org(self)
 

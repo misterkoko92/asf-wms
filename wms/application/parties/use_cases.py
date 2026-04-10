@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from contacts.models import ContactType
+from contacts.models import Contact, ContactType
 from wms.document_scan import DocumentScanStatus
 from wms.document_scan_queue import queue_document_scan
 from wms.models import (
@@ -57,6 +57,7 @@ def _build_projection_candidate(
     association_contact,
     destination,
     structure_name="",
+    structure_asf_id="",
     contact_title="",
     contact_first_name="",
     contact_last_name="",
@@ -98,6 +99,7 @@ def _build_projection_candidate(
     projection.notify_deliveries = bool(notify_deliveries)
     projection.is_delivery_contact = bool(is_delivery_contact)
     projection.is_active = bool(is_active)
+    projection.structure_asf_id = (structure_asf_id or "").strip()
     if legacy_projection is not None and legacy_projection.synced_contact_id:
         projection.synced_contact = legacy_projection.synced_contact
     projection._normalize_legacy_fields()
@@ -107,6 +109,21 @@ def _build_projection_candidate(
 def _seed_projection_candidate_synced_contact(*, projection_candidate, prefer_existing_structure):
     if not prefer_existing_structure or getattr(projection_candidate, "synced_contact_id", None):
         return projection_candidate
+    structure_asf_id = str(getattr(projection_candidate, "structure_asf_id", "") or "").strip()
+    if structure_asf_id:
+        matching_contact = (
+            Contact.objects.filter(
+                contact_type=ContactType.ORGANIZATION,
+                is_active=True,
+                asf_id=structure_asf_id,
+            )
+            .only("id")
+            .first()
+        )
+        if matching_contact is not None:
+            projection_candidate.synced_contact_id = matching_contact.id
+            return projection_candidate
+
     structure_name = (projection_candidate.structure_name or "").strip()
     destination = getattr(projection_candidate, "destination", None)
     if not structure_name or destination is None:
@@ -154,6 +171,7 @@ def update_recipient_shared_profile(
     association_contact,
     destination,
     structure_name="",
+    structure_asf_id="",
     contact_title="",
     contact_first_name="",
     contact_last_name="",
@@ -179,6 +197,7 @@ def update_recipient_shared_profile(
         association_contact=association_contact,
         destination=destination,
         structure_name=structure_name,
+        structure_asf_id=structure_asf_id,
         contact_title=contact_title,
         contact_first_name=contact_first_name,
         contact_last_name=contact_last_name,

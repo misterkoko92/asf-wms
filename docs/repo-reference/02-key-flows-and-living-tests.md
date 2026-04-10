@@ -238,6 +238,8 @@ If you change recipient fields, validation, shipment-party eligibility, default 
 - the portal UI API endpoints
 
 Also inspect the shipment-party registry and sync layers. A portal-only change is often not portal-only in practice.
+Default ASF shipper resolution now prefers the canonical `Contact.asf_id` when available and only
+falls back to the legacy display-name anchor for transitional data.
 When a recipient structure can now exist on multiple destinations, avoid organization-only runtime lookups and assertions.
 Recipient management routes now include both the lightweight list at `/portal/recipients/` and
 the recipient cockpit detail at `/portal/recipients/<id>/`, while recipient scopes also use
