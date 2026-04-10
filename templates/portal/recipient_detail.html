@@ -67,6 +67,7 @@
       <p class="scan-help">
         {% trans "Pilotez les produits ligne par ligne. Passez une ligne à “Non précisé” pour retirer la règle explicite sans bloquer ce produit." %}
       </p>
+      {% include "includes/recipient_preference_filters.html" %}
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0 recipient-preference-table">
           <thead>
@@ -152,6 +153,9 @@
                     <form id="recipient-preference-form-{{ row.product.id }}" method="post" class="m-0">
                       {% csrf_token %}
                       <input type="hidden" name="product_id" value="{{ row.product.id }}">
+                      <input type="hidden" name="preference_q" value="{{ preference_query }}">
+                      <input type="hidden" name="preference_category" value="{{ preference_category_id }}">
+                      <input type="hidden" name="preference_sort" value="{{ preference_sort }}">
                       <button type="submit" name="action" value="save_recipient_preference" class="btn btn-primary btn-sm">{% trans "Enregistrer la ligne" %}</button>
                     </form>
                   {% endif %}

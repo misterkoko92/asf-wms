@@ -2492,6 +2492,73 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(rows_by_product_id[self.product.id]["units_per_carton_estimate"], 16)
         self.assertIsNone(rows_by_product_id[self.other_product.id]["units_per_carton_estimate"])
 
+    def test_portal_recipient_detail_filters_and_sorts_preference_rows(self):
+        recipient = self._create_synced_recipient()
+        CartonFormat.objects.create(
+            name="Carton standard",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        category_root = ProductCategory.objects.create(name="Medical")
+        category_child = ProductCategory.objects.create(name="Dressings", parent=category_root)
+        category_other = ProductCategory.objects.create(name="Equipment")
+        self.product.name = "Compresses Detail"
+        self.product.brand = "Zulu"
+        self.product.category = category_child
+        self.product.weight_g = 500
+        self.product.volume_cm3 = 1000
+        self.product.save(update_fields=["name", "brand", "category", "weight_g", "volume_cm3"])
+        self.other_product.name = "Bandages Detail"
+        self.other_product.brand = "Alpha"
+        self.other_product.category = category_other
+        self.other_product.weight_g = 1000
+        self.other_product.volume_cm3 = 2000
+        self.other_product.save(
+            update_fields=["name", "brand", "category", "weight_g", "volume_cm3"]
+        )
+        third_product = Product.objects.create(
+            sku="PORTAL-PREF-003",
+            name="Compresses Extra",
+            brand="Bravo",
+            category=category_child,
+            qr_code_image="qr_codes/portal-pref-003.png",
+        )
+
+        filtered_response = self.client.get(
+            self._detail_url(recipient),
+            {
+                "preference_q": "Compresses",
+                "preference_category": str(category_root.id),
+                "preference_sort": "brand",
+            },
+        )
+
+        self.assertEqual(filtered_response.status_code, 200)
+        self.assertEqual(
+            [row["product"].id for row in filtered_response.context["recipient_product_rows"]],
+            [third_product.id, self.product.id],
+        )
+        self.assertEqual(filtered_response.context["preference_query"], "Compresses")
+        self.assertEqual(
+            filtered_response.context["preference_category_id"],
+            str(category_root.id),
+        )
+        self.assertEqual(filtered_response.context["preference_sort"], "brand")
+
+        estimate_response = self.client.get(
+            self._detail_url(recipient),
+            {"preference_sort": "units_per_carton_estimate"},
+        )
+
+        self.assertEqual(estimate_response.status_code, 200)
+        self.assertEqual(
+            [row["product"].id for row in estimate_response.context["recipient_product_rows"]],
+            [self.other_product.id, self.product.id, third_product.id],
+        )
+
     def test_portal_recipient_detail_rejects_other_association_recipient(self):
         other_user = self._create_portal_user("portal-account-other", "other@example.com")
         other_profile = self._create_profile(other_user)
@@ -2613,6 +2680,28 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             recipient_organization.product_preferences.filter(pk=preference.id).exists()
         )
 
+    def test_portal_recipient_detail_post_preserves_filter_querystring(self):
+        recipient = self._create_synced_recipient()
+
+        response = self.client.post(
+            self._detail_url(recipient),
+            {
+                **self._build_preference_row_payload(),
+                "preference_q": "Compresses",
+                "preference_category": "12",
+                "preference_sort": "brand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            (
+                f"{self._detail_url(recipient)}"
+                "?preference_q=Compresses&preference_category=12&preference_sort=brand"
+            ),
+        )
+
     def test_portal_recipient_detail_post_rejects_refused_preference_with_quantity(self):
         recipient = self._create_synced_recipient()
 
@@ -2692,6 +2781,74 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(response, 'class="recipient-preference-col--estimate">16</td>')
         self.assertContains(response, 'class="recipient-preference-col--estimate">--</td>')
 
+    def test_portal_recipient_preferences_get_filters_and_sorts_catalog_rows(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Filters")
+        self._activate_recipient_scope(recipient)
+        CartonFormat.objects.create(
+            name="Carton standard",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        category_root = ProductCategory.objects.create(name="Medical")
+        category_child = ProductCategory.objects.create(name="Dressings", parent=category_root)
+        category_other = ProductCategory.objects.create(name="Equipment")
+        self.product.name = "Compresses Scope"
+        self.product.brand = "Zulu"
+        self.product.category = category_child
+        self.product.weight_g = 500
+        self.product.volume_cm3 = 1000
+        self.product.save(update_fields=["name", "brand", "category", "weight_g", "volume_cm3"])
+        self.other_product.name = "Bandages Scope"
+        self.other_product.brand = "Alpha"
+        self.other_product.category = category_other
+        self.other_product.weight_g = 1000
+        self.other_product.volume_cm3 = 2000
+        self.other_product.save(
+            update_fields=["name", "brand", "category", "weight_g", "volume_cm3"]
+        )
+        third_product = Product.objects.create(
+            sku="PORTAL-PREF-004",
+            name="Compresses Scope Extra",
+            brand="Bravo",
+            category=category_child,
+            qr_code_image="qr_codes/portal-pref-004.png",
+        )
+
+        filtered_response = self.client.get(
+            self._recipient_preferences_url(),
+            {
+                "preference_q": "Compresses Scope",
+                "preference_category": str(category_root.id),
+                "preference_sort": "brand",
+            },
+        )
+
+        self.assertEqual(filtered_response.status_code, 200)
+        self.assertEqual(
+            [row["product"].id for row in filtered_response.context["recipient_product_rows"]],
+            [third_product.id, self.product.id],
+        )
+        self.assertEqual(filtered_response.context["preference_query"], "Compresses Scope")
+        self.assertEqual(
+            filtered_response.context["preference_category_id"],
+            str(category_root.id),
+        )
+        self.assertEqual(filtered_response.context["preference_sort"], "brand")
+
+        estimate_response = self.client.get(
+            self._recipient_preferences_url(),
+            {"preference_sort": "units_per_carton_estimate"},
+        )
+
+        self.assertEqual(estimate_response.status_code, 200)
+        self.assertEqual(
+            [row["product"].id for row in estimate_response.context["recipient_product_rows"]],
+            [self.other_product.id, self.product.id, third_product.id],
+        )
+
     def test_portal_recipient_preferences_post_adds_requested_preference_for_recipient_scope(
         self,
     ):
@@ -2739,6 +2896,29 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(response.url, self._recipient_preferences_url())
         self.assertFalse(
             recipient_organization.product_preferences.filter(pk=preference.id).exists()
+        )
+
+    def test_portal_recipient_preferences_post_preserves_filter_querystring(self):
+        recipient = self._create_synced_recipient()
+        self._activate_recipient_scope(recipient)
+
+        response = self.client.post(
+            self._recipient_preferences_url(),
+            {
+                **self._build_preference_row_payload(),
+                "preference_q": "Compresses",
+                "preference_category": "24",
+                "preference_sort": "brand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            (
+                f"{self._recipient_preferences_url()}"
+                "?preference_q=Compresses&preference_category=24&preference_sort=brand"
+            ),
         )
 
     def test_portal_recipient_preferences_post_rejects_refused_preference_with_quantity(self):

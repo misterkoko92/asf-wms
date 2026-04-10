@@ -819,7 +819,7 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .ui-number-input .form-control,
 .scan-bootstrap-enabled .ui-number-input-input {
   min-width: 0;
-  padding-left: calc(var(--wms-input-padding-x) + 3.6rem);
+  padding-left: calc(var(--wms-input-padding-x) + 4.25rem);
 }
 
 .scan-bootstrap-enabled .ui-number-input.is-fluid .form-control,
@@ -856,7 +856,7 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-input,
 .scan-bootstrap-enabled .ui-number-input.is-sm .form-control {
-  padding-left: calc(var(--wms-input-padding-x) + 3.05rem);
+  padding-left: calc(var(--wms-input-padding-x) + 3.5rem);
 }
 
 .scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-controls {
