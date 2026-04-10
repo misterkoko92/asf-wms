@@ -60,6 +60,13 @@
                 {% trans "Changer d'espace" %}
               </a>
             {% endif %}
+            <a
+              id="portal-faq-link"
+              class="portal-utility-link{% if current == 'portal_faq' %} is-active{% endif %}"
+              href="{% url 'portal:portal_faq' %}"
+            >
+              {% trans "FAQ" %}
+            </a>
             {% if request.portal_scope.role == "shipper_admin" %}
               <a
                 id="portal-account-link"

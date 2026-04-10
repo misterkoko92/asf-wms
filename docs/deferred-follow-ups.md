@@ -30,6 +30,31 @@ For each deferred follow-up, capture:
 
 ## Deferred items
 
+### 2026-04-10 - Portal FAQ first pass and deferred self-service gaps
+
+- Surface: legacy portal shipper and recipient flows (`/portal/`, `/portal/orders/*`, `/portal/recipients/*`, `/portal/account/`, `/portal/billing/*`).
+- Deferred change: extend the portal beyond documentation-only FAQ with the following self-service flows:
+  - edit or cancel a shipper order after it has been sent,
+  - delete or deactivate a shipper recipient from the portal,
+  - expose direct download/export actions for billing documents,
+  - expose structure-document downloads in the recipient scope,
+  - expose a clear navigation entry toward password change.
+- Decision for now: ship a user-facing FAQ that documents current capabilities only, without adding new business actions or lifecycle changes.
+- Why deferred now:
+  - the current request explicitly targets explanatory help, not new portal behavior,
+  - each missing flow touches permissions, status rules, document exposure, or cross-surface business contracts,
+  - several gaps need product decisions before implementation, especially around order lifecycle ownership and recipient deactivation semantics.
+- Estimated cost if reopened: about 2 to 5 developer days, plus targeted QA on both shipper and recipient scopes.
+- Trigger to reopen:
+  - next portal self-service iteration,
+  - user feedback showing repeated support questions that cannot be solved by documentation alone.
+- Canonical references:
+  - `wms/views_portal_orders.py`
+  - `wms/views_portal_account.py`
+  - `wms/views_portal_billing.py`
+  - `templates/portal/faq.html`
+  - `docs/plans/2026-04-10-portal-faq.md`
+
 ### 2026-03-28 - Carton double-status model
 
 - Surface: legacy scan carton flow (`/scan/cartons/`, carton detail, shipment assignment/tracking, dashboard, UI API).

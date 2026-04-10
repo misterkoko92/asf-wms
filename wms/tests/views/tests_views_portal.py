@@ -1009,6 +1009,14 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             f"{reverse('portal:portal_recipients')}?blocked=missing_delivery_contact",
         )
 
+    def test_portal_faq_renders_for_shipper_scope(self):
+        response = self.client.get(reverse("portal:portal_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "FAQ portail")
+        self.assertContains(response, "Espace expéditeur")
+        self.assertContains(response, "Espace destinataire")
+
     def test_portal_order_create_denies_recipient_scope(self):
         user = self._create_portal_user("portal-recipient-scope", "recipient-scope@example.com")
         recipient_organization = self._create_recipient_organization(
@@ -3095,6 +3103,21 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         home_response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertContains(home_response, "updated-proof")
         self.assertContains(home_response, "recipient-statutes")
+
+    def test_portal_faq_renders_for_recipient_scope(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope FAQ")
+        recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.get(reverse("portal:portal_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["faq_scope_role"], PortalAccessRole.RECIPIENT_ADMIN)
+        self.assertEqual(response.context["faq_recipient_organization"], recipient_organization)
+        self.assertContains(response, "FAQ portail")
+        self.assertContains(response, "Espace expéditeur")
+        self.assertContains(response, "Espace destinataire")
+        self.assertContains(response, "Modifier mes informations")
+        self.assertContains(response, "Gérer les préférences produits")
 
     def test_portal_recipient_detail_shows_preference_coverage_in_product_table(self):
         recipient = self._create_synced_recipient()

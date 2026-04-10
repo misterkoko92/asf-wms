@@ -1153,6 +1153,8 @@ Current auth scope contract:
 - when a portal user has exactly one scope, login auto-activates it in session; when a user has
   multiple scopes, the session stays unbound until `/portal/scope-select/` resolves the active
   scope
+- `/portal/faq/` is the shared documentation entry point for both active portal scopes and is
+  reachable from the utility area of `templates/portal/base.html`
 - `/portal/` is now the first role-aware page: shipper scopes keep the order cockpit while
   recipient scopes render a recipient home on the same shell
 - the remaining legacy pages guarded by `association_required` remain shipper-only, while the
