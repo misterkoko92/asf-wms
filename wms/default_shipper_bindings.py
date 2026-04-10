@@ -12,7 +12,10 @@ from .models import (
     ShipmentShipper,
     ShipmentValidationStatus,
 )
-from .policies.shipment_parties import default_recipient_shipper_name
+from .policies.shipment_parties import (
+    default_recipient_shipper_asf_id,
+    default_recipient_shipper_name,
+)
 from .shipment_party_setup import (
     ensure_authorized_recipient_contact,
     ensure_shipment_recipient_link,
@@ -24,6 +27,7 @@ _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED = ContextVar(
     default=True,
 )
 DEFAULT_RECIPIENT_SHIPPER_NAME = default_recipient_shipper_name()
+DEFAULT_RECIPIENT_SHIPPER_ASF_ID = default_recipient_shipper_asf_id()
 
 
 def default_shipper_binding_sync_enabled() -> bool:
@@ -43,6 +47,21 @@ def _resolve_default_shipper() -> ShipmentShipper | None:
     shipper = (
         ShipmentShipper.objects.filter(
             organization__is_active=True,
+            organization__asf_id=DEFAULT_RECIPIENT_SHIPPER_ASF_ID,
+        )
+        .select_related("organization", "default_contact")
+        .order_by("id")
+        .first()
+    )
+    if shipper is not None:
+        return ensure_shipment_shipper(
+            shipper.organization,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+
+    shipper = (
+        ShipmentShipper.objects.filter(
+            organization__is_active=True,
             organization__name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
         )
         .select_related("organization", "default_contact")
@@ -58,8 +77,14 @@ def _resolve_default_shipper() -> ShipmentShipper | None:
     organization = Contact.objects.filter(
         contact_type=ContactType.ORGANIZATION,
         is_active=True,
-        name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
+        asf_id=DEFAULT_RECIPIENT_SHIPPER_ASF_ID,
     ).first()
+    if organization is None:
+        organization = Contact.objects.filter(
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+            name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
+        ).first()
     if organization is None:
         return None
     return ensure_shipment_shipper(

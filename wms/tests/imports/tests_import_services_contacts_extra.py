@@ -105,9 +105,9 @@ class ImportContactsExtraTests(TestCase):
             name="Org Optional",
             contact_type=ContactType.ORGANIZATION,
             phone="old-phone",
-            asf_id=None,
             is_active=True,
         )
+        Contact.objects.filter(pk=contact.pk).update(asf_id=None)
         rows = [
             {
                 "contact_type": "organization",
@@ -238,6 +238,39 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(updated, 1)
         contact.refresh_from_db()
         self.assertEqual(contact.asf_id, "ASF-OLD")
+
+    def test_import_contacts_reuses_existing_contact_by_exact_asf_id_before_name_lookup(self):
+        canonical_contact = Contact.objects.create(
+            name="Canonical Org",
+            contact_type=ContactType.ORGANIZATION,
+            asf_id="ASF-200",
+            phone="old-canonical-phone",
+        )
+        legacy_name_contact = Contact.objects.create(
+            name="Import Name",
+            contact_type=ContactType.ORGANIZATION,
+            phone="legacy-name-phone",
+        )
+        rows = [
+            {
+                "contact_type": "organization",
+                "name": "Import Name",
+                "asf_id": "ASF-200",
+                "phone": "updated-phone",
+            }
+        ]
+
+        created, updated, errors, warnings = import_contacts(rows)
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        canonical_contact.refresh_from_db()
+        legacy_name_contact.refresh_from_db()
+        self.assertEqual(canonical_contact.phone, "updated-phone")
+        self.assertEqual(canonical_contact.asf_id, "ASF-200")
+        self.assertEqual(legacy_name_contact.phone, "legacy-name-phone")
 
     def test_import_contacts_updates_existing_address(self):
         contact = Contact.objects.create(

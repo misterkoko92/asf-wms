@@ -161,6 +161,15 @@ class ContactModelsTests(TestCase):
 
         self.assertEqual(contact_with_existing_id.asf_id, "PFX-9999")
 
+    def test_save_generates_asf_id_for_new_contact(self):
+        contact = Contact.objects.create(
+            name="Generated Org",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        contact.refresh_from_db()
+
+        self.assertEqual(contact.asf_id, f"ASF-C-{contact.pk:08d}")
+
     def test_save_with_org_address_flag_but_no_organization_keeps_no_address(self):
         person = Contact.objects.create(
             contact_type=ContactType.PERSON,

@@ -19,13 +19,16 @@ from wms.models import (
 )
 from wms.shipment_party_setup import ensure_shipment_shipper
 
+CANONICAL_ASF_SHIPPER_ASF_ID = "ASF-ORG-ROOT"
+
 
 class DefaultShipperBindingsHelpersTests(TestCase):
-    def _create_org(self, name: str) -> Contact:
+    def _create_org(self, name: str, *, asf_id: str | None = None) -> Contact:
         return Contact.objects.create(
             name=name,
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
+            asf_id=asf_id,
         )
 
     def _create_default_shipper(self):
@@ -99,6 +102,26 @@ class DefaultShipperBindingsHelpersTests(TestCase):
         self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
         self.assertTrue(shipper.can_send_to_all)
         self.assertIsNotNone(shipper.default_contact_id)
+
+    def test_resolve_default_shipper_prefers_matching_asf_id_over_name_match(self):
+        legacy_organization = self._create_org("AVIATION SANS FRONTIERES")
+        ensure_shipment_shipper(
+            legacy_organization,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        canonical_organization = self._create_org(
+            "AVIATION SANS FRONTIERES",
+            asf_id=CANONICAL_ASF_SHIPPER_ASF_ID,
+        )
+        canonical_shipper = ensure_shipment_shipper(
+            canonical_organization,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+
+        shipper = _resolve_default_shipper()
+
+        self.assertEqual(shipper, canonical_shipper)
+        self.assertEqual(shipper.organization, canonical_organization)
 
     def test_ensure_default_shipper_links_for_destination_id_creates_links_and_default_contact(
         self,

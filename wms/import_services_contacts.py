@@ -13,6 +13,14 @@ def _parse_multi_values(value):
     return [part for part in parts if part]
 
 
+def _find_existing_contact(*, asf_id, contact_lookup, contact_type):
+    if asf_id:
+        contact = Contact.objects.filter(asf_id=asf_id).first()
+        if contact is not None:
+            return contact
+    return Contact.objects.filter(name__iexact=contact_lookup, contact_type=contact_type).first()
+
+
 def import_contacts(rows):
     created = 0
     updated = 0
@@ -69,15 +77,20 @@ def import_contacts(rows):
             )
             if not contact_lookup:
                 raise ValueError("Nom contact requis.")
-            contact = Contact.objects.filter(
-                name__iexact=contact_lookup, contact_type=contact_type
-            ).first()
+            contact = _find_existing_contact(
+                asf_id=asf_id,
+                contact_lookup=contact_lookup,
+                contact_type=contact_type,
+            )
             was_created = False
             if not contact:
-                contact = Contact.objects.create(
-                    name=contact_lookup,
-                    contact_type=contact_type,
-                )
+                create_kwargs = {
+                    "name": contact_lookup,
+                    "contact_type": contact_type,
+                }
+                if asf_id is not None:
+                    create_kwargs["asf_id"] = asf_id
+                contact = Contact.objects.create(**create_kwargs)
                 was_created = True
             updates = {}
             if contact.contact_type != contact_type:
