@@ -24,6 +24,7 @@ Use it when you need to answer:
 ### Main runtime files
 
 - `wms/views_scan_stock.py`
+- `wms/application/scan/recipient_needs_queries.py`
 - `wms/views_scan_shipments.py`
 - `wms/views_scan_shipments_support.py`
 - `wms/views_scan_preparation.py`
@@ -55,6 +56,15 @@ Use it when you need to answer:
 ### What the flow covers
 
 - stock update and stock availability
+- stock recipient-needs cockpit under `/scan/recipient-needs/`, including destination /
+  recipient / category / need-status / priority filters, linked shipper labels, and per-product
+  prioritization for recipient demand
+- recipient-needs materialization limited to explicit product preferences and products covered by
+  explicit category preferences; the page does not expand a full `unspecified` recipient x catalog
+  cross-join
+- recipient-needs priority driven by remaining need, current period deadline, and open-shipment
+  delay against the runtime `tracking_alert_hours` SLA threshold, with hoverable operator help on
+  each priority badge
 - scan dashboard action queue for low stock, disputes, and pending reviews
 - scan dashboard workflow blockage queue split by `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
 - scan dashboard local claim/release flow for workflow blockages
@@ -103,6 +113,7 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_stock.py`
+- `wms/tests/core/tests_scan_recipient_needs_queries.py`
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`

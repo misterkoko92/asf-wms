@@ -60,6 +60,40 @@ class ScanStockViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "scan/stock.html")
         self.assertEqual(response.context_data, {"active": "stock", "rows": [1]})
 
+    def test_scan_recipient_needs_renders_context_from_helper(self):
+        fake_context = {
+            "active": "recipient_needs",
+            "rows": [
+                {
+                    "priority": "critical",
+                    "recipient_admin_url": reverse(
+                        "scan:scan_admin_recipient_organization_detail",
+                        args=[99],
+                    ),
+                }
+            ],
+            "destination_id": str(self.location.warehouse.id),
+            "recipient_id": "42",
+        }
+        with mock.patch(
+            "wms.views_scan_stock.build_scan_recipient_needs_context",
+            return_value=fake_context,
+        ):
+            with mock.patch(
+                "wms.views_scan_stock.render",
+                side_effect=self._render_stub,
+            ):
+                response = self.client.get(
+                    reverse("scan:scan_recipient_needs"),
+                    {
+                        "destination": "12",
+                        "recipient": "42",
+                    },
+                )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/recipient_needs_view.html")
+        self.assertEqual(response.context_data, fake_context)
+
     def test_scan_stock_update_get_renders_context(self):
         fake_form = object()
         with (

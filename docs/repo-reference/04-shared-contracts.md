@@ -95,11 +95,21 @@ Current contract:
   - `Préparation`
   - `Runs magasin`
 - the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`, `Préparation`, `Expéditions`, `Gestion`
+- the shared `Stocks` group currently exposes, in order:
+  - `Vue Stock`
+  - `Vue Besoins`
+  - `Vue Kits`
+  - `Vue Colis`
+  - `Vue Commande`
+  - `Vue Réception`
+  - `MAJ stock`
 - the shared `Préparation` group currently exposes, in order:
   - `Préparer des kits`
   - `Préparer des colis`
   - `Préparation expédition`
   - `Runs magasin`
+- the recipient-needs cockpit at `/scan/recipient-needs/` must set `active="recipient_needs"`
+  so the shared `Stocks` group expands and highlights correctly
 - warehouse-preparation screens under `/scan/preparation-runs/` must set `active="preparation_runs"` so the shared group expands and highlights correctly
 - the warehouse-preparation settings screen at `/scan/preparation-runs/settings/` uses the same
   `active="preparation_runs"` highlight and preparateur permission scope as the list/create/detail flow
@@ -113,6 +123,49 @@ Reference tests:
 
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_views_scan_preparation.py`
+
+### Scan Recipient Needs Priority Contract
+
+Primary runtime sources:
+
+- `wms/application/scan/recipient_needs_queries.py`
+- `wms/views_scan_stock.py`
+- `templates/scan/recipient_needs_view.html`
+- `wms/recipient_product_preferences.py`
+- `wms/runtime_settings.py`
+
+Current contract:
+
+- `/scan/recipient-needs/` lives in the scan `Stocks` family as a read-oriented synthesis view for
+  recipient demand and expedition prioritization
+- filters are `destination`, `recipient`, `category`, `need_status`, and `priority`
+- one row represents one `(ShipmentRecipientOrganization, Product)` pair
+- rows are materialized only from explicit product preferences and products covered by explicit
+  category preferences; the view does not enumerate the full catalog for implicit `unspecified`
+  preferences
+- each row shows the linked shipper labels for that recipient organization, the target / delivered /
+  pipeline / remaining quantities, the current period label, and the current deadline or shipment delay
+- priority levels are `critical`, `high`, `normal`, `covered`, and `out_of_scope`
+- operator-facing priority help must stay hoverable on the badge via Bootstrap tooltip markup and
+  describe the threshold that triggered the level
+- `critical` is driven by an expired period or an open shipment whose delay exceeds the runtime
+  `tracking_alert_hours` SLA threshold
+- default ordering is priority rank, then strongest delay, then nearest period deadline, then
+  highest remaining need
+
+Maintenance rule:
+
+- if recipient-needs filters, priority rules, row materialization, or tooltip wording changes,
+  keep the shared query helper, the scan view/template, the sidebar highlight contract, and the
+  dedicated query/UI tests aligned in the same work
+- if a future UI API or pilotage surface mirrors the same cockpit, promote the composition to the
+  shared query helper rather than duplicating row/priority logic in each adapter
+
+Reference tests:
+
+- `wms/tests/core/tests_scan_recipient_needs_queries.py`
+- `wms/tests/views/tests_views_scan_stock.py`
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
 
 ### Shared Select Contract
 
