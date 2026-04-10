@@ -15,6 +15,8 @@ from wms.models import (
     RecipientProductPreferenceStatus,
     RecipientStructureDocument,
     RecipientStructureDocumentType,
+    ShipmentRecipientOrganization,
+    ShipmentValidationStatus,
 )
 
 
@@ -69,6 +71,42 @@ class PartiesUseCasesTests(TestCase):
         self.assertIsNotNone(result.legacy_projection)
         self.assertEqual(result.legacy_projection.synced_contact, result.synced_contact)
         self.assertEqual(AssociationRecipient.objects.count(), 1)
+
+    def test_update_recipient_shared_profile_prefers_structure_asf_id_over_exact_name_match(self):
+        legacy_structure = Contact.objects.create(
+            name="Hopital V3",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=legacy_structure,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        canonical_structure = Contact.objects.create(
+            name="Structure Canonique",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+            asf_id="ASF-RECIP-001",
+        )
+
+        result = use_cases.update_recipient_shared_profile(
+            association_contact=self.association,
+            destination=self.destination,
+            structure_name="Hopital V3",
+            structure_asf_id="ASF-RECIP-001",
+            contact_first_name="Awa",
+            contact_last_name="Diallo",
+            emails="hopital@example.org",
+            phones="+22370000000",
+            address_line1="1 Rue V3",
+            city="Bamako",
+            country="Mali",
+            persist_projection=False,
+        )
+
+        self.assertEqual(result.synced_contact, canonical_structure)
 
     def test_save_recipient_product_preference_upserts_runtime_row(self):
         shared_profile = use_cases.update_recipient_shared_profile(

@@ -30,6 +30,14 @@ def _normalized_text(value) -> str:
     return str(value or "").strip()
 
 
+def _normalized_asf_id(value) -> str:
+    return str(value or "").strip()
+
+
+def _recipient_structure_asf_id(recipient) -> str:
+    return _normalized_asf_id(getattr(recipient, "structure_asf_id", ""))
+
+
 def _first_multi_value(raw_value: str, fallback: str = "") -> str:
     value = (raw_value or "").replace("\n", ";").replace(",", ";")
     for item in value.split(";"):
@@ -74,6 +82,17 @@ def get_synced_contact(recipient):
     if synced_contact is not None:
         return synced_contact
     if not getattr(recipient, "synced_contact_id", None):
+        structure_asf_id = _recipient_structure_asf_id(recipient)
+        if structure_asf_id:
+            return (
+                Contact.objects.filter(
+                    contact_type=ContactType.ORGANIZATION,
+                    is_active=True,
+                    asf_id=structure_asf_id,
+                )
+                .order_by("id")
+                .first()
+            )
         return None
     return Contact.objects.filter(pk=recipient.synced_contact_id).first()
 
@@ -120,6 +139,17 @@ def _find_existing_recipient_organization(recipient, *, prefer_existing_structur
         )
         if recipient_organization_matches_destination(existing, recipient.destination):
             return existing
+
+    structure_asf_id = _recipient_structure_asf_id(recipient)
+    if (
+        structure_asf_id
+        and synced_contact is not None
+        and synced_contact.contact_type == ContactType.ORGANIZATION
+    ):
+        return recipient_organization_for_destination(
+            organization=synced_contact,
+            destination=recipient.destination,
+        )
 
     structure_name = _recipient_structure_name(recipient)
     if prefer_existing_structure and recipient.destination_id and structure_name:
