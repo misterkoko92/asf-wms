@@ -123,7 +123,7 @@
         </div>
         <div class="scan-field">
           <label class="form-label" for="beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
-          <input class="form-control" type="number" min="0" step="1" id="beneficiary_count" name="beneficiary_count" value="{{ form_data.beneficiary_count }}" required>
+          <input class="form-control ui-number-input-compact" type="number" min="0" step="1" id="beneficiary_count" name="beneficiary_count" value="{{ form_data.beneficiary_count }}" required>
         </div>
       </div>
       <div class="scan-field">
@@ -311,7 +311,7 @@
             </div>
             <div class="scan-field" data-pref-quantity-field>
               <label class="form-label" for="pref_quantity_target">Quantité cible</label>
-              <input class="form-control" type="number" min="1" step="1" id="pref_quantity_target" name="quantity_target" value="{{ product_preference_form_data.quantity_target }}">
+              <input class="form-control ui-number-input-compact" type="number" min="1" step="1" id="pref_quantity_target" name="quantity_target" value="{{ product_preference_form_data.quantity_target }}">
             </div>
             <div class="scan-field" data-pref-period-field>
               <label class="form-label" for="pref_period_unit">Période</label>

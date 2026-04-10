@@ -71,6 +71,35 @@
     return input.id;
   }
 
+  function parseCssPixels(rawValue) {
+    const parsed = parseFloat(rawValue);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function syncNumberInputLayout(input, wrapper, controls) {
+    if (
+      !(input instanceof HTMLInputElement) ||
+      !(wrapper instanceof HTMLElement) ||
+      !(controls instanceof HTMLElement)
+    ) {
+      return;
+    }
+
+    const inputStyles = window.getComputedStyle(input);
+    const wrapperStyles = window.getComputedStyle(wrapper);
+    const basePadding =
+      parseCssPixels(inputStyles.getPropertyValue("--wms-input-padding-x")) ||
+      parseCssPixels(wrapperStyles.getPropertyValue("--wms-input-padding-x")) ||
+      parseCssPixels(inputStyles.paddingLeft);
+    const controlsWidth = controls.getBoundingClientRect().width;
+    const valueGap = parseCssPixels(wrapperStyles.getPropertyValue("--ui-number-input-value-gap"));
+    const reservedPadding = Math.max(basePadding, basePadding + controlsWidth + valueGap);
+    const reservedPaddingPx = `${reservedPadding}px`;
+
+    input.style.paddingLeft = reservedPaddingPx;
+    input.style.paddingInlineStart = reservedPaddingPx;
+  }
+
   function syncNumberInputButtons(input, controls) {
     if (!controls) {
       return;
@@ -167,6 +196,9 @@
     if (input.classList.contains("form-control-sm")) {
       wrapper.classList.add("is-sm");
     }
+    if (input.classList.contains("ui-number-input-compact")) {
+      wrapper.classList.add("is-compact");
+    }
 
     const controls = document.createElement("div");
     controls.className = "ui-number-input-controls";
@@ -178,6 +210,10 @@
     wrapper.appendChild(input);
 
     input.classList.add("ui-number-input-input", "is-ui-number-input-enhanced");
+    syncNumberInputLayout(input, wrapper, controls);
+    if (typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => syncNumberInputLayout(input, wrapper, controls));
+    }
 
     controls.addEventListener("click", event => {
       const button = event.target.closest(".ui-number-input-btn");

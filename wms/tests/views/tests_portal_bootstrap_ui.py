@@ -449,6 +449,10 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'name="structure_name"')
         self.assertContains(response, 'name="contact_title"')
         self.assertContains(response, 'name="emails"')
+        self.assertContains(
+            response,
+            'class="form-control ui-number-input-compact" type="number" min="0" step="1" id="beneficiary_count"',
+        )
         self.assertContains(response, 'name="doc_registration_proof"')
         self.assertContains(response, 'name="doc_statutes"')
         self.assertContains(response, "Modifier mes informations")
@@ -538,6 +542,10 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="recipient-structure-row"')
         self.assertContains(response, 'name="legal_form"')
         self.assertContains(response, 'name="beneficiary_count"')
+        self.assertContains(
+            response,
+            'class="form-control ui-number-input-compact" type="number" min="0" step="1" id="beneficiary_count"',
+        )
         self.assertContains(response, "Forme juridique")
         self.assertContains(response, "Nombre de bénéficiaires")
 
@@ -631,6 +639,10 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm align-middle")
         self.assertContains(response, "form-select")
         self.assertContains(response, "form-control")
+        self.assertContains(
+            response,
+            'class="form-control recipient-preference-input--quantity ui-number-input-compact"',
+        )
         self.assertContains(response, 'name="product_id"')
         self.assertContains(response, 'name="status"')
         self.assertContains(response, 'value="save_recipient_preference"')
@@ -745,6 +757,10 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "recipient-preference-input--notes")
         self.assertContains(response, "form-select")
         self.assertContains(response, "form-control")
+        self.assertContains(
+            response,
+            'class="form-control recipient-preference-input--quantity ui-number-input-compact"',
+        )
         self.assertContains(response, 'name="product_id"')
         self.assertContains(response, 'name="status"')
         self.assertContains(response, 'value="save_recipient_preference"')
@@ -790,6 +806,10 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'name="category_id"')
         self.assertContains(response, 'name="status"')
         self.assertContains(response, 'name="quantity_target"')
+        self.assertContains(
+            response,
+            'class="form-control ui-number-input-compact" type="number" min="1" step="1" id="pref_quantity_target"',
+        )
         self.assertContains(response, 'name="period_unit"')
         self.assertContains(response, "Demandé")
         self.assertContains(response, "Kit Hygiene Bootstrap")
