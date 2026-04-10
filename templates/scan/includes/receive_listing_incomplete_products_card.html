@@ -1,0 +1,95 @@
+{% load i18n %}
+
+<div id="scan-receive-listing-incomplete-products-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Produits incomplets" %}</h2>
+  <p class="scan-help">
+    {% trans "Complétez les produits importés avec des informations partielles et appliquez des mises à jour en masse sur les champs compatibles." %}
+  </p>
+  {% if incomplete_bulk_form.non_field_errors %}
+    {% for error in incomplete_bulk_form.non_field_errors %}
+      <div class="scan-message error">{{ error }}</div>
+    {% endfor %}
+  {% endif %}
+  <form method="post" class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="bulk_update_incomplete_products">
+    <div class="scan-table-wrap table-responsive">
+      <table class="scan-table table table-sm table-hover">
+        <thead>
+          <tr>
+            <th>{% trans "Sélection" %}</th>
+            <th>{% trans "Nom" %}</th>
+            <th>SKU</th>
+            <th>EAN</th>
+            <th>{% trans "Marque" %}</th>
+            <th>{% trans "Catégorie" %}</th>
+            <th>{% trans "Emplacement" %}</th>
+            <th>{% trans "Action" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in incomplete_products %}
+            <tr>
+              <td><input type="checkbox" name="selected_product_ids" value="{{ product.id }}"></td>
+              <td>{{ product.name }}</td>
+              <td>{{ product.sku|default:"-" }}</td>
+              <td>{{ product.ean|default:"-" }}</td>
+              <td>{{ product.brand|default:"-" }}</td>
+              <td>{{ product.category|default:"-" }}</td>
+              <td>{{ product.default_location|default:"-" }}</td>
+              <td>
+                <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_receive_listing_product_edit' product.id %}">
+                  {% trans "Ouvrir" %}
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8">{% trans "Aucun produit incomplet à traiter." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="incomplete-bulk-field-name">{{ incomplete_bulk_form.field_name.label }}</label>
+        <select id="incomplete-bulk-field-name" name="{{ incomplete_bulk_form.field_name.html_name }}" class="form-select ui-select--lg">
+          {% for value, label in incomplete_bulk_form.fields.field_name.choices %}
+            <option value="{{ value }}" {% if incomplete_bulk_form.data.field_name == value or incomplete_bulk_form.initial.field_name == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% for error in incomplete_bulk_form.field_name.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="scan-field" data-bulk-value="text">
+        <label class="form-label" for="incomplete-bulk-field-value">{{ incomplete_bulk_form.field_value.label }}</label>
+        <input
+          type="text"
+          id="incomplete-bulk-field-value"
+          name="{{ incomplete_bulk_form.field_value.html_name }}"
+          value="{{ incomplete_bulk_form.data.field_value|default:'' }}"
+        >
+        {% for error in incomplete_bulk_form.field_value.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="scan-field" data-bulk-value="category" hidden>
+        <label class="form-label" for="incomplete-bulk-field-category">{{ incomplete_bulk_form.field_value_category.label }}</label>
+        {{ incomplete_bulk_form.field_value_category }}
+      </div>
+      <div class="scan-field" data-bulk-value="location" hidden>
+        <label class="form-label" for="incomplete-bulk-field-location">{{ incomplete_bulk_form.field_value_location.label }}</label>
+        {{ incomplete_bulk_form.field_value_location }}
+      </div>
+      <div class="scan-field" data-bulk-value="boolean" hidden>
+        <label class="form-label" for="incomplete-bulk-field-boolean">{{ incomplete_bulk_form.field_value_boolean.label }}</label>
+        {{ incomplete_bulk_form.field_value_boolean }}
+      </div>
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Appliquer aux produits sélectionnés" %}</button>
+    </div>
+  </form>
+</div>

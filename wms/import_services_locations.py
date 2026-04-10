@@ -17,6 +17,13 @@ def get_or_create_location(warehouse_name, zone, aisle, shelf):
     return location
 
 
+def get_or_create_listing_buffer_location(default_warehouse):
+    warehouse_name = getattr(default_warehouse, "name", None)
+    if not warehouse_name:
+        return None
+    return get_or_create_location(warehouse_name, "TEMP", "RECEPTION", "LISTING")
+
+
 def resolve_listing_location(row, default_warehouse):
     warehouse_name = parse_str(row.get("warehouse")) or (
         default_warehouse.name if default_warehouse else None

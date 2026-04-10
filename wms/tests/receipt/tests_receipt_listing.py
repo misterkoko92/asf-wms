@@ -42,6 +42,7 @@ class ReceiptListingFlowTests(TestCase):
             "listing_pdf_page_start": "",
             "listing_pdf_page_end": "",
             "listing_pdf_total_pages": "",
+            "listing_pdf_analysis": None,
             "listing_file_type": "excel",
         }
 
@@ -133,3 +134,4 @@ class ReceiptListingFlowTests(TestCase):
         self.assertEqual(context["listing_meta"], {"meta": "value"})
         self.assertEqual(context["listing_sheet_names"], ["Sheet1"])
         self.assertEqual(context["listing_file_type"], "excel")
+        self.assertIsNone(context["listing_pdf_analysis"])

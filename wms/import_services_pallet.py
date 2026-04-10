@@ -2,12 +2,29 @@ from django.utils import timezone
 
 from contacts.models import Contact
 
-from .import_services_locations import resolve_listing_location
+from .import_services_locations import (
+    get_or_create_listing_buffer_location,
+    resolve_listing_location,
+)
 from .import_services_products import import_product_row
 from .import_utils import parse_int
 from .models import Product, Receipt, ReceiptLine, ReceiptStatus, ReceiptType
 from .scan_helpers import resolve_product
 from .services import StockError, receive_receipt_line
+
+
+def should_mark_listing_product_incomplete(row):
+    identifier_present = any(
+        str(row.get(field) or "").strip() for field in ("sku", "barcode", "ean")
+    )
+    category_present = any(
+        str(row.get(field) or "").strip()
+        for field in ("category", "category_l1", "category_l2", "category_l3", "category_l4")
+    )
+    location_present = any(
+        str(row.get(field) or "").strip() for field in ("warehouse", "zone", "aisle", "shelf")
+    )
+    return not (identifier_present and category_present and location_present)
 
 
 def apply_pallet_listing_import(
@@ -51,6 +68,7 @@ def apply_pallet_listing_import(
         if not product and selection == "new":
             new_row = dict(row_data)
             new_row.pop("quantity", None)
+            new_row["is_incomplete"] = should_mark_listing_product_incomplete(new_row)
             try:
                 product, _created, _warnings = import_product_row(
                     new_row,
@@ -67,6 +85,8 @@ def apply_pallet_listing_import(
             location = resolve_listing_location(row_data, warehouse)
             if location is None:
                 location = product.default_location
+            if location is None:
+                location = get_or_create_listing_buffer_location(warehouse)
             if location is None:
                 raise ValueError("Emplacement requis pour réception.")
             if receipt is None:

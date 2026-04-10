@@ -351,6 +351,52 @@ class ImportUtilsTests(SimpleTestCase):
             ):
                 import_utils._extract_pdf_table(b"x")
 
+    def test_analyze_pdf_listing_reports_page_diagnostics(self):
+        page_with_table = SimpleNamespace(
+            extract_table=lambda: [["Nom", "Qte"], ["Mask", "3"]],
+            extract_text=lambda: "Nom  Qte\nMask  3",
+        )
+        page_with_scan = SimpleNamespace(
+            extract_table=lambda: None,
+            extract_text=lambda: "",
+        )
+        fake_pdf_module = SimpleNamespace(
+            open=lambda _stream: _FakePdf([page_with_table, page_with_scan])
+        )
+        with mock.patch("wms.import_utils.pdfplumber", fake_pdf_module):
+            analysis = import_utils.analyze_pdf_listing(b"%PDF-1")
+
+        self.assertEqual(analysis["total_pages"], 2)
+        self.assertEqual(analysis["mode"], "mixed")
+        self.assertEqual(analysis["extractable_pages"], [1])
+        self.assertEqual(analysis["recommended_pages"], {"mode": "custom", "start": 1, "end": 1})
+        self.assertEqual(
+            analysis["pages"],
+            [
+                {
+                    "number": 1,
+                    "has_text": True,
+                    "has_table": True,
+                    "extractable": True,
+                    "line_count": 2,
+                    "column_count": 2,
+                },
+                {
+                    "number": 2,
+                    "has_text": False,
+                    "has_table": False,
+                    "extractable": False,
+                    "line_count": 0,
+                    "column_count": 0,
+                },
+            ],
+        )
+
+    def test_analyze_pdf_listing_requires_pdfplumber(self):
+        with mock.patch("wms.import_utils.pdfplumber", None):
+            with self.assertRaisesMessage(ValueError, "pdfplumber est requis"):
+                import_utils.analyze_pdf_listing(b"%PDF-1")
+
     def test_extract_tabular_data_dispatch(self):
         with mock.patch("wms.import_utils._extract_csv_table", return_value=(["a"], [["1"]])):
             self.assertEqual(import_utils.extract_tabular_data(b"x", ".csv"), (["a"], [["1"]]))

@@ -1,13 +1,12 @@
 {% load i18n wms_ui %}
 {% url 'scan:scan_admin_contacts' as scan_admin_contacts_url %}
 
-<div id="scan-receive-pallet-listing-upload-card" class="scan-card card border-0 ui-comp-card">
-  <h2 class="ui-comp-title">{% trans "Upload listing" %}</h2>
+<div id="scan-receive-listing-pdf-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">PDF</h2>
   <p class="scan-help">
-    {% blocktrans %}Import CSV/XLS/XLSX ou PDF texte. Le mapping des colonnes est proposé ensuite.
-    Conseil: privilégier le format .xlsx (meilleure gestion des accents).{% endblocktrans %}
+    {% blocktrans %}Le PDF est le point d'entrée principal. Le fichier est analysé avant extraction pour isoler les pages utiles, puis le mapping des colonnes est proposé.{% endblocktrans %}
   </p>
-  <p class="scan-help">{% trans "Les PDF scans (image) ne sont pas pris en charge pour le moment." %}</p>
+  <p class="scan-help">{% trans "Les PDF image sont maintenant détectés. Les pages non extractibles restent signalées tant que l'OCR serveur n'est pas branché." %}</p>
   {% if listing_errors %}
     {% for error in listing_errors %}
       <div class="scan-message error">{{ error }}</div>
@@ -114,59 +113,61 @@
       </div>
     </div>
 
-    <div class="scan-field" data-file-options="pdf">
-      <label class="form-label">{% trans "Sélectionner les pages du listing (PDF)" %}</label>
-      {% if listing_pdf_total_pages %}
-        <div class="scan-help">{% blocktrans %}Pages totales: {{ listing_pdf_total_pages }}{% endblocktrans %}</div>
-      {% endif %}
-      <div class="scan-toggle-btn-group scan-toggle-btn-group--compact" role="radiogroup" aria-label="{% trans "Sélection des pages PDF" %}">
-        <input
-          type="radio"
-          id="id_listing_pdf_pages_mode_all"
-          name="listing_pdf_pages_mode"
-          value="all"
-          class="btn-check"
-          autocomplete="off"
-          {% if listing_pdf_pages_mode != "custom" %}checked{% endif %}
-        >
-        <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_pdf_pages_mode_all">{% trans "Toutes les pages" %}</label>
-        <input
-          type="radio"
-          id="id_listing_pdf_pages_mode_custom"
-          name="listing_pdf_pages_mode"
-          value="custom"
-          class="btn-check"
-          autocomplete="off"
-          {% if listing_pdf_pages_mode == "custom" %}checked{% endif %}
-        >
-        <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_pdf_pages_mode_custom">{% trans "Personnalisé" %}</label>
-      </div>
-      <div class="scan-inline scan-inline-equal scan-inline-gap">
-        <div>
-          <label class="form-label" for="listing_pdf_page_start">{% trans "Debut" %}</label>
+    {% if listing_stage != "analysis" %}
+      <div class="scan-field" data-file-options="pdf">
+        <label class="form-label">{% trans "Sélection initiale des pages (PDF)" %}</label>
+        {% if listing_pdf_total_pages %}
+          <div class="scan-help">{% blocktrans %}Pages totales: {{ listing_pdf_total_pages }}{% endblocktrans %}</div>
+        {% endif %}
+        <div class="scan-toggle-btn-group scan-toggle-btn-group--compact" role="radiogroup" aria-label="{% trans "Sélection des pages PDF" %}">
           <input
-            type="number"
-            id="listing_pdf_page_start"
-            name="listing_pdf_page_start"
-            min="1"
-            value="{{ listing_pdf_page_start }}"
+            type="radio"
+            id="id_listing_pdf_pages_mode_all"
+            name="listing_pdf_pages_mode"
+            value="all"
+            class="btn-check"
+            autocomplete="off"
+            {% if listing_pdf_pages_mode != "custom" %}checked{% endif %}
           >
-        </div>
-        <div>
-          <label class="form-label" for="listing_pdf_page_end">{% trans "Fin" %}</label>
+          <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_pdf_pages_mode_all">{% trans "Toutes les pages" %}</label>
           <input
-            type="number"
-            id="listing_pdf_page_end"
-            name="listing_pdf_page_end"
-            min="1"
-            value="{{ listing_pdf_page_end }}"
+            type="radio"
+            id="id_listing_pdf_pages_mode_custom"
+            name="listing_pdf_pages_mode"
+            value="custom"
+            class="btn-check"
+            autocomplete="off"
+            {% if listing_pdf_pages_mode == "custom" %}checked{% endif %}
           >
+          <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_pdf_pages_mode_custom">{% trans "Personnalisé" %}</label>
+        </div>
+        <div class="scan-inline scan-inline-equal scan-inline-gap">
+          <div>
+            <label class="form-label" for="listing_pdf_page_start_upload">{% trans "Debut" %}</label>
+            <input
+              type="number"
+              id="listing_pdf_page_start_upload"
+              name="listing_pdf_page_start"
+              min="1"
+              value="{{ listing_pdf_page_start }}"
+            >
+          </div>
+          <div>
+            <label class="form-label" for="listing_pdf_page_end_upload">{% trans "Fin" %}</label>
+            <input
+              type="number"
+              id="listing_pdf_page_end_upload"
+              name="listing_pdf_page_end"
+              min="1"
+              value="{{ listing_pdf_page_end }}"
+            >
+          </div>
+        </div>
+        <div class="scan-help">
+          {% trans "Si debut vide: page 1. Si fin vide: derniere page." %}
         </div>
       </div>
-      <div class="scan-help">
-        {% trans "Si debut vide: page 1. Si fin vide: derniere page." %}
-      </div>
-    </div>
+    {% endif %}
 
     <div class="scan-field" data-file-options="excel">
       <label class="form-label" for="listing_sheet_name">{% trans "Feuille Excel" %}</label>

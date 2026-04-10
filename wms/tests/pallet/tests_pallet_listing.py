@@ -93,6 +93,27 @@ class PalletListingTests(SimpleTestCase):
         self.assertEqual(row["values"]["shelf"], "B1")
         self.assertEqual(row["match_options"][0]["value"], "product:42")
 
+    def test_build_listing_review_rows_surfaces_barcode_match_type(self):
+        mapping = {0: "name", 1: "barcode", 2: "quantity"}
+        rows = [["Masque", "BAR-42", "3"]]
+        product = SimpleNamespace(id=42, sku="SKU-42", name="Masque", brand="")
+
+        with mock.patch(
+            "wms.pallet_listing.extract_product_identity",
+            return_value=("", "Masque", ""),
+        ):
+            with mock.patch(
+                "wms.pallet_listing.find_product_matches",
+                return_value=([product], "barcode"),
+            ):
+                with mock.patch(
+                    "wms.pallet_listing.build_product_display",
+                    return_value={"warehouse": "", "zone": "", "aisle": "", "shelf": ""},
+                ):
+                    review_rows = build_listing_review_rows(rows, mapping)
+
+        self.assertEqual(review_rows[0]["match_type"], "Barcode")
+
     def test_build_listing_columns_uses_first_non_empty_sample(self):
         headers = ["Nom", "Quantite"]
         rows = [["", ""], ["Masque", "5"], ["Gants", "2"]]

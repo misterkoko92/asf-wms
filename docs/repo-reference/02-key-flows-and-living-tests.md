@@ -81,9 +81,17 @@ Use it when you need to answer:
 - stable legacy asset entrypoints where `scan.js`, `scan.css`, and `scan-bootstrap.css`
   remain the shared facades while `wms/static/scan/modules/` and
   `wms/static/scan/css/partials/` carry the first V3.3 modular slices
-- receipt operator capture on `/scan/receive-pallet/` and `/scan/receive-association/`,
-  including persisted `Receipt.conformity_status` and a mandatory observation when the
-  operator marks the reception non-conform
+- receipt operator capture on `/scan/receive-pallet/`, `/scan/receive-listing/`, and
+  `/scan/receive-association/`, including persisted `Receipt.conformity_status` and a mandatory
+  observation when the operator marks the reception non-conform
+- the dedicated listing flow under `/scan/receive-listing/` keeps Excel/CSV mapping and review,
+  but PDF now enters an explicit analysis stage before mapping so operators can inspect detected
+  pages, extractable text/table coverage, and the page range actually sent to mapping
+- listing reception can create and receive incomplete products when only partial catalog metadata
+  is known; such products remain visible in the listing cockpit until operators complete them one
+  by one or through guarded bulk updates
+- listing reception falls back to a warehouse-local reception buffer location
+  `TEMP / RECEPTION / LISTING` when neither row-level nor product default location is available
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - warehouse `run magasin` generation/review under `/scan/preparation-runs/`, including proposal scoring, checkbox review actions, and conversion of accepted proposals into real shipments/cartons
 - warehouse `run magasin` flight acquisition first tries the planning API, then falls back to the latest imported exploitable flight batch; when that fallback batch is from a previous period, preparation capacity is computed from that batch period instead of crashing the operator flow
@@ -120,6 +128,13 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_views_scan_receipts.py`
+- `wms/tests/receipt/tests_receipt_listing.py`
+- `wms/tests/pallet/tests_pallet_listing.py`
+- `wms/tests/pallet/tests_pallet_listing_handlers.py`
+- `wms/tests/imports/tests_import_utils.py`
+- `wms/tests/imports/tests_import_services_pallet.py`
+- `wms/tests/imports/tests_import_services_locations_extra.py`
 - `wms/tests/views/tests_views_imports.py`
 - `wms/tests/shipment/tests_shipment_status.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`

@@ -126,6 +126,7 @@ class Product(models.Model):
     storage_conditions = models.CharField(max_length=200, blank=True)
     perishable = models.BooleanField(default=False)
     quarantine_default = models.BooleanField(default=False)
+    is_incomplete = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
 

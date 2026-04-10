@@ -106,7 +106,7 @@ class ImportServicesPalletTests(SimpleTestCase):
         self.assertEqual(errors, ["Ligne 6: produit non déterminé."])
         self.assertIsNone(receipt)
 
-    def test_apply_pallet_listing_import_requires_location_when_none_resolved(self):
+    def test_apply_pallet_listing_import_uses_listing_buffer_when_no_location_is_available(self):
         product = SimpleNamespace(default_location=None, storage_conditions="Cold")
         payload = {
             "apply": True,
@@ -114,20 +114,98 @@ class ImportServicesPalletTests(SimpleTestCase):
             "row_data": {"quantity": "3"},
             "override_code": "SKU-7",
         }
+        receipt = SimpleNamespace(id=51, reference="RCP-51")
         with mock.patch("wms.import_services_pallet.resolve_product", return_value=product):
             with mock.patch(
                 "wms.import_services_pallet.resolve_listing_location", return_value=None
             ):
-                created, skipped, errors, receipt = apply_pallet_listing_import(
-                    [payload],
-                    user=self.user,
-                    warehouse=self.warehouse,
-                    receipt_meta={},
-                )
-        self.assertEqual(created, 0)
+                with mock.patch(
+                    "wms.import_services_pallet.get_or_create_listing_buffer_location",
+                    return_value=SimpleNamespace(id=77),
+                ) as buffer_mock:
+                    with mock.patch(
+                        "wms.import_services_pallet.Contact.objects.filter",
+                        return_value=SimpleNamespace(first=lambda: None),
+                    ):
+                        with mock.patch(
+                            "wms.import_services_pallet.Receipt.objects.create",
+                            return_value=receipt,
+                        ):
+                            with mock.patch(
+                                "wms.import_services_pallet.ReceiptLine.objects.create",
+                                return_value=SimpleNamespace(id=1),
+                            ) as line_create_mock:
+                                with mock.patch("wms.import_services_pallet.receive_receipt_line"):
+                                    created, skipped, errors, out_receipt = (
+                                        apply_pallet_listing_import(
+                                            [payload],
+                                            user=self.user,
+                                            warehouse=self.warehouse,
+                                            receipt_meta={},
+                                        )
+                                    )
+        self.assertEqual(created, 1)
         self.assertEqual(skipped, 0)
-        self.assertEqual(errors, ["Ligne 7: Emplacement requis pour réception."])
-        self.assertIsNone(receipt)
+        self.assertEqual(errors, [])
+        self.assertIs(out_receipt, receipt)
+        buffer_mock.assert_called_once_with(self.warehouse)
+        self.assertEqual(line_create_mock.call_args.kwargs["location"].id, 77)
+
+    def test_apply_pallet_listing_import_marks_new_listing_products_incomplete(self):
+        created_product = SimpleNamespace(
+            default_location=None,
+            storage_conditions="",
+            is_incomplete=True,
+        )
+        payload = {
+            "apply": True,
+            "row_index": 8,
+            "row_data": {"name": "Mask", "quantity": "2", "ean": "EAN-8"},
+            "selection": "new",
+        }
+        receipt = SimpleNamespace(id=80, reference="RCP-80")
+
+        def _fake_import(row, *, user=None):
+            self.assertTrue(row["is_incomplete"])
+            self.assertEqual(row["ean"], "EAN-8")
+            self.assertNotIn("quantity", row)
+            return created_product, True, []
+
+        with mock.patch("wms.import_services_pallet.import_product_row", side_effect=_fake_import):
+            with mock.patch(
+                "wms.import_services_pallet.resolve_listing_location",
+                return_value=None,
+            ):
+                with mock.patch(
+                    "wms.import_services_pallet.get_or_create_listing_buffer_location",
+                    return_value=SimpleNamespace(id=88),
+                ):
+                    with mock.patch(
+                        "wms.import_services_pallet.Contact.objects.filter",
+                        return_value=SimpleNamespace(first=lambda: None),
+                    ):
+                        with mock.patch(
+                            "wms.import_services_pallet.Receipt.objects.create",
+                            return_value=receipt,
+                        ):
+                            with mock.patch(
+                                "wms.import_services_pallet.ReceiptLine.objects.create",
+                                return_value=SimpleNamespace(id=8),
+                            ):
+                                with mock.patch("wms.import_services_pallet.receive_receipt_line"):
+                                    created, skipped, errors, out_receipt = (
+                                        apply_pallet_listing_import(
+                                            [payload],
+                                            user=self.user,
+                                            warehouse=self.warehouse,
+                                            receipt_meta={},
+                                        )
+                                    )
+
+        self.assertEqual(created, 1)
+        self.assertEqual(skipped, 0)
+        self.assertEqual(errors, [])
+        self.assertIs(out_receipt, receipt)
 
     def test_apply_pallet_listing_import_success_reuses_receipt_and_defaults_dates(self):
         product_1 = SimpleNamespace(

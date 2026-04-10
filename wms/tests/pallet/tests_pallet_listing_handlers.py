@@ -75,6 +75,7 @@ class PalletListingHandlersTests(TestCase):
         self.assertEqual(state["listing_pdf_page_end"], "")
         self.assertEqual(state["listing_pdf_total_pages"], "")
         self.assertEqual(state["listing_file_type"], "")
+        self.assertIsNone(state["listing_pdf_analysis"])
 
     def test_clear_pending_listing_unlinks_file_and_ignorés_oserror(self):
         request = self._request()
@@ -138,6 +139,7 @@ class PalletListingHandlersTests(TestCase):
         pending = {
             "extension": ".pdf",
             "pdf_pages": {"mode": "custom", "start": 2, "end": 5, "total": 9},
+            "pdf_analysis": {"total_pages": 9, "mode": "text", "pages": []},
             "file_type": "pdf",
             "receipt_meta": {},
         }
@@ -155,6 +157,7 @@ class PalletListingHandlersTests(TestCase):
         self.assertEqual(state["listing_pdf_page_end"], "5")
         self.assertEqual(state["listing_pdf_total_pages"], "9")
         self.assertEqual(state["listing_file_type"], "pdf")
+        self.assertEqual(state["listing_pdf_analysis"]["mode"], "text")
 
     def test_hydrate_listing_state_from_pending_handles_pdf_all_pages_label(self):
         state = init_listing_state()
@@ -373,21 +376,34 @@ class PalletListingHandlersTests(TestCase):
     def test_handle_listing_upload_pdf_custom_rejects_invalid_page_range(self):
         request = self._request(
             {
-                "listing_file": SimpleUploadedFile("listing.pdf", b"%PDF-1.4"),
+                "pending_token": "tok-invalid-range",
                 "listing_pdf_pages_mode": "custom",
                 "listing_pdf_page_start": "5",
                 "listing_pdf_page_end": "2",
             }
         )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-invalid-range",
+            "extension": ".pdf",
+            "file_path": "/tmp/fake-listing.pdf",
+            "pdf_analysis": {
+                "total_pages": 10,
+                "mode": "text",
+                "pages": [],
+                "extractable_pages": [1, 2, 3],
+                "recommended_pages": {"mode": "custom", "start": 1, "end": 3},
+            },
+            "pdf_pages": {"mode": "custom", "start": 1, "end": 3, "total": 10},
+            "receipt_meta": {},
+        }
         state = init_listing_state()
-        with mock.patch("wms.pallet_listing_handlers.get_pdf_page_count", return_value=10):
-            with mock.patch("wms.pallet_listing_handlers.extract_tabular_data") as extract_mock:
-                response = handle_pallet_listing_action(
-                    request,
-                    action="listing_upload",
-                    listing_form=self._listing_form(valid=True),
-                    state=state,
-                )
+        with mock.patch("wms.pallet_listing_handlers.extract_tabular_data") as extract_mock:
+            response = handle_pallet_listing_action(
+                request,
+                action="listing_pdf_extract",
+                listing_form=self._listing_form(valid=True),
+                state=state,
+            )
         self.assertIsNone(response)
         self.assertIn("Plage de pages PDF invalide.", state["listing_errors"])
         self.assertEqual(state["listing_pdf_total_pages"], "10")
@@ -402,7 +418,7 @@ class PalletListingHandlersTests(TestCase):
         )
         state = init_listing_state()
         with mock.patch(
-            "wms.pallet_listing_handlers.get_pdf_page_count",
+            "wms.pallet_listing_handlers.analyze_pdf_listing",
             side_effect=ValueError("PDF invalide"),
         ):
             response = handle_pallet_listing_action(
@@ -417,20 +433,33 @@ class PalletListingHandlersTests(TestCase):
     def test_handle_listing_upload_pdf_custom_invalid_page_values(self):
         request = self._request(
             {
-                "listing_file": SimpleUploadedFile("listing.pdf", b"%PDF-1.4"),
+                "pending_token": "tok-invalid-values",
                 "listing_pdf_pages_mode": "custom",
                 "listing_pdf_page_start": "start",
                 "listing_pdf_page_end": "end",
             }
         )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-invalid-values",
+            "extension": ".pdf",
+            "file_path": "/tmp/fake-listing.pdf",
+            "pdf_analysis": {
+                "total_pages": 8,
+                "mode": "text",
+                "pages": [],
+                "extractable_pages": [1, 2],
+                "recommended_pages": {"mode": "custom", "start": 1, "end": 2},
+            },
+            "pdf_pages": {"mode": "custom", "start": 1, "end": 2, "total": 8},
+            "receipt_meta": {},
+        }
         state = init_listing_state()
-        with mock.patch("wms.pallet_listing_handlers.get_pdf_page_count", return_value=8):
-            response = handle_pallet_listing_action(
-                request,
-                action="listing_upload",
-                listing_form=self._listing_form(valid=True),
-                state=state,
-            )
+        response = handle_pallet_listing_action(
+            request,
+            action="listing_pdf_extract",
+            listing_form=self._listing_form(valid=True),
+            state=state,
+        )
         self.assertIsNone(response)
         self.assertIn("Page PDF début invalide.", state["listing_errors"])
         self.assertIn("Page PDF fin invalide.", state["listing_errors"])
@@ -438,19 +467,36 @@ class PalletListingHandlersTests(TestCase):
     def test_handle_listing_upload_pdf_all_pages_extract_error(self):
         request = self._request(
             {
-                "listing_file": SimpleUploadedFile("listing.pdf", b"%PDF-1.4"),
+                "pending_token": "tok-all-pages",
                 "listing_pdf_pages_mode": "all",
             }
         )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-all-pages",
+            "extension": ".pdf",
+            "file_path": "/tmp/fake-listing.pdf",
+            "pdf_analysis": {
+                "total_pages": 5,
+                "mode": "text",
+                "pages": [],
+                "extractable_pages": [1, 2, 3, 4, 5],
+                "recommended_pages": {"mode": "all", "start": None, "end": None},
+            },
+            "pdf_pages": {"mode": "all", "start": None, "end": None, "total": 5},
+            "receipt_meta": {},
+        }
         state = init_listing_state()
-        with mock.patch("wms.pallet_listing_handlers.get_pdf_page_count", return_value=5):
+        with mock.patch(
+            "wms.pallet_listing_handlers.Path.read_bytes",
+            return_value=b"%PDF-1.4",
+        ):
             with mock.patch(
                 "wms.pallet_listing_handlers.extract_tabular_data",
                 side_effect=ValueError("Extraction impossible"),
             ):
                 response = handle_pallet_listing_action(
                     request,
-                    action="listing_upload",
+                    action="listing_pdf_extract",
                     listing_form=self._listing_form(valid=True),
                     state=state,
                 )
@@ -467,7 +513,7 @@ class PalletListingHandlersTests(TestCase):
         )
         state = init_listing_state()
         with mock.patch(
-            "wms.pallet_listing_handlers.get_pdf_page_count",
+            "wms.pallet_listing_handlers.analyze_pdf_listing",
             side_effect=ValueError("Comptage impossible"),
         ):
             response = handle_pallet_listing_action(
@@ -478,6 +524,126 @@ class PalletListingHandlersTests(TestCase):
             )
         self.assertIsNone(response)
         self.assertIn("Comptage impossible", state["listing_errors"])
+
+    def test_handle_listing_upload_pdf_enters_analysis_stage(self):
+        request = self._request(
+            {
+                "listing_file": SimpleUploadedFile("listing.pdf", b"%PDF-1.4"),
+            }
+        )
+        state = init_listing_state()
+        temp_file = _FakeTempFile("/tmp/fake-listing.pdf")
+        analysis = {
+            "total_pages": 5,
+            "mode": "text",
+            "pages": [{"number": 1, "extractable": True}],
+            "extractable_pages": [1, 2, 3],
+            "recommended_pages": {"mode": "custom", "start": 1, "end": 3},
+        }
+        with mock.patch(
+            "wms.pallet_listing_handlers.analyze_pdf_listing",
+            return_value=analysis,
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.tempfile.NamedTemporaryFile",
+                return_value=temp_file,
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.uuid.uuid4",
+                    return_value=SimpleNamespace(hex="tok-pdf-analysis"),
+                ):
+                    with mock.patch(
+                        "wms.pallet_listing_handlers.extract_tabular_data"
+                    ) as extract_mock:
+                        response = handle_pallet_listing_action(
+                            request,
+                            action="listing_upload",
+                            listing_form=self._listing_form(valid=True),
+                            state=state,
+                        )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "analysis")
+        self.assertEqual(state["listing_file_type"], "pdf")
+        self.assertEqual(state["listing_pdf_analysis"]["total_pages"], 5)
+        self.assertEqual(state["listing_pdf_pages_mode"], "custom")
+        self.assertEqual(state["listing_pdf_page_start"], "1")
+        self.assertEqual(state["listing_pdf_page_end"], "3")
+        extract_mock.assert_not_called()
+        pending = request.session["pallet_listing_pending"]
+        self.assertEqual(pending["token"], "tok-pdf-analysis")
+        self.assertEqual(pending["pdf_analysis"], analysis)
+        self.assertEqual(
+            pending["pdf_pages"],
+            {"mode": "custom", "start": 1, "end": 3, "total": 5},
+        )
+
+    def test_handle_listing_pdf_extract_from_analysis_moves_to_mapping(self):
+        request = self._request(
+            {
+                "pending_token": "tok-pdf-analysis",
+                "listing_pdf_pages_mode": "custom",
+                "listing_pdf_page_start": "2",
+                "listing_pdf_page_end": "4",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-pdf-analysis",
+            "extension": ".pdf",
+            "file_path": "/tmp/fake-listing.pdf",
+            "pdf_analysis": {
+                "total_pages": 6,
+                "mode": "text",
+                "pages": [{"number": 2, "extractable": True}],
+                "extractable_pages": [2, 3, 4],
+                "recommended_pages": {"mode": "custom", "start": 2, "end": 4},
+            },
+            "pdf_pages": {"mode": "custom", "start": 1, "end": 3, "total": 6},
+            "receipt_meta": {"received_on": "2026-01-10"},
+        }
+        state = init_listing_state()
+        with mock.patch(
+            "wms.pallet_listing_handlers.Path.read_bytes",
+            return_value=b"%PDF-1.4",
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.extract_tabular_data",
+                return_value=(["Nom", "Quantite"], [["Masque", "3"]]),
+            ) as extract_mock:
+                with mock.patch(
+                    "wms.pallet_listing_handlers.build_listing_mapping_defaults",
+                    return_value={0: "name", 1: "quantity"},
+                ):
+                    with mock.patch(
+                        "wms.pallet_listing_handlers.build_listing_columns",
+                        return_value=[{"index": 0, "mapped": "name"}],
+                    ):
+                        response = handle_pallet_listing_action(
+                            request,
+                            action="listing_pdf_extract",
+                            listing_form=self._listing_form(valid=True),
+                            state=state,
+                        )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "mapping")
+        self.assertEqual(state["listing_columns"], [{"index": 0, "mapped": "name"}])
+        self.assertEqual(state["listing_pdf_pages_mode"], "custom")
+        self.assertEqual(state["listing_pdf_page_start"], "2")
+        self.assertEqual(state["listing_pdf_page_end"], "4")
+        self.assertEqual(
+            request.session["pallet_listing_pending"]["mapping"],
+            {0: "name", 1: "quantity"},
+        )
+        self.assertEqual(
+            request.session["pallet_listing_pending"]["headers"],
+            ["Nom", "Quantite"],
+        )
+        extract_mock.assert_called_once_with(
+            b"%PDF-1.4",
+            ".pdf",
+            pdf_pages=(2, 4),
+        )
 
     def test_handle_listing_upload_extract_detects_empty_rows(self):
         request = self._request(

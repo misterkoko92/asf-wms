@@ -11,6 +11,7 @@ from contacts.models import Contact
 
 from .import_services import apply_pallet_listing_import
 from .import_utils import (
+    analyze_pdf_listing,
     extract_tabular_data,
     get_pdf_page_count,
     list_excel_sheets,
@@ -45,6 +46,7 @@ def init_listing_state():
         "listing_pdf_page_start": "",
         "listing_pdf_page_end": "",
         "listing_pdf_total_pages": "",
+        "listing_pdf_analysis": None,
         "listing_file_type": "",
     }
 
@@ -105,8 +107,55 @@ def hydrate_listing_state_from_pending(state, pending_data):
         state["listing_pdf_total_pages"] = str(pdf_pages.get("total"))
     if pending_data.get("file_type"):
         state["listing_file_type"] = pending_data.get("file_type")
+    if pending_data.get("pdf_analysis"):
+        state["listing_pdf_analysis"] = pending_data.get("pdf_analysis")
+        if not pending_data.get("headers"):
+            state["listing_stage"] = "analysis"
 
     return listing_meta
+
+
+def _parse_pdf_pages_selection(
+    *,
+    listing_errors,
+    total_pages,
+    pages_mode,
+    page_start_raw,
+    page_end_raw,
+    default_start=None,
+    default_end=None,
+):
+    resolved_mode = "custom" if pages_mode == "custom" else "all"
+    if resolved_mode != "custom":
+        return resolved_mode, None, None
+
+    page_start = None
+    page_end = None
+    if page_start_raw:
+        try:
+            page_start = parse_int(page_start_raw)
+        except ValueError:
+            listing_errors.append("Page PDF début invalide.")
+    if page_end_raw:
+        try:
+            page_end = parse_int(page_end_raw)
+        except ValueError:
+            listing_errors.append("Page PDF fin invalide.")
+    if listing_errors:
+        return resolved_mode, None, None
+
+    page_start = page_start or default_start or 1
+    page_end = page_end if page_end is not None else (default_end or total_pages)
+    if (
+        page_start is None
+        or page_end is None
+        or page_start < 1
+        or page_end < page_start
+        or page_end > total_pages
+    ):
+        listing_errors.append("Plage de pages PDF invalide.")
+        return resolved_mode, None, None
+    return resolved_mode, page_start, page_end
 
 
 def handle_pallet_listing_action(
@@ -179,48 +228,23 @@ def handle_pallet_listing_action(
                                 listing_errors.append(f"Feuille inconnue: {listing_sheet_name}.")
                         else:
                             listing_sheet_name = sheet_names[0]
-                if (
-                    extension == ".pdf"
-                    and listing_pdf_pages_mode == "custom"
-                    and not listing_errors
-                ):
+                if extension == ".pdf" and not listing_errors:
                     try:
-                        state["listing_pdf_total_pages"] = str(get_pdf_page_count(data))
+                        analysis = analyze_pdf_listing(data)
                     except ValueError as exc:
                         listing_errors.append(str(exc))
-                    if listing_pdf_page_start:
-                        try:
-                            pdf_page_start = parse_int(listing_pdf_page_start)
-                        except ValueError:
-                            listing_errors.append("Page PDF début invalide.")
-                    if listing_pdf_page_end:
-                        try:
-                            pdf_page_end = parse_int(listing_pdf_page_end)
-                        except ValueError:
-                            listing_errors.append("Page PDF fin invalide.")
-                    if not listing_errors:
-                        pdf_page_start = pdf_page_start or 1
-                        pdf_page_end = (
-                            pdf_page_end
-                            if pdf_page_end is not None
-                            else int(state["listing_pdf_total_pages"])
+                    else:
+                        state["listing_pdf_analysis"] = analysis
+                        state["listing_pdf_total_pages"] = str(analysis["total_pages"])
+                        recommended_pages = analysis.get("recommended_pages") or {}
+                        listing_pdf_pages_mode = (
+                            recommended_pages.get("mode")
+                            if recommended_pages.get("mode") in {"all", "custom"}
+                            else "all"
                         )
-                    if pdf_page_start is not None and pdf_page_end is not None:
-                        if pdf_page_start < 1 or pdf_page_end < pdf_page_start:
-                            listing_errors.append("Plage de pages PDF invalide.")
-                    if listing_errors:
-                        pdf_page_start = None
-                        pdf_page_end = None
-                if (
-                    extension == ".pdf"
-                    and listing_pdf_pages_mode != "custom"
-                    and not listing_errors
-                ):
-                    try:
-                        state["listing_pdf_total_pages"] = str(get_pdf_page_count(data))
-                    except ValueError as exc:
-                        listing_errors.append(str(exc))
-                if not listing_errors:
+                        pdf_page_start = recommended_pages.get("start")
+                        pdf_page_end = recommended_pages.get("end")
+                if extension != ".pdf" and not listing_errors:
                     extract_options = build_listing_extract_options(
                         extension,
                         listing_sheet_name,
@@ -239,7 +263,40 @@ def handle_pallet_listing_action(
                             listing_errors.append("Fichier vide ou sans lignes exploitables.")
                     except ValueError as exc:
                         listing_errors.append(str(exc))
-                if not listing_errors:
+                if extension == ".pdf" and not listing_errors:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
+                        temp_file.write(data)
+                        temp_path = temp_file.name
+                    pending = {
+                        "token": uuid.uuid4().hex,
+                        "file_path": temp_path,
+                        "extension": extension,
+                        "sheet_names": sheet_names,
+                        "sheet_name": listing_sheet_name,
+                        "header_row": listing_header_row,
+                        "file_type": listing_file_type,
+                        "pdf_analysis": analysis,
+                        "pdf_pages": {
+                            "mode": listing_pdf_pages_mode,
+                            "start": pdf_page_start,
+                            "end": pdf_page_end,
+                            "total": int(state["listing_pdf_total_pages"] or 0) or "",
+                        },
+                        "receipt_meta": {
+                            "received_on": listing_form.cleaned_data["received_on"].isoformat(),
+                            "pallet_count": listing_form.cleaned_data["pallet_count"],
+                            "source_contact_id": listing_form.cleaned_data["source_contact"].id,
+                            "carrier_contact_id": listing_form.cleaned_data["carrier_contact"].id,
+                            "transport_request_date": (
+                                listing_form.cleaned_data["transport_request_date"].isoformat()
+                                if listing_form.cleaned_data["transport_request_date"]
+                                else ""
+                            ),
+                        },
+                    }
+                    request.session["pallet_listing_pending"] = pending
+                    state["listing_stage"] = "analysis"
+                elif not listing_errors:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
                         temp_file.write(data)
                         temp_path = temp_file.name
@@ -279,10 +336,88 @@ def handle_pallet_listing_action(
                     )
         state["listing_file_type"] = listing_file_type
         state["listing_pdf_pages_mode"] = listing_pdf_pages_mode
-        state["listing_pdf_page_start"] = listing_pdf_page_start
-        state["listing_pdf_page_end"] = listing_pdf_page_end
+        state["listing_pdf_page_start"] = str(pdf_page_start or listing_pdf_page_start or "")
+        state["listing_pdf_page_end"] = str(pdf_page_end or listing_pdf_page_end or "")
         state["listing_sheet_name"] = listing_sheet_name
         state["listing_header_row"] = listing_header_row
+        return None
+
+    if action == "listing_pdf_extract":
+        pending = request.session.get("pallet_listing_pending")
+        token = request.POST.get("pending_token")
+        if not pending or pending.get("token") != token:
+            messages.error(request, "Session d'import expirée.")
+            return redirect("scan:scan_receive_listing")
+        if pending.get("extension") != ".pdf":
+            messages.error(request, "Import PDF introuvable.")
+            return redirect("scan:scan_receive_listing")
+
+        analysis = pending.get("pdf_analysis") or {}
+        total_pages = int(
+            (pending.get("pdf_pages") or {}).get("total") or analysis.get("total_pages") or 0
+        )
+        listing_pdf_pages_mode = (request.POST.get("listing_pdf_pages_mode") or "all").strip()
+        listing_pdf_page_start = (request.POST.get("listing_pdf_page_start") or "").strip()
+        listing_pdf_page_end = (request.POST.get("listing_pdf_page_end") or "").strip()
+        default_pages = analysis.get("recommended_pages") or {}
+        (
+            listing_pdf_pages_mode,
+            pdf_page_start,
+            pdf_page_end,
+        ) = _parse_pdf_pages_selection(
+            listing_errors=listing_errors,
+            total_pages=total_pages,
+            pages_mode=listing_pdf_pages_mode,
+            page_start_raw=listing_pdf_page_start,
+            page_end_raw=listing_pdf_page_end,
+            default_start=default_pages.get("start"),
+            default_end=default_pages.get("end"),
+        )
+        state["listing_stage"] = "analysis"
+        state["listing_pdf_analysis"] = analysis
+        state["listing_pdf_total_pages"] = str(total_pages or "")
+        state["listing_file_type"] = "pdf"
+        state["listing_pdf_pages_mode"] = listing_pdf_pages_mode
+        state["listing_pdf_page_start"] = str(pdf_page_start or listing_pdf_page_start or "")
+        state["listing_pdf_page_end"] = str(pdf_page_end or listing_pdf_page_end or "")
+        if listing_errors:
+            return None
+
+        pending["pdf_pages"] = {
+            "mode": listing_pdf_pages_mode,
+            "start": pdf_page_start,
+            "end": pdf_page_end,
+            "total": total_pages,
+        }
+        data = Path(pending["file_path"]).read_bytes()
+        extract_options = build_listing_extract_options(
+            ".pdf",
+            "",
+            1,
+            listing_pdf_pages_mode,
+            pdf_page_start,
+            pdf_page_end,
+        )
+        try:
+            headers, rows = extract_tabular_data(
+                data,
+                ".pdf",
+                **extract_options,
+            )
+            if not rows:
+                listing_errors.append("Fichier vide ou sans lignes exploitables.")
+        except ValueError as exc:
+            listing_errors.append(str(exc))
+            return None
+        if listing_errors:
+            return None
+
+        mapping_defaults = build_listing_mapping_defaults(headers)
+        pending["headers"] = headers
+        pending["mapping"] = mapping_defaults
+        request.session["pallet_listing_pending"] = pending
+        state["listing_stage"] = "mapping"
+        state["listing_columns"] = build_listing_columns(headers, rows, mapping_defaults)
         return None
 
     if action == "listing_map":

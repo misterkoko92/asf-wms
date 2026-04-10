@@ -1,0 +1,30 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - Listing Produit{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <h1 class="ui-comp-title">{% trans "Compléter un produit importé" %}</h1>
+    <p class="scan-help">
+      {% blocktrans %}Complétez les informations manquantes pour {{ product.name }} puis validez pour le sortir de la file des produits incomplets.{% endblocktrans %}
+    </p>
+    <form method="post" class="scan-filters ui-comp-form" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {% for field in form %}
+        <div class="scan-field">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+      <div class="scan-filter-actions ui-comp-actions" style="grid-column: 1 / -1;">
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
+        <a class="scan-submit secondary btn btn-secondary" href="{% url 'scan:scan_receive_listing' %}">{% trans "Retour listing" %}</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

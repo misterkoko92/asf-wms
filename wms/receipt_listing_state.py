@@ -60,5 +60,6 @@ def build_receive_listing_context(state):
         "listing_pdf_page_start": listing_state["listing_pdf_page_start"],
         "listing_pdf_page_end": listing_state["listing_pdf_page_end"],
         "listing_pdf_total_pages": listing_state["listing_pdf_total_pages"],
+        "listing_pdf_analysis": listing_state["listing_pdf_analysis"],
         "listing_file_type": listing_state["listing_file_type"],
     }

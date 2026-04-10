@@ -1414,8 +1414,54 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="scan-receive-listing-csv-card"')
         self.assertContains(response, 'id="scan-receive-listing-incomplete-products-card"')
 
+        pending_session = self.client.session
+        pending_session["pallet_listing_pending"] = {
+            "token": "tok-analysis",
+            "extension": ".pdf",
+            "file_path": "/tmp/fake-listing.pdf",
+            "file_type": "pdf",
+            "pdf_analysis": {
+                "total_pages": 2,
+                "mode": "mixed",
+                "pages": [
+                    {"number": 1, "extractable": True, "has_text": True, "has_table": True},
+                    {"number": 2, "extractable": False, "has_text": False, "has_table": False},
+                ],
+                "extractable_pages": [1],
+                "recommended_pages": {"mode": "custom", "start": 1, "end": 1},
+            },
+            "pdf_pages": {"mode": "custom", "start": 1, "end": 1, "total": 2},
+            "receipt_meta": {
+                "received_on": "2026-01-10",
+                "pallet_count": 2,
+                "source_contact_id": self.correspondent.id,
+                "carrier_contact_id": self.correspondent.id,
+                "transport_request_date": "",
+            },
+        }
+        pending_session.save()
+        response = self.client.get(reverse("scan:scan_receive_listing"))
+        self.assertContains(response, 'id="scan-receive-listing-analysis-card"')
+        self.assertContains(response, 'name="listing_pdf_pages_mode"')
+        self.assertContains(response, 'id="listing_pdf_page_start"')
+        self.assertContains(response, 'id="listing_pdf_page_end"')
+        self.assertContains(response, "Pages détectées")
+
+    def test_scan_receive_listing_renders_incomplete_product_rows(self):
+        Product.objects.create(
+            name="Produit Incomplet",
+            is_incomplete=True,
+            qr_code_image="qr_codes/incomplete.png",
+        )
+
+        response = self.client.get(reverse("scan:scan_receive_listing"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Produit Incomplet")
+        self.assertContains(response, "Ouvrir")
+
     def test_scan_receive_pallet_uses_toggle_button_radio_groups(self):
-        response = self.client.get(reverse("scan:scan_receive_pallet"))
+        response = self.client.get(reverse("scan:scan_receive_listing"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
@@ -1476,9 +1522,9 @@ class ScanBootstrapUiTests(TestCase):
             created_by=self.superuser,
         )
 
-        receive_pallet_response = self.client.get(reverse("scan:scan_receive_pallet"))
-        self.assertEqual(receive_pallet_response.status_code, 200)
-        self.assertContains(receive_pallet_response, "ui-comp-file-input")
+        receive_listing_response = self.client.get(reverse("scan:scan_receive_listing"))
+        self.assertEqual(receive_listing_response.status_code, 200)
+        self.assertContains(receive_listing_response, "ui-comp-file-input")
 
         receive_association_response = self.client.get(reverse("scan:scan_receive_association"))
         self.assertEqual(receive_association_response.status_code, 200)

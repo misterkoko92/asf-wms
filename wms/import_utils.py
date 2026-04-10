@@ -284,6 +284,64 @@ def _extract_pdf_table(data, page_start=None, page_end=None):
     return headers, normalized_rows
 
 
+def analyze_pdf_listing(data):
+    if pdfplumber is None:
+        raise ValueError("pdfplumber est requis pour importer des PDF texte.")
+    with pdfplumber.open(BytesIO(data)) as pdf:
+        total_pages = len(pdf.pages)
+        page_diagnostics = []
+        extractable_pages = []
+        for number, page in enumerate(pdf.pages, start=1):
+            table = page.extract_table()
+            has_table = table is not None and len(table) > 0
+            text_lines = [line for line in (page.extract_text() or "").splitlines() if line.strip()]
+            has_text = bool(text_lines)
+            extractable = has_table or len(text_lines) > 1
+            if extractable:
+                extractable_pages.append(number)
+            column_count = 0
+            if has_table:
+                column_count = max((len(row or []) for row in table), default=0)
+            elif text_lines:
+                column_count = max(
+                    (len(re.split(r"\s{2,}", line.strip())) for line in text_lines),
+                    default=0,
+                )
+            page_diagnostics.append(
+                {
+                    "number": number,
+                    "has_text": has_text,
+                    "has_table": has_table,
+                    "extractable": extractable,
+                    "line_count": len(table) if has_table else len(text_lines),
+                    "column_count": column_count,
+                }
+            )
+
+    if not extractable_pages:
+        mode = "scan"
+    elif len(extractable_pages) == total_pages:
+        mode = "text"
+    else:
+        mode = "mixed"
+
+    recommended_pages = {"mode": "all", "start": None, "end": None}
+    if extractable_pages and len(extractable_pages) != total_pages:
+        recommended_pages = {
+            "mode": "custom",
+            "start": extractable_pages[0],
+            "end": extractable_pages[-1],
+        }
+
+    return {
+        "total_pages": total_pages,
+        "mode": mode,
+        "pages": page_diagnostics,
+        "extractable_pages": extractable_pages,
+        "recommended_pages": recommended_pages,
+    }
+
+
 def extract_tabular_data(data, extension, sheet_name=None, header_row=1, pdf_pages=None):
     if extension == ".csv":
         return _extract_csv_table(data)

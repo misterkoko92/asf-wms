@@ -30,6 +30,7 @@ from .views_scan_receipts import (
     scan_receive,
     scan_receive_association,
     scan_receive_listing,
+    scan_receive_listing_product_edit,
     scan_receive_pallet,
 )
 from .views_scan_settings import scan_settings
@@ -76,6 +77,7 @@ SCAN_FLOW_EXPORTS = (
     "scan_receive",
     "scan_receive_pallet",
     "scan_receive_listing",
+    "scan_receive_listing_product_edit",
     "scan_receive_association",
     "scan_billing_settings",
     "scan_billing_equivalence",

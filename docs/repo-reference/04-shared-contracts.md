@@ -108,6 +108,13 @@ Current contract:
   - `Préparer des colis`
   - `Préparation expédition`
   - `Runs magasin`
+- the shared `Réception` group currently exposes, in order:
+  - `Réception palette`
+  - `Listing`
+  - `Réception association`
+- `/scan/receive-pallet/` is now the manual pallet-only screen and keeps a shortcut toward
+  `/scan/receive-listing/`; file-upload contracts for listing imports must stay on the dedicated
+  listing route
 - the recipient-needs cockpit at `/scan/recipient-needs/` must set `active="recipient_needs"`
   so the shared `Stocks` group expands and highlights correctly
 - warehouse-preparation screens under `/scan/preparation-runs/` must set `active="preparation_runs"` so the shared group expands and highlights correctly
@@ -256,6 +263,14 @@ Current contract:
 
 - `Receipt` persists `conformity_status` and keeps `unknown` for legacy rows that predate this capture
 - `/scan/receive-pallet/` stores the operator observation in `Receipt.notes`
+- `/scan/receive-listing/` owns the file-import contract for listing reception:
+  Excel/CSV still enter direct mapping/review, while PDF first persists an analysis payload
+  (`total_pages`, page diagnostics, recommended page range) before the operator triggers mapping
+- listing-created products may persist with `Product.is_incomplete=True`; the same route renders
+  the operator cockpit to open one product at a time or apply guarded bulk updates to
+  non-identifier fields across multiple incomplete products
+- listing reception uses a warehouse-local buffer location `TEMP / RECEPTION / LISTING` when a
+  listing row and the matched product both lack a usable default location
 - `/scan/receive-association/` reuses `pickup_charge_comment` as the operator observation field
 - when the operator marks a reception non-conform, the observation field becomes mandatory in both forms
 

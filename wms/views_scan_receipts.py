@@ -3,9 +3,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from .forms import ScanReceiptAssociationForm
+from .forms import (
+    ScanIncompleteProductBulkUpdateForm,
+    ScanIncompleteProductForm,
+    ScanReceiptAssociationForm,
+)
 from .forms_billing import ReceiptShipmentAllocationForm
-from .models import Receipt, ReceiptShipmentAllocation, ReceiptType
+from .models import Product, Receipt, ReceiptShipmentAllocation, ReceiptType
 from .receipt_handlers import (
     build_hors_format_lines,
     handle_receipt_action,
@@ -57,6 +61,38 @@ def _build_receipts_queryset(filter_value):
     if receipt_type:
         receipts_qs = receipts_qs.filter(receipt_type=receipt_type)
     return receipts_qs
+
+
+def _incomplete_products_queryset():
+    return (
+        Product.objects.filter(is_incomplete=True)
+        .select_related(
+            "category",
+            "default_location",
+            "default_location__warehouse",
+        )
+        .order_by("name", "id")
+    )
+
+
+def _build_incomplete_products_context(*, bulk_form=None):
+    queryset = _incomplete_products_queryset()
+    return {
+        "incomplete_products": list(queryset),
+        "incomplete_bulk_form": bulk_form
+        or ScanIncompleteProductBulkUpdateForm(product_queryset=queryset),
+    }
+
+
+def _apply_incomplete_products_bulk_update(form):
+    queryset = _incomplete_products_queryset()
+    products = list(queryset.filter(id__in=form.cleaned_data["selected_product_ids"]))
+    field_name = form.cleaned_data["field_name"]
+    value = form.cleaned_data["resolved_value"]
+    for product in products:
+        setattr(product, field_name, value)
+        product.save(update_fields=[field_name])
+    return len(products), field_name
 
 
 def _render_scan_receive(request, *, product_options, receipt_state):
@@ -189,14 +225,52 @@ def scan_receive_pallet(request):
 @require_http_methods(["GET", "POST"])
 def scan_receive_listing(request):
     action = request.POST.get("action", "")
-    state = build_receive_listing_state(request, action=action)
+    bulk_form = None
+    listing_action = action if action.startswith("listing_") else ""
+    if request.method == "POST" and action == "bulk_update_incomplete_products":
+        queryset = _incomplete_products_queryset()
+        bulk_form = ScanIncompleteProductBulkUpdateForm(
+            request.POST,
+            product_queryset=queryset,
+        )
+        if bulk_form.is_valid():
+            updated_count, field_name = _apply_incomplete_products_bulk_update(bulk_form)
+            messages.success(
+                request,
+                f"{updated_count} produit(s) incomplet(s) mis à jour ({field_name}).",
+            )
+            bulk_form = ScanIncompleteProductBulkUpdateForm(product_queryset=queryset)
+
+    state = build_receive_listing_state(request, action=listing_action)
     if state["response"]:
         return state["response"]
 
+    context = build_receive_listing_context(state)
+    context.update(_build_incomplete_products_context(bulk_form=bulk_form))
+    return render(request, TEMPLATE_RECEIVE_LISTING, context)
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_receive_listing_product_edit(request, product_id):
+    product = get_object_or_404(Product, pk=product_id)
+    form = ScanIncompleteProductForm(request.POST or None, instance=product)
+    if request.method == "POST" and (request.POST.get("action") or "").strip() == "save":
+        if form.is_valid():
+            updated_product = form.save(commit=False)
+            updated_product.is_incomplete = False
+            updated_product.save()
+            messages.success(request, f"Produit {updated_product.name} complété.")
+            return redirect("scan:scan_receive_listing")
+
     return render(
         request,
-        TEMPLATE_RECEIVE_LISTING,
-        build_receive_listing_context(state),
+        "scan/receive_listing_product_edit.html",
+        {
+            "active": "receive_listing",
+            "product": product,
+            "form": form,
+        },
     )
 
 

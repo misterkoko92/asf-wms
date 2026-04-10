@@ -193,7 +193,13 @@ def pending_listing_extract_options(pending_data):
 
 def build_listing_review_rows(rows, mapping, *, start_index=2):
     mapped_rows = apply_listing_mapping(rows, mapping)
-    match_labels = {"name_brand": "Nom + Marque"}
+    match_labels = {
+        "barcode": "Barcode",
+        "ean": "EAN",
+        "sku": "SKU",
+        "name_brand": "Nom + Marque",
+        "name": "Nom",
+    }
     review = []
     for row_index, row in enumerate(mapped_rows, start=start_index):
         values = {field: _clean_listing_value(row.get(field)) for field, _ in PALLET_REVIEW_FIELDS}
@@ -202,8 +208,14 @@ def build_listing_review_rows(rows, mapping, *, start_index=2):
         values["quantity"] = _clean_listing_value(row.get("quantity"))
         values["rack_color"] = _clean_listing_value(row.get("rack_color"))
 
-        _, name, brand = extract_product_identity(row)
-        matches, match_type = find_product_matches(sku=None, name=name, brand=brand)
+        sku, name, brand = extract_product_identity(row)
+        matches, match_type = find_product_matches(
+            sku=sku,
+            name=name,
+            brand=brand,
+            barcode=_clean_listing_value(row.get("barcode")),
+            ean=_clean_listing_value(row.get("ean")),
+        )
         match_options = []
         for product in matches:
             label = f"{product.sku} - {product.name}"
