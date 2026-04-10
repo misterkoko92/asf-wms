@@ -11,6 +11,10 @@ from .receipt_handlers import (
     handle_receipt_action,
     handle_receipt_association_post,
 )
+from .receipt_listing_state import (
+    build_receive_listing_context,
+    build_receive_listing_state,
+)
 from .receipt_pallet_state import (
     build_receive_pallet_context,
     build_receive_pallet_state,
@@ -23,6 +27,7 @@ from .view_permissions import scan_staff_required
 TEMPLATE_RECEIPTS_VIEW = "scan/receipts_view.html"
 TEMPLATE_RECEIVE = "scan/receive.html"
 TEMPLATE_RECEIVE_PALLET = "scan/receive_pallet.html"
+TEMPLATE_RECEIVE_LISTING = "scan/receive_listing.html"
 TEMPLATE_RECEIVE_ASSOCIATION = "scan/receive_association.html"
 
 ACTIVE_RECEIPTS_VIEW = "receipts_view"
@@ -177,6 +182,21 @@ def scan_receive_pallet(request):
         request,
         TEMPLATE_RECEIVE_PALLET,
         build_receive_pallet_context(state),
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_receive_listing(request):
+    action = request.POST.get("action", "")
+    state = build_receive_listing_state(request, action=action)
+    if state["response"]:
+        return state["response"]
+
+    return render(
+        request,
+        TEMPLATE_RECEIVE_LISTING,
+        build_receive_listing_context(state),
     )
 
 

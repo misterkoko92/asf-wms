@@ -1,0 +1,150 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - Listing{% endblock %}
+
+{% block content %}
+  <div id="scan-receive-listing-pdf-card" class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">PDF</h2>
+    <p class="scan-help">
+      {% trans "Point d'entrée principal pour l'import de listing. Le flux PDF détaillé sera renforcé dans les tâches suivantes." %}
+    </p>
+    {% include "scan/includes/receive_pallet_listing_upload_card.html" %}
+  </div>
+
+  <div id="scan-receive-listing-excel-card" class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Excel</h2>
+    <p class="scan-help">
+      {% trans "Le pipeline de mapping et de review existant reste disponible via le même formulaire d'import." %}
+    </p>
+  </div>
+
+  <div id="scan-receive-listing-csv-card" class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">CSV</h2>
+    <p class="scan-help">
+      {% trans "Le pipeline CSV existant reste disponible via le même formulaire d'import." %}
+    </p>
+  </div>
+
+  <div id="scan-receive-listing-incomplete-products-card" class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Produits incomplets" %}</h2>
+    <p class="scan-help">
+      {% trans "Le cockpit de complétion des produits incomplets sera branché dans les tâches suivantes." %}
+    </p>
+  </div>
+
+  {% if listing_stage == "mapping" %}
+    {% include "scan/includes/receive_pallet_mapping_card.html" %}
+  {% endif %}
+
+  {% if listing_stage == "review" %}
+    {% include "scan/includes/receive_pallet_review_card.html" %}
+
+    <script>
+      (function() {
+        function syncRow(select) {
+          var row = select.closest('tr');
+          if (!row) {
+            return;
+          }
+          var isNew = select.value === 'new';
+          var option = select.options[select.selectedIndex];
+          var skuLabel = row.querySelector('[data-sku]');
+          if (skuLabel) {
+            skuLabel.textContent = isNew ? 'AUTO' : (option.dataset.sku || '-');
+          }
+          row.querySelectorAll('[data-field]').forEach(function(input) {
+            var field = input.dataset.field;
+            if (isNew) {
+              if (input.dataset.import !== undefined) {
+                input.value = input.dataset.import || '';
+              }
+            } else if (option && option.dataset && option.dataset[field] !== undefined) {
+              input.value = option.dataset[field];
+            }
+            if (input.dataset.lock === 'product') {
+              input.readOnly = !isNew;
+            }
+          });
+        }
+
+        document.querySelectorAll('.listing-match').forEach(function(select) {
+          select.addEventListener('change', function() {
+            syncRow(select);
+          });
+          syncRow(select);
+        });
+
+        document.querySelectorAll('input[data-field]').forEach(function(input) {
+          input.addEventListener('input', function() {
+            if (!input.readOnly) {
+              input.dataset.import = input.value;
+            }
+          });
+        });
+      })();
+    </script>
+  {% endif %}
+
+  <script>
+    (function() {
+      var fileInput = document.getElementById('listing_file');
+      var typeInputs = document.querySelectorAll('input[name="listing_file_type"]');
+      var optionBlocks = document.querySelectorAll('[data-file-options]');
+      var defaultType = "{{ listing_file_type|default:'' }}";
+
+      function detectTypeFromName(name) {
+        if (!name) {
+          return "";
+        }
+        var lower = name.toLowerCase();
+        if (lower.endsWith('.pdf')) {
+          return 'pdf';
+        }
+        if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+          return 'excel';
+        }
+        if (lower.endsWith('.csv')) {
+          return 'csv';
+        }
+        return '';
+      }
+
+      function setType(type) {
+        if (!type) {
+          optionBlocks.forEach(function(block) {
+            block.hidden = true;
+          });
+          typeInputs.forEach(function(input) {
+            input.checked = false;
+          });
+          return;
+        }
+        typeInputs.forEach(function(input) {
+          input.checked = input.value === type;
+        });
+        optionBlocks.forEach(function(block) {
+          block.hidden = block.dataset.fileOptions !== type;
+        });
+      }
+
+      typeInputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+          setType(input.value);
+        });
+      });
+
+      if (fileInput) {
+        fileInput.addEventListener('change', function() {
+          var detected = detectTypeFromName(fileInput.value);
+          if (detected) {
+            setType(detected);
+          }
+        });
+      }
+
+      var initial = defaultType || detectTypeFromName(fileInput ? fileInput.value : "");
+      setType(initial);
+    })();
+  </script>
+{% endblock %}

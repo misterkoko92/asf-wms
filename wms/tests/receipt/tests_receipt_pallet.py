@@ -45,22 +45,6 @@ class ReceiptPalletFlowTests(TestCase):
             "transport_request_date": "2026-01-08",
         }
 
-    def _listing_state(self):
-        return {
-            "listing_stage": "review",
-            "listing_columns": ["reference"],
-            "listing_rows": [{"reference": "A"}],
-            "listing_errors": [],
-            "listing_sheet_names": ["Sheet1"],
-            "listing_sheet_name": "Sheet1",
-            "listing_header_row": 2,
-            "listing_pdf_pages_mode": "all",
-            "listing_pdf_page_start": "",
-            "listing_pdf_page_end": "",
-            "listing_pdf_total_pages": "",
-            "listing_file_type": "excel",
-        }
-
     def test_handle_pallet_create_post_returns_none_when_form_invalid(self):
         request = self._request()
         form = _FakeForm(valid=False)
@@ -110,111 +94,51 @@ class ReceiptPalletFlowTests(TestCase):
         )
         success_mock.assert_called_once()
 
-    def test_build_receive_pallet_state_post_calls_listing_then_create_handler(self):
+    def test_build_receive_pallet_state_post_calls_create_handler_only(self):
         request = self._request(data={"action": "pallet_create"})
-        request.session["pallet_listing_pending"] = {"token": "tok-pending"}
         create_form = _FakeForm(valid=True)
-        listing_form = _FakeForm(valid=False)
-        listing_state = self._listing_state()
 
         with mock.patch(
             "wms.receipt_pallet_state.ScanReceiptPalletForm",
-            side_effect=[create_form, listing_form],
+            return_value=create_form,
         ) as form_cls:
             with mock.patch(
-                "wms.receipt_pallet_state.init_listing_state",
-                return_value=listing_state,
-            ):
-                with mock.patch(
-                    "wms.receipt_pallet_state.handle_pallet_listing_action",
-                    return_value=None,
-                ) as listing_action_mock:
-                    with mock.patch(
-                        "wms.receipt_pallet_state.handle_pallet_create_post",
-                        return_value="create-response",
-                    ) as create_mock:
-                        with mock.patch(
-                            "wms.receipt_pallet_state.hydrate_listing_state_from_pending",
-                            return_value={"received_on": "2026-01-10"},
-                        ) as hydrate_mock:
-                            state = build_receive_pallet_state(request, action="pallet_create")
+                "wms.receipt_pallet_state.handle_pallet_create_post",
+                return_value="create-response",
+            ) as create_mock:
+                state = build_receive_pallet_state(request, action="pallet_create")
 
         self.assertEqual(state["response"], "create-response")
         self.assertIs(state["create_form"], create_form)
-        self.assertIs(state["listing_form"], listing_form)
-        self.assertIs(state["listing_state"], listing_state)
-        self.assertEqual(state["listing_meta"], {"received_on": "2026-01-10"})
-        self.assertEqual(state["pending"], {"token": "tok-pending"})
-        form_cls.assert_has_calls([mock.call(request.POST), mock.call(None, prefix="listing")])
-        listing_action_mock.assert_called_once_with(
-            request,
-            action="pallet_create",
-            listing_form=listing_form,
-            state=listing_state,
-        )
+        form_cls.assert_called_once_with(request.POST)
         create_mock.assert_called_once_with(request, form=create_form)
-        hydrate_mock.assert_called_once_with(listing_state, {"token": "tok-pending"})
 
     def test_build_receive_pallet_state_get_skips_post_handlers(self):
         request = self._request(method="GET")
-        request.session["pallet_listing_pending"] = {"token": "tok-get"}
         create_form = _FakeForm(valid=False)
-        listing_form = _FakeForm(valid=False)
-        listing_state = self._listing_state()
 
         with mock.patch(
             "wms.receipt_pallet_state.ScanReceiptPalletForm",
-            side_effect=[create_form, listing_form],
+            return_value=create_form,
         ) as form_cls:
-            with mock.patch(
-                "wms.receipt_pallet_state.init_listing_state",
-                return_value=listing_state,
-            ):
-                with mock.patch(
-                    "wms.receipt_pallet_state.handle_pallet_listing_action"
-                ) as listing_action_mock:
-                    with mock.patch(
-                        "wms.receipt_pallet_state.handle_pallet_create_post"
-                    ) as create_mock:
-                        with mock.patch(
-                            "wms.receipt_pallet_state.hydrate_listing_state_from_pending",
-                            return_value={"sheet_name": "Sheet1"},
-                        ) as hydrate_mock:
-                            state = build_receive_pallet_state(request, action="listing_upload")
+            with mock.patch("wms.receipt_pallet_state.handle_pallet_create_post") as create_mock:
+                state = build_receive_pallet_state(request, action="listing_upload")
 
         self.assertIsNone(state["response"])
-        self.assertEqual(state["listing_meta"], {"sheet_name": "Sheet1"})
-        form_cls.assert_has_calls(
-            [
-                mock.call(None),
-                mock.call(request.POST, prefix="listing"),
-            ]
-        )
-        listing_action_mock.assert_not_called()
+        self.assertIs(state["create_form"], create_form)
+        form_cls.assert_called_once_with(None)
         create_mock.assert_not_called()
-        hydrate_mock.assert_called_once_with(listing_state, {"token": "tok-get"})
 
-    def test_build_receive_pallet_context_maps_state_and_pending_token(self):
-        listing_state = self._listing_state()
+    def test_build_receive_pallet_context_maps_manual_create_state_only(self):
         state = {
             "create_form": "create-form",
-            "listing_form": "listing-form",
-            "listing_state": listing_state,
-            "listing_meta": {"meta": "value"},
-            "pending": {"token": "tok-ctx"},
+            "response": None,
         }
 
         context = build_receive_pallet_context(state)
 
         self.assertEqual(context["active"], "receive_pallet")
         self.assertEqual(context["create_form"], "create-form")
-        self.assertEqual(context["listing_form"], "listing-form")
-        self.assertEqual(context["listing_stage"], "review")
-        self.assertEqual(context["listing_columns"], ["reference"])
-        self.assertEqual(context["listing_rows"], [{"reference": "A"}])
-        self.assertEqual(context["listing_token"], "tok-ctx")
-        self.assertEqual(context["listing_meta"], {"meta": "value"})
-
-        state["pending"] = None
-        context_without_pending = build_receive_pallet_context(state)
-        self.assertEqual(context_without_pending["listing_token"], "")
+        self.assertNotIn("listing_form", context)
+        self.assertNotIn("listing_stage", context)
+        self.assertNotIn("listing_token", context)

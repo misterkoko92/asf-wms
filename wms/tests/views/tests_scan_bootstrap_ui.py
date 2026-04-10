@@ -167,6 +167,21 @@ class ScanBootstrapUiTests(TestCase):
             ],
         )
 
+    def test_scan_sidebar_exposes_listing_link_in_reception_group(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_sidebar_html(response)
+        self.assertIn(reverse("scan:scan_receive_listing"), nav_html)
+        self._assert_nav_labels_in_order(
+            nav_html,
+            [
+                "Réception palette",
+                "Listing",
+                "Réception association",
+            ],
+        )
+
     def test_scan_templates_load_targeted_modules_only_on_needed_pages(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
@@ -1384,12 +1399,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
-        self.assertContains(response, "ui-comp-file-input")
-        self.assertContains(response, "btn-check")
-        self.assertContains(response, "scan-toggle-btn-group")
-        self.assertContains(response, "id_listing_file_type_pdf")
-        self.assertContains(response, "id_listing_file_type_excel")
-        self.assertContains(response, "id_listing_file_type_csv")
+        self.assertNotContains(response, "ui-comp-file-input")
+        self.assertNotContains(response, "id_listing_file_type_pdf")
+
+    def test_scan_receive_listing_page_uses_design_component_classes(self):
+        response = self.client.get(reverse("scan:scan_receive_listing"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ui-comp-card")
+        self.assertContains(response, "ui-comp-title")
+        self.assertContains(response, "ui-comp-form")
+        self.assertContains(response, 'id="scan-receive-listing-pdf-card"')
+        self.assertContains(response, 'id="scan-receive-listing-excel-card"')
+        self.assertContains(response, 'id="scan-receive-listing-csv-card"')
+        self.assertContains(response, 'id="scan-receive-listing-incomplete-products-card"')
 
     def test_scan_receive_pallet_uses_toggle_button_radio_groups(self):
         response = self.client.get(reverse("scan:scan_receive_pallet"))
@@ -1412,13 +1435,12 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-receive-pallet-create-card"')
-        self.assertContains(response, 'id="scan-receive-pallet-listing-upload-card"')
         self.assertContains(response, "scan-receive-pallet-primary-row")
         self.assertContains(response, "scan-receive-pallet-actions-inline")
-        self.assertContains(response, 'id="listing_file"')
-        self.assertContains(response, 'id="id_listing_file_type_pdf"')
-        self.assertContains(response, 'id="id_listing_file_type_excel"')
-        self.assertContains(response, 'id="id_listing_file_type_csv"')
+        self.assertNotContains(response, 'id="scan-receive-pallet-listing-upload-card"')
+        self.assertNotContains(response, 'id="listing_file"')
+        self.assertContains(response, reverse("scan:scan_receive_listing"))
+        self.assertContains(response, ">Listing<")
 
     def test_scan_receive_association_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive_association"))

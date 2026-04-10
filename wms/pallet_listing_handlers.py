@@ -120,7 +120,7 @@ def handle_pallet_listing_action(
 
     if action == "listing_cancel":
         clear_pending_listing(request)
-        return redirect("scan:scan_receive_pallet")
+        return redirect("scan:scan_receive_listing")
 
     if action == "listing_upload":
         listing_file_type = (request.POST.get("listing_file_type") or "").strip()
@@ -290,7 +290,7 @@ def handle_pallet_listing_action(
         token = request.POST.get("pending_token")
         if not pending or pending.get("token") != token:
             messages.error(request, "Session d'import expirée.")
-            return redirect("scan:scan_receive_pallet")
+            return redirect("scan:scan_receive_listing")
         headers = pending.get("headers") or []
         mapping = {}
         used_fields = {}
@@ -323,7 +323,7 @@ def handle_pallet_listing_action(
         token = request.POST.get("pending_token")
         if not pending or pending.get("token") != token:
             messages.error(request, "Session d'import expirée.")
-            return redirect("scan:scan_receive_pallet")
+            return redirect("scan:scan_receive_listing")
         headers, rows = load_listing_table(pending)
         mapping = pending.get("mapping") or {}
         mapped_rows = apply_listing_mapping(rows, mapping)
@@ -332,7 +332,7 @@ def handle_pallet_listing_action(
         warehouse = resolve_default_warehouse()
         if not warehouse:
             messages.error(request, "Aucun entrepôt configuré.")
-            return redirect("scan:scan_receive_pallet")
+            return redirect("scan:scan_receive_listing")
 
         row_payloads = []
         for row_index, row in enumerate(mapped_rows, start=2):
@@ -381,6 +381,6 @@ def handle_pallet_listing_action(
         if skipped:
             messages.warning(request, f"{skipped} ligne(s) ignorée(s).")
         clear_pending_listing(request)
-        return redirect("scan:scan_receive_pallet")
+        return redirect("scan:scan_receive_listing")
 
     return None

@@ -213,6 +213,37 @@ class ScanReceiptsViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "scan/receive_pallet.html")
         self.assertEqual(response.context_data["context_key"], "pallet")
 
+    def test_scan_receive_listing_returns_state_response_when_present(self):
+        with mock.patch(
+            "wms.views_scan_receipts.build_receive_listing_state",
+            return_value={"response": HttpResponse("listing-response")},
+        ):
+            response = self.client.post(
+                reverse("scan:scan_receive_listing"),
+                {"action": "listing_upload"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "listing-response")
+
+    def test_scan_receive_listing_renders_context_when_no_state_response(self):
+        state = {"response": None, "key": "value"}
+        with mock.patch(
+            "wms.views_scan_receipts.build_receive_listing_state",
+            return_value=state,
+        ):
+            with mock.patch(
+                "wms.views_scan_receipts.build_receive_listing_context",
+                return_value={"context_key": "listing"},
+            ):
+                with mock.patch(
+                    "wms.views_scan_receipts.render",
+                    side_effect=self._render_stub,
+                ):
+                    response = self.client.get(reverse("scan:scan_receive_listing"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/receive_listing.html")
+        self.assertEqual(response.context_data["context_key"], "listing")
+
     def test_scan_receive_association_get_renders_context(self):
         fake_form = object()
         with mock.patch(

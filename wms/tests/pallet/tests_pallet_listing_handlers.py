@@ -182,7 +182,7 @@ class PalletListingHandlersTests(TestCase):
                 state=state,
             )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
         clear_mock.assert_called_once_with(request)
 
     def test_handle_listing_upload_requires_valid_form_and_file(self):
@@ -510,7 +510,7 @@ class PalletListingHandlersTests(TestCase):
                 state=state,
             )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
         error_mock.assert_called_once_with(request, "Session d'import expirée.")
 
     def test_handle_listing_map_collects_duplicate_and_missing_required_errors(self):
@@ -626,7 +626,7 @@ class PalletListingHandlersTests(TestCase):
                 state=state,
             )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
         error_mock.assert_called_once_with(request, "Session d'import expirée.")
 
     def test_handle_listing_confirm_requires_default_warehouse(self):
@@ -657,7 +657,7 @@ class PalletListingHandlersTests(TestCase):
                             state=state,
                         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
         error_mock.assert_called_once_with(request, "Aucun entrepôt configuré.")
 
     def test_handle_listing_confirm_import_reports_results_and_clears_pending(self):
@@ -722,7 +722,7 @@ class PalletListingHandlersTests(TestCase):
                                         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
         call_args, call_kwargs = import_mock.call_args
         self.assertEqual(call_kwargs["user"], self.user)
         self.assertEqual(call_kwargs["warehouse"], warehouse)
@@ -778,7 +778,7 @@ class PalletListingHandlersTests(TestCase):
                                     state=state,
                                 )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
         error_mock.assert_called_once_with(request, "Aucune ligne valide à importer.")
 
     def test_handle_listing_action_returns_none_for_unknown_action(self):
