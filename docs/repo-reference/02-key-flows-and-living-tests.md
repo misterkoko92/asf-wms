@@ -57,14 +57,17 @@ Use it when you need to answer:
 
 - stock update and stock availability
 - stock recipient-needs cockpit under `/scan/recipient-needs/`, including destination /
-  recipient / category / need-status / priority filters, linked shipper labels, and per-product
-  prioritization for recipient demand
+  recipient / category / need-status / priority filters, linked shipper labels, stock-availability
+  coverage, and per-product prioritization for recipient demand
 - recipient-needs materialization limited to explicit product preferences and products covered by
   explicit category preferences; the page does not expand a full `unspecified` recipient x catalog
   cross-join
 - recipient-needs priority driven by remaining need, current period deadline, and open-shipment
   delay against the runtime `tracking_alert_hours` SLA threshold, with hoverable operator help on
   each priority badge
+- recipient-needs table exposes checkbox selection and `Préparer` actions that redirect into the
+  existing shipment-create flow with prefilled destination / shipper / recipient / line quantities
+  only when the selected rows share the same shipment grouping triplet
 - scan dashboard action queue for low stock, disputes, and pending reviews
 - scan dashboard workflow blockage queue split by `creation_expedition`, `commande`, `suivi`, `cloture`, `queue`
 - scan dashboard local claim/release flow for workflow blockages

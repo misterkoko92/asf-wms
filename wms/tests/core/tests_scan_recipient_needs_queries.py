@@ -26,7 +26,7 @@ class ScanRecipientNeedsQueriesTests(RecipientProductPreferenceTestDataMixin, Te
             last_name="Recipient",
             organization=self.recipient_org_contact,
         )
-        wms_models.ShipmentRecipientContact.objects.create(
+        self.recipient_contact_link = wms_models.ShipmentRecipientContact.objects.create(
             recipient_organization=self.recipient_organization,
             contact=self.recipient_contact,
         )
@@ -275,6 +275,54 @@ class ScanRecipientNeedsQueriesTests(RecipientProductPreferenceTestDataMixin, Te
         self.assertEqual(payload["destination_id"], str(self.destination.id))
         self.assertEqual(payload["recipient_id"], str(self.recipient_organization.id))
         self.assertEqual(payload["category_id"], str(target_root.id))
+
+    def test_build_context_exposes_stock_availability_and_prepare_metadata(self):
+        product = self._create_product(
+            "NEEDS-STOCK-001",
+            "Produit Stockable",
+            category=self._create_category("Stockable"),
+        )
+        shipper = self._create_shipper_link(
+            "Single Shipper", recipient_organization=self.recipient_organization
+        )
+        link = wms_models.ShipmentShipperRecipientLink.objects.get(
+            shipper=shipper,
+            recipient_organization=self.recipient_organization,
+        )
+        wms_models.ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=self.recipient_contact_link,
+            is_default=True,
+            is_active=True,
+        )
+        wms_models.RecipientProductPreference.objects.create(
+            recipient_organization=self.recipient_organization,
+            product=product,
+            status=wms_models.RecipientProductPreferenceStatus.REQUESTED,
+            quantity_target=60,
+            period_unit=wms_models.RecipientProductPreferencePeriodUnit.WEEK,
+            updated_by=self.user,
+        )
+        wms_models.ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-STOCK-READY",
+            quantity_on_hand=50,
+            quantity_reserved=10,
+            status=wms_models.ProductLotStatus.AVAILABLE,
+            location=self.location,
+        )
+
+        request = self.factory.get("/scan/recipient-needs/")
+        payload = self._helper_module().build_scan_recipient_needs_context(request)
+
+        row = next(row for row in payload["rows"] if row["product_id"] == product.id)
+        self.assertEqual(row["stock_available_quantity"], 40)
+        self.assertEqual(row["stock_availability_label"], "40/60")
+        self.assertEqual(row["stock_availability_tone"], "warning")
+        self.assertTrue(row["can_prepare"])
+        self.assertEqual(row["prepare_quantity"], 40)
+        self.assertEqual(row["prepare_shipper_contact_id"], shipper.default_contact_id)
+        self.assertEqual(row["prepare_recipient_contact_id"], self.recipient_contact.id)
 
     def test_build_context_classifies_priorities_and_exposes_tooltips(self):
         critical_product = self._create_product(

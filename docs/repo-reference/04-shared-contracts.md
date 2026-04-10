@@ -144,10 +144,17 @@ Current contract:
   category preferences; the view does not enumerate the full catalog for implicit `unspecified`
   preferences
 - each row shows the linked shipper labels for that recipient organization, the target / delivered /
-  pipeline / remaining quantities, the current period label, and the current deadline or shipment delay
+  pipeline / remaining quantities, stock availability for the current demand, the current period
+  label, and the current deadline or shipment delay
 - priority levels are `critical`, `high`, `normal`, `covered`, and `out_of_scope`
 - operator-facing priority help must stay hoverable on the badge via Bootstrap tooltip markup and
   describe the threshold that triggered the level
+- stock availability is rendered as `available / required` with operator-facing color thresholds:
+  `<25%` danger, `25%..<75%` warning, `>=75%` ready
+- the table supports per-row and bulk `Préparer` actions, but they must stay as a handoff into the
+  existing shipment-create form rather than silently creating final cartons
+- bulk prepare is only valid when all selected rows share the same destination, shipper contact,
+  and recipient contact; otherwise the action must reject with an operator-visible error
 - `critical` is driven by an expired period or an open shipment whose delay exceeds the runtime
   `tracking_alert_hours` SLA threshold
 - default ordering is priority rank, then strongest delay, then nearest period deadline, then

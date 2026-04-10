@@ -38,6 +38,7 @@ from wms.models import (
     RecipientProductPreferencePeriodUnit,
     RecipientProductPreferenceStatus,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
@@ -363,7 +364,7 @@ class ScanBootstrapUiTests(TestCase):
             organization=recipient_org,
             is_active=True,
         )
-        ShipmentRecipientContact.objects.create(
+        authorized_recipient_contact = ShipmentRecipientContact.objects.create(
             recipient_organization=recipient,
             contact=recipient_contact,
             is_active=True,
@@ -386,9 +387,15 @@ class ScanBootstrapUiTests(TestCase):
             validation_status=ShipmentValidationStatus.VALIDATED,
             is_active=True,
         )
-        ShipmentShipperRecipientLink.objects.create(
+        link = ShipmentShipperRecipientLink.objects.create(
             shipper=shipper,
             recipient_organization=recipient,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=authorized_recipient_contact,
+            is_default=True,
             is_active=True,
         )
         category = ProductCategory.objects.create(name="Medical")
@@ -406,6 +413,14 @@ class ScanBootstrapUiTests(TestCase):
             quantity_target=4,
             period_unit=RecipientProductPreferencePeriodUnit.WEEK,
         )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-BOOT-NEEDS-001",
+            received_on=date(2026, 1, 2),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=2,
+            location=Location.objects.first(),
+        )
 
         response = self.client.get(reverse("scan:scan_recipient_needs"))
 
@@ -419,9 +434,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'name="need_status"')
         self.assertContains(response, 'name="priority"')
         self.assertContains(response, "Expediteur(s) lie(s)")
+        self.assertContains(response, "Disponibilite Stock")
         self.assertContains(response, "Priorite")
         self.assertContains(response, "Periode")
         self.assertContains(response, "Semaine")
+        self.assertContains(response, "Preparer la selection")
+        self.assertContains(response, 'name="selected_row_keys"')
         self.assertContains(response, 'data-bs-toggle="tooltip"')
         self.assertContains(response, "priority_help")
 

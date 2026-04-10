@@ -31,53 +31,58 @@
       {% endfor %}
     </div>
 
-    <form method="get" class="scan-filters row g-3 ui-comp-form scan-recipient-needs-filter-row">
-      <div class="scan-field scan-recipient-needs-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="id_destination">Destination</label>
-        <select id="id_destination" name="destination" class="form-select ui-select--lg">
-          <option value="">Toutes les destinations</option>
-          {% for destination_id_value, destination_city, destination_iata in destinations %}
-            <option value="{{ destination_id_value }}" {% if destination_id == destination_id_value|stringformat:"s" %}selected{% endif %}>
-              {{ destination_city }}{% if destination_iata %} ({{ destination_iata }}){% endif %}
-            </option>
-          {% endfor %}
-        </select>
+    <form method="get" class="scan-filters ui-comp-form scan-recipient-needs-filter-row">
+      <div class="row g-3 scan-recipient-needs-filter-row-primary">
+        <div class="scan-field scan-recipient-needs-field col-12 col-lg-6">
+          <label class="form-label" for="id_recipient">Destinataire</label>
+          <select id="id_recipient" name="recipient" class="form-select ui-select--lg">
+            <option value="">Tous les destinataires</option>
+            {% for recipient in recipients %}
+              <option value="{{ recipient.id }}" {% if recipient_id == recipient.id|stringformat:"s" %}selected{% endif %}>
+                {{ recipient.organization.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="scan-field scan-recipient-needs-field col-12 col-lg-6">
+          <label class="form-label" for="id_destination">Destination</label>
+          <select id="id_destination" name="destination" class="form-select ui-select--lg">
+            <option value="">Toutes les destinations</option>
+            {% for destination_id_value, destination_city, destination_iata in destinations %}
+              <option value="{{ destination_id_value }}" {% if destination_id == destination_id_value|stringformat:"s" %}selected{% endif %}>
+                {{ destination_city }}{% if destination_iata %} ({{ destination_iata }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
 
-      <div class="scan-field scan-recipient-needs-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="id_recipient">Destinataire</label>
-        <select id="id_recipient" name="recipient" class="form-select ui-select--lg">
-          <option value="">Tous les destinataires</option>
-          {% for recipient in recipients %}
-            <option value="{{ recipient.id }}" {% if recipient_id == recipient.id|stringformat:"s" %}selected{% endif %}>
-              {{ recipient.organization.name }}
-            </option>
-          {% endfor %}
-        </select>
+      <div class="row g-3 mt-0 scan-recipient-needs-filter-row-secondary">
+        <div class="scan-field scan-recipient-needs-field col-12 col-lg-6">
+          <label class="form-label" for="id_need_status">Statut besoin</label>
+          <select id="id_need_status" name="need_status" class="form-select ui-select--lg">
+            <option value="" {% if not need_status %}selected{% endif %}>Tous</option>
+            <option value="to_serve" {% if need_status == "to_serve" %}selected{% endif %}>A servir</option>
+            <option value="covered" {% if need_status == "covered" %}selected{% endif %}>Couvert</option>
+            <option value="refused" {% if need_status == "refused" %}selected{% endif %}>Refuse</option>
+          </select>
+        </div>
+
+        <div class="scan-field scan-recipient-needs-field col-12 col-lg-6">
+          <label class="form-label" for="id_priority">Priorite</label>
+          <select id="id_priority" name="priority" class="form-select ui-select--lg">
+            <option value="" {% if not priority %}selected{% endif %}>Toutes</option>
+            <option value="critical" {% if priority == "critical" %}selected{% endif %}>Critique</option>
+            <option value="high" {% if priority == "high" %}selected{% endif %}>Haute</option>
+            <option value="normal" {% if priority == "normal" %}selected{% endif %}>Normale</option>
+            <option value="covered" {% if priority == "covered" %}selected{% endif %}>Couverte</option>
+          </select>
+        </div>
       </div>
 
-      <div class="scan-field scan-recipient-needs-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="id_need_status">Statut besoin</label>
-        <select id="id_need_status" name="need_status" class="form-select ui-select--lg">
-          <option value="" {% if not need_status %}selected{% endif %}>Tous</option>
-          <option value="to_serve" {% if need_status == "to_serve" %}selected{% endif %}>A servir</option>
-          <option value="covered" {% if need_status == "covered" %}selected{% endif %}>Couvert</option>
-          <option value="refused" {% if need_status == "refused" %}selected{% endif %}>Refuse</option>
-        </select>
-      </div>
-
-      <div class="scan-field scan-recipient-needs-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="id_priority">Priorite</label>
-        <select id="id_priority" name="priority" class="form-select ui-select--lg">
-          <option value="" {% if not priority %}selected{% endif %}>Toutes</option>
-          <option value="critical" {% if priority == "critical" %}selected{% endif %}>Critique</option>
-          <option value="high" {% if priority == "high" %}selected{% endif %}>Haute</option>
-          <option value="normal" {% if priority == "normal" %}selected{% endif %}>Normale</option>
-          <option value="covered" {% if priority == "covered" %}selected{% endif %}>Couverte</option>
-        </select>
-      </div>
-
-      <div class="scan-field scan-recipient-needs-field col-12">
+      <div class="row g-3 mt-0 scan-recipient-needs-filter-row-category">
+        <div class="scan-field scan-recipient-needs-field col-12">
         <input type="hidden" id="id_category" name="category" value="{{ category_id }}">
         <label class="form-label" for="scan-recipient-needs-category-l1">Categorie</label>
         <div
@@ -100,8 +105,9 @@
           </select>
         </div>
       </div>
+      </div>
 
-      <div class="scan-filter-actions scan-recipient-needs-filter-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
+      <div class="scan-filter-actions scan-recipient-needs-filter-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions mt-3">
         <button type="submit" class="btn btn-primary">Filtrer</button>
         <a class="btn btn-tertiary" href="{% url 'scan:scan_recipient_needs' %}">Reinitialiser</a>
       </div>
@@ -109,14 +115,36 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      Lignes besoins
-      <span class="badge text-bg-light ui-comp-count-badge">{{ rows|length }}</span>
-    </h2>
-    <div class="scan-table-wrap table-responsive">
-      <table class="scan-table table table-sm table-hover">
+    <form method="post" class="ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="destination" value="{{ destination_id }}">
+      <input type="hidden" name="recipient" value="{{ recipient_id }}">
+      <input type="hidden" name="category" value="{{ category_id }}">
+      <input type="hidden" name="need_status" value="{{ need_status }}">
+      <input type="hidden" name="priority" value="{{ priority }}">
+
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+        <h2 class="h4 mb-0 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
+          Lignes besoins
+          <span class="badge text-bg-light ui-comp-count-badge">{{ rows|length }}</span>
+        </h2>
+        <div class="ui-comp-actions d-flex gap-2 flex-wrap">
+          <button type="submit" class="btn btn-primary btn-sm" name="action" value="prepare_selected">Preparer la selection</button>
+        </div>
+      </div>
+
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover">
         <thead>
           <tr>
+            <th class="text-center">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                data-recipient-needs-select-all="1"
+                aria-label="Selectionner toutes les lignes preparables"
+              >
+            </th>
             <th>Priorite</th>
             <th>Destination</th>
             <th>Destinataire</th>
@@ -125,6 +153,7 @@
             <th>Categorie</th>
             <th>Preference</th>
             <th>Quantite cible</th>
+            <th>Disponibilite Stock</th>
             <th>Livre</th>
             <th>Pipeline</th>
             <th>Reste a servir</th>
@@ -136,6 +165,23 @@
         <tbody>
           {% for row in rows %}
             <tr>
+              <td class="text-center align-middle">
+                {% if row.can_prepare %}
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    name="selected_row_keys"
+                    value="{{ row.selection_key }}"
+                    data-recipient-needs-select-item="1"
+                    aria-label="Selectionner {{ row.product_name }} pour {{ row.recipient_name }}"
+                  >
+                {% else %}
+                  <span
+                    class="text-body-secondary"
+                    {% if row.prepare_disabled_reason %}title="{{ row.prepare_disabled_reason }}"{% endif %}
+                  >-</span>
+                {% endif %}
+              </td>
               <td>
                 <span
                   class="ui-comp-status-pill {% if row.priority == 'critical' %}is-error{% elif row.priority == 'high' %}is-warning{% elif row.priority == 'covered' %}is-ready{% else %}is-progress{% endif %}"
@@ -172,23 +218,45 @@
                 {% endif %}
               </td>
               <td>{{ row.target_quantity }}</td>
+              <td>
+                <span
+                  class="ui-comp-status-pill {% if row.stock_availability_tone == 'danger' %}is-error{% elif row.stock_availability_tone == 'warning' %}is-warning{% elif row.stock_availability_tone == 'success' %}is-ready{% else %}is-progress{% endif %}"
+                  data-bs-toggle="tooltip"
+                  title="{{ row.stock_availability_help }}"
+                >
+                  {{ row.stock_availability_label }}
+                </span>
+              </td>
               <td>{{ row.delivered_quantity }}</td>
               <td>{{ row.pipeline_quantity }}</td>
               <td>{{ row.remaining_need }}</td>
               <td>{{ row.period_label }}</td>
               <td>{{ row.period_deadline_label }}</td>
               <td class="text-end">
-                <a class="btn btn-tertiary btn-sm" href="{{ row.recipient_admin_url }}">Ouvrir</a>
+                <div class="d-flex justify-content-end gap-2 flex-wrap">
+                  {% if row.can_prepare %}
+                    <button type="submit" class="btn btn-primary btn-sm" name="prepare_single" value="{{ row.selection_key }}">Preparer</button>
+                  {% else %}
+                    <span
+                      class="small text-body-secondary align-self-center"
+                      {% if row.prepare_disabled_reason %}title="{{ row.prepare_disabled_reason }}"{% endif %}
+                    >
+                      {{ row.prepare_disabled_reason|default:"-" }}
+                    </span>
+                  {% endif %}
+                  <a class="btn btn-tertiary btn-sm" href="{{ row.recipient_admin_url }}">Ouvrir</a>
+                </div>
               </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="14" class="text-body-secondary">Aucune ligne pour ces filtres.</td>
+              <td colspan="16" class="text-body-secondary">Aucune ligne pour ces filtres.</td>
             </tr>
           {% endfor %}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+    </form>
   </div>
 {% endblock %}
 
@@ -354,6 +422,33 @@
       });
 
       refreshLevelsFrom(0);
+
+      const selectAllCheckbox = document.querySelector('[data-recipient-needs-select-all="1"]');
+      const rowCheckboxes = Array.from(
+        document.querySelectorAll('[data-recipient-needs-select-item="1"]')
+      );
+      if (!selectAllCheckbox || !rowCheckboxes.length) {
+        return;
+      }
+
+      const syncSelectAll = function () {
+        const checkedCount = rowCheckboxes.filter(function (checkbox) { return checkbox.checked; }).length;
+        selectAllCheckbox.checked = checkedCount > 0 && checkedCount === rowCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < rowCheckboxes.length;
+      };
+
+      selectAllCheckbox.addEventListener('change', function () {
+        rowCheckboxes.forEach(function (checkbox) {
+          checkbox.checked = selectAllCheckbox.checked;
+        });
+        syncSelectAll();
+      });
+
+      rowCheckboxes.forEach(function (checkbox) {
+        checkbox.addEventListener('change', syncSelectAll);
+      });
+
+      syncSelectAll();
     })();
   </script>
 {% endblock %}

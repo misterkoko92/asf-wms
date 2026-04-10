@@ -109,6 +109,67 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "handled")
         capacity_mock.assert_not_called()
 
+    def test_scan_shipment_create_prefills_parties_and_lines_from_querystring(self):
+        fake_form = object()
+        with (
+            mock.patch(
+                "wms.views_scan_shipments.ScanShipmentForm",
+                return_value=fake_form,
+            ) as form_mock,
+            mock.patch(
+                "wms.views_scan_shipments._build_shipment_form_support",
+                return_value={"allowed_carton_ids": set()},
+            ),
+            mock.patch(
+                "wms.views_scan_shipments._render_shipment_form",
+                return_value=HttpResponse("prefilled"),
+            ) as render_mock,
+        ):
+            response = self.client.get(
+                reverse("scan:scan_shipment_create"),
+                {
+                    "destination": "12",
+                    "shipper_contact": "34",
+                    "recipient_contact": "56",
+                    "carton_count": "2",
+                    "line_1_product_code": "SKU-001",
+                    "line_1_quantity": "7",
+                    "line_2_product_code": "SKU-002",
+                    "line_2_quantity": "3",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "prefilled")
+        form_mock.assert_called_once_with(
+            None,
+            destination_id="12",
+            initial={
+                "destination": "12",
+                "shipper_contact": "34",
+                "recipient_contact": "56",
+                "carton_count": 2,
+            },
+        )
+        self.assertEqual(render_mock.call_args.kwargs["carton_count"], 2)
+        self.assertEqual(
+            render_mock.call_args.kwargs["line_values"],
+            [
+                {
+                    "carton_id": "",
+                    "product_code": "SKU-001",
+                    "quantity": "7",
+                    "expires_on": "",
+                },
+                {
+                    "carton_id": "",
+                    "product_code": "SKU-002",
+                    "quantity": "3",
+                    "expires_on": "",
+                },
+            ],
+        )
+
     def test_scan_cartons_ready_renders_rows_context(self):
         with mock.patch(
             "wms.views_scan_shipments.handle_carton_status_update",

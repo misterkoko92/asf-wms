@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from django.db.models import Min
+from django.db.models import ExpressionWrapper, F, IntegerField, Min, Sum
 from django.urls import reverse
 from django.utils import timezone
 
 from wms.models import (
     CartonItem,
     Product,
+    ProductLot,
+    ProductLotStatus,
     RecipientProductPreference,
     RecipientProductPreferenceStatus,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
+    ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
 )
@@ -23,6 +26,7 @@ from wms.recipient_product_preferences import (
     list_recipient_product_coverages,
 )
 from wms.runtime_settings import get_runtime_config
+from wms.shipment_helpers import default_shipment_recipient_contact_for_shipper
 
 FILTER_DESTINATION_PARAM = "destination"
 FILTER_RECIPIENT_PARAM = "recipient"
@@ -48,6 +52,12 @@ PRIORITY_ORDER = {
     PRIORITY_OUT_OF_SCOPE: 4,
 }
 
+PREPARE_ACTIONABLE_PRIORITIES = {
+    PRIORITY_CRITICAL,
+    PRIORITY_HIGH,
+    PRIORITY_NORMAL,
+}
+
 
 def build_scan_recipient_needs_context(request, *, as_of=None):
     now = _normalize_as_of(as_of)
@@ -61,6 +71,12 @@ def build_scan_recipient_needs_context(request, *, as_of=None):
         _build_recipient_organization_queryset(filter_state=filter_state)
     )
     shipper_labels_by_recipient_id = _collect_shipper_labels(recipient_organizations)
+    prepare_targets_by_recipient_id = {
+        recipient_organization.id: _resolve_prepare_target(
+            recipient_organization=recipient_organization
+        )
+        for recipient_organization in recipient_organizations
+    }
     recipient_contact_ids_by_org_id = {
         recipient_organization.id: _recipient_contact_ids(recipient_organization)
         for recipient_organization in recipient_organizations
@@ -81,14 +97,14 @@ def build_scan_recipient_needs_context(request, *, as_of=None):
     explicit_product_preferences_by_org_id = defaultdict(list)
     explicit_category_preferences_by_org_id = defaultdict(list)
     for preference in explicit_preferences:
-        if preference.product_id:
-            explicit_product_preferences_by_org_id[preference.recipient_organization_id].append(
-                preference
-            )
-        elif preference.category_id:
-            explicit_category_preferences_by_org_id[preference.recipient_organization_id].append(
-                preference
-            )
+        recipient_organization = getattr(preference, "recipient_organization", None)
+        recipient_organization_id = getattr(recipient_organization, "id", None)
+        if recipient_organization_id is None:
+            continue
+        if getattr(preference, "product", None) is not None:
+            explicit_product_preferences_by_org_id[recipient_organization_id].append(preference)
+        elif getattr(preference, "category", None) is not None:
+            explicit_category_preferences_by_org_id[recipient_organization_id].append(preference)
 
     rows = []
     for recipient_organization in recipient_organizations:
@@ -110,23 +126,27 @@ def build_scan_recipient_needs_context(request, *, as_of=None):
             recipient_organization=recipient_organization,
             products=candidate_products,
         )
-        actionable_products = [
-            effective_preference.product
-            for effective_preference in effective_preferences
-            if effective_preference.status
-            in {
+        actionable_products = []
+        for effective_preference in effective_preferences:
+            product = getattr(effective_preference, "product", None)
+            if product is None:
+                continue
+            if effective_preference.status in {
                 RecipientProductPreferenceStatus.REQUESTED,
                 RecipientProductPreferenceStatus.ALLOWED,
-            }
-        ]
-        coverage_by_product_id = {
-            coverage.product.id: coverage
-            for coverage in list_recipient_product_coverages(
-                recipient_organization=recipient_organization,
-                products=actionable_products,
-                as_of=now,
-            )
-        }
+            }:
+                actionable_products.append(product)
+        coverage_by_product_id = {}
+        for coverage in list_recipient_product_coverages(
+            recipient_organization=recipient_organization,
+            products=actionable_products,
+            as_of=now,
+        ):
+            coverage_product = getattr(coverage, "product", None)
+            coverage_product_id = getattr(coverage_product, "id", None)
+            if coverage_product_id is None:
+                continue
+            coverage_by_product_id[coverage_product_id] = coverage
         open_shipment_stats_by_product_id = _collect_open_shipment_stats(
             recipient_organization=recipient_organization,
             product_ids=[product.id for product in candidate_products],
@@ -134,21 +154,23 @@ def build_scan_recipient_needs_context(request, *, as_of=None):
         )
 
         for effective_preference in effective_preferences:
-            if effective_preference.status == "unspecified":
+            product = getattr(effective_preference, "product", None)
+            if effective_preference.status == "unspecified" or product is None:
                 continue
             row = _build_row(
                 recipient_organization=recipient_organization,
                 effective_preference=effective_preference,
-                coverage=coverage_by_product_id.get(effective_preference.product.id),
-                open_shipment_stats=open_shipment_stats_by_product_id.get(
-                    effective_preference.product.id
-                ),
+                coverage=coverage_by_product_id.get(product.id),
+                open_shipment_stats=open_shipment_stats_by_product_id.get(product.id),
                 shipper_labels=shipper_labels_by_recipient_id.get(recipient_organization.id, []),
+                prepare_target=prepare_targets_by_recipient_id.get(recipient_organization.id, {}),
                 tracking_alert_hours=runtime_config.tracking_alert_hours,
                 as_of=now,
             )
             if _row_matches_filters(row=row, filter_state=filter_state):
                 rows.append(row)
+
+    _decorate_rows_with_stock_availability(rows)
 
     rows.sort(
         key=lambda row: (
@@ -293,12 +315,67 @@ def _collect_shipper_labels(recipient_organizations):
         .select_related("shipper__organization")
         .order_by("shipper__organization__name", "id")
     )
-    labels_by_recipient_id = defaultdict(list)
+    labels_by_recipient_id: dict[int, list[str]] = defaultdict(list)
     for link in links:
         label = link.shipper.organization.name
-        if label not in labels_by_recipient_id[link.recipient_organization_id]:
-            labels_by_recipient_id[link.recipient_organization_id].append(label)
+        recipient_organization_id = getattr(link.recipient_organization, "id", None)
+        if recipient_organization_id is None:
+            continue
+        if label not in labels_by_recipient_id[recipient_organization_id]:
+            labels_by_recipient_id[recipient_organization_id].append(label)
     return labels_by_recipient_id
+
+
+def _resolve_prepare_target(*, recipient_organization):
+    links = list(
+        ShipmentShipperRecipientLink.objects.filter(
+            recipient_organization=recipient_organization,
+            is_active=True,
+            shipper__is_active=True,
+            shipper__organization__is_active=True,
+            shipper__validation_status=ShipmentValidationStatus.VALIDATED,
+            shipper__default_contact__is_active=True,
+        )
+        .select_related("shipper__organization", "shipper__default_contact")
+        .order_by("shipper__organization__name", "id")
+    )
+    shippers_by_id: dict[int, ShipmentShipper] = {}
+    for link in links:
+        shipper = getattr(link, "shipper", None)
+        if shipper is None or not getattr(shipper, "default_contact_id", None):
+            continue
+        shippers_by_id.setdefault(shipper.id, shipper)
+    shippers = list(shippers_by_id.values())
+    if not shippers:
+        return {
+            "shipper_contact_id": None,
+            "recipient_contact_id": None,
+            "disabled_reason": "Aucun expediteur actif lie a ce destinataire.",
+        }
+    if len(shippers) > 1:
+        return {
+            "shipper_contact_id": None,
+            "recipient_contact_id": None,
+            "disabled_reason": "Plusieurs expediteurs lies: preparation a affiner depuis le dossier.",
+        }
+    shipper = shippers[0]
+    shipper_default_contact = getattr(shipper, "default_contact", None)
+    shipper_default_contact_id = getattr(shipper_default_contact, "id", None)
+    recipient_contact = default_shipment_recipient_contact_for_shipper(
+        shipper=shipper,
+        destination=recipient_organization.destination,
+    )
+    if recipient_contact is None:
+        return {
+            "shipper_contact_id": shipper_default_contact_id,
+            "recipient_contact_id": None,
+            "disabled_reason": "Aucun destinataire par defaut disponible pour cet expediteur.",
+        }
+    return {
+        "shipper_contact_id": shipper_default_contact_id,
+        "recipient_contact_id": recipient_contact.id,
+        "disabled_reason": "",
+    }
 
 
 def _collect_open_shipment_stats(*, recipient_organization, product_ids, contact_ids):
@@ -332,6 +409,7 @@ def _build_row(
     coverage,
     open_shipment_stats,
     shipper_labels,
+    prepare_target,
     tracking_alert_hours,
     as_of,
 ):
@@ -380,13 +458,20 @@ def _build_row(
         ),
         "period_deadline_sort_key": period_end
         or timezone.make_aware(
-            timezone.datetime.max.replace(tzinfo=None),
+            datetime.max.replace(tzinfo=None),
             timezone.get_current_timezone(),
         ),
         "priority": priority,
         "priority_rank": PRIORITY_ORDER[priority],
         "priority_help": priority_help,
         "delay_hours": delay_hours,
+        "selection_key": f"{recipient_organization.id}:{product.id}",
+        "prepare_shipper_contact_id": prepare_target.get("shipper_contact_id"),
+        "prepare_recipient_contact_id": prepare_target.get("recipient_contact_id"),
+        "prepare_disabled_reason": prepare_target.get("disabled_reason") or "",
+        "prepare_product_code": _build_prepare_product_code(product),
+        "prepare_quantity": 0,
+        "can_prepare": False,
         "recipient_admin_url": reverse(
             "scan:scan_admin_recipient_organization_detail",
             args=[recipient_organization.id],
@@ -398,6 +483,101 @@ def _coalesce_int(value):
     if value is None:
         return 0
     return int(value)
+
+
+def _build_prepare_product_code(product):
+    sku = (getattr(product, "sku", "") or "").strip()
+    if sku:
+        return sku
+    return (getattr(product, "name", "") or "").strip()
+
+
+def _collect_available_stock_by_product_ids(product_ids):
+    if not product_ids:
+        return {}
+    available_expr = ExpressionWrapper(
+        F("quantity_on_hand") - F("quantity_reserved"),
+        output_field=IntegerField(),
+    )
+    rows = (
+        ProductLot.objects.filter(
+            product_id__in=product_ids,
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand__gt=0,
+        )
+        .values("product_id")
+        .annotate(total_available=Sum(available_expr))
+    )
+    return {row["product_id"]: max(int(row["total_available"] or 0), 0) for row in rows}
+
+
+def _stock_availability_tone(*, available_quantity, required_quantity):
+    if required_quantity <= 0:
+        return "muted"
+    ratio = available_quantity / required_quantity
+    if ratio < 0.25:
+        return "danger"
+    if ratio < 0.75:
+        return "warning"
+    return "success"
+
+
+def _build_stock_availability_fields(*, available_quantity, required_quantity):
+    if required_quantity <= 0:
+        return {
+            "stock_available_quantity": available_quantity,
+            "stock_required_quantity": 0,
+            "stock_availability_label": str(available_quantity),
+            "stock_availability_tone": "muted",
+            "stock_availability_help": "Stock disponible actuel.",
+        }
+    return {
+        "stock_available_quantity": available_quantity,
+        "stock_required_quantity": required_quantity,
+        "stock_availability_label": f"{available_quantity}/{required_quantity}",
+        "stock_availability_tone": _stock_availability_tone(
+            available_quantity=available_quantity,
+            required_quantity=required_quantity,
+        ),
+        "stock_availability_help": (
+            f"Stock disponible {available_quantity} pour un reste a servir de {required_quantity}."
+        ),
+    }
+
+
+def _decorate_rows_with_stock_availability(rows):
+    stock_available_by_product_id = _collect_available_stock_by_product_ids(
+        {row["product_id"] for row in rows}
+    )
+    for row in rows:
+        available_quantity = stock_available_by_product_id.get(row["product_id"], 0)
+        required_quantity = (
+            row["remaining_need"] if row["remaining_need"] > 0 else row["target_quantity"]
+        )
+        row.update(
+            _build_stock_availability_fields(
+                available_quantity=available_quantity,
+                required_quantity=required_quantity,
+            )
+        )
+        prepare_quantity = min(row["remaining_need"], available_quantity)
+        row["prepare_quantity"] = prepare_quantity
+        if row["priority"] == PRIORITY_COVERED:
+            row["prepare_disabled_reason"] = "Besoin deja couvert."
+        elif row["priority"] == PRIORITY_OUT_OF_SCOPE:
+            row["prepare_disabled_reason"] = "Preference refusee: preparation indisponible."
+        elif (
+            not row["prepare_disabled_reason"]
+            and row["priority"] in PREPARE_ACTIONABLE_PRIORITIES
+            and prepare_quantity <= 0
+        ):
+            row["prepare_disabled_reason"] = "Aucun stock disponible pour cette demande."
+        row["can_prepare"] = bool(
+            row["priority"] in PREPARE_ACTIONABLE_PRIORITIES
+            and row["prepare_shipper_contact_id"]
+            and row["prepare_recipient_contact_id"]
+            and prepare_quantity > 0
+        )
 
 
 def _classify_priority(
