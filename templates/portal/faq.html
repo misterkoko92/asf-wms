@@ -1,0 +1,129 @@
+{% extends "portal/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "FAQ portail" %}{% endblock %}
+
+{% block content %}
+  <div class="portal-tight">
+    <div class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
+      <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+        <div>
+          <h2 class="ui-comp-title">{% trans "FAQ portail" %}</h2>
+          <p class="scan-help">
+            {% trans "Cette page résume ce que vous pouvez faire aujourd'hui dans les espaces expéditeur et destinataire, ainsi que la façon d'exécuter les actions principales." %}
+          </p>
+        </div>
+        <div>
+          <span class="portal-badge is-info">
+            {% if faq_scope_role == "recipient_admin" %}
+              {% trans "Vous êtes dans l'espace destinataire" %}
+            {% else %}
+              {% trans "Vous êtes dans l'espace expéditeur" %}
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">{% trans "Espace expéditeur" %}</h3>
+      <p class="scan-help">
+        {% trans "L'espace expéditeur sert à préparer les demandes de l'association, suivre les dossiers, gérer les destinataires, maintenir le compte et consulter la facturation." %}
+      </p>
+      <ul class="mb-0">
+        <li>
+          <strong>{% trans "Suivre vos commandes" %}</strong> :
+          {% trans "ouvrez" %} <a href="{% url 'portal:portal_dashboard' %}">{% trans "Commandes" %}</a>,
+          {% trans "puis utilisez le bouton" %} <strong>{% trans "Voir" %}</strong>
+          {% trans "pour consulter le statut commande, le statut expédition, les dates clés et la prochaine étape utile." %}
+        </li>
+        <li>
+          <strong>{% trans "Créer une commande" %}</strong> :
+          {% trans "ouvrez" %} <a href="{% url 'portal:portal_order_create' %}">{% trans "Nouvelle commande" %}</a>,
+          {% trans "choisissez d'abord la destination, puis le destinataire proposé pour cette destination, saisissez les quantités voulues et terminez avec" %}
+          <strong>{% trans "Envoyer la commande" %}</strong>.
+        </li>
+        <li>
+          <strong>{% trans "Ajouter des documents à une commande validée" %}</strong> :
+          {% trans "depuis la fiche commande, utilisez la section" %} <strong>{% trans "Documents de commande" %}</strong>
+          {% trans "pour téléverser les fichiers demandés une fois la validation ASF obtenue." %}
+        </li>
+        <li>
+          <strong>{% trans "Créer ou modifier un destinataire" %}</strong> :
+          {% trans "ouvrez" %} <a href="{% url 'portal:portal_recipients' %}">{% trans "Destinataires" %}</a>,
+          {% trans "puis utilisez" %} <strong>{% trans "Ajouter" %}</strong>,
+          <strong>{% trans "Modifier" %}</strong> {% trans "ou" %} <strong>{% trans "Ouvrir" %}</strong>
+          {% trans "pour gérer la structure, le contact, l'adresse, les options de livraison et les documents de conformité." %}
+        </li>
+        <li>
+          <strong>{% trans "Piloter les préférences produits d'un destinataire" %}</strong> :
+          {% trans "ouvrez une fiche destinataire puis travaillez ligne par ligne dans" %} <strong>{% trans "Préférences produits" %}</strong>.
+          {% trans "Vous pouvez rechercher, filtrer, choisir un statut, ajuster la quantité cible et enregistrer chaque ligne." %}
+        </li>
+        <li>
+          <strong>{% trans "Mettre à jour le compte association" %}</strong> :
+          {% trans "ouvrez" %} <a href="{% url 'portal:portal_account' %}">{% trans "Compte" %}</a>
+          {% trans "pour modifier les informations principales, l'adresse et les contacts email utilisés par le portail." %}
+        </li>
+        <li>
+          <strong>{% trans "Mettre à jour les documents de vérification" %}</strong> :
+          {% trans "dans" %} <a href="{% url 'portal:portal_account' %}">{% trans "Compte" %}</a>,
+          {% trans "utilisez la section" %} <strong>{% trans "Documents de vérification" %}</strong>
+          {% trans "pour déposer de nouveaux fichiers et suivre leur statut." %}
+        </li>
+        <li>
+          <strong>{% trans "Demander un changement de préférences de facturation" %}</strong> :
+          {% trans "dans" %} <a href="{% url 'portal:portal_account' %}">{% trans "Compte" %}</a>,
+          {% trans "section" %} <strong>{% trans "Préférences de facturation" %}</strong>,
+          {% trans "choisissez la périodicité et le regroupement souhaités puis envoyez la demande." %}
+        </li>
+        <li>
+          <strong>{% trans "Consulter la facturation et signaler une correction" %}</strong> :
+          {% trans "ouvrez" %} <a href="{% url 'portal:portal_billing' %}">{% trans "Facturation" %}</a>,
+          {% trans "puis" %} <strong>{% trans "Voir" %}</strong>
+          {% trans "sur un document pour lire les lignes, les expéditions rattachées, les paiements et déposer une demande de correction." %}
+        </li>
+      </ul>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">{% trans "Espace destinataire" %}</h3>
+      <p class="scan-help">
+        {% trans "L'espace destinataire est centré sur la fiche de votre structure, vos référents, vos documents et vos besoins produits." %}
+      </p>
+      <ul class="mb-0">
+        <li>
+          <strong>{% trans "Consulter la fiche destinataire" %}</strong> :
+          {% trans "ouvrez la page d'accueil du portail pour relire l'identité structure, les référents, les documents structure et les préférences produits déjà enregistrées." %}
+        </li>
+        <li>
+          <strong>{% trans "Modifier les informations de la structure" %}</strong> :
+          {% trans "depuis la fiche, cliquez sur" %} <a href="{% url 'portal:portal_recipient_profile' %}">{% trans "Modifier mes informations" %}</a>
+          {% trans "pour mettre à jour le nom de structure, le contact principal, l'adresse, les notes et les options." %}
+        </li>
+        <li>
+          <strong>{% trans "Mettre à jour les documents structure" %}</strong> :
+          {% trans "sur la page" %} <a href="{% url 'portal:portal_recipient_profile' %}">{% trans "Modifier mes informations" %}</a>,
+          {% trans "utilisez la section" %} <strong>{% trans "Documents structure" %}</strong>
+          {% trans "pour téléverser la preuve d'enregistrement et les statuts mis à jour." %}
+        </li>
+        <li>
+          <strong>{% trans "Gérer les préférences produits" %}</strong> :
+          {% trans "depuis la fiche ou directement via" %} <a href="{% url 'portal:portal_recipient_preferences' %}">{% trans "Gérer les préférences produits" %}</a>,
+          {% trans "recherchez un produit, filtrez le catalogue si besoin, choisissez le statut, la quantité cible, la période et enregistrez chaque ligne." %}
+        </li>
+        <li>
+          <strong>{% trans "Supprimer une règle explicite existante" %}</strong> :
+          {% trans "dans la page" %} <a href="{% url 'portal:portal_recipient_preferences' %}">{% trans "Gérer les préférences produits" %}</a>,
+          {% trans "utilisez le bouton" %} <strong>{% trans "Supprimer" %}</strong>
+          {% trans "sur une ligne déjà explicitement définie pour retirer la règle." %}
+        </li>
+        <li>
+          <strong>{% trans "Changer d'espace" %}</strong> :
+          {% trans "si votre compte possède plusieurs accès, utilisez" %} <strong>{% trans "Changer d'espace" %}</strong>
+          {% trans "dans le bandeau du portail pour passer d'un rôle à l'autre." %}
+        </li>
+      </ul>
+    </div>
+  </div>
+{% endblock %}

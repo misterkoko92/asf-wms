@@ -341,6 +341,14 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "window.history.back()")
         self.assertContains(response, "window.history.forward()")
 
+    def test_portal_shell_exposes_faq_link_for_shipper_scope(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-faq-link"')
+        self.assertContains(response, reverse("portal:portal_faq"))
+        self.assertContains(response, "FAQ")
+
     def test_portal_recipient_scope_home_uses_recipient_navigation_contract(self):
         recipient_organization = self._activate_recipient_scope()
         recipient_contact = Contact.objects.create(
@@ -415,6 +423,16 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "Modifier mes informations")
         self.assertContains(response, reverse("portal:portal_recipient_preferences"))
         self.assertContains(response, "Gérer les préférences produits")
+
+    def test_portal_shell_exposes_faq_link_for_recipient_scope(self):
+        self._activate_recipient_scope()
+
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-faq-link"')
+        self.assertContains(response, reverse("portal:portal_faq"))
+        self.assertContains(response, "FAQ")
 
     def test_portal_recipient_profile_uses_bootstrap_forms_and_document_uploads(self):
         self._activate_recipient_scope()
