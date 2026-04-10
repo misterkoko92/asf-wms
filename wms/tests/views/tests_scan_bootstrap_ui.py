@@ -915,29 +915,41 @@ class ScanBootstrapUiTests(TestCase):
     def test_shared_number_input_keeps_value_clear_of_left_controls(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
         css_content = css_path.read_text(encoding="utf-8")
+        core_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "modules" / "core.js"
+        core_content = core_path.read_text(encoding="utf-8")
 
+        self.assertIn(
+            ".scan-bootstrap-enabled .ui-number-input {\n"
+            "  --ui-number-input-btn-width: 1.15rem;",
+            css_content,
+        )
+        self.assertIn(
+            "--ui-number-input-controls-gap: 0.14rem;",
+            css_content,
+        )
+        self.assertIn(
+            "--ui-number-input-controls-inset: 0.3rem;",
+            css_content,
+        )
+        self.assertIn(
+            "--ui-number-input-value-offset:",
+            css_content,
+        )
         self.assertIn(
             ".scan-bootstrap-enabled .ui-number-input .form-control,\n"
             ".scan-bootstrap-enabled .ui-number-input-input {\n"
             "  min-width: 0;\n"
-            "  padding-left: calc(var(--wms-input-padding-x) + 4.25rem);",
+            "  padding-left: calc(var(--wms-input-padding-x) + var(--ui-number-input-value-offset));",
             css_content,
         )
         self.assertIn(
-            ".scan-bootstrap-enabled .ui-number-input-btn {\n" "  width: 1.4rem;",
+            ".scan-bootstrap-enabled .ui-number-input.is-compact {\n"
+            "  --ui-number-input-btn-width: 1rem;",
             css_content,
         )
-        self.assertIn(
-            ".scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-input,\n"
-            ".scan-bootstrap-enabled .ui-number-input.is-sm .form-control {\n"
-            "  padding-left: calc(var(--wms-input-padding-x) + 3.5rem);",
-            css_content,
-        )
-        self.assertIn(
-            ".scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-btn {\n"
-            "  width: 1.2rem;",
-            css_content,
-        )
+        self.assertIn("function syncNumberInputLayout(input, wrapper, controls) {", core_content)
+        self.assertIn("input.style.paddingLeft = reservedPaddingPx;", core_content)
+        self.assertIn("input.style.paddingInlineStart = reservedPaddingPx;", core_content)
 
     def test_scan_bootstrap_css_keeps_recipient_preference_table_headers_balanced(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
@@ -2134,10 +2146,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="ui-lab-contract-number-input"')
         self.assertContains(response, 'id="ui-lab-number-input-contract"')
         self.assertContains(response, 'id="ui-lab-number-input-demo"')
+        self.assertContains(response, 'id="ui-lab-number-input-compact-demo"')
         self.assertContains(response, 'data-ui-number-input-demo="1"')
+        self.assertContains(response, 'data-ui-number-input-compact-demo="1"')
         self.assertContains(response, "ui-number-input")
         self.assertContains(response, "ui-number-input-controls")
         self.assertContains(response, "ui-number-input-btn")
+        self.assertContains(response, "ui-number-input-compact")
 
     def test_scan_ui_lab_exposes_recommended_toolbar_demo_contract(self):
         self.client.force_login(self.superuser)

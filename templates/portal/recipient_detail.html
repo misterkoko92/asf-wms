@@ -117,7 +117,7 @@
                   {% if recipient_shared_fields_read_only %}
                     {{ row.form_data.quantity_target|default:"-" }}
                   {% else %}
-                    <input class="form-control recipient-preference-input--quantity" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="recipient-preference-form-{{ row.product.id }}">
+                    <input class="form-control recipient-preference-input--quantity ui-number-input-compact" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="recipient-preference-form-{{ row.product.id }}">
                   {% endif %}
                 </td>
                 <td class="recipient-preference-col--period">

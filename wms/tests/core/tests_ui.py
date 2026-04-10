@@ -261,6 +261,37 @@ class ScanUiTests(StaticLiveServerTestCase):
                 "    && !!input.closest('.ui-number-input').querySelector('.ui-number-input-controls');"
                 "})()"
             )
+            page.wait_for_function(
+                "(() => {"
+                "  const input = document.getElementById('ui-lab-number-input-compact-demo');"
+                "  const wrapper = input && input.closest('.ui-number-input');"
+                "  return !!input"
+                "    && input.classList.contains('is-ui-number-input-enhanced')"
+                "    && !!wrapper"
+                "    && wrapper.classList.contains('is-compact');"
+                "})()"
+            )
+            compact_geometry = page.evaluate(
+                "(() => {"
+                "  const input = document.getElementById('ui-lab-number-input-compact-demo');"
+                "  const wrapper = input && input.closest('.ui-number-input');"
+                "  const controls = wrapper && wrapper.querySelector('.ui-number-input-controls');"
+                "  if (!input || !wrapper || !controls) {"
+                "    return null;"
+                "  }"
+                "  const style = getComputedStyle(input);"
+                "  return {"
+                "    paddingLeft: parseFloat(style.paddingLeft || '0'),"
+                "    controlsWidth: controls.getBoundingClientRect().width,"
+                "    valueGap: parseFloat(getComputedStyle(wrapper).getPropertyValue('--ui-number-input-value-gap') || '0'),"
+                "  };"
+                "})()"
+            )
+            self.assertIsNotNone(compact_geometry)
+            self.assertGreaterEqual(
+                compact_geometry["paddingLeft"],
+                compact_geometry["controlsWidth"] + compact_geometry["valueGap"] - 0.5,
+            )
 
             decrement = page.locator(
                 '[data-ui-number-input-target="ui-lab-number-input-demo"]'

@@ -220,7 +220,9 @@ Current contract:
 
 - eligible legacy `input[type="number"]` controls can be progressively enhanced into the shared `ui-number-input` wrapper
 - the shared control renders compact decrement/increment buttons on the left side of the field
-- the input text area keeps extra left padding so values never overlap the buttons
+- the shared control geometry is driven by shared CSS variables for button size, spacing, inset, and reserved value offset
+- the core runtime synchronizes the input left padding from the rendered control width and shared spacing tokens so values never overlap the buttons even when stylesheet cascade differs by browser
+- tight contexts can opt into the compact shared sizing variant with `ui-number-input-compact`; the core runtime promotes that marker to the wrapper contract
 - the runtime enhancement respects native `min`, `max`, `step`, `disabled`, and `readonly` semantics
 - the enhancement dispatches native-feeling `input` and `change` events after button clicks so existing page logic keeps reacting to quantity changes
 - page-level horizontal drift stays clipped in the shared legacy shell; any required horizontal movement must live inside an explicit local wrapper such as `scan-table-wrap table-responsive`

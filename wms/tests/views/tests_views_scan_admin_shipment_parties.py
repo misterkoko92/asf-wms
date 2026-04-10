@@ -194,6 +194,10 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         self.assertContains(response, self.product.name)
         self.assertContains(response, preference.get_status_display())
         self.assertContains(response, "Enregistrer la ligne")
+        self.assertContains(
+            response,
+            'class="form-control recipient-preference-input--quantity ui-number-input-compact"',
+        )
         self.assertContains(response, 'id="id_preference_q"')
         self.assertContains(response, 'id="id_preference_sort"')
         self.assertContains(response, 'id="recipient-preference-category-l1"')

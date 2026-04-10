@@ -805,6 +805,17 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .ui-number-input {
+  --ui-number-input-btn-width: 1.15rem;
+  --ui-number-input-btn-height: calc(var(--wms-input-height) - 1.25rem);
+  --ui-number-input-controls-gap: 0.14rem;
+  --ui-number-input-controls-inset: 0.3rem;
+  --ui-number-input-value-gap: 0.45rem;
+  --ui-number-input-value-offset: calc(
+    var(--ui-number-input-controls-inset) +
+    (var(--ui-number-input-btn-width) * 2) +
+    var(--ui-number-input-controls-gap) +
+    var(--ui-number-input-value-gap)
+  );
   position: relative;
   display: inline-flex;
   align-items: stretch;
@@ -819,7 +830,7 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .ui-number-input .form-control,
 .scan-bootstrap-enabled .ui-number-input-input {
   min-width: 0;
-  padding-left: calc(var(--wms-input-padding-x) + 4.25rem);
+  padding-left: calc(var(--wms-input-padding-x) + var(--ui-number-input-value-offset));
 }
 
 .scan-bootstrap-enabled .ui-number-input.is-fluid .form-control,
@@ -833,14 +844,14 @@ body.scan-bootstrap-enabled {
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 0.22rem;
-  padding-left: 0.35rem;
+  gap: var(--ui-number-input-controls-gap);
+  padding-left: var(--ui-number-input-controls-inset);
 }
 
 .scan-bootstrap-enabled .ui-number-input-btn {
-  width: 1.4rem;
-  min-width: 1.4rem;
-  height: calc(var(--wms-input-height) - 0.9rem);
+  width: var(--ui-number-input-btn-width);
+  min-width: var(--ui-number-input-btn-width);
+  height: var(--ui-number-input-btn-height);
   padding: 0;
   border: 1px solid var(--wms-input-border);
   border-radius: 0.5rem;
@@ -849,26 +860,38 @@ body.scan-bootstrap-enabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   font-weight: 700;
   line-height: 1;
 }
 
-.scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-input,
-.scan-bootstrap-enabled .ui-number-input.is-sm .form-control {
-  padding-left: calc(var(--wms-input-padding-x) + 3.5rem);
+.scan-bootstrap-enabled .ui-number-input.is-sm {
+  --ui-number-input-btn-width: 1rem;
+  --ui-number-input-btn-height: calc(var(--wms-input-height) - 1.55rem);
+  --ui-number-input-controls-gap: 0.1rem;
+  --ui-number-input-controls-inset: 0.24rem;
+  --ui-number-input-value-gap: 0.34rem;
 }
 
-.scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-controls {
-  gap: 0.16rem;
-  padding-left: 0.28rem;
+.scan-bootstrap-enabled .ui-number-input.is-compact {
+  --ui-number-input-btn-width: 1rem;
+  --ui-number-input-btn-height: calc(var(--wms-input-height) - 1.65rem);
+  --ui-number-input-controls-gap: 0.08rem;
+  --ui-number-input-controls-inset: 0.22rem;
+  --ui-number-input-value-gap: 0.3rem;
+}
+
+.scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-btn,
+.scan-bootstrap-enabled .ui-number-input.is-compact .ui-number-input-btn {
+  font-size: 0.72rem;
 }
 
 .scan-bootstrap-enabled .ui-number-input.is-sm .ui-number-input-btn {
-  width: 1.2rem;
-  min-width: 1.2rem;
-  height: calc(var(--wms-input-height) - 1.35rem);
-  font-size: 0.76rem;
+  border-radius: 0.42rem;
+}
+
+.scan-bootstrap-enabled .ui-number-input.is-compact .ui-number-input-btn {
+  border-radius: 0.4rem;
 }
 
 .scan-bootstrap-enabled .ui-number-input-btn:focus-visible {
