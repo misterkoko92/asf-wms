@@ -95,6 +95,44 @@ class ImportProductsExtraTests(TestCase):
         self.assertEqual(mode, "ean")
         self.assertEqual([match.id for match in matches], [ean_product.id])
 
+    def test_find_product_matches_barcode_ignores_case_and_special_chars(self):
+        product = Product.objects.create(
+            name="Item",
+            sku="SKU-BAR-NORM",
+            brand="ACME",
+            barcode="BAR CODE-001",
+        )
+
+        matches, mode = find_product_matches(
+            sku="",
+            name="Other",
+            brand="ACME",
+            barcode="barcode 001",
+            ean="",
+        )
+
+        self.assertEqual(mode, "barcode")
+        self.assertEqual([match.id for match in matches], [product.id])
+
+    def test_find_product_matches_ean_ignores_case_and_special_chars(self):
+        product = Product.objects.create(
+            name="Item",
+            sku="SKU-EAN-NORM",
+            brand="ACME",
+            ean="EAN 001-XYZ",
+        )
+
+        matches, mode = find_product_matches(
+            sku="",
+            name="Other",
+            brand="ACME",
+            barcode="",
+            ean="ean001xyz",
+        )
+
+        self.assertEqual(mode, "ean")
+        self.assertEqual([match.id for match in matches], [product.id])
+
     def test_find_product_matches_name_brand_fallback(self):
         product = Product.objects.create(name="Item", sku="SKU-1", brand="ACME")
         matches, mode = find_product_matches(sku="", name="Item", brand="ACME")
@@ -138,3 +176,31 @@ class ImportProductsExtraTests(TestCase):
         )
         self.assertEqual(mode, "name")
         self.assertEqual([match.id for match in matches], [product.id])
+
+    def test_find_product_matches_name_only_ignores_case_accents_and_special_chars(self):
+        product = Product.objects.create(
+            name="Masque FFP2+",
+            sku="SKU-NAME-NORM",
+            brand="",
+        )
+
+        matches, mode = find_product_matches(
+            sku="",
+            name="masqué ffp2",
+            brand="",
+        )
+
+        self.assertEqual(mode, "name")
+        self.assertEqual([match.id for match in matches], [product.id])
+
+    def test_find_product_matches_returns_empty_for_values_that_normalize_to_blank(self):
+        matches, mode = find_product_matches(
+            sku="***",
+            name="???",
+            brand="---",
+            barcode="!!!",
+            ean="###",
+        )
+
+        self.assertEqual(matches, [])
+        self.assertIsNone(mode)

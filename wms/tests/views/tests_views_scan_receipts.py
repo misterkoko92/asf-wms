@@ -267,6 +267,26 @@ class ScanReceiptsViewsTests(TestCase):
         self.assertEqual(product.brand, "ASF")
         self.assertFalse(product.is_incomplete)
 
+    def test_scan_receive_listing_product_edit_get_renders_context(self):
+        product = Product.objects.create(
+            name="Mask",
+            is_incomplete=True,
+            qr_code_image="qr_codes/mask-edit.png",
+        )
+
+        with mock.patch(
+            "wms.views_scan_receipts.render",
+            side_effect=self._render_stub,
+        ):
+            response = self.client.get(
+                reverse("scan:scan_receive_listing_product_edit", args=[product.id])
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/receive_listing_product_edit.html")
+        self.assertEqual(response.context_data["active"], "receive_listing")
+        self.assertEqual(response.context_data["product"], product)
+
     def test_scan_receive_listing_bulk_sets_category_for_selected_products(self):
         product_1 = Product.objects.create(
             name="Mask 1",
