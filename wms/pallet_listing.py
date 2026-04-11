@@ -2,6 +2,7 @@ from pathlib import Path
 
 from .import_services import extract_product_identity, find_product_matches
 from .import_utils import extract_tabular_data, normalize_header, parse_str
+from .listing_row_classification import is_non_product_listing_row
 from .product_display import build_product_display
 
 PALLET_LISTING_REQUIRED_FIELDS = {"name", "quantity"}
@@ -36,6 +37,7 @@ PALLET_LISTING_HEADER_MAP = {
     "code_ean": "ean",
     "tags": "tags",
     "etiquettes": "tags",
+    "prix_ht": "pu_ht",
     "entrepot": "warehouse",
     "warehouse": "warehouse",
     "zone": "zone",
@@ -63,6 +65,7 @@ PALLET_LISTING_HEADER_MAP = {
     "quarantaine_defaut": "quarantine_default",
     "quarantine_default": "quarantine_default",
     "quantite": "quantity",
+    "qte": "quantity",
     "qty": "quantity",
     "stock": "quantity",
     "pu_ht": "pu_ht",
@@ -149,13 +152,28 @@ def build_listing_mapping_defaults(headers):
     return mapping
 
 
+def normalize_listing_mapping(mapping):
+    normalized = {}
+    for raw_idx, field in (mapping or {}).items():
+        try:
+            idx = int(raw_idx)
+        except (TypeError, ValueError):
+            continue
+        field_name = str(field or "").strip()
+        if not field_name:
+            continue
+        normalized[idx] = field_name
+    return normalized
+
+
 def apply_listing_mapping(rows, mapping):
+    normalized_mapping = normalize_listing_mapping(mapping)
     mapped_rows = []
     for row in rows:
-        if _listing_row_empty(row):
+        if _listing_row_empty(row) or is_non_product_listing_row(row):
             continue
         mapped = {}
-        for idx, field in mapping.items():
+        for idx, field in normalized_mapping.items():
             if idx < len(row):
                 mapped[field] = row[idx]
         mapped_rows.append(mapped)
@@ -278,6 +296,7 @@ def build_listing_review_rows(rows, mapping, *, start_index=2):
 
 
 def build_listing_columns(headers, rows, mapping):
+    normalized_mapping = normalize_listing_mapping(mapping)
     columns = []
     for idx, header in enumerate(headers):
         sample = ""
@@ -290,7 +309,7 @@ def build_listing_columns(headers, rows, mapping):
                 "index": idx,
                 "name": header,
                 "sample": sample,
-                "mapped": mapping.get(idx, ""),
+                "mapped": normalized_mapping.get(idx, ""),
             }
         )
     return columns

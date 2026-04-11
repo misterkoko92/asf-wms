@@ -8,7 +8,15 @@ from .import_services_locations import (
 )
 from .import_services_products import import_product_row
 from .import_utils import parse_int
-from .models import Product, Receipt, ReceiptLine, ReceiptStatus, ReceiptType
+from .listing_row_classification import is_non_product_listing_row
+from .models import (
+    Product,
+    Receipt,
+    ReceiptConformityStatus,
+    ReceiptLine,
+    ReceiptStatus,
+    ReceiptType,
+)
 from .scan_helpers import resolve_product
 from .services import StockError, receive_receipt_line
 
@@ -33,11 +41,13 @@ def apply_pallet_listing_import(
     user,
     warehouse,
     receipt_meta,
+    existing_receipt=None,
 ):
-    receipt = None
+    receipt = existing_receipt
     created = 0
     skipped = 0
     errors = []
+    incomplete_product_ids = set()
     for payload in row_payloads:
         if not payload.get("apply"):
             skipped += 1
@@ -46,6 +56,10 @@ def apply_pallet_listing_import(
         row_data = payload.get("row_data") or {}
         selection = (payload.get("selection") or "").strip()
         override_code = (payload.get("override_code") or "").strip()
+
+        if is_non_product_listing_row(row_data):
+            skipped += 1
+            continue
 
         quantity = parse_int(row_data.get("quantity"))
         if not quantity or quantity <= 0:
@@ -102,6 +116,12 @@ def apply_pallet_listing_import(
                     received_on=receipt_meta.get("received_on") or timezone.localdate(),
                     pallet_count=receipt_meta.get("pallet_count") or 0,
                     transport_request_date=receipt_meta.get("transport_request_date") or None,
+                    conformity_status=(
+                        ReceiptConformityStatus.NON_CONFORM
+                        if receipt_meta.get("is_non_conform")
+                        else ReceiptConformityStatus.CONFORM
+                    ),
+                    notes=receipt_meta.get("observation") or "",
                     warehouse=warehouse,
                     created_by=user,
                 )
@@ -113,7 +133,9 @@ def apply_pallet_listing_import(
                 storage_conditions=product.storage_conditions or "",
             )
             receive_receipt_line(user=user, line=line)
+            if getattr(product, "is_incomplete", False):
+                incomplete_product_ids.add(product.id)
             created += 1
         except (ValueError, StockError) as exc:
             errors.append(f"Ligne {row_index}: {exc}")
-    return created, skipped, errors, receipt
+    return created, skipped, errors, receipt, sorted(incomplete_product_ids)

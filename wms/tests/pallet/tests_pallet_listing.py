@@ -35,6 +35,44 @@ class PalletListingTests(SimpleTestCase):
             ],
         )
 
+    def test_build_listing_mapping_defaults_supports_common_pdf_headers(self):
+        headers = ["EAN", "DESIGNATION", "PRIX HT", "QTE", "TOTAL HT"]
+
+        mapping = build_listing_mapping_defaults(headers)
+
+        self.assertEqual(
+            mapping,
+            {
+                0: "ean",
+                1: "name",
+                2: "pu_ht",
+                3: "quantity",
+            },
+        )
+
+    def test_apply_listing_mapping_skips_detected_summary_rows(self):
+        rows = [
+            ["3400930210598", "BOCEAL MAUX GORGE FL PULV+EMB 20ML", "3,94 €", "4", "15,76 €"],
+            ["", "VALORISATION DU DON", "", "181", "1873,07 €"],
+        ]
+
+        mapped_rows = apply_listing_mapping(
+            rows,
+            {0: "ean", 1: "name", 2: "pu_ht", 3: "quantity"},
+        )
+
+        self.assertEqual(
+            mapped_rows,
+            [
+                {
+                    "ean": "3400930210598",
+                    "name": "BOCEAL MAUX GORGE FL PULV+EMB 20ML",
+                    "pu_ht": "3,94 €",
+                    "quantity": "4",
+                }
+            ],
+        )
+
     def test_build_listing_extract_options_and_pending_options(self):
         excel_options = build_listing_extract_options(".xlsx", "Feuil1", 3, "all", None, None)
         self.assertEqual(excel_options, {"sheet_name": "Feuil1", "header_row": 3})
@@ -125,6 +163,18 @@ class PalletListingTests(SimpleTestCase):
                 {"index": 1, "name": "Quantite", "sample": "5", "mapped": ""},
             ],
         )
+
+    def test_listing_helpers_accept_session_serialized_mapping_keys(self):
+        headers = ["Nom", "Quantite"]
+        rows = [["Masque", "5"]]
+        session_mapping = {"0": "name", "1": "quantity"}
+
+        mapped_rows = apply_listing_mapping(rows, session_mapping)
+        columns = build_listing_columns(headers, rows, session_mapping)
+
+        self.assertEqual(mapped_rows, [{"name": "Masque", "quantity": "5"}])
+        self.assertEqual(columns[0]["mapped"], "name")
+        self.assertEqual(columns[1]["mapped"], "quantity")
 
     def test_load_listing_table_reads_file_and_passes_extract_options(self):
         pending = {
