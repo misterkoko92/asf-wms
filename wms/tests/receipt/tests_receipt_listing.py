@@ -1,8 +1,11 @@
+from datetime import date
 from types import SimpleNamespace
 from unittest import mock
 
 from django.test import RequestFactory, TestCase
 
+from contacts.models import Contact, ContactType
+from wms.models import Receipt, ReceiptType, Warehouse
 from wms.receipt_listing_state import build_receive_listing_context, build_receive_listing_state
 
 
@@ -19,6 +22,25 @@ class ReceiptListingFlowTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.user = SimpleNamespace(id=17, username="listing-user")
+        self.warehouse = Warehouse.objects.create(name="Listing", code="LST")
+        self.source_contact = Contact.objects.create(
+            name="Donateur A",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.carrier_contact = Contact.objects.create(
+            name="Transporteur B",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.warehouse,
+            received_on=date(2026, 1, 10),
+            pallet_count=3,
+            source_contact=self.source_contact,
+            carrier_contact=self.carrier_contact,
+        )
 
     def _request(self, *, method="POST", data=None):
         if method == "POST":
@@ -77,6 +99,30 @@ class ReceiptListingFlowTests(TestCase):
         self.assertIsNone(state["response"])
         self.assertNotIn("pallet_listing_pending", request.session)
         self.assertIn("listing_entry_receipt_id", state["listing_entry_form"].errors)
+
+    def test_build_receive_listing_state_configure_success_persists_pending_and_redirects(self):
+        request = self._request(
+            data={
+                "action": "listing_configure",
+                "listing_entry_file_type": "pdf",
+                "listing_entry_receipt_id": str(self.receipt.id),
+            }
+        )
+        request.session["pallet_listing_last_incomplete_product_ids"] = [11, 12]
+
+        state = build_receive_listing_state(request, action="listing_configure")
+
+        self.assertEqual(state["response"].status_code, 302)
+        self.assertEqual(state["response"].url, "/scan/receive-listing/")
+        self.assertEqual(
+            request.session["pallet_listing_pending"],
+            {
+                "entry_file_type": "pdf",
+                "receipt_id": self.receipt.id,
+                "stage": "upload",
+            },
+        )
+        self.assertNotIn("pallet_listing_last_incomplete_product_ids", request.session)
 
     def test_build_receive_listing_state_post_calls_listing_handler(self):
         request = self._request(data={"action": "listing_upload"})
@@ -203,6 +249,68 @@ class ReceiptListingFlowTests(TestCase):
             state["listing_state"]["listing_group_suggestions"], [{"id": "brand:braun"}]
         )
 
+    def test_build_receive_listing_state_get_infers_mapping_stage_from_pending_headers(self):
+        request = self._request(method="GET")
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-mapping",
+            "headers": ["Nom", "Quantite"],
+            "mapping": {0: "name", 1: "quantity"},
+        }
+        listing_state = self._listing_state()
+        listing_state["listing_stage"] = None
+        listing_state["listing_columns"] = []
+
+        with mock.patch(
+            "wms.receipt_listing_state.init_listing_state",
+            return_value=listing_state,
+        ):
+            with mock.patch(
+                "wms.receipt_listing_state.hydrate_listing_state_from_pending",
+                return_value={},
+            ):
+                with mock.patch(
+                    "wms.receipt_listing_state.load_listing_table",
+                    return_value=(["Nom", "Quantite"], [["Masque", "3"]]),
+                ):
+                    with mock.patch(
+                        "wms.receipt_listing_state.build_listing_columns",
+                        return_value=[{"index": 0, "mapped": "name"}],
+                    ):
+                        state = build_receive_listing_state(request, action="")
+
+        self.assertEqual(state["listing_state"]["listing_stage"], "mapping")
+        self.assertEqual(
+            state["listing_state"]["listing_columns"], [{"index": 0, "mapped": "name"}]
+        )
+
+    def test_build_receive_listing_state_get_ignores_restore_errors(self):
+        request = self._request(method="GET")
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-restore-error",
+            "stage": "review",
+            "mapping": {0: "name"},
+        }
+        listing_state = self._listing_state()
+        listing_state["listing_stage"] = None
+        listing_state["listing_rows"] = []
+
+        with mock.patch(
+            "wms.receipt_listing_state.init_listing_state",
+            return_value=listing_state,
+        ):
+            with mock.patch(
+                "wms.receipt_listing_state.hydrate_listing_state_from_pending",
+                return_value={},
+            ):
+                with mock.patch(
+                    "wms.receipt_listing_state.load_listing_table",
+                    side_effect=ValueError("boom"),
+                ):
+                    state = build_receive_listing_state(request, action="")
+
+        self.assertEqual(state["listing_state"]["listing_stage"], "review")
+        self.assertEqual(state["listing_state"]["listing_rows"], [])
+
     def test_build_receive_listing_state_get_skips_post_handlers(self):
         request = self._request(method="GET")
         request.session["pallet_listing_pending"] = {"token": "tok-get"}
@@ -253,3 +361,37 @@ class ReceiptListingFlowTests(TestCase):
         self.assertIsNone(context["listing_pdf_analysis"])
         self.assertEqual(context["listing_focus_card_id"], "scan-receive-pallet-review-card")
         self.assertEqual(context["listing_suggestions_total_count"], 1)
+
+    def test_build_receive_listing_context_resolves_focus_cards_for_suggestions_and_mapping(self):
+        suggestions_state = self._listing_state()
+        suggestions_state["listing_stage"] = "suggestions"
+        mapping_state = self._listing_state()
+        mapping_state["listing_stage"] = "mapping"
+        mapping_state["listing_rows"] = []
+        mapping_state["listing_group_suggestions"] = []
+
+        suggestions_context = build_receive_listing_context(
+            {
+                "listing_entry_form": "entry-form",
+                "listing_state": suggestions_state,
+                "listing_meta": {},
+                "pending": {"token": "tok-suggestions"},
+            }
+        )
+        mapping_context = build_receive_listing_context(
+            {
+                "listing_entry_form": "entry-form",
+                "listing_state": mapping_state,
+                "listing_meta": {},
+                "pending": {"token": "tok-mapping"},
+            }
+        )
+
+        self.assertEqual(
+            suggestions_context["listing_focus_card_id"],
+            "scan-receive-listing-suggestions-card",
+        )
+        self.assertEqual(
+            mapping_context["listing_focus_card_id"],
+            "scan-receive-pallet-mapping-card",
+        )

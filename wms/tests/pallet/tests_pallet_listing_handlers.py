@@ -9,6 +9,8 @@ from django.urls import reverse
 from contacts.models import Contact, ContactType
 from wms.models import Receipt, ReceiptType, Warehouse
 from wms.pallet_listing_handlers import (
+    _parse_pdf_pages_selection,
+    _review_overrides_from_request_or_pending,
     clear_pending_listing,
     handle_pallet_listing_action,
     hydrate_listing_state_from_pending,
@@ -192,6 +194,57 @@ class PalletListingHandlersTests(TestCase):
         ):
             listing_meta = hydrate_listing_state_from_pending(state, pending)
         self.assertEqual(listing_meta["pdf_pages"], "Toutes les pages")
+
+    def test_review_overrides_from_request_or_pending_uses_pending_copy_without_row_inputs(self):
+        request = self._request({"pending_token": "tok-review"})
+        pending = {
+            "review_overrides": {
+                "row-2": {
+                    "selection": "new",
+                    "values": {"brand": "BRAUN"},
+                }
+            }
+        }
+
+        overrides = _review_overrides_from_request_or_pending(
+            request,
+            [["Thermometre", "3"]],
+            {0: "name", 1: "quantity"},
+            pending,
+        )
+
+        self.assertEqual(overrides, pending["review_overrides"])
+        self.assertIsNot(overrides, pending["review_overrides"])
+
+    def test_parse_pdf_pages_selection_detected_mode_filters_invalid_pages(self):
+        listing_errors = []
+
+        mode, page_start, page_end, page_numbers = _parse_pdf_pages_selection(
+            listing_errors=listing_errors,
+            total_pages=5,
+            pages_mode="detected",
+            page_start_raw="",
+            page_end_raw="",
+            default_pages=["x", "0", "2", "2", "8", None],
+        )
+
+        self.assertEqual((mode, page_start, page_end, page_numbers), ("detected", 2, 2, [2]))
+        self.assertEqual(listing_errors, [])
+
+    def test_parse_pdf_pages_selection_detected_mode_errors_when_no_valid_pages(self):
+        listing_errors = []
+
+        mode, page_start, page_end, page_numbers = _parse_pdf_pages_selection(
+            listing_errors=listing_errors,
+            total_pages=5,
+            pages_mode="detected",
+            page_start_raw="",
+            page_end_raw="",
+            default_pages=["x", "0", "9"],
+        )
+
+        self.assertEqual((mode, page_start, page_end, page_numbers), ("detected", None, None, None))
+        self.assertEqual(listing_errors, ["Aucune page PDF détectée comme exploitable."])
 
     def test_handle_listing_cancel_clears_pending_and_redirects(self):
         request = self._request()
@@ -760,6 +813,63 @@ class PalletListingHandlersTests(TestCase):
             pdf_pages=[2, 4],
         )
 
+    def test_handle_listing_pdf_extract_rejects_non_pdf_pending_import(self):
+        request = self._request({"pending_token": "tok-not-pdf"})
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-not-pdf",
+            "extension": ".csv",
+        }
+        state = init_listing_state()
+
+        with mock.patch("wms.pallet_listing_handlers.messages.error") as error_mock:
+            response = handle_pallet_listing_action(
+                request,
+                action="listing_pdf_extract",
+                listing_form=self._listing_form(valid=True),
+                state=state,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
+        error_mock.assert_called_once_with(request, "Import PDF introuvable.")
+
+    def test_handle_listing_pdf_extract_detects_empty_rows(self):
+        request = self._request(
+            {
+                "pending_token": "tok-empty-pdf",
+                "listing_pdf_pages_mode": "custom",
+                "listing_pdf_page_start": "2",
+                "listing_pdf_page_end": "4",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-empty-pdf",
+            "extension": ".pdf",
+            "file_path": "/tmp/fake-listing.pdf",
+            "pdf_analysis": {
+                "total_pages": 6,
+                "recommended_pages": {"mode": "custom", "start": 2, "end": 4},
+            },
+            "pdf_pages": {"mode": "custom", "start": 2, "end": 4, "total": 6},
+        }
+        state = init_listing_state()
+
+        with mock.patch("wms.pallet_listing_handlers.Path.read_bytes", return_value=b"%PDF-1.4"):
+            with mock.patch(
+                "wms.pallet_listing_handlers.extract_tabular_data",
+                return_value=(["Nom", "Quantite"], []),
+            ):
+                response = handle_pallet_listing_action(
+                    request,
+                    action="listing_pdf_extract",
+                    listing_form=self._listing_form(valid=True),
+                    state=state,
+                )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "analysis")
+        self.assertIn("Fichier vide ou sans lignes exploitables.", state["listing_errors"])
+
     def test_handle_listing_upload_extract_detects_empty_rows(self):
         request = self._request(
             {
@@ -1140,6 +1250,156 @@ class PalletListingHandlersTests(TestCase):
         )
         self.assertEqual(request.session["pallet_listing_pending"]["stage"], "review")
 
+    def test_handle_listing_apply_suggestion_group_alias_selects_single_suggestion(self):
+        request = self._request(
+            {
+                "pending_token": "tok-alias",
+                "row_2_match": "new",
+                "row_2_name": "BRAUN Thermometre frontal",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-alias",
+            "headers": ["Nom", "Quantite"],
+            "mapping": {0: "name", 1: "quantity"},
+        }
+        state = init_listing_state()
+        initial_review_state = {
+            "rows": [{"index": 2, "values": {"name": "BRAUN Thermometre frontal"}}],
+            "group_suggestions": [
+                {
+                    "id": "brand:braun",
+                    "field_name": "brand",
+                    "per_row_updates": {"row-2": {"brand": "BRAUN"}},
+                }
+            ],
+        }
+        updated_review_state = {
+            "rows": [
+                {"index": 2, "values": {"name": "BRAUN Thermometre frontal", "brand": "BRAUN"}}
+            ],
+            "group_suggestions": [],
+        }
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["BRAUN Thermometre frontal", "3"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.capture_listing_review_overrides_from_post",
+                return_value={
+                    "row-2": {"selection": "new", "values": {"name": "BRAUN Thermometre frontal"}}
+                },
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.build_listing_review_state",
+                    side_effect=[initial_review_state, updated_review_state],
+                ):
+                    with mock.patch(
+                        "wms.pallet_listing_handlers.apply_listing_group_suggestion_to_overrides"
+                    ) as apply_mock:
+                        response = handle_pallet_listing_action(
+                            request,
+                            action="listing_apply_suggestion_group:brand:braun",
+                            listing_form=self._listing_form(valid=True),
+                            state=state,
+                        )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "review")
+        apply_mock.assert_called_once()
+        self.assertEqual(
+            request.session["pallet_listing_pending"]["dismissed_suggestion_ids"],
+            ["brand:braun"],
+        )
+
+    def test_handle_listing_apply_suggestions_requires_at_least_one_selected_suggestion(self):
+        request = self._request(
+            {
+                "pending_token": "tok-no-selection",
+                "row_2_match": "new",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-no-selection",
+            "headers": ["Nom", "Quantite"],
+            "mapping": {0: "name", 1: "quantity"},
+        }
+        state = init_listing_state()
+        review_state = {
+            "rows": [{"index": 2, "values": {"name": "Thermometre"}}],
+            "group_suggestions": [{"id": "brand:braun"}],
+        }
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["Thermometre", "3"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.capture_listing_review_overrides_from_post",
+                return_value={},
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.build_listing_review_state",
+                    return_value=review_state,
+                ):
+                    response = handle_pallet_listing_action(
+                        request,
+                        action="listing_apply_suggestions",
+                        listing_form=self._listing_form(valid=True),
+                        state=state,
+                    )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "suggestions")
+        self.assertIn("Sélectionnez au moins une proposition à traiter.", state["listing_errors"])
+        self.assertEqual(state["listing_rows"], review_state["rows"])
+        self.assertEqual(state["listing_group_suggestions"], review_state["group_suggestions"])
+
+    def test_handle_listing_apply_suggestions_rejects_unknown_selected_suggestion(self):
+        request = self._request(
+            {
+                "pending_token": "tok-stale-suggestion",
+                "selected_suggestion_ids": ["brand:missing"],
+                "row_2_match": "new",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-stale-suggestion",
+            "headers": ["Nom", "Quantite"],
+            "mapping": {0: "name", 1: "quantity"},
+        }
+        state = init_listing_state()
+        review_state = {
+            "rows": [{"index": 2, "values": {"name": "Thermometre"}}],
+            "group_suggestions": [{"id": "brand:braun"}],
+        }
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["Thermometre", "3"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.capture_listing_review_overrides_from_post",
+                return_value={},
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.build_listing_review_state",
+                    return_value=review_state,
+                ):
+                    response = handle_pallet_listing_action(
+                        request,
+                        action="listing_apply_suggestions",
+                        listing_form=self._listing_form(valid=True),
+                        state=state,
+                    )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "review")
+        self.assertIn("Suggestion introuvable ou obsolète.", state["listing_errors"])
+        self.assertEqual(state["listing_rows"], review_state["rows"])
+        self.assertEqual(state["listing_group_suggestions"], review_state["group_suggestions"])
+
     def test_handle_listing_confirm_expired_session_redirects(self):
         request = self._request({"pending_token": "wrong"})
         state = init_listing_state()
@@ -1353,6 +1613,47 @@ class PalletListingHandlersTests(TestCase):
                         listing_form=self._listing_form(valid=True),
                         state=state,
                     )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
+        error_mock.assert_called_once_with(request, "Réception liée introuvable.")
+
+    def test_handle_listing_confirm_rejects_missing_selected_receipt_object(self):
+        request = self._request(
+            {
+                "pending_token": "tok-missing-object",
+                "row_2_apply": "1",
+                "row_2_match": "product:42",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-missing-object",
+            "mapping": {0: "name", 1: "quantity"},
+            "receipt_id": 999999,
+        }
+        state = init_listing_state()
+        empty_qs = SimpleNamespace(first=lambda: None)
+        receipt_manager = SimpleNamespace(filter=lambda **_kwargs: empty_qs)
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["Masque", "2"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.apply_listing_mapping",
+                return_value=[{"name": "Masque", "quantity": "2"}],
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.Receipt.objects.select_related",
+                    return_value=receipt_manager,
+                ):
+                    with mock.patch("wms.pallet_listing_handlers.messages.error") as error_mock:
+                        response = handle_pallet_listing_action(
+                            request,
+                            action="listing_confirm",
+                            listing_form=self._listing_form(valid=True),
+                            state=state,
+                        )
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("scan:scan_receive_listing"))

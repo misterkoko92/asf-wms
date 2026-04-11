@@ -4,6 +4,12 @@ from unittest import mock
 from django.test import SimpleTestCase
 
 from wms.pallet_listing import (
+    _completed_field_labels,
+    _enrich_group_suggestions,
+    _format_category_value,
+    _format_location_value,
+    _group_suggestion_current_value,
+    _group_suggestion_linked_product,
     apply_listing_group_suggestion_to_overrides,
     apply_listing_mapping,
     build_listing_columns,
@@ -12,7 +18,9 @@ from wms.pallet_listing import (
     build_listing_review_rows,
     build_listing_review_state,
     build_listing_visible_columns,
+    capture_listing_review_overrides_from_post,
     load_listing_table,
+    normalize_listing_mapping,
     pending_listing_extract_options,
 )
 
@@ -75,6 +83,37 @@ class PalletListingTests(SimpleTestCase):
                 }
             ],
         )
+
+    def test_normalize_listing_mapping_ignores_invalid_indexes_and_blank_fields(self):
+        mapping = normalize_listing_mapping(
+            {
+                "0": "name",
+                "1": "quantity",
+                "oops": "brand",
+                "5": "",
+                None: "ean",
+            }
+        )
+
+        self.assertEqual(mapping, {0: "name", 1: "quantity"})
+
+    def test_apply_listing_mapping_skips_non_product_rows_from_classifier(self):
+        rows = [
+            ["TOTAL", "12"],
+            ["Masque", "4"],
+            ["", ""],
+        ]
+
+        with mock.patch(
+            "wms.pallet_listing.is_non_product_listing_row",
+            side_effect=[True, False],
+        ):
+            mapped_rows = apply_listing_mapping(
+                rows,
+                {"0": "name", "1": "quantity", "oops": "brand"},
+            )
+
+        self.assertEqual(mapped_rows, [{"name": "Masque", "quantity": "4"}])
 
     def test_build_listing_extract_options_and_pending_options(self):
         excel_options = build_listing_extract_options(".xlsx", "Feuil1", 3, "all", None, None)
@@ -251,6 +290,101 @@ class PalletListingTests(SimpleTestCase):
                     "name": "Braun Thermometre Frontal",
                     "current_value": "-",
                     "proposed_value": "BRAUN",
+                    "linked_product": "",
+                }
+            ],
+        )
+
+    def test_capture_listing_review_overrides_defaults_selection_and_tracks_completed_labels(self):
+        overrides = capture_listing_review_overrides_from_post(
+            {
+                "row_2_name": " Produit modifie ",
+                "row_2_brand": " BRAUN ",
+                "row_2_match": "",
+            },
+            [["Produit source", "3"]],
+            {0: "name", 1: "quantity"},
+        )
+
+        self.assertEqual(overrides["row-2"]["selection"], "new")
+        self.assertEqual(overrides["row-2"]["values"]["name"], "Produit modifie")
+        self.assertEqual(overrides["row-2"]["values"]["brand"], "BRAUN")
+        self.assertEqual(overrides["row-2"]["values"]["quantity"], "3")
+        self.assertEqual(
+            _completed_field_labels(
+                {"name": "Produit source", "brand": ""},
+                overrides["row-2"]["values"],
+            ),
+            ["Nom", "Marque"],
+        )
+
+    def test_group_suggestion_helpers_format_values_and_linked_product(self):
+        row = {
+            "values": {
+                "brand": "BRAUN",
+                "category_l1": "Sante",
+                "category_l2": "Diagnostic",
+                "category_l3": "Thermometres",
+                "category_l4": "",
+                "tva": "5.5",
+                "warehouse": "WH1",
+                "zone": "R2",
+                "aisle": "A3",
+                "shelf": "B4",
+            },
+            "default_match": "product:42",
+            "existing": {"sku": "SKU-42", "name": "Thermometre"},
+        }
+
+        self.assertEqual(_format_category_value(row["values"]), "Sante > Diagnostic > Thermometres")
+        self.assertEqual(_format_location_value(row["values"]), "WH1 / R2 / A3 / B4")
+        self.assertEqual(_group_suggestion_current_value(row, "brand"), "BRAUN")
+        self.assertEqual(
+            _group_suggestion_current_value(row, "category"),
+            "Sante > Diagnostic > Thermometres",
+        )
+        self.assertEqual(_group_suggestion_current_value(row, "tva"), "5.5")
+        self.assertEqual(_group_suggestion_current_value(row, "location"), "WH1 / R2 / A3 / B4")
+        self.assertEqual(_group_suggestion_linked_product(row), "SKU-42 - Thermometre")
+
+    def test_enrich_group_suggestions_skips_unknown_rows_and_handles_new_products(self):
+        enriched = _enrich_group_suggestions(
+            [
+                {
+                    "id": "location:main",
+                    "field_name": "location",
+                    "proposed_value": "WH1 / R2 / A3 / B4",
+                    "row_keys": ["row-2", "row-999"],
+                }
+            ],
+            [
+                {
+                    "index": 2,
+                    "values": {
+                        "ean": "123456789",
+                        "name": "Thermometre",
+                        "warehouse": "WH1",
+                        "zone": "R2",
+                        "aisle": "A3",
+                        "shelf": "B4",
+                    },
+                    "default_match": "new",
+                    "existing": {},
+                }
+            ],
+        )
+
+        self.assertEqual(enriched[0]["field_label"], "Emplacement")
+        self.assertEqual(
+            enriched[0]["preview_rows"],
+            [
+                {
+                    "row_key": "row-2",
+                    "index": 2,
+                    "ean": "123456789",
+                    "name": "Thermometre",
+                    "current_value": "WH1 / R2 / A3 / B4",
+                    "proposed_value": "WH1 / R2 / A3 / B4",
                     "linked_product": "",
                 }
             ],
