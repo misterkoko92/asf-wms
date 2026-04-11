@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 
-from wms.models import Receipt, ReceiptType, Warehouse
+from wms.models import Product, ProductCategory, Receipt, ReceiptType, Warehouse
 
 
 class ScanReceiptsViewsTests(TestCase):
@@ -212,6 +212,141 @@ class ScanReceiptsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/receive_pallet.html")
         self.assertEqual(response.context_data["context_key"], "pallet")
+
+    def test_scan_receive_listing_returns_state_response_when_present(self):
+        with mock.patch(
+            "wms.views_scan_receipts.build_receive_listing_state",
+            return_value={"response": HttpResponse("listing-response")},
+        ):
+            response = self.client.post(
+                reverse("scan:scan_receive_listing"),
+                {"action": "listing_upload"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "listing-response")
+
+    def test_scan_receive_listing_renders_context_when_no_state_response(self):
+        state = {"response": None, "key": "value"}
+        with mock.patch(
+            "wms.views_scan_receipts.build_receive_listing_state",
+            return_value=state,
+        ):
+            with mock.patch(
+                "wms.views_scan_receipts.build_receive_listing_context",
+                return_value={"context_key": "listing"},
+            ):
+                with mock.patch(
+                    "wms.views_scan_receipts.render",
+                    side_effect=self._render_stub,
+                ):
+                    response = self.client.get(reverse("scan:scan_receive_listing"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/receive_listing.html")
+        self.assertEqual(response.context_data["context_key"], "listing")
+
+    def test_scan_receive_listing_product_edit_updates_product_and_clears_incomplete(self):
+        product = Product.objects.create(
+            name="Mask",
+            is_incomplete=True,
+            qr_code_image="qr_codes/mask.png",
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_receive_listing_product_edit", args=[product.id]),
+            {
+                "action": "save",
+                "name": "Mask",
+                "brand": "ASF",
+                "default_location": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
+        product.refresh_from_db()
+        self.assertEqual(product.brand, "ASF")
+        self.assertFalse(product.is_incomplete)
+
+    def test_scan_receive_listing_product_edit_get_renders_context(self):
+        product = Product.objects.create(
+            name="Mask",
+            is_incomplete=True,
+            qr_code_image="qr_codes/mask-edit.png",
+        )
+
+        with mock.patch(
+            "wms.views_scan_receipts.render",
+            side_effect=self._render_stub,
+        ):
+            response = self.client.get(
+                reverse("scan:scan_receive_listing_product_edit", args=[product.id])
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/receive_listing_product_edit.html")
+        self.assertEqual(response.context_data["active"], "receive_listing")
+        self.assertEqual(response.context_data["product"], product)
+
+    def test_scan_receive_listing_bulk_sets_category_for_selected_products(self):
+        product_1 = Product.objects.create(
+            name="Mask 1",
+            is_incomplete=True,
+            qr_code_image="qr_codes/m1.png",
+        )
+        product_2 = Product.objects.create(
+            name="Mask 2",
+            is_incomplete=True,
+            qr_code_image="qr_codes/m2.png",
+        )
+        category = ProductCategory.objects.create(name="medical")
+        session = self.client.session
+        session["pallet_listing_last_incomplete_product_ids"] = [product_1.id, product_2.id]
+        session.save()
+
+        response = self.client.post(
+            reverse("scan:scan_receive_listing"),
+            {
+                "action": "bulk_update_incomplete_products",
+                "selected_product_ids": [str(product_1.id), str(product_2.id)],
+                "field_name": "category",
+                "field_value": str(category.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        product_1.refresh_from_db()
+        product_2.refresh_from_db()
+        self.assertEqual(product_1.category_id, category.id)
+        self.assertEqual(product_2.category_id, category.id)
+
+    def test_scan_receive_listing_bulk_rejects_duplicate_ean_assignment(self):
+        product_1 = Product.objects.create(
+            name="Mask 1",
+            is_incomplete=True,
+            qr_code_image="qr_codes/m1b.png",
+        )
+        product_2 = Product.objects.create(
+            name="Mask 2",
+            is_incomplete=True,
+            qr_code_image="qr_codes/m2b.png",
+        )
+        session = self.client.session
+        session["pallet_listing_last_incomplete_product_ids"] = [product_1.id, product_2.id]
+        session.save()
+
+        response = self.client.post(
+            reverse("scan:scan_receive_listing"),
+            {
+                "action": "bulk_update_incomplete_products",
+                "selected_product_ids": [str(product_1.id), str(product_2.id)],
+                "field_name": "ean",
+                "field_value": "1234567890123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "EAN")
+        self.assertContains(response, "ne peut pas être appliqué en masse")
 
     def test_scan_receive_association_get_renders_context(self):
         fake_form = object()

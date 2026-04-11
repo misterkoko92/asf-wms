@@ -47,6 +47,18 @@ def _find_sku_matches_ignoring_case_and_special_chars(sku):
     ]
 
 
+def _find_code_matches_ignoring_case_and_special_chars(field_name, value):
+    normalized_value = _normalize_match_value(value)
+    if not normalized_value:
+        return []
+    queryset = Product.objects.exclude(**{field_name: ""}).only("id", "sku", "name", "brand")
+    return [
+        product
+        for product in queryset
+        if _normalize_match_value(getattr(product, field_name, "")) == normalized_value
+    ]
+
+
 def _find_name_brand_matches_ignoring_case_and_special_chars(name, brand):
     normalized_name = _normalize_match_value(name)
     normalized_brand = _normalize_match_value(brand)
@@ -61,6 +73,16 @@ def _find_name_brand_matches_ignoring_case_and_special_chars(name, brand):
     ]
 
 
+def _find_name_matches_ignoring_case_and_special_chars(name):
+    normalized_name = _normalize_match_value(name)
+    if not normalized_name:
+        return []
+    queryset = Product.objects.exclude(name="").only("id", "sku", "name", "brand")
+    return [
+        product for product in queryset if _normalize_match_value(product.name) == normalized_name
+    ]
+
+
 def extract_product_identity(row):
     sku = parse_str(get_value(row, "sku"))
     name = parse_str(get_value(row, "name", "nom", "nom_produit", "produit"))
@@ -72,7 +94,21 @@ def extract_product_identity(row):
     return sku, name, brand
 
 
-def find_product_matches(*, sku, name, brand):
+def find_product_matches(*, sku, name, brand, barcode=None, ean=None):
+    if barcode:
+        matches = list(Product.objects.filter(barcode__iexact=barcode))
+        if matches:
+            return matches, "barcode"
+        matches = _find_code_matches_ignoring_case_and_special_chars("barcode", barcode)
+        if matches:
+            return matches, "barcode"
+    if ean:
+        matches = list(Product.objects.filter(ean__iexact=ean))
+        if matches:
+            return matches, "ean"
+        matches = _find_code_matches_ignoring_case_and_special_chars("ean", ean)
+        if matches:
+            return matches, "ean"
     if sku:
         matches = list(Product.objects.filter(sku__iexact=sku))
         if matches:
@@ -90,6 +126,13 @@ def find_product_matches(*, sku, name, brand):
         )
         if matches:
             return matches, "name_brand"
+    if name:
+        matches = list(Product.objects.filter(name__iexact=name))
+        if matches:
+            return matches, "name"
+        matches = _find_name_matches_ignoring_case_and_special_chars(name)
+        if matches:
+            return matches, "name"
     return [], None
 
 
@@ -314,6 +357,7 @@ def _parse_product_values(row, *, base_dir):
         "quarantine_default": parse_bool(
             get_value(row, "quarantine_default", "quarantaine_defaut")
         ),
+        "is_incomplete": bool(parse_bool(get_value(row, "is_incomplete"))),
     }
     values.update(_parse_volume_and_dimensions(row))
     return values
@@ -338,6 +382,7 @@ def _build_create_updates(values):
         "perishable",
         "quarantine_default",
         "notes",
+        "is_incomplete",
     ):
         if values[field] is not None:
             updates[field] = values[field]
@@ -363,6 +408,7 @@ def _build_update_fields(values):
         "perishable",
         "quarantine_default",
         "notes",
+        "is_incomplete",
     ):
         if values[field] is not None:
             updates[field] = values[field]

@@ -342,14 +342,134 @@ class ImportUtilsTests(SimpleTestCase):
         page_with_flaky_table = SimpleNamespace(
             extract_table=lambda: flaky_table,
             extract_text=lambda: "",
+            extract_words=lambda: [],
         )
         fake_pdf_module = SimpleNamespace(open=lambda _stream: _FakePdf([page_with_flaky_table]))
         with mock.patch("wms.import_utils.pdfplumber", fake_pdf_module):
-            with self.assertRaisesMessage(
-                ValueError,
-                "Impossible d'extraire un tableau du PDF.",
-            ):
-                import_utils._extract_pdf_table(b"x")
+            headers, rows = import_utils._extract_pdf_table(b"x")
+        self.assertEqual(headers, ["Nom", "Qte"])
+        self.assertEqual(rows, [["Mask", "2"]])
+
+    def test_extract_pdf_table_reconstructs_columns_from_word_positions(self):
+        page_with_words = SimpleNamespace(
+            extract_table=lambda: None,
+            extract_text=lambda: "Nom Qte\nMasque chirurgical 12",
+            extract_words=lambda: [
+                {"text": "Nom", "x0": 10, "top": 10},
+                {"text": "Qte", "x0": 140, "top": 10},
+                {"text": "Masque", "x0": 10, "top": 30},
+                {"text": "chirurgical", "x0": 45, "top": 30},
+                {"text": "12", "x0": 140, "top": 30},
+            ],
+        )
+        fake_pdf_module = SimpleNamespace(open=lambda _stream: _FakePdf([page_with_words]))
+        with mock.patch("wms.import_utils.pdfplumber", fake_pdf_module):
+            headers, rows = import_utils._extract_pdf_table(b"x")
+
+        self.assertEqual(headers, ["Nom", "Qte"])
+        self.assertEqual(rows, [["Masque chirurgical", "12"]])
+
+    def test_analyze_pdf_listing_reports_page_diagnostics(self):
+        page_with_table = SimpleNamespace(
+            extract_table=lambda: [["Nom", "Qte"], ["Mask", "3"]],
+            extract_text=lambda: "Nom  Qte\nMask  3",
+            extract_words=lambda: [
+                {"text": "Nom", "x0": 10, "top": 10},
+                {"text": "Qte", "x0": 120, "top": 10},
+            ],
+        )
+        page_with_scan = SimpleNamespace(
+            extract_table=lambda: None,
+            extract_text=lambda: "",
+            extract_words=lambda: [],
+        )
+        fake_pdf_module = SimpleNamespace(
+            open=lambda _stream: _FakePdf([page_with_table, page_with_scan])
+        )
+        with mock.patch("wms.import_utils.pdfplumber", fake_pdf_module):
+            analysis = import_utils.analyze_pdf_listing(b"%PDF-1")
+
+        self.assertEqual(analysis["total_pages"], 2)
+        self.assertEqual(analysis["mode"], "mixed")
+        self.assertEqual(analysis["extractable_pages"], [1])
+        self.assertEqual(
+            analysis["recommended_pages"],
+            {"mode": "detected", "start": 1, "end": 1, "pages": [1]},
+        )
+        self.assertEqual(
+            analysis["pages"],
+            [
+                {
+                    "number": 1,
+                    "has_text": True,
+                    "has_table": True,
+                    "extractable": True,
+                    "line_count": 2,
+                    "column_count": 2,
+                    "extraction_strategy": "table",
+                    "preview_text": "Nom  Qte | Mask  3",
+                },
+                {
+                    "number": 2,
+                    "has_text": False,
+                    "has_table": False,
+                    "extractable": False,
+                    "line_count": 0,
+                    "column_count": 0,
+                    "extraction_strategy": "none",
+                    "preview_text": "",
+                },
+            ],
+        )
+
+    def test_analyze_pdf_listing_uses_word_layout_to_recommend_detected_pages(self):
+        page_with_sparse_text = SimpleNamespace(
+            extract_table=lambda: None,
+            extract_text=lambda: "Nom Qte\nMasque 7",
+            extract_words=lambda: [
+                {"text": "Nom", "x0": 10, "top": 10},
+                {"text": "Qte", "x0": 130, "top": 10},
+                {"text": "Masque", "x0": 10, "top": 30},
+                {"text": "7", "x0": 130, "top": 30},
+            ],
+        )
+        page_without_text = SimpleNamespace(
+            extract_table=lambda: None,
+            extract_text=lambda: "",
+            extract_words=lambda: [],
+        )
+        another_sparse_page = SimpleNamespace(
+            extract_table=lambda: None,
+            extract_text=lambda: "Nom Qte\nGants 4",
+            extract_words=lambda: [
+                {"text": "Nom", "x0": 10, "top": 10},
+                {"text": "Qte", "x0": 130, "top": 10},
+                {"text": "Gants", "x0": 10, "top": 30},
+                {"text": "4", "x0": 130, "top": 30},
+            ],
+        )
+        fake_pdf_module = SimpleNamespace(
+            open=lambda _stream: _FakePdf(
+                [page_with_sparse_text, page_without_text, another_sparse_page]
+            )
+        )
+
+        with mock.patch("wms.import_utils.pdfplumber", fake_pdf_module):
+            analysis = import_utils.analyze_pdf_listing(b"%PDF-1")
+
+        self.assertEqual(analysis["mode"], "mixed")
+        self.assertEqual(analysis["extractable_pages"], [1, 3])
+        self.assertEqual(
+            analysis["recommended_pages"],
+            {"mode": "detected", "start": 1, "end": 3, "pages": [1, 3]},
+        )
+        self.assertEqual(analysis["pages"][0]["extraction_strategy"], "words")
+        self.assertEqual(analysis["pages"][0]["preview_text"], "Nom Qte | Masque 7")
+
+    def test_analyze_pdf_listing_requires_pdfplumber(self):
+        with mock.patch("wms.import_utils.pdfplumber", None):
+            with self.assertRaisesMessage(ValueError, "pdfplumber est requis"):
+                import_utils.analyze_pdf_listing(b"%PDF-1")
 
     def test_extract_tabular_data_dispatch(self):
         with mock.patch("wms.import_utils._extract_csv_table", return_value=(["a"], [["1"]])):
@@ -408,6 +528,9 @@ class ImportUtilsTests(SimpleTestCase):
 
         self.assertIsNone(import_utils.parse_decimal(None))
         self.assertEqual(str(import_utils.parse_decimal("12,5")), "12.5")
+        self.assertEqual(str(import_utils.parse_decimal("3,75 €")), "3.75")
+        self.assertEqual(str(import_utils.parse_decimal("1 234,56 €")), "1234.56")
+        self.assertEqual(str(import_utils.parse_decimal("1\u202f234,56 €")), "1234.56")
         self.assertEqual(str(import_utils.parse_decimal(3)), "3")
         self.assertEqual(str(import_utils.parse_decimal(4.2)), "4.2")
         self.assertEqual(str(import_utils.parse_decimal(import_utils.Decimal("5.1"))), "5.1")

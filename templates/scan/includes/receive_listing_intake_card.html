@@ -1,0 +1,45 @@
+{% load i18n %}
+
+<div id="scan-receive-listing-intake-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Préparer l'import" %}</h2>
+  <p class="scan-help">
+    {% blocktrans %}
+      Choisissez le type de fichier à analyser puis liez l'import à une réception palette existante.
+    {% endblocktrans %}
+  </p>
+  {% if listing_entry_form.non_field_errors %}
+    <div class="scan-message error">{{ listing_entry_form.non_field_errors }}</div>
+  {% endif %}
+  <form method="post" class="scan-filters ui-comp-form scan-listing-intake-form" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="listing_configure">
+    <div class="scan-field scan-listing-intake-field scan-listing-intake-field--file-type">
+      <label class="form-label" for="{{ listing_entry_form.listing_entry_file_type.id_for_label }}">
+        {{ listing_entry_form.listing_entry_file_type.label }}
+      </label>
+      {{ listing_entry_form.listing_entry_file_type }}
+      {% for error in listing_entry_form.listing_entry_file_type.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="scan-field scan-listing-intake-field scan-listing-intake-field--receipt">
+      <label class="form-label" for="{{ listing_entry_form.listing_entry_receipt_id.id_for_label }}">
+        {{ listing_entry_form.listing_entry_receipt_id.label }}
+      </label>
+      {{ listing_entry_form.listing_entry_receipt_id }}
+      {% for error in listing_entry_form.listing_entry_receipt_id.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="scan-help scan-listing-intake-warning">
+      {% blocktrans %}
+        Attention : il est obligatoire de lier l'import à une réception. Assurez-vous d'avoir déjà créé la
+        réception avant de poursuivre l'import.
+      {% endblocktrans %}
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider" %}</button>
+      <a class="btn btn-tertiary" href="{% url 'scan:scan_receive_pallet' %}">{% trans "Créer une réception" %}</a>
+    </div>
+  </form>
+</div>

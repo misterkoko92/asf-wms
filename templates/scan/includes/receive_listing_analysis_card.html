@@ -1,0 +1,119 @@
+{% load i18n %}
+
+<div id="scan-receive-listing-analysis-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Analyse PDF" %}</h2>
+  <p class="scan-help">
+    {% trans "Pages détectées, présence de texte et capacité d'extraction sont analysées avant le mapping." %}
+  </p>
+  <div class="scan-meta-grid">
+    <div class="scan-meta-item">
+      <strong>{% trans "Mode détecté" %}</strong>
+      {{ listing_pdf_analysis.mode|default:"-" }}
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Pages totales" %}</strong>
+      {{ listing_pdf_analysis.total_pages|default:"-" }}
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Pages extractibles" %}</strong>
+      {{ listing_pdf_analysis.extractable_pages|join:", "|default:"-" }}
+    </div>
+  </div>
+  <div class="scan-table-wrap table-responsive">
+    <table class="scan-table table table-sm table-hover">
+      <thead>
+        <tr>
+          <th>{% trans "Pages détectées" %}</th>
+          <th>{% trans "Méthode" %}</th>
+          <th>{% trans "Texte" %}</th>
+          <th>{% trans "Tableau" %}</th>
+          <th>{% trans "Extractible" %}</th>
+          <th>{% trans "Lignes" %}</th>
+          <th>{% trans "Colonnes" %}</th>
+          <th>{% trans "Aperçu" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for page in listing_pdf_analysis.pages %}
+          <tr>
+            <td>{{ page.number }}</td>
+            <td>{{ page.extraction_strategy|default:"none" }}</td>
+            <td>{% if page.has_text %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
+            <td>{% if page.has_table %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
+            <td>{% if page.extractable %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
+            <td>{{ page.line_count }}</td>
+            <td>{{ page.column_count }}</td>
+            <td>{{ page.preview_text|default:"-" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <form method="post" class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="listing_pdf_extract">
+    <input type="hidden" name="pending_token" value="{{ listing_token }}">
+    <div class="scan-field">
+      <label class="form-label">{% trans "Sélectionner les pages du listing (PDF)" %}</label>
+      <div class="scan-toggle-btn-group scan-toggle-btn-group--compact" role="radiogroup" aria-label="{% trans "Sélection des pages PDF" %}">
+        <input
+          type="radio"
+          id="id_listing_pdf_pages_mode_all_analysis"
+          name="listing_pdf_pages_mode"
+          value="all"
+          class="btn-check"
+          autocomplete="off"
+          {% if listing_pdf_pages_mode != "custom" %}checked{% endif %}
+        >
+        <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_pdf_pages_mode_all_analysis">{% trans "Toutes les pages" %}</label>
+        <input
+          type="radio"
+          id="id_listing_pdf_pages_mode_detected_analysis"
+          name="listing_pdf_pages_mode"
+          value="detected"
+          class="btn-check"
+          autocomplete="off"
+          {% if listing_pdf_pages_mode == "detected" %}checked{% endif %}
+        >
+        <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_pdf_pages_mode_detected_analysis">
+          {% trans "Pages détectées" %}
+        </label>
+        <input
+          type="radio"
+          id="id_listing_pdf_pages_mode_custom_analysis"
+          name="listing_pdf_pages_mode"
+          value="custom"
+          class="btn-check"
+          autocomplete="off"
+          {% if listing_pdf_pages_mode == "custom" %}checked{% endif %}
+        >
+        <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_pdf_pages_mode_custom_analysis">{% trans "Personnalisé" %}</label>
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal scan-inline-gap" data-pdf-custom-range>
+      <div>
+        <label class="form-label" for="listing_pdf_page_start">{% trans "Début" %}</label>
+        <input
+          type="number"
+          id="listing_pdf_page_start"
+          name="listing_pdf_page_start"
+          min="1"
+          value="{{ listing_pdf_page_start }}"
+        >
+      </div>
+      <div>
+        <label class="form-label" for="listing_pdf_page_end">{% trans "Fin" %}</label>
+        <input
+          type="number"
+          id="listing_pdf_page_end"
+          name="listing_pdf_page_end"
+          min="1"
+          value="{{ listing_pdf_page_end }}"
+        >
+      </div>
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer le mapping" %}</button>
+    </div>
+  </form>
+</div>

@@ -81,9 +81,41 @@ Use it when you need to answer:
 - stable legacy asset entrypoints where `scan.js`, `scan.css`, and `scan-bootstrap.css`
   remain the shared facades while `wms/static/scan/modules/` and
   `wms/static/scan/css/partials/` carry the first V3.3 modular slices
-- receipt operator capture on `/scan/receive-pallet/` and `/scan/receive-association/`,
-  including persisted `Receipt.conformity_status` and a mandatory observation when the
-  operator marks the reception non-conform
+- receipt operator capture on `/scan/receive-pallet/`, `/scan/receive-listing/`, and
+  `/scan/receive-association/`, including persisted `Receipt.conformity_status` and a mandatory
+  observation when the operator marks the reception non-conform
+- the dedicated listing flow under `/scan/receive-listing/` now starts with an intake gate:
+  operators must choose the file type (`CSV`, `Excel`, `PDF`) and must link the import to an
+  existing pallet receipt before any upload card appears
+- the listing intake keeps a hard warning that reception linking is mandatory and exposes a
+  shortcut back to `/scan/receive-pallet/` for operators who still need to create that reception
+- once a listing session is in progress, reloading `/scan/receive-listing/` must restore the
+  active step (`upload`, PDF analysis, mapping, assisted suggestions, review, or post-confirm
+  incomplete-products recap) and scroll operators directly to the card they still need to process
+- Excel/CSV still keep the existing mapping and review steps, while PDF now enters an explicit
+  analysis stage before mapping so operators can inspect detected pages, extractable text/table
+  coverage, extraction strategy, short text previews, and either the detected-page subset or the
+  manual page range actually sent to mapping
+- listing reception can create and receive incomplete products when only partial catalog metadata
+  is known; the incomplete-products recap only appears after the final import confirmation and is
+  scoped to the products created or reused by that last confirmed listing import
+- after mapping, assisted suggestions now run as their own dedicated step before the review table:
+  exact EAN can preselect an existing product automatically, global suggestion groups expose a
+  compact preview of affected rows, operators can accept or refuse selected suggestions in batch,
+  and applying a suggestion only fills still-empty fields while preserving manual row selection
+- the listing review table now stays full width, only renders columns that contain at least one
+  value in the current review state, and must keep the quick audit columns for product status
+  (`Nouveau produit` / `Produit connu`), match type, and the fields auto-completed by assisted
+  suggestions or matched-product fallbacks
+- `/scan/stock-update/` is now the persistent operator cockpit for incomplete products across the
+  whole warehouse: the classic `MAJ stock` form is collapsed by default while the incomplete
+  products block opens by default, supports the same guarded batch edits, can be filtered by
+  linked pallet receipt using the same reverse-chronological receipt selector contract as Listing,
+  and surfaces the same assisted suggestion groups for brand, category, TVA, and default location
+- listing reception falls back to a warehouse-local reception buffer location
+  `TEMP / RECEPTION / LISTING` when neither row-level nor product default location is available
+- listing import quantities stay additive: confirmed rows create receipt lines and stock entries;
+  they do not overwrite existing stock quantities already present for the matched product
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - warehouse `run magasin` generation/review under `/scan/preparation-runs/`, including proposal scoring, checkbox review actions, and conversion of accepted proposals into real shipments/cartons
 - warehouse `run magasin` flight acquisition first tries the planning API, then falls back to the latest imported exploitable flight batch; when that fallback batch is from a previous period, preparation capacity is computed from that batch period instead of crashing the operator flow
@@ -120,6 +152,13 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_views_scan_receipts.py`
+- `wms/tests/receipt/tests_receipt_listing.py`
+- `wms/tests/pallet/tests_pallet_listing.py`
+- `wms/tests/pallet/tests_pallet_listing_handlers.py`
+- `wms/tests/imports/tests_import_utils.py`
+- `wms/tests/imports/tests_import_services_pallet.py`
+- `wms/tests/imports/tests_import_services_locations_extra.py`
 - `wms/tests/views/tests_views_imports.py`
 - `wms/tests/shipment/tests_shipment_status.py`
 - `wms/tests/shipment/tests_shipment_document_handlers.py`

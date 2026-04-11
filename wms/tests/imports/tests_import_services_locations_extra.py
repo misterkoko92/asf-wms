@@ -1,6 +1,7 @@
 from django.test import TestCase
 
 from wms.import_services_locations import (
+    get_or_create_listing_buffer_location,
     get_or_create_location,
     import_locations,
     import_warehouses,
@@ -32,6 +33,16 @@ class ImportLocationsExtraTests(TestCase):
         self.assertEqual(location.zone, "A")
         self.assertEqual(location.aisle, "01")
         self.assertEqual(location.shelf, "B")
+
+    def test_get_or_create_listing_buffer_location_uses_default_warehouse(self):
+        default_warehouse = Warehouse.objects.create(name="Main")
+
+        location = get_or_create_listing_buffer_location(default_warehouse)
+
+        self.assertEqual(location.warehouse.name, "Main")
+        self.assertEqual(location.zone, "TEMP")
+        self.assertEqual(location.aisle, "RECEPTION")
+        self.assertEqual(location.shelf, "LISTING")
 
     def test_import_locations_creates_updates_and_records_errors(self):
         warehouse = Warehouse.objects.create(name="Main")

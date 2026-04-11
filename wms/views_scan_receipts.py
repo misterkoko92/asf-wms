@@ -1,15 +1,29 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
-from .forms import ScanReceiptAssociationForm
+from .forms import (
+    ScanIncompleteProductBulkUpdateForm,
+    ScanIncompleteProductForm,
+    ScanReceiptAssociationForm,
+)
 from .forms_billing import ReceiptShipmentAllocationForm
-from .models import Receipt, ReceiptShipmentAllocation, ReceiptType
+from .incomplete_products import (
+    apply_incomplete_products_bulk_update,
+    build_incomplete_products_context,
+    build_incomplete_products_queryset,
+)
+from .models import Product, Receipt, ReceiptShipmentAllocation, ReceiptType
 from .receipt_handlers import (
     build_hors_format_lines,
     handle_receipt_action,
     handle_receipt_association_post,
+)
+from .receipt_listing_state import (
+    build_receive_listing_context,
+    build_receive_listing_state,
 )
 from .receipt_pallet_state import (
     build_receive_pallet_context,
@@ -23,6 +37,7 @@ from .view_permissions import scan_staff_required
 TEMPLATE_RECEIPTS_VIEW = "scan/receipts_view.html"
 TEMPLATE_RECEIVE = "scan/receive.html"
 TEMPLATE_RECEIVE_PALLET = "scan/receive_pallet.html"
+TEMPLATE_RECEIVE_LISTING = "scan/receive_listing.html"
 TEMPLATE_RECEIVE_ASSOCIATION = "scan/receive_association.html"
 
 ACTIVE_RECEIPTS_VIEW = "receipts_view"
@@ -52,6 +67,17 @@ def _build_receipts_queryset(filter_value):
     if receipt_type:
         receipts_qs = receipts_qs.filter(receipt_type=receipt_type)
     return receipts_qs
+
+
+def _safe_next_url(request, *, default):
+    candidate = (request.POST.get("next") or request.GET.get("next") or "").strip()
+    if candidate and url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return default
 
 
 def _render_scan_receive(request, *, product_options, receipt_state):
@@ -177,6 +203,97 @@ def scan_receive_pallet(request):
         request,
         TEMPLATE_RECEIVE_PALLET,
         build_receive_pallet_context(state),
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_receive_listing(request):
+    action = request.POST.get("action", "")
+    listing_action = action if action.startswith("listing_") else ""
+    state = build_receive_listing_state(request, action=listing_action)
+    if state["response"]:
+        return state["response"]
+
+    context = build_receive_listing_context(state)
+    last_import_product_ids = (
+        request.session.get("pallet_listing_last_incomplete_product_ids") or []
+    )
+    queryset = build_incomplete_products_queryset(product_ids=last_import_product_ids)
+    bulk_form = None
+    if (
+        request.method == "POST"
+        and action == "bulk_update_incomplete_products"
+        and last_import_product_ids
+    ):
+        bulk_form = ScanIncompleteProductBulkUpdateForm(
+            request.POST,
+            product_queryset=queryset,
+        )
+        if bulk_form.is_valid():
+            updated_count, field_name = apply_incomplete_products_bulk_update(
+                form=bulk_form,
+                product_ids=last_import_product_ids,
+            )
+            messages.success(
+                request,
+                f"{updated_count} produit(s) incomplet(s) mis à jour ({field_name}).",
+            )
+            queryset = build_incomplete_products_queryset(product_ids=last_import_product_ids)
+            bulk_form = ScanIncompleteProductBulkUpdateForm(product_queryset=queryset)
+
+    incomplete_products_context = build_incomplete_products_context(
+        queryset=queryset,
+        bulk_form=bulk_form,
+        action_url=reverse("scan:scan_receive_listing"),
+        edit_next_url=reverse("scan:scan_receive_listing"),
+        card_id="scan-receive-listing-incomplete-products-card",
+    )
+    context.update(
+        {
+            "show_incomplete_products_card": bool(
+                incomplete_products_context["incomplete_products"]
+            ),
+            **incomplete_products_context,
+        }
+    )
+    if context["show_incomplete_products_card"] and context.get("listing_focus_card_id") in {
+        None,
+        "",
+        "scan-receive-listing-intake-card",
+    }:
+        context["listing_focus_card_id"] = "scan-receive-listing-incomplete-products-card"
+    return render(request, TEMPLATE_RECEIVE_LISTING, context)
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_receive_listing_product_edit(request, product_id):
+    product = get_object_or_404(Product, pk=product_id)
+    default_next_url = reverse("scan:scan_receive_listing")
+    next_url = _safe_next_url(request, default=default_next_url)
+    form = ScanIncompleteProductForm(request.POST or None, instance=product)
+    if request.method == "POST" and (request.POST.get("action") or "").strip() == "save":
+        if form.is_valid():
+            updated_product = form.save(commit=False)
+            updated_product.is_incomplete = False
+            updated_product.save()
+            messages.success(request, f"Produit {updated_product.name} complété.")
+            return redirect(next_url)
+
+    return render(
+        request,
+        "scan/receive_listing_product_edit.html",
+        {
+            "active": (
+                "stock_update"
+                if next_url.startswith(reverse("scan:scan_stock_update"))
+                else "receive_listing"
+            ),
+            "product": product,
+            "form": form,
+            "next_url": next_url,
+        },
     )
 
 

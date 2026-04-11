@@ -108,6 +108,13 @@ Current contract:
   - `Préparer des colis`
   - `Préparation expédition`
   - `Runs magasin`
+- the shared `Réception` group currently exposes, in order:
+  - `Réception palette`
+  - `Listing`
+  - `Réception association`
+- `/scan/receive-pallet/` is now the manual pallet-only screen and keeps a shortcut toward
+  `/scan/receive-listing/`; file-upload contracts for listing imports must stay on the dedicated
+  listing route
 - the recipient-needs cockpit at `/scan/recipient-needs/` must set `active="recipient_needs"`
   so the shared `Stocks` group expands and highlights correctly
 - warehouse-preparation screens under `/scan/preparation-runs/` must set `active="preparation_runs"` so the shared group expands and highlights correctly
@@ -256,6 +263,43 @@ Current contract:
 
 - `Receipt` persists `conformity_status` and keeps `unknown` for legacy rows that predate this capture
 - `/scan/receive-pallet/` stores the operator observation in `Receipt.notes`
+- `/scan/receive-listing/` owns the file-import contract for listing reception and now starts with
+  a dedicated intake card:
+  operators must choose the file type first (`CSV`, `Excel`, `PDF`, sorted A-Z) and must
+  link the import to an existing pallet receipt through a reverse-chronological select
+  labelled as `date - palette count - donor - carrier`
+- the intake card keeps an explicit warning that reception linking is mandatory and exposes a
+  `Créer une réception` shortcut back to `/scan/receive-pallet/`; the listing route no longer owns
+  an inline receipt-draft form
+- the listing route must resume on the active step after reload: upload card after intake
+  validation, PDF analysis after PDF upload, mapping after extraction, assisted suggestions after
+  mapping when proposals exist, review after suggestion handling, and the incomplete-products recap
+  after final confirmation when incomplete products were created
+- Excel/CSV still enter direct mapping/review, while PDF first persists an analysis payload
+  (`total_pages`, page diagnostics, extraction strategy, preview text, and recommended
+  `all`/`detected`/manual page selection) before the operator triggers mapping
+- the assisted suggestion contract now lives in its own dedicated step before the review table:
+  exact EAN may preselect an existing product, `Match auto EAN` badges flag those rows, grouped
+  suggestions expose a row preview plus explicit field/confidence metadata, and the step only
+  exposes batch `Accepter les propositions sélectionnées` / `Refuser les propositions sélectionnées`
+  actions; refused suggestions are only hidden from the current listing session and remain
+  available later in `/scan/stock-update/`, while accepted suggestions only fill fields still left
+  empty in the current review state
+- the review table itself must remain full width, keep the operator audit columns for product
+  status, detected match type, and auto-completed fields, and only render product/location columns
+  that contain at least one value in the current review state
+- listing-created products may persist with `Product.is_incomplete=True`; the same route renders
+  the post-confirm recap for the last confirmed import so operators can open one product at a time
+  or apply guarded bulk updates to non-identifier fields across multiple incomplete products
+- `/scan/stock-update/` reuses the same incomplete-products cockpit contract as the durable
+  warehouse-wide remediation surface, with the stock form collapsed by default, the incomplete
+  products block open by default, an optional receipt filter using the same pallet receipt label
+  contract as Listing, and a persistent suggestions card that can apply brand/category/TVA/default
+  location proposals across the currently filtered incomplete products
+- listing reception uses a warehouse-local buffer location `TEMP / RECEPTION / LISTING` when a
+  listing row and the matched product both lack a usable default location
+- listing import quantities are additive: each confirmed row creates a receipt line and stock
+  movement instead of replacing existing stock quantities on the matched product
 - `/scan/receive-association/` reuses `pickup_charge_comment` as the operator observation field
 - when the operator marks a reception non-conform, the observation field becomes mandatory in both forms
 

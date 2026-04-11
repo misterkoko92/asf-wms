@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
@@ -7,7 +8,16 @@ from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 
-from wms.models import Location, Product, ProductLot, ProductLotStatus, Warehouse
+from wms.models import (
+    Location,
+    Product,
+    ProductCategory,
+    ProductLot,
+    ProductLotStatus,
+    Receipt,
+    ReceiptType,
+    Warehouse,
+)
 
 EXPECTED_STOCK_PAGE_SIZE = 100
 
@@ -273,6 +283,234 @@ class ScanStockViewsTests(TestCase):
                         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "updated")
+
+    def test_scan_stock_update_get_renders_incomplete_products_context(self):
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.location.warehouse,
+        )
+        product = Product.objects.create(
+            name="Produit incomplet stock",
+            is_incomplete=True,
+            qr_code_image="qr_codes/stock-incomplete.png",
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-STOCK-INCOMPLETE",
+            received_on=date(2026, 1, 2),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=1,
+            location=self.location,
+            source_receipt=receipt,
+        )
+        fake_form = object()
+
+        with (
+            mock.patch(
+                "wms.views_scan_stock.ScanStockUpdateForm",
+                return_value=fake_form,
+            ),
+            mock.patch(
+                "wms.views_scan_stock.build_product_options",
+                return_value=[{"id": 1}],
+            ),
+            mock.patch(
+                "wms.views_scan_stock.build_location_data",
+                return_value=[{"id": "A-01-001"}],
+            ),
+            mock.patch(
+                "wms.views_scan_stock.render",
+                side_effect=self._render_stub,
+            ),
+        ):
+            response = self.client.get(
+                reverse("scan:scan_stock_update"),
+                {"incomplete_receipt_id": str(receipt.id)},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/stock_update.html")
+        self.assertEqual(response.context_data["active"], "stock_update")
+        self.assertEqual(
+            [item.id for item in response.context_data["incomplete_products"]],
+            [product.id],
+        )
+        self.assertEqual(response.context_data["incomplete_products_receipt_id"], receipt.id)
+        self.assertIn("incomplete_receipt_filter_form", response.context_data)
+
+    def test_scan_stock_update_get_exposes_incomplete_product_suggestions(self):
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.location.warehouse,
+        )
+        category = ProductCategory.objects.create(name="Thermomètres")
+        for index in range(1, 4):
+            Product.objects.create(
+                sku=f"BRAUN-BASE-{index}",
+                name=f"Produit Braun {index}",
+                brand="BRAUN",
+                category=category,
+                default_location=self.location,
+                tva=Decimal("0.055"),
+                qr_code_image=f"qr_codes/braun-base-{index}.png",
+            )
+        incomplete_products = []
+        for index in range(1, 4):
+            product = Product.objects.create(
+                name=f"BRAUN Thermometre {index}",
+                is_incomplete=True,
+                qr_code_image=f"qr_codes/braun-incomplete-{index}.png",
+            )
+            ProductLot.objects.create(
+                product=product,
+                lot_code=f"LOT-BRAUN-{index}",
+                received_on=date(2026, 1, 2),
+                status=ProductLotStatus.AVAILABLE,
+                quantity_on_hand=1,
+                location=self.location,
+                source_receipt=receipt,
+            )
+            incomplete_products.append(product)
+
+        response = self.client.get(
+            reverse("scan:scan_stock_update"),
+            {"incomplete_receipt_id": str(receipt.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [
+                suggestion["field_name"]
+                for suggestion in response.context["incomplete_product_suggestions"]
+            ],
+            ["brand", "category", "tva", "location"],
+        )
+
+    def test_scan_stock_update_apply_suggestion_updates_filtered_incomplete_products(self):
+        receipt_1 = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.location.warehouse,
+        )
+        receipt_2 = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.location.warehouse,
+        )
+        category = ProductCategory.objects.create(name="Thermomètres")
+        for index in range(1, 4):
+            Product.objects.create(
+                sku=f"BRAUN-BASE-APPLY-{index}",
+                name=f"Produit Braun Apply {index}",
+                brand="BRAUN",
+                category=category,
+                default_location=self.location,
+                tva=Decimal("0.055"),
+                qr_code_image=f"qr_codes/braun-base-apply-{index}.png",
+            )
+        targeted_products = []
+        for index in range(1, 4):
+            product = Product.objects.create(
+                name=f"BRAUN Thermometre ciblé {index}",
+                is_incomplete=True,
+                qr_code_image=f"qr_codes/braun-target-{index}.png",
+            )
+            ProductLot.objects.create(
+                product=product,
+                lot_code=f"LOT-BRAUN-TARGET-{index}",
+                received_on=date(2026, 1, 2),
+                status=ProductLotStatus.AVAILABLE,
+                quantity_on_hand=1,
+                location=self.location,
+                source_receipt=receipt_1,
+            )
+            targeted_products.append(product)
+        untouched_product = Product.objects.create(
+            name="BRAUN Thermometre hors filtre",
+            is_incomplete=True,
+            qr_code_image="qr_codes/braun-outside-filter.png",
+        )
+        ProductLot.objects.create(
+            product=untouched_product,
+            lot_code="LOT-BRAUN-OUTSIDE",
+            received_on=date(2026, 1, 2),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=1,
+            location=self.location,
+            source_receipt=receipt_2,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_stock_update"),
+            {
+                "action": "apply_incomplete_product_suggestion",
+                "incomplete_receipt_id": str(receipt_1.id),
+                "suggestion_id": "brand:BRAUN",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        for product in targeted_products:
+            product.refresh_from_db()
+            self.assertEqual(product.brand, "BRAUN")
+            self.assertNotEqual(
+                product.name, f"BRAUN Thermometre ciblé {targeted_products.index(product) + 1}"
+            )
+        untouched_product.refresh_from_db()
+        self.assertEqual(untouched_product.brand, "")
+
+    def test_scan_stock_update_bulk_updates_filtered_incomplete_products(self):
+        receipt_1 = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.location.warehouse,
+        )
+        receipt_2 = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.location.warehouse,
+        )
+        product_1 = Product.objects.create(
+            name="Mask 1",
+            is_incomplete=True,
+            qr_code_image="qr_codes/mask-stock-1.png",
+        )
+        product_2 = Product.objects.create(
+            name="Mask 2",
+            is_incomplete=True,
+            qr_code_image="qr_codes/mask-stock-2.png",
+        )
+        ProductLot.objects.create(
+            product=product_1,
+            lot_code="LOT-STOCK-FILTER-1",
+            received_on=date(2026, 1, 2),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=1,
+            location=self.location,
+            source_receipt=receipt_1,
+        )
+        ProductLot.objects.create(
+            product=product_2,
+            lot_code="LOT-STOCK-FILTER-2",
+            received_on=date(2026, 1, 2),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=1,
+            location=self.location,
+            source_receipt=receipt_2,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_stock_update"),
+            {
+                "action": "bulk_update_incomplete_products",
+                "incomplete_receipt_id": str(receipt_1.id),
+                "selected_product_ids": [str(product_1.id)],
+                "field_name": "brand",
+                "field_value": "ASF",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        product_1.refresh_from_db()
+        product_2.refresh_from_db()
+        self.assertEqual(product_1.brand, "ASF")
+        self.assertEqual(product_2.brand, "")
 
     def test_scan_out_get_renders_context(self):
         fake_form = object()

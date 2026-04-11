@@ -2,12 +2,37 @@ from django.utils import timezone
 
 from contacts.models import Contact
 
-from .import_services_locations import resolve_listing_location
+from .import_services_locations import (
+    get_or_create_listing_buffer_location,
+    resolve_listing_location,
+)
 from .import_services_products import import_product_row
 from .import_utils import parse_int
-from .models import Product, Receipt, ReceiptLine, ReceiptStatus, ReceiptType
+from .listing_row_classification import is_non_product_listing_row
+from .models import (
+    Product,
+    Receipt,
+    ReceiptConformityStatus,
+    ReceiptLine,
+    ReceiptStatus,
+    ReceiptType,
+)
 from .scan_helpers import resolve_product
 from .services import StockError, receive_receipt_line
+
+
+def should_mark_listing_product_incomplete(row):
+    identifier_present = any(
+        str(row.get(field) or "").strip() for field in ("sku", "barcode", "ean")
+    )
+    category_present = any(
+        str(row.get(field) or "").strip()
+        for field in ("category", "category_l1", "category_l2", "category_l3", "category_l4")
+    )
+    location_present = any(
+        str(row.get(field) or "").strip() for field in ("warehouse", "zone", "aisle", "shelf")
+    )
+    return not (identifier_present and category_present and location_present)
 
 
 def apply_pallet_listing_import(
@@ -16,11 +41,13 @@ def apply_pallet_listing_import(
     user,
     warehouse,
     receipt_meta,
+    existing_receipt=None,
 ):
-    receipt = None
+    receipt = existing_receipt
     created = 0
     skipped = 0
     errors = []
+    incomplete_product_ids = set()
     for payload in row_payloads:
         if not payload.get("apply"):
             skipped += 1
@@ -29,6 +56,10 @@ def apply_pallet_listing_import(
         row_data = payload.get("row_data") or {}
         selection = (payload.get("selection") or "").strip()
         override_code = (payload.get("override_code") or "").strip()
+
+        if is_non_product_listing_row(row_data):
+            skipped += 1
+            continue
 
         quantity = parse_int(row_data.get("quantity"))
         if not quantity or quantity <= 0:
@@ -51,6 +82,7 @@ def apply_pallet_listing_import(
         if not product and selection == "new":
             new_row = dict(row_data)
             new_row.pop("quantity", None)
+            new_row["is_incomplete"] = should_mark_listing_product_incomplete(new_row)
             try:
                 product, _created, _warnings = import_product_row(
                     new_row,
@@ -68,6 +100,8 @@ def apply_pallet_listing_import(
             if location is None:
                 location = product.default_location
             if location is None:
+                location = get_or_create_listing_buffer_location(warehouse)
+            if location is None:
                 raise ValueError("Emplacement requis pour réception.")
             if receipt is None:
                 receipt = Receipt.objects.create(
@@ -82,6 +116,12 @@ def apply_pallet_listing_import(
                     received_on=receipt_meta.get("received_on") or timezone.localdate(),
                     pallet_count=receipt_meta.get("pallet_count") or 0,
                     transport_request_date=receipt_meta.get("transport_request_date") or None,
+                    conformity_status=(
+                        ReceiptConformityStatus.NON_CONFORM
+                        if receipt_meta.get("is_non_conform")
+                        else ReceiptConformityStatus.CONFORM
+                    ),
+                    notes=receipt_meta.get("observation") or "",
                     warehouse=warehouse,
                     created_by=user,
                 )
@@ -93,7 +133,9 @@ def apply_pallet_listing_import(
                 storage_conditions=product.storage_conditions or "",
             )
             receive_receipt_line(user=user, line=line)
+            if getattr(product, "is_incomplete", False):
+                incomplete_product_ids.add(product.id)
             created += 1
         except (ValueError, StockError) as exc:
             errors.append(f"Ligne {row_index}: {exc}")
-    return created, skipped, errors, receipt
+    return created, skipped, errors, receipt, sorted(incomplete_product_ids)

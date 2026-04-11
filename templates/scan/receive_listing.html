@@ -1,0 +1,179 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - Listing{% endblock title %}
+
+{% block content %}
+  {% include "scan/includes/receive_listing_intake_card.html" %}
+
+  {% if listing_entry_file_type %}
+    {% include "scan/includes/receive_pallet_listing_upload_card.html" %}
+  {% endif %}
+
+  {% if listing_stage == "analysis" %}
+    {% include "scan/includes/receive_listing_analysis_card.html" %}
+  {% endif %}
+
+  {% if listing_stage == "mapping" %}
+    {% include "scan/includes/receive_pallet_mapping_card.html" %}
+  {% endif %}
+
+  {% if listing_stage == "suggestions" %}
+    {% include "scan/includes/receive_listing_suggestions_card.html" %}
+  {% endif %}
+
+  {% if listing_stage == "review" %}
+    {% include "scan/includes/receive_pallet_review_card.html" %}
+
+    <script>
+      (function() {
+        function computeCompletedFields(row) {
+          var labels = [];
+          row.querySelectorAll('input[data-completion-label]').forEach(function(input) {
+            var label = input.dataset.completionLabel || '';
+            var field = input.dataset.field || '';
+            var sourceValue = (input.dataset.source || '').trim();
+            var currentValue = (input.value || '').trim();
+            if (!label || !currentValue) {
+              return;
+            }
+            if (field === 'name') {
+              if (currentValue !== sourceValue) {
+                labels.push(label);
+              }
+              return;
+            }
+            if (!sourceValue) {
+              labels.push(label);
+            }
+          });
+          return labels;
+        }
+
+        function syncCompletedFields(row) {
+          var target = row.querySelector('[data-completed-fields]');
+          if (!target) {
+            return;
+          }
+          var labels = computeCompletedFields(row);
+          target.textContent = labels.length ? labels.join(', ') : '-';
+        }
+
+        function syncRow(select) {
+          var row = select.closest('tr');
+          if (!row) {
+            return;
+          }
+          var isNew = select.value === 'new';
+          var option = select.options[select.selectedIndex];
+          var skuLabel = row.querySelector('[data-sku]');
+          var statusLabel = row.querySelector('[data-status-label]');
+          if (skuLabel) {
+            skuLabel.textContent = isNew ? 'AUTO' : (option.dataset.sku || '-');
+          }
+          if (statusLabel) {
+            statusLabel.textContent = isNew ? 'Nouveau produit' : 'Produit connu';
+          }
+          row.querySelectorAll('[data-field]').forEach(function(input) {
+            var field = input.dataset.field;
+            if (isNew) {
+              if (input.dataset.import !== undefined) {
+                input.value = input.dataset.import || '';
+              }
+            } else if (option && option.dataset && option.dataset[field] !== undefined) {
+              input.value = option.dataset[field];
+            }
+            if (input.dataset.lock === 'product') {
+              input.readOnly = !isNew;
+            }
+          });
+          syncCompletedFields(row);
+        }
+
+        document.querySelectorAll('.listing-match').forEach(function(select) {
+          select.addEventListener('change', function() {
+            syncRow(select);
+          });
+          syncRow(select);
+        });
+
+        document.querySelectorAll('input[data-field]').forEach(function(input) {
+          input.addEventListener('input', function() {
+            if (!input.readOnly) {
+              input.dataset.import = input.value;
+            }
+            var row = input.closest('tr');
+            if (row) {
+              syncCompletedFields(row);
+            }
+          });
+        });
+      })();
+    </script>
+  {% endif %}
+
+  {% if show_incomplete_products_card %}
+    {% include "scan/includes/receive_listing_incomplete_products_card.html" %}
+  {% endif %}
+
+  <script>
+    (function() {
+      var suggestionsForm = document.getElementById('scan-receive-listing-suggestions-form');
+      if (suggestionsForm) {
+        var selectedCountNode = suggestionsForm.querySelector('[data-selected-suggestions-count]');
+        var suggestionCheckboxes = suggestionsForm.querySelectorAll('input[name="selected_suggestion_ids"]');
+
+        function syncSelectedSuggestionsCount() {
+          if (!selectedCountNode) {
+            return;
+          }
+          var selectedCount = 0;
+          suggestionCheckboxes.forEach(function(checkbox) {
+            if (checkbox.checked) {
+              selectedCount += 1;
+            }
+          });
+          selectedCountNode.textContent = String(selectedCount);
+        }
+
+        suggestionCheckboxes.forEach(function(checkbox) {
+          checkbox.addEventListener('change', syncSelectedSuggestionsCount);
+        });
+        syncSelectedSuggestionsCount();
+      }
+
+      var focusCardId = '{{ listing_focus_card_id|default:""|escapejs }}';
+      if (focusCardId && focusCardId !== 'scan-receive-listing-intake-card') {
+        var focusCard = document.getElementById(focusCardId);
+        if (focusCard) {
+          window.requestAnimationFrame(function() {
+            focusCard.scrollIntoView({block: 'start'});
+          });
+        }
+      }
+
+      var pdfModeInputs = document.querySelectorAll('input[name="listing_pdf_pages_mode"]');
+      var pdfCustomRange = document.querySelector('[data-pdf-custom-range]');
+
+      function syncPdfRangeVisibility() {
+        if (!pdfCustomRange) {
+          return;
+        }
+        var selectedMode = 'all';
+        pdfModeInputs.forEach(function(input) {
+          if (input.checked) {
+            selectedMode = input.value;
+          }
+        });
+        pdfCustomRange.hidden = selectedMode !== 'custom';
+      }
+
+      if (pdfModeInputs.length) {
+        pdfModeInputs.forEach(function(input) {
+          input.addEventListener('change', syncPdfRangeVisibility);
+        });
+        syncPdfRangeVisibility();
+      }
+    })();
+  </script>
+{% endblock content %}

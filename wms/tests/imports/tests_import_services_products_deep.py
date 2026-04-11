@@ -239,6 +239,22 @@ class ImportProductRowDeepTests(TestCase):
         )
         self.assertEqual(ProductLot.objects.filter(product=updated).count(), 1)
 
+    def test_import_product_row_accepts_currency_formatted_pdf_prices(self):
+        row = {
+            "name": "price from pdf",
+            "sku": "PDF-PRICE-1",
+            "pu_ht": "3,75 €",
+            "tva": "5,5",
+            "quantity": "1",
+        }
+
+        product, created, warnings = import_product_row(row)
+
+        self.assertTrue(created)
+        self.assertEqual(warnings, [])
+        self.assertEqual(product.pu_ht, Decimal("3.75"))
+        self.assertEqual(product.tva, Decimal("0.0550"))
+
 
 class ImportProductsRowsDeepTests(TestCase):
     def test_import_products_rows_skips_empty_row_and_reports_missing_update_target(self):

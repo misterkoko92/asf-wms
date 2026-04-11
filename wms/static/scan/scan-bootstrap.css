@@ -738,6 +738,64 @@ body.scan-bootstrap-enabled {
   width: min(100%, var(--wms-select-width-xl));
 }
 
+.scan-bootstrap-enabled .scan-listing-intake-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.scan-bootstrap-enabled .scan-listing-review-form,
+.scan-bootstrap-enabled .scan-listing-suggestions-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.scan-bootstrap-enabled .scan-listing-step-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+}
+
+.scan-bootstrap-enabled .scan-listing-step-actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.scan-bootstrap-enabled .scan-listing-step-actions > *:last-child {
+  margin-left: auto;
+}
+
+.scan-bootstrap-enabled .scan-listing-suggestion-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.scan-bootstrap-enabled .scan-listing-intake-field--file-type .form-select {
+  width: min(100%, 24rem);
+}
+
+.scan-bootstrap-enabled .scan-listing-intake-field--receipt .form-select,
+.scan-bootstrap-enabled .scan-listing-intake-receipt-select {
+  width: min(100%, 52rem);
+  max-width: 100%;
+}
+
+.scan-bootstrap-enabled .scan-listing-intake-warning {
+  max-width: 52rem;
+}
+
+.scan-bootstrap-enabled .scan-listing-review-subcard {
+  width: 100%;
+}
+
+.scan-bootstrap-enabled .scan-listing-suggestion-item summary {
+  cursor: pointer;
+}
+
 .scan-bootstrap-enabled .recipient-preference-table {
   min-width: 1180px;
 }

@@ -15,6 +15,7 @@ from .contact_labels import (
     build_shipment_contact_select_label,
     build_shipment_recipient_select_label,
 )
+from .import_utils import parse_bool, parse_decimal, parse_int
 from .models import (
     Carton,
     CartonStatus,
@@ -22,6 +23,7 @@ from .models import (
     Location,
     Order,
     Product,
+    ProductCategory,
     ProductLot,
     ProductLotStatus,
     Receipt,
@@ -89,6 +91,23 @@ def _shipment_reference_label(shipment):
     destination = getattr(shipment, "destination", None)
     iata_code = getattr(destination, "iata_code", "") or "-"
     return f"{shipment.reference} - {iata_code}"
+
+
+def _pallet_receipt_label(receipt):
+    received_on = receipt.received_on.strftime("%d/%m/%Y") if receipt.received_on else "-"
+    pallet_count = receipt.pallet_count or 0
+    donor = receipt.source_contact.name if receipt.source_contact else "-"
+    carrier = receipt.carrier_contact.name if receipt.carrier_contact else "-"
+    palette_label = "palette" if pallet_count == 1 else "palettes"
+    return f"{received_on} - {pallet_count} {palette_label} - {donor} - {carrier}"
+
+
+def _pallet_receipt_queryset():
+    return (
+        Receipt.objects.filter(receipt_type=ReceiptType.PALLET)
+        .select_related("source_contact", "carrier_contact")
+        .order_by("-received_on", "-created_at")
+    )
 
 
 class ReceiveStockForm(forms.Form):
@@ -319,6 +338,208 @@ class ScanReceiptPalletForm(forms.Form):
             self,
             observation_field_name="observation",
         )
+        return cleaned
+
+
+class ScanListingEntryForm(forms.Form):
+    listing_entry_file_type = forms.ChoiceField(
+        label=_("Type de fichier"),
+        choices=(
+            ("", _("Sélectionner un type de fichier")),
+            ("csv", "CSV"),
+            ("excel", "Excel"),
+            ("pdf", "PDF"),
+        ),
+        required=True,
+        widget=forms.Select(
+            attrs={"class": "form-select ui-select--lg scan-listing-intake-file-type-select"}
+        ),
+    )
+    listing_entry_receipt_id = forms.ModelChoiceField(
+        label=_("Lier à une réception"),
+        queryset=Receipt.objects.none(),
+        required=True,
+        empty_label=_("Sélectionner une réception"),
+        widget=forms.Select(
+            attrs={"class": "form-select ui-select--xl scan-listing-intake-receipt-select"}
+        ),
+    )
+
+    def __init__(self, *args, receipts_qs=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        queryset = receipts_qs if receipts_qs is not None else _pallet_receipt_queryset()
+        self.fields["listing_entry_receipt_id"].queryset = queryset
+        self.fields["listing_entry_receipt_id"].label_from_instance = _pallet_receipt_label
+
+
+class ScanIncompleteProductReceiptFilterForm(forms.Form):
+    incomplete_receipt_id = forms.ModelChoiceField(
+        label=_("Réception"),
+        queryset=Receipt.objects.none(),
+        required=False,
+        empty_label=_("Toutes les réceptions"),
+        widget=forms.Select(attrs={"class": "form-select ui-select--xl"}),
+    )
+
+    def __init__(self, *args, receipts_qs=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        queryset = receipts_qs if receipts_qs is not None else _pallet_receipt_queryset()
+        self.fields["incomplete_receipt_id"].queryset = queryset
+        self.fields["incomplete_receipt_id"].label_from_instance = _pallet_receipt_label
+
+
+INCOMPLETE_PRODUCT_IDENTIFIER_FIELDS = {"name", "sku", "ean", "barcode"}
+INCOMPLETE_PRODUCT_BULK_FIELD_CHOICES = [
+    ("category", _("Catégorie")),
+    ("default_location", _("Emplacement")),
+    ("brand", _("Marque")),
+    ("color", _("Couleur")),
+    ("storage_conditions", _("Conditions de stockage")),
+    ("perishable", _("Périssable")),
+    ("quarantine_default", _("Quarantaine")),
+    ("notes", _("Notes")),
+    ("pu_ht", _("PU HT")),
+    ("tva", _("TVA")),
+    ("length_cm", _("Longueur cm")),
+    ("width_cm", _("Largeur cm")),
+    ("height_cm", _("Hauteur cm")),
+    ("weight_g", _("Poids g")),
+    ("volume_cm3", _("Volume cm3")),
+    ("name", _("Nom")),
+    ("sku", _("SKU")),
+    ("ean", _("EAN")),
+    ("barcode", _("Barcode")),
+]
+
+
+class ScanIncompleteProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = [
+            "name",
+            "sku",
+            "brand",
+            "color",
+            "barcode",
+            "ean",
+            "category",
+            "default_location",
+            "storage_conditions",
+            "perishable",
+            "quarantine_default",
+            "pu_ht",
+            "tva",
+            "length_cm",
+            "width_cm",
+            "height_cm",
+            "weight_g",
+            "volume_cm3",
+            "notes",
+        ]
+        widgets = {
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = ProductCategory.objects.select_related(
+            "parent"
+        ).order_by("name")
+        self.fields["category"].label_from_instance = lambda category: str(category)
+        self.fields["default_location"].queryset = Location.objects.select_related(
+            "warehouse"
+        ).order_by("warehouse__name", "zone", "aisle", "shelf")
+
+
+class ScanIncompleteProductBulkUpdateForm(forms.Form):
+    field_name = forms.ChoiceField(
+        label=_("Champ"),
+        choices=INCOMPLETE_PRODUCT_BULK_FIELD_CHOICES,
+    )
+    field_value = forms.CharField(label=_("Valeur"), required=False)
+    field_value_category = forms.ModelChoiceField(
+        label=_("Catégorie"),
+        queryset=ProductCategory.objects.none(),
+        required=False,
+    )
+    field_value_location = forms.ModelChoiceField(
+        label=_("Emplacement"),
+        queryset=Location.objects.none(),
+        required=False,
+    )
+    field_value_boolean = forms.ChoiceField(
+        label=_("Valeur booléenne"),
+        choices=(("true", _("Oui")), ("false", _("Non"))),
+        required=False,
+    )
+
+    def __init__(self, *args, product_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.product_queryset = product_queryset
+        self.fields["field_value_category"].queryset = ProductCategory.objects.select_related(
+            "parent"
+        ).order_by("name")
+        self.fields["field_value_category"].label_from_instance = lambda category: str(category)
+        self.fields["field_value_location"].queryset = Location.objects.select_related(
+            "warehouse"
+        ).order_by("warehouse__name", "zone", "aisle", "shelf")
+
+    def clean(self):
+        cleaned = super().clean()
+        selected_ids = []
+        raw_ids = self.data.getlist("selected_product_ids")
+        if not raw_ids:
+            self.add_error(None, _("Sélectionnez au moins un produit incomplet."))
+            return cleaned
+
+        queryset = self.product_queryset or Product.objects.filter(is_incomplete=True)
+        products_by_id = {str(product.id): product for product in queryset}
+        for raw_id in raw_ids:
+            if raw_id not in products_by_id:
+                self.add_error(None, _("Produit sélectionné invalide."))
+                return cleaned
+            selected_ids.append(int(raw_id))
+        cleaned["selected_product_ids"] = selected_ids
+
+        field_name = cleaned.get("field_name")
+        if not field_name:
+            return cleaned
+        field_label = dict(INCOMPLETE_PRODUCT_BULK_FIELD_CHOICES).get(field_name, field_name)
+        if field_name in INCOMPLETE_PRODUCT_IDENTIFIER_FIELDS and len(selected_ids) > 1:
+            self.add_error(
+                "field_name",
+                _("%(field)s ne peut pas être appliqué en masse.") % {"field": field_label},
+            )
+            return cleaned
+
+        raw_value = (cleaned.get("field_value") or "").strip()
+        resolved_value = raw_value
+        if field_name == "category":
+            resolved_value = cleaned.get("field_value_category")
+            if resolved_value is None and raw_value:
+                resolved_value = ProductCategory.objects.filter(pk=parse_int(raw_value)).first()
+        elif field_name == "default_location":
+            resolved_value = cleaned.get("field_value_location")
+            if resolved_value is None and raw_value:
+                resolved_value = Location.objects.filter(pk=parse_int(raw_value)).first()
+        elif field_name in {"perishable", "quarantine_default"}:
+            bool_value = cleaned.get("field_value_boolean") or raw_value
+            try:
+                resolved_value = bool(parse_bool(bool_value))
+            except ValueError:
+                self.add_error("field_value", _("Valeur booléenne invalide."))
+                return cleaned
+        elif field_name in {"pu_ht", "tva", "length_cm", "width_cm", "height_cm"}:
+            resolved_value = parse_decimal(raw_value) if raw_value else None
+        elif field_name in {"weight_g", "volume_cm3"}:
+            resolved_value = parse_int(raw_value) if raw_value else None
+
+        if field_name in {"category", "default_location"} and raw_value and resolved_value is None:
+            self.add_error(
+                "field_value", _("Valeur invalide pour %(field)s.") % {"field": field_label}
+            )
+            return cleaned
+        cleaned["resolved_value"] = resolved_value
         return cleaned
 
 
@@ -597,8 +818,8 @@ class ScanShipmentForm(forms.Form):
 
         self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
         self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
-        self.fields["recipient_contact"].label_from_instance = (
-            lambda obj: build_shipment_recipient_select_label(
+        self.fields["recipient_contact"].label_from_instance = lambda obj: (
+            build_shipment_recipient_select_label(
                 obj,
                 destination=selected_destination,
             )

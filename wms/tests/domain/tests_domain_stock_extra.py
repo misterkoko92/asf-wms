@@ -4,6 +4,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
+from django.db.models import Sum
 from django.test import TestCase
 
 from wms.domain.dto import PackCartonInput, ReceiveStockInput
@@ -269,6 +270,32 @@ class DomainStockExtraTests(TestCase):
 
         with self.assertRaisesMessage(StockError, "Emplacement requis pour réception."):
             receive_receipt_line(user=self.user, line=line)
+
+    def test_receive_receipt_line_adds_stock_without_overwriting_existing_lots(self):
+        existing_lot = self._create_lot(code="LOT-EXISTING", quantity_on_hand=5)
+        receipt = self._create_receipt(status=ReceiptStatus.DRAFT)
+        line = ReceiptLine.objects.create(
+            receipt=receipt,
+            product=self.product,
+            quantity=3,
+            location=self.location,
+        )
+
+        received_lot = receive_receipt_line(user=self.user, line=line)
+
+        existing_lot.refresh_from_db()
+        self.assertEqual(existing_lot.quantity_on_hand, 5)
+        self.assertNotEqual(received_lot.id, existing_lot.id)
+        self.assertEqual(
+            ProductLot.objects.filter(product=self.product).order_by("id").count(),
+            2,
+        )
+        self.assertEqual(
+            ProductLot.objects.filter(product=self.product).aggregate(
+                total_quantity=Sum("quantity_on_hand")
+            )["total_quantity"],
+            8,
+        )
 
     def test_adjust_stock_validation_errors(self):
         lot = self._create_lot(code="LOT-ADJ-ERR", quantity_on_hand=5, quantity_reserved=3)

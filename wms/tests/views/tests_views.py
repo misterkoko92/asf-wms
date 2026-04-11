@@ -1079,7 +1079,7 @@ class ScanViewTests(TestCase):
         self.assertContains(
             response,
             reverse("scan:scan_admin_contacts") + "?contact_type=organization",
-            count=4,
+            count=2,
         )
 
     def test_scan_receive_association_contact_links_target_scan_admin_contacts(self):

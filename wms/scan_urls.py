@@ -58,6 +58,12 @@ urlpatterns = [
     path("receipts/", views.scan_receipts_view, name="scan_receipts_view"),
     path("receive/", views.scan_receive, name="scan_receive"),
     path("receive-pallet/", views.scan_receive_pallet, name="scan_receive_pallet"),
+    path("receive-listing/", views.scan_receive_listing, name="scan_receive_listing"),
+    path(
+        "receive-listing/products/<int:product_id>/",
+        views.scan_receive_listing_product_edit,
+        name="scan_receive_listing_product_edit",
+    ),
     path("receive-association/", views.scan_receive_association, name="scan_receive_association"),
     path("billing/settings/", views.scan_billing_settings, name="scan_billing_settings"),
     path(
