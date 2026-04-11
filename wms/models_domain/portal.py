@@ -145,6 +145,7 @@ class PublicAccountRequest(models.Model):
         default=PublicAccountRequestType.ASSOCIATION,
         db_index=True,
     )
+    requested_account_type = models.CharField(max_length=20, blank=True, default="")
     status = models.CharField(
         max_length=20,
         choices=PublicAccountRequestStatus.choices,
@@ -168,6 +169,7 @@ class PublicAccountRequest(models.Model):
     requested_username = models.CharField(max_length=150, blank=True)
     requested_password_hash = models.CharField(max_length=128, blank=True)
     notes = models.TextField(blank=True)
+    review_snapshot = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(

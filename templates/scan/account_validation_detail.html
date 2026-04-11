@@ -1,0 +1,48 @@
+{% extends "scan/base.html" %}
+
+{% block title %}Validation compte{% endblock %}
+
+{% block content %}
+  <section class="scan-card card border-0 ui-comp-card">
+    <div class="ui-comp-panel d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-start">
+      <div>
+        <h1 class="ui-comp-title mb-1">{{ account_request.association_name }}</h1>
+        <p class="scan-help mb-0">Validez le compte après qualification opérateur et complétion des données métier.</p>
+      </div>
+      <div class="ui-comp-actions">
+        <a href="{% url 'scan:scan_account_validation_list' %}" class="btn btn-secondary btn-sm">Retour à la liste</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="row g-3 mt-1">
+    <div class="col-12 col-xl-5">
+      {% include "scan/includes/account_validation_request_summary.html" %}
+    </div>
+    <div class="col-12 col-xl-7">
+      {% include "scan/includes/account_validation_review_form.html" %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script>
+    (function () {
+      const typeField = document.getElementById('{{ form.final_account_type.id_for_label }}');
+      const recipientFields = Array.from(document.querySelectorAll('.account-validation-recipient-only'));
+      if (!typeField || recipientFields.length === 0) {
+        return;
+      }
+
+      function syncRecipientFields() {
+        const isRecipient = typeField.value === 'recipient';
+        recipientFields.forEach((node) => {
+          node.hidden = !isRecipient;
+        });
+      }
+
+      typeField.addEventListener('change', syncRecipientFields);
+      syncRecipientFields();
+    })();
+  </script>
+{% endblock %}

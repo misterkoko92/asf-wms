@@ -34,6 +34,9 @@ from wms.models import (
     ProductKitItem,
     ProductLot,
     ProductLotStatus,
+    PublicAccountRequest,
+    PublicAccountRequestStatus,
+    PublicAccountRequestType,
     PublicOrderLink,
     Receipt,
     ReceiptType,
@@ -60,6 +63,15 @@ class ScanBootstrapUiTests(TestCase):
             username="scan-bootstrap-staff",
             password="pass1234",
             is_staff=True,
+        )
+        cls.validator_user = get_user_model().objects.create_user(
+            username="scan-bootstrap-validator",
+            password="pass1234",
+            is_staff=True,
+            email="scan-bootstrap-validator@example.com",
+        )
+        Group.objects.get_or_create(name="Account_User_Validation")[0].user_set.add(
+            cls.validator_user
         )
         cls.superuser = get_user_model().objects.create_superuser(
             username="scan-bootstrap-admin",
@@ -184,6 +196,30 @@ class ScanBootstrapUiTests(TestCase):
                 "Réception association",
             ],
         )
+
+    def test_scan_sidebar_exposes_account_validations_for_validator(self):
+        PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Association Pending Review",
+            email="pending-review@example.com",
+            phone="0102030405",
+            address_line1="1 Rue Pending",
+            address_line2="",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+        )
+        self.client.force_login(self.validator_user)
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_sidebar_html(response)
+        self.assertIn("/scan/account-validations/", nav_html)
+        self.assertIn("Validations comptes", nav_html)
+        self.assertContains(response, "Nouvelles demandes de compte en attente")
+        self.assertContains(response, "/scan/account-validations/")
 
     def test_scan_templates_load_targeted_modules_only_on_needed_pages(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))

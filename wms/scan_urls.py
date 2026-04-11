@@ -72,6 +72,16 @@ urlpatterns = [
         name="scan_billing_equivalence",
     ),
     path("billing/editor/", views.scan_billing_editor, name="scan_billing_editor"),
+    path(
+        "account-validations/",
+        views.scan_account_validation_list,
+        name="scan_account_validation_list",
+    ),
+    path(
+        "account-validations/<int:account_request_id>/",
+        views.scan_account_validation_detail,
+        name="scan_account_validation_detail",
+    ),
     path("stock-update/", views.scan_stock_update, name="scan_stock_update"),
     path("orders-view/", views.scan_orders_view, name="scan_orders_view"),
     path("orders/", views.scan_order, name="scan_order"),

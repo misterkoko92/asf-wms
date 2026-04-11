@@ -1,5 +1,9 @@
 """Scan views re-exported for URL routing."""
 
+from .views_scan_account_validations import (
+    scan_account_validation_detail,
+    scan_account_validation_list,
+)
 from .views_scan_admin import (
     scan_admin_carton_formats,
     scan_admin_contacts,
@@ -82,6 +86,8 @@ SCAN_FLOW_EXPORTS = (
     "scan_billing_settings",
     "scan_billing_equivalence",
     "scan_billing_editor",
+    "scan_account_validation_list",
+    "scan_account_validation_detail",
     "scan_order",
     "scan_orders_view",
     "scan_prepare_kits",

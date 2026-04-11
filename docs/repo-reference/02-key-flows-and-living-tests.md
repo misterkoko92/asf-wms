@@ -84,6 +84,10 @@ Use it when you need to answer:
 - receipt operator capture on `/scan/receive-pallet/`, `/scan/receive-listing/`, and
   `/scan/receive-association/`, including persisted `Receipt.conformity_status` and a mandatory
   observation when the operator marks the reception non-conform
+- validator-group account review under `/scan/account-validations/` and
+  `/scan/account-validations/<id>/`, including one-screen correction of the final business type,
+  recipient data completion, and operator approval or rejection without going back through the
+  Django admin changelist
 - the dedicated listing flow under `/scan/receive-listing/` now starts with an intake gate:
   operators must choose the file type (`CSV`, `Excel`, `PDF`) and must link the import to an
   existing pallet receipt before any upload card appears
@@ -152,6 +156,7 @@ Use it when you need to answer:
 - `wms/tests/views/tests_views_scan_dashboard.py`
 - `wms/tests/views/tests_views_scan_pilotage.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_views_scan_account_validations.py`
 - `wms/tests/views/tests_views_scan_receipts.py`
 - `wms/tests/receipt/tests_receipt_listing.py`
 - `wms/tests/pallet/tests_pallet_listing.py`
@@ -225,12 +230,18 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - association authentication and account maintenance
 - public account requests now distinguish `shipper`, `recipient`, and `user`, while legacy
   `association` rows remain accepted as shipper-equivalent during approval
+- operator review of public account requests is now scan-first: validator-group staff review
+  pending rows under `/scan/account-validations/`, while Django admin remains a bounded fallback
 - recipient public account requests must choose exactly one delivery stop up front because
   recipient portal access is scoped to one `ShipmentRecipientOrganization (organization,
   destination)`
 - ASF approval of a recipient public account request now provisions the validated runtime
   recipient organization, one minimal active recipient contact, one
   `PortalAccessGrant(recipient_admin)`, and the default ASF shipper binding in the same flow
+- when an operator corrects a public request from `shipper` to `recipient`, the approval flow
+  preserves the original requested type in `PublicAccountRequest.requested_account_type`, stores
+  the reviewed payload in `PublicAccountRequest.review_snapshot`, and provisions the final runtime
+  from the reviewed scan payload instead of the original signup type
 - portal access resolution from explicit `PortalAccessGrant` rows with fallback to legacy `AssociationProfile`
 - single-scope portal activation in session, with `/portal/scope-select/` as the explicit chooser when a user has multiple portal scopes
 - when a shipper scope comes from an explicit grant and the user still has no legacy `AssociationProfile`,
