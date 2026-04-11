@@ -299,6 +299,9 @@ class ScanReceiptsViewsTests(TestCase):
             qr_code_image="qr_codes/m2.png",
         )
         category = ProductCategory.objects.create(name="medical")
+        session = self.client.session
+        session["pallet_listing_last_incomplete_product_ids"] = [product_1.id, product_2.id]
+        session.save()
 
         response = self.client.post(
             reverse("scan:scan_receive_listing"),
@@ -327,6 +330,9 @@ class ScanReceiptsViewsTests(TestCase):
             is_incomplete=True,
             qr_code_image="qr_codes/m2b.png",
         )
+        session = self.client.session
+        session["pallet_listing_last_incomplete_product_ids"] = [product_1.id, product_2.id]
+        session.save()
 
         response = self.client.post(
             reverse("scan:scan_receive_listing"),

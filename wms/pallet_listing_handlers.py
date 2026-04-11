@@ -17,15 +17,18 @@ from .import_utils import (
     list_excel_sheets,
     parse_int,
 )
+from .models import Receipt, ReceiptType
 from .pallet_listing import (
     PALLET_LISTING_REQUIRED_FIELDS,
     PALLET_LOCATION_FIELDS,
     PALLET_REVIEW_FIELDS,
+    apply_listing_group_suggestion_to_overrides,
     apply_listing_mapping,
     build_listing_columns,
     build_listing_extract_options,
     build_listing_mapping_defaults,
-    build_listing_review_rows,
+    build_listing_review_state,
+    capture_listing_review_overrides_from_post,
     load_listing_table,
 )
 from .scan_helpers import resolve_default_warehouse
@@ -38,6 +41,7 @@ def init_listing_state():
         "listing_stage": None,
         "listing_columns": [],
         "listing_rows": [],
+        "listing_group_suggestions": [],
         "listing_errors": [],
         "listing_sheet_names": [],
         "listing_sheet_name": "",
@@ -48,6 +52,9 @@ def init_listing_state():
         "listing_pdf_total_pages": "",
         "listing_pdf_analysis": None,
         "listing_file_type": "",
+        "listing_entry_file_type": "",
+        "listing_entry_receipt_id": "",
+        "listing_selected_receipt": None,
     }
 
 
@@ -90,14 +97,46 @@ def hydrate_listing_state_from_pending(state, pending_data):
             pdf_pages_label = f"{pdf_pages['start']} - {pdf_pages['end']}"
         else:
             pdf_pages_label = "Toutes les pages"
-    source_contact = Contact.objects.filter(id=receipt_meta.get("source_contact_id")).first()
-    carrier_contact = Contact.objects.filter(id=receipt_meta.get("carrier_contact_id")).first()
+    selected_receipt = None
+    receipt_id = pending_data.get("receipt_id")
+    if receipt_id:
+        selected_receipt = (
+            Receipt.objects.select_related("source_contact", "carrier_contact")
+            .filter(pk=receipt_id, receipt_type=ReceiptType.PALLET)
+            .first()
+        )
+    source_contact = None
+    carrier_contact = None
+    if selected_receipt is not None:
+        source_contact = selected_receipt.source_contact
+        carrier_contact = selected_receipt.carrier_contact
+    else:
+        source_contact_id = receipt_meta.get("source_contact_id")
+        carrier_contact_id = receipt_meta.get("carrier_contact_id")
+        source_contact = (
+            Contact.objects.filter(id=source_contact_id).first() if source_contact_id else None
+        )
+        carrier_contact = (
+            Contact.objects.filter(id=carrier_contact_id).first() if carrier_contact_id else None
+        )
     listing_meta = {
-        "received_on": receipt_meta.get("received_on"),
-        "pallet_count": receipt_meta.get("pallet_count"),
+        "received_on": (
+            selected_receipt.received_on.isoformat()
+            if selected_receipt is not None and selected_receipt.received_on
+            else receipt_meta.get("received_on") or ""
+        ),
+        "pallet_count": (
+            selected_receipt.pallet_count
+            if selected_receipt is not None
+            else receipt_meta.get("pallet_count") or ""
+        ),
         "source_contact": source_contact.name if source_contact else "",
         "carrier_contact": carrier_contact.name if carrier_contact else "",
-        "transport_request_date": receipt_meta.get("transport_request_date") or "",
+        "transport_request_date": (
+            selected_receipt.transport_request_date.isoformat()
+            if selected_receipt is not None and selected_receipt.transport_request_date
+            else receipt_meta.get("transport_request_date") or ""
+        ),
         "sheet_name": sheet_name_value or "",
         "header_row": header_row_value or "",
         "sheet_names": sheet_names_display if extension in {".xlsx", ".xls"} else "",
@@ -121,6 +160,11 @@ def hydrate_listing_state_from_pending(state, pending_data):
         state["listing_pdf_total_pages"] = str(pdf_pages.get("total"))
     if pending_data.get("file_type"):
         state["listing_file_type"] = pending_data.get("file_type")
+    state["listing_entry_file_type"] = (
+        pending_data.get("entry_file_type") or pending_data.get("file_type") or ""
+    )
+    state["listing_entry_receipt_id"] = str(receipt_id or "")
+    state["listing_selected_receipt"] = selected_receipt
     if pending_data.get("pdf_analysis"):
         state["listing_pdf_analysis"] = pending_data.get("pdf_analysis")
         if not pending_data.get("headers"):
@@ -196,16 +240,20 @@ def handle_pallet_listing_action(
     request,
     *,
     action,
-    listing_form,
+    listing_form=None,
     state,
 ):
     listing_errors = state["listing_errors"]
 
     if action == "listing_cancel":
         clear_pending_listing(request)
+        request.session.pop("pallet_listing_last_incomplete_product_ids", None)
         return redirect("scan:scan_receive_listing")
 
     if action == "listing_upload":
+        pending_config = request.session.get("pallet_listing_pending") or {}
+        selected_receipt_id = pending_config.get("receipt_id")
+        selected_receipt = None
         listing_file_type = (request.POST.get("listing_file_type") or "").strip()
         listing_pdf_pages_mode = (request.POST.get("listing_pdf_pages_mode") or "all").strip()
         listing_pdf_page_start = (request.POST.get("listing_pdf_page_start") or "").strip()
@@ -218,13 +266,21 @@ def handle_pallet_listing_action(
         listing_header_row = state["listing_header_row"] or 1
         header_row_error = None
 
+        if not selected_receipt_id:
+            listing_errors.append("Sélectionnez une réception liée avant d'importer le listing.")
+        else:
+            selected_receipt = (
+                Receipt.objects.select_related("source_contact", "carrier_contact")
+                .filter(pk=selected_receipt_id, receipt_type=ReceiptType.PALLET)
+                .first()
+            )
+            if selected_receipt is None:
+                listing_errors.append("Réception liée introuvable.")
         if header_row_raw:
             try:
                 listing_header_row = parse_int(header_row_raw)
             except ValueError:
                 header_row_error = "Ligne des titres invalide."
-        if not listing_form.is_valid():
-            listing_errors.append("Renseignez les informations de réception.")
         uploaded = request.FILES.get("listing_file")
         if not uploaded:
             listing_errors.append("Fichier requis pour importer le listing.")
@@ -305,6 +361,9 @@ def handle_pallet_listing_action(
                         temp_file.write(data)
                         temp_path = temp_file.name
                     pending = {
+                        "entry_file_type": pending_config.get("entry_file_type")
+                        or listing_file_type,
+                        "receipt_id": selected_receipt_id,
                         "token": uuid.uuid4().hex,
                         "file_path": temp_path,
                         "extension": extension,
@@ -323,18 +382,29 @@ def handle_pallet_listing_action(
                             )
                         },
                         "receipt_meta": {
-                            "received_on": listing_form.cleaned_data["received_on"].isoformat(),
-                            "pallet_count": listing_form.cleaned_data["pallet_count"],
-                            "source_contact_id": listing_form.cleaned_data["source_contact"].id,
-                            "carrier_contact_id": listing_form.cleaned_data["carrier_contact"].id,
+                            "received_on": (
+                                selected_receipt.received_on.isoformat()
+                                if selected_receipt and selected_receipt.received_on
+                                else ""
+                            ),
+                            "pallet_count": (
+                                selected_receipt.pallet_count if selected_receipt else ""
+                            ),
+                            "source_contact_id": (
+                                selected_receipt.source_contact_id if selected_receipt else ""
+                            ),
+                            "carrier_contact_id": (
+                                selected_receipt.carrier_contact_id if selected_receipt else ""
+                            ),
                             "transport_request_date": (
-                                listing_form.cleaned_data["transport_request_date"].isoformat()
-                                if listing_form.cleaned_data["transport_request_date"]
+                                selected_receipt.transport_request_date.isoformat()
+                                if selected_receipt and selected_receipt.transport_request_date
                                 else ""
                             ),
                         },
                     }
                     request.session["pallet_listing_pending"] = pending
+                    request.session.pop("pallet_listing_last_incomplete_product_ids", None)
                     state["listing_stage"] = "analysis"
                 elif not listing_errors:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
@@ -342,6 +412,9 @@ def handle_pallet_listing_action(
                         temp_path = temp_file.name
                     mapping_defaults = build_listing_mapping_defaults(headers)
                     pending = {
+                        "entry_file_type": pending_config.get("entry_file_type")
+                        or listing_file_type,
+                        "receipt_id": selected_receipt_id,
                         "token": uuid.uuid4().hex,
                         "file_path": temp_path,
                         "extension": extension,
@@ -361,18 +434,29 @@ def handle_pallet_listing_action(
                             )
                         },
                         "receipt_meta": {
-                            "received_on": listing_form.cleaned_data["received_on"].isoformat(),
-                            "pallet_count": listing_form.cleaned_data["pallet_count"],
-                            "source_contact_id": listing_form.cleaned_data["source_contact"].id,
-                            "carrier_contact_id": listing_form.cleaned_data["carrier_contact"].id,
+                            "received_on": (
+                                selected_receipt.received_on.isoformat()
+                                if selected_receipt and selected_receipt.received_on
+                                else ""
+                            ),
+                            "pallet_count": (
+                                selected_receipt.pallet_count if selected_receipt else ""
+                            ),
+                            "source_contact_id": (
+                                selected_receipt.source_contact_id if selected_receipt else ""
+                            ),
+                            "carrier_contact_id": (
+                                selected_receipt.carrier_contact_id if selected_receipt else ""
+                            ),
                             "transport_request_date": (
-                                listing_form.cleaned_data["transport_request_date"].isoformat()
-                                if listing_form.cleaned_data["transport_request_date"]
+                                selected_receipt.transport_request_date.isoformat()
+                                if selected_receipt and selected_receipt.transport_request_date
                                 else ""
                             ),
                         },
                     }
                     request.session["pallet_listing_pending"] = pending
+                    request.session.pop("pallet_listing_last_incomplete_product_ids", None)
                     state["listing_stage"] = "mapping"
                     state["listing_columns"] = build_listing_columns(
                         headers, rows, mapping_defaults
@@ -498,8 +582,49 @@ def handle_pallet_listing_action(
             pending["mapping"] = mapping
             request.session["pallet_listing_pending"] = pending
             headers, rows = load_listing_table(pending)
-            state["listing_rows"] = build_listing_review_rows(rows, mapping)
+            review_state = build_listing_review_state(rows, mapping)
+            state["listing_rows"] = review_state["rows"]
+            state["listing_group_suggestions"] = review_state["group_suggestions"]
             state["listing_stage"] = "review"
+        return None
+
+    if action.startswith("listing_apply_suggestion_group"):
+        pending = request.session.get("pallet_listing_pending")
+        token = request.POST.get("pending_token")
+        if not pending or pending.get("token") != token:
+            messages.error(request, "Session d'import expirée.")
+            return redirect("scan:scan_receive_listing")
+
+        suggestion_id = action.partition(":")[2].strip()
+        headers, rows = load_listing_table(pending)
+        mapping = pending.get("mapping") or {}
+        review_overrides = capture_listing_review_overrides_from_post(request.POST, rows, mapping)
+        review_state = build_listing_review_state(rows, mapping, review_overrides=review_overrides)
+        suggestion = next(
+            (
+                suggestion_item
+                for suggestion_item in review_state["group_suggestions"]
+                if suggestion_item.get("id") == suggestion_id
+            ),
+            None,
+        )
+        state["listing_stage"] = "review"
+        if suggestion is None:
+            listing_errors.append("Suggestion introuvable ou obsolète.")
+            state["listing_rows"] = review_state["rows"]
+            state["listing_group_suggestions"] = review_state["group_suggestions"]
+            return None
+
+        apply_listing_group_suggestion_to_overrides(review_overrides, suggestion)
+        pending["review_overrides"] = review_overrides
+        request.session["pallet_listing_pending"] = pending
+        updated_review_state = build_listing_review_state(
+            rows,
+            mapping,
+            review_overrides=review_overrides,
+        )
+        state["listing_rows"] = updated_review_state["rows"]
+        state["listing_group_suggestions"] = updated_review_state["group_suggestions"]
         return None
 
     if action == "listing_confirm":
@@ -511,7 +636,20 @@ def handle_pallet_listing_action(
         headers, rows = load_listing_table(pending)
         mapping = pending.get("mapping") or {}
         mapped_rows = apply_listing_mapping(rows, mapping)
-        receipt_meta = pending.get("receipt_meta") or {}
+        selected_receipt = None
+        selected_receipt_id = pending.get("receipt_id")
+        if selected_receipt_id:
+            selected_receipt = (
+                Receipt.objects.select_related("source_contact", "carrier_contact")
+                .filter(pk=selected_receipt_id, receipt_type=ReceiptType.PALLET)
+                .first()
+            )
+            if selected_receipt is None:
+                messages.error(request, "Réception liée introuvable.")
+                return redirect("scan:scan_receive_listing")
+        else:
+            messages.error(request, "Réception liée introuvable.")
+            return redirect("scan:scan_receive_listing")
 
         warehouse = resolve_default_warehouse()
         if not warehouse:
@@ -544,11 +682,12 @@ def handle_pallet_listing_action(
             )
 
         with transaction.atomic():
-            created, skipped, errors, receipt = apply_pallet_listing_import(
+            created, skipped, errors, receipt, incomplete_product_ids = apply_pallet_listing_import(
                 row_payloads,
                 user=request.user,
                 warehouse=warehouse,
-                receipt_meta=receipt_meta,
+                receipt_meta={},
+                existing_receipt=selected_receipt,
             )
 
         if errors:
@@ -564,6 +703,10 @@ def handle_pallet_listing_action(
             messages.error(request, "Aucune ligne valide à importer.")
         if skipped:
             messages.warning(request, f"{skipped} ligne(s) ignorée(s).")
+        if incomplete_product_ids:
+            request.session["pallet_listing_last_incomplete_product_ids"] = incomplete_product_ids
+        else:
+            request.session.pop("pallet_listing_last_incomplete_product_ids", None)
         clear_pending_listing(request)
         return redirect("scan:scan_receive_listing")
 

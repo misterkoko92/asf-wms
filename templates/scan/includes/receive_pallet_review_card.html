@@ -59,10 +59,12 @@
       {% endif %}
     </div>
   {% endif %}
-  <form method="post" class="scan-filters ui-comp-form">
+  <form method="post" id="scan-receive-listing-review-form" class="scan-filters ui-comp-form">
     {% csrf_token %}
-    <input type="hidden" name="action" value="listing_confirm">
     <input type="hidden" name="pending_token" value="{{ listing_token }}">
+    {% if listing_group_suggestions %}
+      {% include "scan/includes/receive_listing_suggestions_card.html" %}
+    {% endif %}
     <div class="scan-table-wrap table-responsive">
       <table class="scan-table table table-sm table-hover">
         <thead>
@@ -88,6 +90,9 @@
               </td>
               <td>
                 <div><strong>{{ row.match_type }}</strong></div>
+                {% if row.match_badge %}
+                  <div><span class="badge text-bg-success">{{ row.match_badge }}</span></div>
+                {% endif %}
                 <select name="row_{{ row.index }}_match" class="form-select ui-select--lg listing-match" data-row-index="{{ row.index }}">
                   <option value="new" {% if row.default_match == "new" %}selected{% endif %}>{% trans "Nouveau produit" %}</option>
                   {% for option in row.match_options %}
@@ -188,7 +193,7 @@
       </table>
     </div>
     <div class="scan-filter-actions ui-comp-actions">
-      <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider tous les imports coches" %}</button>
+      <button type="submit" name="action" value="listing_confirm" class="scan-submit btn btn-primary">{% trans "Valider tous les imports coches" %}</button>
     </div>
   </form>
   <form method="post" class="scan-filters ui-comp-form">

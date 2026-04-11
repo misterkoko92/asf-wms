@@ -1,119 +1,44 @@
 {% load i18n wms_ui %}
-{% url 'scan:scan_admin_contacts' as scan_admin_contacts_url %}
 
-<div id="scan-receive-listing-pdf-card" class="scan-card card border-0 ui-comp-card">
-  <h2 class="ui-comp-title">PDF</h2>
-  <p class="scan-help">
-    {% blocktrans %}Le PDF est le point d'entrée principal. Le fichier est analysé avant extraction pour isoler les pages utiles, puis le mapping des colonnes est proposé.{% endblocktrans %}
-  </p>
-  <p class="scan-help">{% trans "Les PDF image sont maintenant détectés. Les pages non extractibles restent signalées tant que l'OCR serveur n'est pas branché." %}</p>
+<div id="scan-receive-listing-{{ listing_entry_file_type }}-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">
+    {% if listing_entry_file_type == "pdf" %}
+      PDF
+    {% elif listing_entry_file_type == "excel" %}
+      Excel
+    {% else %}
+      CSV
+    {% endif %}
+  </h2>
+  {% if listing_entry_file_type == "pdf" %}
+    <p class="scan-help">
+      {% blocktrans %}Le PDF est le point d'entrée principal. Le fichier est analysé avant extraction pour isoler les pages utiles, puis le mapping des colonnes est proposé.{% endblocktrans %}
+    </p>
+    <p class="scan-help">{% trans "Les PDF image sont maintenant détectés. Les pages non extractibles restent signalées tant que l'OCR serveur n'est pas branché." %}</p>
+  {% elif listing_entry_file_type == "excel" %}
+    <p class="scan-help">
+      {% trans "Le pipeline Excel existant reste disponible avec le même mapping et la même revue de lignes." %}
+    </p>
+  {% else %}
+    <p class="scan-help">
+      {% trans "Le pipeline CSV existant reste disponible avec le même mapping et la même revue de lignes." %}
+    </p>
+  {% endif %}
   {% if listing_errors %}
     {% for error in listing_errors %}
       <div class="scan-message error">{{ error }}</div>
     {% endfor %}
   {% endif %}
-  {% if listing_form.non_field_errors %}
-    <div class="scan-message error">{{ listing_form.non_field_errors }}</div>
-  {% endif %}
   <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form" novalidate style="grid-template-columns: 1fr;">
     {% csrf_token %}
     <input type="hidden" name="action" value="listing_upload">
-
+    <input type="hidden" name="listing_file_type" value="{{ listing_entry_file_type }}">
     <div class="scan-field">
-      <label class="form-label" for="{{ listing_form.received_on.id_for_label }}">{{ listing_form.received_on.label }}</label>
-      {{ listing_form.received_on }}
-      {% for error in listing_form.received_on.errors %}
-        <div class="scan-message error">{{ error }}</div>
-      {% endfor %}
+      <label class="form-label" for="listing_file">{% trans "Fichier listing (CSV/XLS/XLSX/PDF)" %}</label>
+      {% ui_file_input name="listing_file" field_id="listing_file" accept=".csv,.xlsx,.xls,.pdf" required=True %}
     </div>
 
-    <div class="scan-inline scan-inline-equal">
-      <div class="scan-field">
-        <label class="form-label" for="{{ listing_form.pallet_count.id_for_label }}">{{ listing_form.pallet_count.label }}</label>
-        {{ listing_form.pallet_count }}
-        {% for error in listing_form.pallet_count.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
-
-      <div class="scan-field">
-        <label class="form-label" for="{{ listing_form.transport_request_date.id_for_label }}">{{ listing_form.transport_request_date.label }}</label>
-        {{ listing_form.transport_request_date }}
-        {% for error in listing_form.transport_request_date.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="scan-field">
-      <label class="form-label" for="{{ listing_form.source_contact.id_for_label }}">{{ listing_form.source_contact.label }}</label>
-      <div class="scan-inline">
-        {{ listing_form.source_contact }}
-        <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
-          {% trans "Ajouter donateur" %}
-        </a>
-      </div>
-      {% for error in listing_form.source_contact.errors %}
-        <div class="scan-message error">{{ error }}</div>
-      {% endfor %}
-    </div>
-
-    <div class="scan-field">
-      <label class="form-label" for="{{ listing_form.carrier_contact.id_for_label }}">{{ listing_form.carrier_contact.label }}</label>
-      <div class="scan-inline">
-        {{ listing_form.carrier_contact }}
-        <a class="scan-scan-btn btn btn-tertiary" href="{{ scan_admin_contacts_url }}?contact_type=organization" target="_blank" rel="noopener">
-          {% trans "Ajouter transporteur" %}
-        </a>
-      </div>
-      {% for error in listing_form.carrier_contact.errors %}
-        <div class="scan-message error">{{ error }}</div>
-      {% endfor %}
-    </div>
-
-    <div class="scan-inline scan-inline-equal">
-      <div class="scan-field">
-        <label class="form-label" for="listing_file">{% trans "Fichier listing (CSV/XLS/XLSX/PDF)" %}</label>
-        {% ui_file_input name="listing_file" field_id="listing_file" accept=".csv,.xlsx,.xls,.pdf" required=True %}
-      </div>
-      <div class="scan-field">
-        <label class="form-label">{% trans "Type de fichier" %}</label>
-        <div class="scan-toggle-btn-group scan-toggle-btn-group--compact" role="radiogroup" aria-label="{% trans "Type de fichier" %}">
-          <input
-            type="radio"
-            id="id_listing_file_type_pdf"
-            name="listing_file_type"
-            value="pdf"
-            class="btn-check"
-            autocomplete="off"
-            {% if listing_file_type == "pdf" %}checked{% endif %}
-          >
-          <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_file_type_pdf">PDF</label>
-          <input
-            type="radio"
-            id="id_listing_file_type_excel"
-            name="listing_file_type"
-            value="excel"
-            class="btn-check"
-            autocomplete="off"
-            {% if listing_file_type == "excel" %}checked{% endif %}
-          >
-          <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_file_type_excel">Excel</label>
-          <input
-            type="radio"
-            id="id_listing_file_type_csv"
-            name="listing_file_type"
-            value="csv"
-            class="btn-check"
-            autocomplete="off"
-            {% if listing_file_type == "csv" %}checked{% endif %}
-          >
-          <label class="btn btn-outline-secondary scan-toggle-btn" for="id_listing_file_type_csv">CSV</label>
-        </div>
-      </div>
-    </div>
-
-    {% if listing_stage != "analysis" %}
+    {% if listing_entry_file_type == "pdf" and listing_stage != "analysis" %}
       <div class="scan-field" data-file-options="pdf">
         <label class="form-label">{% trans "Sélection initiale des pages (PDF)" %}</label>
         {% if listing_pdf_total_pages %}
@@ -169,32 +94,34 @@
       </div>
     {% endif %}
 
-    <div class="scan-field" data-file-options="excel">
-      <label class="form-label" for="listing_sheet_name">{% trans "Feuille Excel" %}</label>
-      <select id="listing_sheet_name" name="listing_sheet_name" class="form-select ui-select--lg">
-        <option value="">{% trans "Premiere feuille" %}</option>
-        {% for sheet in listing_sheet_names %}
-          <option value="{{ sheet }}" {% if sheet == listing_sheet_name %}selected{% endif %}>
-            {{ sheet }}
-          </option>
-        {% endfor %}
-      </select>
-      {% if listing_sheet_names %}
-        <div class="scan-help">{% blocktrans %}Feuilles detectees: {{ listing_sheet_names|join:", " }}{% endblocktrans %}</div>
-      {% endif %}
-      <div class="scan-inline scan-inline-equal scan-inline-gap">
-        <div>
-          <label class="form-label" for="listing_header_row">{% trans "Ligne des titres (Excel)" %}</label>
-          <input
-            type="number"
-            id="listing_header_row"
-            name="listing_header_row"
-            min="1"
-            value="{{ listing_header_row }}"
-          >
+    {% if listing_entry_file_type == "excel" %}
+      <div class="scan-field" data-file-options="excel">
+        <label class="form-label" for="listing_sheet_name">{% trans "Feuille Excel" %}</label>
+        <select id="listing_sheet_name" name="listing_sheet_name" class="form-select ui-select--lg">
+          <option value="">{% trans "Premiere feuille" %}</option>
+          {% for sheet in listing_sheet_names %}
+            <option value="{{ sheet }}" {% if sheet == listing_sheet_name %}selected{% endif %}>
+              {{ sheet }}
+            </option>
+          {% endfor %}
+        </select>
+        {% if listing_sheet_names %}
+          <div class="scan-help">{% blocktrans %}Feuilles detectees: {{ listing_sheet_names|join:", " }}{% endblocktrans %}</div>
+        {% endif %}
+        <div class="scan-inline scan-inline-equal scan-inline-gap">
+          <div>
+            <label class="form-label" for="listing_header_row">{% trans "Ligne des titres (Excel)" %}</label>
+            <input
+              type="number"
+              id="listing_header_row"
+              name="listing_header_row"
+              min="1"
+              value="{{ listing_header_row }}"
+            >
+          </div>
         </div>
       </div>
-    </div>
+    {% endif %}
 
     <div class="scan-field scan-field-gap">
       <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Analyser listing" %}</button>

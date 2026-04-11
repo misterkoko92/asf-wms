@@ -93,6 +93,23 @@ def _shipment_reference_label(shipment):
     return f"{shipment.reference} - {iata_code}"
 
 
+def _pallet_receipt_label(receipt):
+    received_on = receipt.received_on.strftime("%d/%m/%Y") if receipt.received_on else "-"
+    pallet_count = receipt.pallet_count or 0
+    donor = receipt.source_contact.name if receipt.source_contact else "-"
+    carrier = receipt.carrier_contact.name if receipt.carrier_contact else "-"
+    palette_label = "palette" if pallet_count == 1 else "palettes"
+    return f"{received_on} - {pallet_count} {palette_label} - {donor} - {carrier}"
+
+
+def _pallet_receipt_queryset():
+    return (
+        Receipt.objects.filter(receipt_type=ReceiptType.PALLET)
+        .select_related("source_contact", "carrier_contact")
+        .order_by("-received_on", "-created_at")
+    )
+
+
 class ReceiveStockForm(forms.Form):
     product = forms.ModelChoiceField(
         queryset=Product.objects.filter(is_active=True).order_by("name")
@@ -322,6 +339,49 @@ class ScanReceiptPalletForm(forms.Form):
             observation_field_name="observation",
         )
         return cleaned
+
+
+class ScanListingEntryForm(forms.Form):
+    listing_entry_file_type = forms.ChoiceField(
+        label=_("Type de fichier"),
+        choices=(
+            ("", _("Sélectionner un type de fichier")),
+            ("csv", "CSV"),
+            ("excel", "Excel"),
+            ("pdf", "PDF"),
+        ),
+        required=True,
+        widget=forms.Select(attrs={"class": "form-select ui-select--lg"}),
+    )
+    listing_entry_receipt_id = forms.ModelChoiceField(
+        label=_("Lier à une réception"),
+        queryset=Receipt.objects.none(),
+        required=True,
+        empty_label=_("Sélectionner une réception"),
+        widget=forms.Select(attrs={"class": "form-select ui-select--xl"}),
+    )
+
+    def __init__(self, *args, receipts_qs=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        queryset = receipts_qs if receipts_qs is not None else _pallet_receipt_queryset()
+        self.fields["listing_entry_receipt_id"].queryset = queryset
+        self.fields["listing_entry_receipt_id"].label_from_instance = _pallet_receipt_label
+
+
+class ScanIncompleteProductReceiptFilterForm(forms.Form):
+    incomplete_receipt_id = forms.ModelChoiceField(
+        label=_("Réception"),
+        queryset=Receipt.objects.none(),
+        required=False,
+        empty_label=_("Toutes les réceptions"),
+        widget=forms.Select(attrs={"class": "form-select ui-select--xl"}),
+    )
+
+    def __init__(self, *args, receipts_qs=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        queryset = receipts_qs if receipts_qs is not None else _pallet_receipt_queryset()
+        self.fields["incomplete_receipt_id"].queryset = queryset
+        self.fields["incomplete_receipt_id"].label_from_instance = _pallet_receipt_label
 
 
 INCOMPLETE_PRODUCT_IDENTIFIER_FIELDS = {"name", "sku", "ean", "barcode"}

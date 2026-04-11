@@ -2,6 +2,7 @@ from pathlib import Path
 
 from .import_services import extract_product_identity, find_product_matches
 from .import_utils import extract_tabular_data, normalize_header, parse_str
+from .incomplete_product_suggestions import build_listing_assisted_suggestions
 from .listing_row_classification import is_non_product_listing_row
 from .product_display import build_product_display
 
@@ -137,6 +138,20 @@ PALLET_LISTING_MAPPING_FIELDS = [
     ("quantity", "Quantité"),
 ]
 
+LISTING_SUGGESTION_FIELD_LABELS = {
+    "brand": "Marque",
+    "category": "Catégorie",
+    "tva": "TVA",
+    "location": "Emplacement",
+}
+
+LISTING_REVIEW_OVERRIDE_FIELDS = [
+    *(field for field, _label in PALLET_REVIEW_FIELDS),
+    *(field for field, _label in PALLET_LOCATION_FIELDS),
+    "quantity",
+    "rack_color",
+]
+
 
 def _listing_row_empty(row):
     return all(not str(value or "").strip() for value in row)
@@ -184,6 +199,153 @@ def _clean_listing_value(value):
     return parse_str(value) or ""
 
 
+def _normalize_review_overrides(review_overrides):
+    normalized = {}
+    for row_key, payload in (review_overrides or {}).items():
+        row_key_value = _clean_listing_value(row_key)
+        if not row_key_value:
+            continue
+        values = {}
+        payload_values = (payload or {}).get("values") or {}
+        for field_name in LISTING_REVIEW_OVERRIDE_FIELDS:
+            if field_name not in payload_values:
+                continue
+            values[field_name] = _clean_listing_value(payload_values.get(field_name))
+        normalized[row_key_value] = {
+            "selection": _clean_listing_value((payload or {}).get("selection")) or "new",
+            "values": values,
+        }
+    return normalized
+
+
+def capture_listing_review_overrides_from_post(post_data, rows, mapping, *, start_index=2):
+    overrides = {}
+    for row_index, row in enumerate(apply_listing_mapping(rows, mapping), start=start_index):
+        row_key = f"row-{row_index}"
+        values = {}
+        for field_name in LISTING_REVIEW_OVERRIDE_FIELDS:
+            values[field_name] = _clean_listing_value(
+                post_data.get(f"row_{row_index}_{field_name}", row.get(field_name))
+            )
+        overrides[row_key] = {
+            "selection": _clean_listing_value(post_data.get(f"row_{row_index}_match")) or "new",
+            "values": values,
+        }
+    return overrides
+
+
+def apply_listing_group_suggestion_to_overrides(review_overrides, suggestion):
+    normalized_overrides = _normalize_review_overrides(review_overrides)
+    for row_key, updates in ((suggestion or {}).get("per_row_updates") or {}).items():
+        row_override = normalized_overrides.setdefault(
+            row_key,
+            {
+                "selection": "new",
+                "values": {},
+            },
+        )
+        if row_override.get("selection") != "new":
+            continue
+        values = row_override.setdefault("values", {})
+        for field_name, proposed_value in (updates or {}).items():
+            if field_name not in LISTING_REVIEW_OVERRIDE_FIELDS:
+                continue
+            normalized_value = _clean_listing_value(proposed_value)
+            if field_name == "name":
+                if normalized_value:
+                    values[field_name] = normalized_value
+                continue
+            if not _clean_listing_value(values.get(field_name)) and normalized_value:
+                values[field_name] = normalized_value
+    review_overrides.clear()
+    review_overrides.update(normalized_overrides)
+    return review_overrides
+
+
+def _format_category_value(values):
+    return " > ".join(
+        part
+        for part in (
+            values.get("category_l1"),
+            values.get("category_l2"),
+            values.get("category_l3"),
+            values.get("category_l4"),
+        )
+        if part
+    )
+
+
+def _format_location_value(values):
+    return " / ".join(
+        part
+        for part in (
+            values.get("warehouse"),
+            values.get("zone"),
+            values.get("aisle"),
+            values.get("shelf"),
+        )
+        if part
+    )
+
+
+def _group_suggestion_current_value(row, field_name):
+    values = row.get("values") or {}
+    if field_name == "brand":
+        return values.get("brand") or "-"
+    if field_name == "category":
+        return _format_category_value(values) or "-"
+    if field_name == "tva":
+        return values.get("tva") or "-"
+    if field_name == "location":
+        return _format_location_value(values) or "-"
+    return "-"
+
+
+def _group_suggestion_linked_product(row):
+    if row.get("default_match") == "new":
+        return ""
+    existing = row.get("existing") or {}
+    sku = existing.get("sku") or ""
+    name = existing.get("name") or ""
+    if sku and name:
+        return f"{sku} - {name}"
+    return sku or name
+
+
+def _enrich_group_suggestions(group_suggestions, review_rows):
+    rows_by_key = {f"row-{row['index']}": row for row in review_rows}
+    enriched = []
+    for suggestion in group_suggestions:
+        preview_rows = []
+        for row_key in suggestion.get("row_keys") or []:
+            row = rows_by_key.get(row_key)
+            if row is None:
+                continue
+            preview_rows.append(
+                {
+                    "row_key": row_key,
+                    "index": row["index"],
+                    "ean": row["values"].get("ean", ""),
+                    "name": row["values"].get("name", ""),
+                    "current_value": _group_suggestion_current_value(
+                        row, suggestion.get("field_name")
+                    ),
+                    "proposed_value": suggestion.get("proposed_value", ""),
+                    "linked_product": _group_suggestion_linked_product(row),
+                }
+            )
+        enriched.append(
+            {
+                **suggestion,
+                "field_label": LISTING_SUGGESTION_FIELD_LABELS.get(
+                    suggestion.get("field_name"), suggestion.get("field_name", "")
+                ),
+                "preview_rows": preview_rows,
+            }
+        )
+    return enriched
+
+
 def build_listing_extract_options(
     extension, sheet_name, header_row, pdf_mode, page_start, page_end, page_numbers=None
 ):
@@ -213,7 +375,7 @@ def pending_listing_extract_options(pending_data):
     )
 
 
-def build_listing_review_rows(rows, mapping, *, start_index=2):
+def build_listing_review_state(rows, mapping, *, start_index=2, review_overrides=None):
     mapped_rows = apply_listing_mapping(rows, mapping)
     match_labels = {
         "barcode": "Barcode",
@@ -222,8 +384,19 @@ def build_listing_review_rows(rows, mapping, *, start_index=2):
         "name_brand": "Nom + Marque",
         "name": "Nom",
     }
-    review = []
+    normalized_review_overrides = _normalize_review_overrides(review_overrides)
+    suggestion_rows = []
     for row_index, row in enumerate(mapped_rows, start=start_index):
+        suggestion_row = dict(row)
+        suggestion_row["index"] = row_index
+        suggestion_row["row_key"] = f"row-{row_index}"
+        suggestion_rows.append(suggestion_row)
+    suggestion_state = build_listing_assisted_suggestions(rows=suggestion_rows)
+    review = []
+    for suggestion_row in suggestion_rows:
+        row_index = suggestion_row["index"]
+        row_key = suggestion_row["row_key"]
+        row = suggestion_row
         values = {field: _clean_listing_value(row.get(field)) for field, _ in PALLET_REVIEW_FIELDS}
         for key, _ in PALLET_LOCATION_FIELDS:
             values[key] = _clean_listing_value(row.get(key))
@@ -252,12 +425,33 @@ def build_listing_review_rows(rows, mapping, *, start_index=2):
                 }
             )
         existing = match_options[0]["data"] if match_options else None
-        default_match = f"product:{match_options[0]['id']}" if match_options else "new"
+        default_match = "new"
+        match_badge = ""
+        auto_match = suggestion_state["auto_matches"].get(row_key)
+        if auto_match:
+            auto_match_value = f"product:{auto_match['product_id']}"
+            if any(option["value"] == auto_match_value for option in match_options):
+                default_match = auto_match_value
+                match_badge = "Match auto EAN"
 
         if existing:
             for key, _ in PALLET_LOCATION_FIELDS:
                 if not values.get(key):
                     values[key] = existing.get(key, "")
+
+        row_override = normalized_review_overrides.get(row_key) or {}
+        for field_name, override_value in (row_override.get("values") or {}).items():
+            values[field_name] = _clean_listing_value(override_value)
+        override_selection = row_override.get("selection")
+        if override_selection and (
+            override_selection == "new"
+            or any(option["value"] == override_selection for option in match_options)
+        ):
+            default_match = override_selection
+            if auto_match:
+                auto_match_value = f"product:{auto_match['product_id']}"
+                if override_selection != auto_match_value:
+                    match_badge = ""
 
         fields = []
         for field, label in PALLET_REVIEW_FIELDS:
@@ -290,9 +484,20 @@ def build_listing_review_rows(rows, mapping, *, start_index=2):
                 "match_type": match_labels.get(match_type, "-"),
                 "match_options": match_options,
                 "default_match": default_match,
+                "match_badge": match_badge,
+                "line_suggestions": suggestion_state["line_suggestions"].get(row_key, []),
             }
         )
-    return review
+    return {
+        "rows": review,
+        "group_suggestions": _enrich_group_suggestions(
+            suggestion_state["group_suggestions"], review
+        ),
+    }
+
+
+def build_listing_review_rows(rows, mapping, *, start_index=2):
+    return build_listing_review_state(rows, mapping, start_index=start_index)["rows"]
 
 
 def build_listing_columns(headers, rows, mapping):

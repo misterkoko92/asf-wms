@@ -564,6 +564,39 @@ def parse_str(value):
     return text or None
 
 
+def _normalize_decimal_text(value):
+    original = unicodedata.normalize("NFKC", str(value).strip())
+    if not original:
+        return ""
+    text = re.sub(r"[^\d,.\-+]", "", original)
+    if not re.search(r"\d", text):
+        return original
+
+    sign = ""
+    if text[0] in "+-":
+        sign = text[0]
+        text = text[1:]
+    text = text.replace("+", "").replace("-", "")
+
+    last_comma = text.rfind(",")
+    last_dot = text.rfind(".")
+    if last_comma != -1 and last_dot != -1:
+        if last_comma > last_dot:
+            text = text.replace(".", "")
+            text = text.replace(",", ".")
+        else:
+            text = text.replace(",", "")
+    elif text.count(",") > 1:
+        parts = text.split(",")
+        text = "".join(parts[:-1]) + "." + parts[-1]
+    elif text.count(".") > 1:
+        parts = text.split(".")
+        text = "".join(parts[:-1]) + "." + parts[-1]
+    else:
+        text = text.replace(",", ".")
+    return f"{sign}{text}"
+
+
 def parse_decimal(value):
     if value is None:
         return None
@@ -571,10 +604,9 @@ def parse_decimal(value):
         return value
     if isinstance(value, int | float):
         return Decimal(str(value))
-    text = str(value).strip()
+    text = _normalize_decimal_text(value)
     if not text:
         return None
-    text = text.replace(",", ".")
     try:
         return Decimal(text)
     except InvalidOperation as exc:

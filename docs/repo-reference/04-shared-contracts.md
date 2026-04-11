@@ -263,15 +263,33 @@ Current contract:
 
 - `Receipt` persists `conformity_status` and keeps `unknown` for legacy rows that predate this capture
 - `/scan/receive-pallet/` stores the operator observation in `Receipt.notes`
-- `/scan/receive-listing/` owns the file-import contract for listing reception:
-  Excel/CSV still enter direct mapping/review, while PDF first persists an analysis payload
+- `/scan/receive-listing/` owns the file-import contract for listing reception and now starts with
+  a dedicated intake card:
+  operators must choose the file type first (`CSV`, `Excel`, `PDF`, sorted A-Z) and must
+  link the import to an existing pallet receipt through a reverse-chronological select
+  labelled as `date - palette count - donor - carrier`
+- the intake card keeps an explicit warning that reception linking is mandatory and exposes a
+  `Créer une réception` shortcut back to `/scan/receive-pallet/`; the listing route no longer owns
+  an inline receipt-draft form
+- Excel/CSV still enter direct mapping/review, while PDF first persists an analysis payload
   (`total_pages`, page diagnostics, extraction strategy, preview text, and recommended
   `all`/`detected`/manual page selection) before the operator triggers mapping
+- the listing review stage now owns the assisted suggestion contract:
+  exact EAN may preselect an existing product, `Match auto EAN` badges flag those rows, and
+  grouped suggestions expose a row preview plus an explicit `Appliquer aux lignes proposées`
+  action that only fills fields still left empty in the current review state
 - listing-created products may persist with `Product.is_incomplete=True`; the same route renders
-  the operator cockpit to open one product at a time or apply guarded bulk updates to
-  non-identifier fields across multiple incomplete products
+  the post-confirm recap for the last confirmed import so operators can open one product at a time
+  or apply guarded bulk updates to non-identifier fields across multiple incomplete products
+- `/scan/stock-update/` reuses the same incomplete-products cockpit contract as the durable
+  warehouse-wide remediation surface, with the stock form collapsed by default, the incomplete
+  products block open by default, an optional receipt filter using the same pallet receipt label
+  contract as Listing, and a persistent suggestions card that can apply brand/category/TVA/default
+  location proposals across the currently filtered incomplete products
 - listing reception uses a warehouse-local buffer location `TEMP / RECEPTION / LISTING` when a
   listing row and the matched product both lack a usable default location
+- listing import quantities are additive: each confirmed row creates a receipt line and stock
+  movement instead of replacing existing stock quantities on the matched product
 - `/scan/receive-association/` reuses `pickup_charge_comment` as the operator observation field
 - when the operator marks a reception non-conform, the observation field becomes mandatory in both forms
 

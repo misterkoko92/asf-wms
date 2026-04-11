@@ -1,0 +1,67 @@
+{% load i18n %}
+
+{% if incomplete_product_suggestions %}
+  <div id="scan-stock-update-suggestions-card" class="scan-card card border-0 ui-comp-card mb-3">
+    <h3 class="ui-comp-title">{% trans "Suggestions détectées" %}</h3>
+    <p class="scan-help">
+      {% trans "Chaque action applique la suggestion uniquement sur les produits incomplets concernés et uniquement sur les champs encore vides." %}
+    </p>
+    <div class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
+      {% for suggestion in incomplete_product_suggestions %}
+        <details class="scan-card card border-0 ui-comp-card">
+          <summary class="d-flex flex-wrap align-items-center gap-2">
+            <strong>{{ suggestion.field_label }}</strong>
+            <span>{{ suggestion.proposed_value }}</span>
+            <span class="badge text-bg-light">{{ suggestion.confidence }}</span>
+            <span class="badge text-bg-light">{{ suggestion.source }}</span>
+            <span class="scan-help">
+              {% blocktrans count counter=suggestion.preview_rows|length %}{{ counter }} produit concerné{% plural %}{{ counter }} produits concernés{% endblocktrans %}
+            </span>
+            <span class="scan-help">{% trans "Voir les lignes" %}</span>
+          </summary>
+          <div class="scan-table-wrap table-responsive mt-3">
+            <table class="scan-table table table-sm table-hover">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>EAN</th>
+                  <th>{% trans "Nom" %}</th>
+                  <th>{% trans "Valeur actuelle" %}</th>
+                  <th>{% trans "Valeur proposée" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in suggestion.preview_rows %}
+                  <tr>
+                    <td>{{ row.sku|default:"-" }}</td>
+                    <td>{{ row.ean|default:"-" }}</td>
+                    <td>{{ row.name|default:"-" }}</td>
+                    <td>{{ row.current_value|default:"-" }}</td>
+                    <td>{{ row.proposed_value|default:"-" }}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5">{% trans "Aucune ligne prévisualisable." %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <form method="post" action="{{ incomplete_products_action_url }}" class="mt-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply_incomplete_product_suggestion">
+            {% if incomplete_products_receipt_id %}
+              <input type="hidden" name="incomplete_receipt_id" value="{{ incomplete_products_receipt_id }}">
+            {% endif %}
+            <input type="hidden" name="suggestion_id" value="{{ suggestion.id }}">
+            <div class="scan-filter-actions ui-comp-actions">
+              <button type="submit" class="scan-submit secondary btn btn-secondary">
+                {% trans "Appliquer aux produits proposés" %}
+              </button>
+            </div>
+          </form>
+        </details>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}

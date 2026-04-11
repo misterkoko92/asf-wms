@@ -14,7 +14,19 @@ from .application.scan.recipient_needs_queries import (
     FILTER_RECIPIENT_PARAM,
     build_scan_recipient_needs_context,
 )
-from .forms import ScanOutForm, ScanStockUpdateForm
+from .forms import (
+    ScanIncompleteProductBulkUpdateForm,
+    ScanIncompleteProductReceiptFilterForm,
+    ScanOutForm,
+    ScanStockUpdateForm,
+)
+from .incomplete_products import (
+    apply_incomplete_product_suggestion,
+    apply_incomplete_products_bulk_update,
+    build_incomplete_product_suggestions,
+    build_incomplete_products_context,
+    build_incomplete_products_queryset,
+)
 from .models import WmsChange
 from .scan_helpers import build_location_data, build_product_options
 from .stock_out_handlers import handle_stock_out_post
@@ -47,7 +59,13 @@ def _resolve_product_picker_mode(product_options):
 
 
 def _render_stock_update(
-    request, *, create_form, product_options, location_data, product_picker_mode
+    request,
+    *,
+    create_form,
+    product_options,
+    location_data,
+    product_picker_mode,
+    incomplete_products_context,
 ):
     return render(
         request,
@@ -58,6 +76,7 @@ def _render_stock_update(
             "products_json": product_options,
             "location_data": location_data,
             "product_picker_mode": product_picker_mode,
+            **incomplete_products_context,
         },
     )
 
@@ -107,6 +126,12 @@ def _build_shipment_create_prefill_url(rows):
         params.append((f"line_{index}_product_code", str(row["prepare_product_code"])))
         params.append((f"line_{index}_quantity", str(row["prepare_quantity"])))
     return f'{reverse("scan:scan_shipment_create")}?{urlencode(params)}'
+
+
+def _build_stock_update_filter_url(receipt_id=None):
+    if receipt_id:
+        return f'{reverse("scan:scan_stock_update")}?{urlencode({"incomplete_receipt_id": receipt_id})}'
+    return reverse("scan:scan_stock_update")
 
 
 def _handle_scan_recipient_needs_post(request):
@@ -176,16 +201,87 @@ def scan_stock_update(request):
     location_data = build_location_data()
     create_form = ScanStockUpdateForm(request.POST or None)
     product_picker_mode = _resolve_product_picker_mode(product_options)
+    action = (request.POST.get("action") or "").strip()
+    receipt_filter_data = (
+        request.POST
+        if action in {"bulk_update_incomplete_products", "apply_incomplete_product_suggestion"}
+        else request.GET
+    )
+    incomplete_receipt_filter_form = ScanIncompleteProductReceiptFilterForm(
+        receipt_filter_data or None
+    )
+    selected_receipt = None
+    if incomplete_receipt_filter_form.is_valid():
+        selected_receipt = incomplete_receipt_filter_form.cleaned_data["incomplete_receipt_id"]
+    incomplete_products_receipt_id = selected_receipt.id if selected_receipt else None
+    incomplete_queryset = build_incomplete_products_queryset(
+        receipt_id=incomplete_products_receipt_id
+    )
+    incomplete_bulk_form = ScanIncompleteProductBulkUpdateForm(product_queryset=incomplete_queryset)
     if request.method == "POST":
-        response = handle_stock_update_post(request, form=create_form)
-        if response:
-            return response
+        if action == "bulk_update_incomplete_products":
+            incomplete_bulk_form = ScanIncompleteProductBulkUpdateForm(
+                request.POST,
+                product_queryset=incomplete_queryset,
+            )
+            if incomplete_bulk_form.is_valid():
+                updated_count, field_name = apply_incomplete_products_bulk_update(
+                    form=incomplete_bulk_form,
+                    receipt_id=incomplete_products_receipt_id,
+                )
+                messages.success(
+                    request,
+                    f"{updated_count} produit(s) incomplet(s) mis à jour ({field_name}).",
+                )
+                incomplete_queryset = build_incomplete_products_queryset(
+                    receipt_id=incomplete_products_receipt_id
+                )
+                incomplete_bulk_form = ScanIncompleteProductBulkUpdateForm(
+                    product_queryset=incomplete_queryset
+                )
+        elif action == "apply_incomplete_product_suggestion":
+            suggestion_id = (request.POST.get("suggestion_id") or "").strip()
+            suggestions = build_incomplete_product_suggestions(incomplete_queryset)
+            suggestion = next(
+                (item for item in suggestions if item.get("id") == suggestion_id),
+                None,
+            )
+            if suggestion is None:
+                messages.error(request, "Suggestion introuvable ou obsolète.")
+            else:
+                updated_count, field_name = apply_incomplete_product_suggestion(
+                    queryset=incomplete_queryset,
+                    suggestion=suggestion,
+                )
+                messages.success(
+                    request,
+                    f"{updated_count} produit(s) incomplet(s) mis à jour ({field_name}).",
+                )
+                incomplete_queryset = build_incomplete_products_queryset(
+                    receipt_id=incomplete_products_receipt_id
+                )
+        else:
+            response = handle_stock_update_post(request, form=create_form)
+            if response:
+                return response
+    incomplete_products_context = build_incomplete_products_context(
+        queryset=incomplete_queryset,
+        bulk_form=incomplete_bulk_form,
+        action_url=reverse("scan:scan_stock_update"),
+        edit_next_url=_build_stock_update_filter_url(incomplete_products_receipt_id),
+        card_id="scan-stock-update-incomplete-products-card",
+        show_receipt_filter=True,
+        receipt_filter_form=incomplete_receipt_filter_form,
+        receipt_id=incomplete_products_receipt_id,
+        embedded=True,
+    )
     return _render_stock_update(
         request,
         create_form=create_form,
         product_options=product_options,
         location_data=location_data,
         product_picker_mode=product_picker_mode,
+        incomplete_products_context=incomplete_products_context,
     )
 
 

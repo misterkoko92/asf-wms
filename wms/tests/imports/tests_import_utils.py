@@ -528,6 +528,9 @@ class ImportUtilsTests(SimpleTestCase):
 
         self.assertIsNone(import_utils.parse_decimal(None))
         self.assertEqual(str(import_utils.parse_decimal("12,5")), "12.5")
+        self.assertEqual(str(import_utils.parse_decimal("3,75 €")), "3.75")
+        self.assertEqual(str(import_utils.parse_decimal("1 234,56 €")), "1234.56")
+        self.assertEqual(str(import_utils.parse_decimal("1\u202f234,56 €")), "1234.56")
         self.assertEqual(str(import_utils.parse_decimal(3)), "3")
         self.assertEqual(str(import_utils.parse_decimal(4.2)), "4.2")
         self.assertEqual(str(import_utils.parse_decimal(import_utils.Decimal("5.1"))), "5.1")

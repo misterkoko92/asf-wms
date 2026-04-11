@@ -6,6 +6,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from contacts.models import Contact, ContactType
+from wms.models import Receipt, ReceiptType, Warehouse
 from wms.pallet_listing_handlers import (
     clear_pending_listing,
     handle_pallet_listing_action,
@@ -42,30 +44,47 @@ class PalletListingHandlersTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.user = SimpleNamespace(id=12, username="listing-user")
+        self.warehouse = Warehouse.objects.create(name="Listing", code="LST")
+        self.source_contact = Contact.objects.create(
+            name="Donateur A",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.carrier_contact = Contact.objects.create(
+            name="Transporteur B",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.warehouse,
+            received_on=date(2026, 1, 10),
+            pallet_count=3,
+            source_contact=self.source_contact,
+            carrier_contact=self.carrier_contact,
+            transport_request_date=date(2026, 1, 8),
+        )
 
     def _request(self, data=None):
         request = self.factory.post("/scan/receive-pallet/", data or {})
         request.user = self.user
-        request.session = {}
+        request.session = {
+            "pallet_listing_pending": {
+                "receipt_id": self.receipt.id,
+                "entry_file_type": "csv",
+            }
+        }
         return request
 
     def _listing_form(self, *, valid=True):
-        return _FakeForm(
-            valid=valid,
-            cleaned_data={
-                "received_on": date(2026, 1, 10),
-                "pallet_count": 3,
-                "source_contact": SimpleNamespace(id=101),
-                "carrier_contact": SimpleNamespace(id=202),
-                "transport_request_date": date(2026, 1, 8),
-            },
-        )
+        return _FakeForm(valid=valid)
 
     def test_init_listing_state_defaults(self):
         state = init_listing_state()
         self.assertEqual(state["listing_stage"], None)
         self.assertEqual(state["listing_columns"], [])
         self.assertEqual(state["listing_rows"], [])
+        self.assertEqual(state["listing_group_suggestions"], [])
         self.assertEqual(state["listing_errors"], [])
         self.assertEqual(state["listing_sheet_names"], [])
         self.assertEqual(state["listing_sheet_name"], "")
@@ -198,13 +217,7 @@ class PalletListingHandlersTests(TestCase):
             state=state,
         )
         self.assertIsNone(response)
-        self.assertEqual(
-            state["listing_errors"],
-            [
-                "Renseignez les informations de réception.",
-                "Fichier requis pour importer le listing.",
-            ],
-        )
+        self.assertEqual(state["listing_errors"], ["Fichier requis pour importer le listing."])
 
     def test_handle_listing_upload_rejects_unsupported_file_format(self):
         request = self._request(
@@ -299,8 +312,8 @@ class PalletListingHandlersTests(TestCase):
             {
                 "received_on": "2026-01-10",
                 "pallet_count": 3,
-                "source_contact_id": 101,
-                "carrier_contact_id": 202,
+                "source_contact_id": self.source_contact.id,
+                "carrier_contact_id": self.carrier_contact.id,
                 "transport_request_date": "2026-01-08",
             },
         )
@@ -836,8 +849,13 @@ class PalletListingHandlersTests(TestCase):
             return_value=(["Nom", "Quantite"], [["Masque", "3"]]),
         ):
             with mock.patch(
-                "wms.pallet_listing_handlers.build_listing_review_rows",
-                return_value=[{"index": 2, "values": {"name": "Masque"}}],
+                "wms.pallet_listing_handlers.build_listing_review_state",
+                return_value={
+                    "rows": [{"index": 2, "values": {"name": "Masque"}}],
+                    "group_suggestions": [
+                        {"id": "brand:mask", "field_name": "brand", "row_keys": ["row-2"]}
+                    ],
+                },
             ):
                 response = handle_pallet_listing_action(
                     request,
@@ -848,6 +866,10 @@ class PalletListingHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertEqual(state["listing_stage"], "review")
         self.assertEqual(state["listing_rows"], [{"index": 2, "values": {"name": "Masque"}}])
+        self.assertEqual(
+            state["listing_group_suggestions"],
+            [{"id": "brand:mask", "field_name": "brand", "row_keys": ["row-2"]}],
+        )
         self.assertEqual(
             request.session["pallet_listing_pending"]["mapping"],
             {0: "name", 1: "quantity"},
@@ -883,6 +905,85 @@ class PalletListingHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIn("Champs requis manquants: name", state["listing_errors"])
 
+    def test_handle_listing_apply_suggestion_group_updates_review_state_and_pending_overrides(self):
+        request = self._request(
+            {
+                "pending_token": "tok-suggestion",
+                "action": "listing_apply_suggestion_group:brand:braun",
+                "row_2_match": "new",
+                "row_2_name": "BRAUN Thermometre frontal",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-suggestion",
+            "headers": ["Nom", "Quantite"],
+            "mapping": {0: "name", 1: "quantity"},
+        }
+        state = init_listing_state()
+        review_overrides = {
+            "row-2": {
+                "selection": "new",
+                "values": {"name": "BRAUN Thermometre frontal", "brand": ""},
+            }
+        }
+        initial_review_state = {
+            "rows": [{"index": 2, "values": {"name": "BRAUN Thermometre frontal", "brand": ""}}],
+            "group_suggestions": [
+                {
+                    "id": "brand:braun",
+                    "field_name": "brand",
+                    "per_row_updates": {"row-2": {"brand": "BRAUN", "name": "Thermometre frontal"}},
+                }
+            ],
+        }
+        updated_review_state = {
+            "rows": [{"index": 2, "values": {"name": "Thermometre frontal", "brand": "BRAUN"}}],
+            "group_suggestions": [],
+        }
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["BRAUN Thermometre frontal", "3"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.capture_listing_review_overrides_from_post",
+                return_value=review_overrides,
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.build_listing_review_state",
+                    side_effect=[initial_review_state, updated_review_state],
+                ):
+                    with mock.patch(
+                        "wms.pallet_listing_handlers.apply_listing_group_suggestion_to_overrides",
+                        side_effect=lambda overrides, suggestion: overrides["row-2"][
+                            "values"
+                        ].update({"brand": "BRAUN", "name": "Thermometre frontal"}),
+                    ) as apply_mock:
+                        response = handle_pallet_listing_action(
+                            request,
+                            action="listing_apply_suggestion_group:brand:braun",
+                            listing_form=self._listing_form(valid=True),
+                            state=state,
+                        )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "review")
+        self.assertEqual(
+            state["listing_rows"],
+            [{"index": 2, "values": {"name": "Thermometre frontal", "brand": "BRAUN"}}],
+        )
+        self.assertEqual(state["listing_group_suggestions"], [])
+        self.assertEqual(
+            request.session["pallet_listing_pending"]["review_overrides"],
+            {
+                "row-2": {
+                    "selection": "new",
+                    "values": {"name": "Thermometre frontal", "brand": "BRAUN"},
+                }
+            },
+        )
+        apply_mock.assert_called_once()
+
     def test_handle_listing_confirm_expired_session_redirects(self):
         request = self._request({"pending_token": "wrong"})
         state = init_listing_state()
@@ -902,7 +1003,7 @@ class PalletListingHandlersTests(TestCase):
         request.session["pallet_listing_pending"] = {
             "token": "tok-confirm",
             "mapping": {0: "name"},
-            "receipt_meta": {"received_on": "2026-01-10"},
+            "receipt_id": self.receipt.id,
         }
         state = init_listing_state()
         with mock.patch(
@@ -941,11 +1042,10 @@ class PalletListingHandlersTests(TestCase):
         request.session["pallet_listing_pending"] = {
             "token": "tok-import",
             "mapping": {0: "name", 1: "quantity"},
-            "receipt_meta": {"received_on": "2026-01-10"},
+            "receipt_id": self.receipt.id,
         }
         state = init_listing_state()
         warehouse = SimpleNamespace(id=1)
-        receipt = SimpleNamespace(reference="RCP-777")
         mapped_row = {
             "name": "Masque",
             "quantity": "2",
@@ -968,7 +1068,7 @@ class PalletListingHandlersTests(TestCase):
                 ):
                     with mock.patch(
                         "wms.pallet_listing_handlers.apply_pallet_listing_import",
-                        return_value=(2, 1, ["err-1", "err-2"], receipt),
+                        return_value=(2, 1, ["err-1", "err-2"], self.receipt, [91, 92]),
                     ) as import_mock:
                         with mock.patch(
                             "wms.pallet_listing_handlers.clear_pending_listing"
@@ -994,7 +1094,8 @@ class PalletListingHandlersTests(TestCase):
         call_args, call_kwargs = import_mock.call_args
         self.assertEqual(call_kwargs["user"], self.user)
         self.assertEqual(call_kwargs["warehouse"], warehouse)
-        self.assertEqual(call_kwargs["receipt_meta"], {"received_on": "2026-01-10"})
+        self.assertEqual(call_kwargs["receipt_meta"], {})
+        self.assertEqual(call_kwargs["existing_receipt"].id, self.receipt.id)
         self.assertEqual(len(call_args[0]), 1)
         payload = call_args[0][0]
         self.assertTrue(payload["apply"])
@@ -1006,17 +1107,107 @@ class PalletListingHandlersTests(TestCase):
         error_mock.assert_any_call(request, "Import terminé avec 2 erreur(s).")
         success_mock.assert_called_once_with(
             request,
-            "2 ligne(s) réceptionnée(s) (ref RCP-777).",
+            f"2 ligne(s) réceptionnée(s) (ref {self.receipt.reference}).",
         )
         warning_mock.assert_called_once_with(request, "1 ligne(s) ignorée(s).")
         clear_mock.assert_called_once_with(request)
+        self.assertEqual(request.session["pallet_listing_last_incomplete_product_ids"], [91, 92])
+
+    def test_handle_listing_confirm_uses_selected_receipt_when_present(self):
+        request = self._request(
+            {
+                "pending_token": "tok-selected",
+                "row_2_apply": "1",
+                "row_2_match": "product:42",
+            }
+        )
+        selected_receipt = SimpleNamespace(id=55, reference="RCP-055")
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-selected",
+            "mapping": {0: "name", 1: "quantity"},
+            "receipt_id": selected_receipt.id,
+        }
+        state = init_listing_state()
+        warehouse = SimpleNamespace(id=1)
+        receipt_queryset = SimpleNamespace(first=lambda: selected_receipt)
+        receipt_manager = SimpleNamespace(filter=lambda **_kwargs: receipt_queryset)
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["Masque", "2"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.apply_listing_mapping",
+                return_value=[{"name": "Masque", "quantity": "2"}],
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.resolve_default_warehouse",
+                    return_value=warehouse,
+                ):
+                    with mock.patch(
+                        "wms.pallet_listing_handlers.Receipt.objects.select_related",
+                        return_value=receipt_manager,
+                    ):
+                        with mock.patch(
+                            "wms.pallet_listing_handlers.apply_pallet_listing_import",
+                            return_value=(1, 0, [], selected_receipt, []),
+                        ) as import_mock:
+                            with mock.patch("wms.pallet_listing_handlers.clear_pending_listing"):
+                                with mock.patch("wms.pallet_listing_handlers.messages.success"):
+                                    response = handle_pallet_listing_action(
+                                        request,
+                                        action="listing_confirm",
+                                        listing_form=self._listing_form(valid=True),
+                                        state=state,
+                                    )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
+        call_args, call_kwargs = import_mock.call_args
+        self.assertEqual(len(call_args[0]), 1)
+        self.assertEqual(call_kwargs["receipt_meta"], {})
+        self.assertIs(call_kwargs["existing_receipt"], selected_receipt)
+
+    def test_handle_listing_confirm_rejects_missing_selected_receipt(self):
+        request = self._request(
+            {
+                "pending_token": "tok-missing",
+                "row_2_apply": "1",
+                "row_2_match": "product:42",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-missing",
+            "mapping": {0: "name", 1: "quantity"},
+        }
+        state = init_listing_state()
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["Masque", "2"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.apply_listing_mapping",
+                return_value=[{"name": "Masque", "quantity": "2"}],
+            ):
+                with mock.patch("wms.pallet_listing_handlers.messages.error") as error_mock:
+                    response = handle_pallet_listing_action(
+                        request,
+                        action="listing_confirm",
+                        listing_form=self._listing_form(valid=True),
+                        state=state,
+                    )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_receive_listing"))
+        error_mock.assert_called_once_with(request, "Réception liée introuvable.")
 
     def test_handle_listing_confirm_when_nothing_created_adds_error(self):
         request = self._request({"pending_token": "tok-empty"})
         request.session["pallet_listing_pending"] = {
             "token": "tok-empty",
             "mapping": {0: "name", 1: "quantity"},
-            "receipt_meta": {},
+            "receipt_id": self.receipt.id,
         }
         state = init_listing_state()
         with mock.patch(
@@ -1033,7 +1224,7 @@ class PalletListingHandlersTests(TestCase):
                 ):
                     with mock.patch(
                         "wms.pallet_listing_handlers.apply_pallet_listing_import",
-                        return_value=(0, 0, [], None),
+                        return_value=(0, 0, [], None, []),
                     ):
                         with mock.patch("wms.pallet_listing_handlers.clear_pending_listing"):
                             with mock.patch(

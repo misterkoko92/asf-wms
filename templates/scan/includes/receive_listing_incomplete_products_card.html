@@ -1,18 +1,38 @@
 {% load i18n %}
 
-<div id="scan-receive-listing-incomplete-products-card" class="scan-card card border-0 ui-comp-card">
+{% if not incomplete_products_embedded %}
+  <div id="{{ incomplete_products_card_id|default:'scan-receive-listing-incomplete-products-card' }}" class="scan-card card border-0 ui-comp-card">
   <h2 class="ui-comp-title">{% trans "Produits incomplets" %}</h2>
+{% endif %}
   <p class="scan-help">
     {% trans "Complétez les produits importés avec des informations partielles et appliquez des mises à jour en masse sur les champs compatibles." %}
   </p>
+  {% if incomplete_products_show_receipt_filter %}
+    <form method="get" class="scan-filters ui-comp-form" style="grid-template-columns: 1fr auto;">
+      <div class="scan-field">
+        <label class="form-label" for="{{ incomplete_receipt_filter_form.incomplete_receipt_id.id_for_label }}">
+          {{ incomplete_receipt_filter_form.incomplete_receipt_id.label }}
+        </label>
+        {{ incomplete_receipt_filter_form.incomplete_receipt_id }}
+      </div>
+      <div class="scan-filter-actions ui-comp-actions">
+        <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Filtrer" %}</button>
+        <a class="btn btn-tertiary" href="{{ incomplete_products_action_url }}">{% trans "Réinitialiser" %}</a>
+      </div>
+    </form>
+  {% endif %}
   {% if incomplete_bulk_form.non_field_errors %}
     {% for error in incomplete_bulk_form.non_field_errors %}
       <div class="scan-message error">{{ error }}</div>
     {% endfor %}
   {% endif %}
-  <form method="post" class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
+  <form method="post" action="{{ incomplete_products_action_url }}" class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
     {% csrf_token %}
     <input type="hidden" name="action" value="bulk_update_incomplete_products">
+    {% if incomplete_products_show_receipt_filter %}
+      <input type="hidden" name="incomplete_receipt_id" value="{{ incomplete_products_receipt_id|default:'' }}">
+    {% endif %}
+    <input type="hidden" name="next" value="{{ incomplete_products_edit_next_url }}">
     <div class="scan-table-wrap table-responsive">
       <table class="scan-table table table-sm table-hover">
         <thead>
@@ -38,7 +58,7 @@
               <td>{{ product.category|default:"-" }}</td>
               <td>{{ product.default_location|default:"-" }}</td>
               <td>
-                <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_receive_listing_product_edit' product.id %}">
+                <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_receive_listing_product_edit' product.id %}?next={{ incomplete_products_edit_next_url|urlencode }}">
                   {% trans "Ouvrir" %}
                 </a>
               </td>
@@ -92,4 +112,7 @@
       <button type="submit" class="scan-submit btn btn-primary">{% trans "Appliquer aux produits sélectionnés" %}</button>
     </div>
   </form>
-</div>
+  {% include "scan/includes/receive_listing_incomplete_products_script.html" %}
+{% if not incomplete_products_embedded %}
+  </div>
+{% endif %}

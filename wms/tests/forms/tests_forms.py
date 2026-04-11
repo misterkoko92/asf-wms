@@ -10,6 +10,8 @@ from contacts.models import Contact, ContactAddress, ContactType
 from wms.forms import (
     AdjustStockForm,
     PackCartonForm,
+    ScanIncompleteProductReceiptFilterForm,
+    ScanListingEntryForm,
     ScanOrderSelectForm,
     ScanPackForm,
     ScanReceiptAssociationForm,
@@ -461,6 +463,48 @@ class FormsTests(TestCase):
             form.errors.get("observation"),
             ["Observation requise pour une réception non conforme."],
         )
+
+    def test_scan_listing_entry_form_requires_linked_receipt(self):
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.warehouse,
+        )
+
+        invalid_form = ScanListingEntryForm(
+            data={
+                "listing_entry_file_type": "pdf",
+                "listing_entry_receipt_id": "",
+            }
+        )
+        valid_form = ScanListingEntryForm(
+            data={
+                "listing_entry_file_type": "pdf",
+                "listing_entry_receipt_id": receipt.id,
+            }
+        )
+
+        self.assertFalse(invalid_form.is_valid())
+        self.assertIn("listing_entry_receipt_id", invalid_form.errors)
+        self.assertTrue(valid_form.is_valid())
+
+    def test_incomplete_product_receipt_filter_uses_listing_receipt_label_contract(self):
+        donor = self._create_org("Donateur A")
+        transporter = self._create_org("Transporteur B")
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.warehouse,
+            received_on=timezone.localdate(),
+            pallet_count=3,
+            source_contact=donor,
+            carrier_contact=transporter,
+        )
+
+        form = ScanIncompleteProductReceiptFilterForm()
+        label = form.fields["incomplete_receipt_id"].label_from_instance(receipt)
+
+        self.assertIn("3 palettes", label)
+        self.assertIn("Donateur A", label)
+        self.assertIn("Transporteur B", label)
 
     def test_scan_receipt_association_form_requires_observation_when_non_conform(self):
         shipper = self._create_org("Association Receipt")

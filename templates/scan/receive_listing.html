@@ -4,27 +4,15 @@
 {% block title %}WMS Scan - Listing{% endblock %}
 
 {% block content %}
-  {% include "scan/includes/receive_pallet_listing_upload_card.html" %}
+  {% include "scan/includes/receive_listing_intake_card.html" %}
 
-  <div id="scan-receive-listing-excel-card" class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Excel</h2>
-    <p class="scan-help">
-      {% trans "Le pipeline Excel existant reste disponible avec le même mapping et la même revue de lignes." %}
-    </p>
-  </div>
-
-  <div id="scan-receive-listing-csv-card" class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">CSV</h2>
-    <p class="scan-help">
-      {% trans "Le pipeline CSV existant reste disponible avec le même mapping et la même revue de lignes." %}
-    </p>
-  </div>
+  {% if listing_entry_file_type %}
+    {% include "scan/includes/receive_pallet_listing_upload_card.html" %}
+  {% endif %}
 
   {% if listing_stage == "analysis" %}
     {% include "scan/includes/receive_listing_analysis_card.html" %}
   {% endif %}
-
-  {% include "scan/includes/receive_listing_incomplete_products_card.html" %}
 
   {% if listing_stage == "mapping" %}
     {% include "scan/includes/receive_pallet_mapping_card.html" %}
@@ -79,105 +67,14 @@
     </script>
   {% endif %}
 
+  {% if show_incomplete_products_card %}
+    {% include "scan/includes/receive_listing_incomplete_products_card.html" %}
+  {% endif %}
+
   <script>
     (function() {
-      var fileInput = document.getElementById('listing_file');
-      var typeInputs = document.querySelectorAll('input[name="listing_file_type"]');
-      var optionBlocks = document.querySelectorAll('[data-file-options]');
-      var defaultType = "{{ listing_file_type|default:'' }}";
-      var bulkFieldName = document.getElementById('incomplete-bulk-field-name');
-      var bulkTextValue = document.querySelector('[data-bulk-value="text"]');
-      var bulkCategoryValue = document.querySelector('[data-bulk-value="category"]');
-      var bulkLocationValue = document.querySelector('[data-bulk-value="location"]');
-      var bulkBooleanValue = document.querySelector('[data-bulk-value="boolean"]');
       var pdfModeInputs = document.querySelectorAll('input[name="listing_pdf_pages_mode"]');
       var pdfCustomRange = document.querySelector('[data-pdf-custom-range]');
-
-      function detectTypeFromName(name) {
-        if (!name) {
-          return "";
-        }
-        var lower = name.toLowerCase();
-        if (lower.endsWith('.pdf')) {
-          return 'pdf';
-        }
-        if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
-          return 'excel';
-        }
-        if (lower.endsWith('.csv')) {
-          return 'csv';
-        }
-        return '';
-      }
-
-      function setType(type) {
-        if (!type) {
-          optionBlocks.forEach(function(block) {
-            block.hidden = true;
-          });
-          typeInputs.forEach(function(input) {
-            input.checked = false;
-          });
-          return;
-        }
-        typeInputs.forEach(function(input) {
-          input.checked = input.value === type;
-        });
-        optionBlocks.forEach(function(block) {
-          block.hidden = block.dataset.fileOptions !== type;
-        });
-      }
-
-      typeInputs.forEach(function(input) {
-        input.addEventListener('change', function() {
-          setType(input.value);
-        });
-      });
-
-      if (fileInput) {
-        fileInput.addEventListener('change', function() {
-          var detected = detectTypeFromName(fileInput.value);
-          if (detected) {
-            setType(detected);
-          }
-        });
-      }
-
-      var initial = defaultType || detectTypeFromName(fileInput ? fileInput.value : "");
-      setType(initial);
-
-      function syncBulkValueVisibility(fieldName) {
-        if (!bulkFieldName) {
-          return;
-        }
-        [bulkTextValue, bulkCategoryValue, bulkLocationValue, bulkBooleanValue].forEach(function(block) {
-          if (block) {
-            block.hidden = true;
-          }
-        });
-        if (fieldName === 'category' && bulkCategoryValue) {
-          bulkCategoryValue.hidden = false;
-          return;
-        }
-        if (fieldName === 'default_location' && bulkLocationValue) {
-          bulkLocationValue.hidden = false;
-          return;
-        }
-        if ((fieldName === 'perishable' || fieldName === 'quarantine_default') && bulkBooleanValue) {
-          bulkBooleanValue.hidden = false;
-          return;
-        }
-        if (bulkTextValue) {
-          bulkTextValue.hidden = false;
-        }
-      }
-
-      if (bulkFieldName) {
-        bulkFieldName.addEventListener('change', function() {
-          syncBulkValueVisibility(bulkFieldName.value);
-        });
-        syncBulkValueVisibility(bulkFieldName.value);
-      }
 
       function syncPdfRangeVisibility() {
         if (!pdfCustomRange) {
