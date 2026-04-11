@@ -9,7 +9,7 @@ from django.shortcuts import redirect
 
 from contacts.models import Contact
 
-from .import_services import apply_pallet_listing_import
+from .import_services_pallet import apply_pallet_listing_import
 from .import_utils import (
     analyze_pdf_listing,
     extract_tabular_data,

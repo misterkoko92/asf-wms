@@ -10,7 +10,7 @@ from .import_services_locations import (
     import_warehouses,
     resolve_listing_location,
 )
-from .import_services_pallet import apply_pallet_listing_import
+from .import_services_pallet import apply_pallet_listing_import as _apply_pallet_listing_import
 from .import_services_products import (
     DEFAULT_QUANTITY_MODE,
     QUANTITY_MODE_MOVEMENT,
@@ -27,6 +27,21 @@ from .import_services_products import (
 )
 from .import_services_tags import build_product_tags
 from .import_services_users import import_users
+
+
+def apply_pallet_listing_import(*args, **kwargs):
+    """Legacy facade kept at a 4-value tuple contract.
+
+    New listing flows that need incomplete-product ids must import
+    ``wms.import_services_pallet.apply_pallet_listing_import`` directly.
+    """
+
+    created, skipped, errors, receipt, _incomplete_product_ids = _apply_pallet_listing_import(
+        *args,
+        **kwargs,
+    )
+    return created, skipped, errors, receipt
+
 
 __all__ = [
     "_row_is_empty",
