@@ -60,6 +60,18 @@ def clear_pending_listing(request):
             pass
 
 
+def _build_pending_pdf_pages_payload(*, mode, start, end, total, page_numbers=None):
+    payload = {
+        "mode": mode,
+        "start": start,
+        "end": end,
+        "total": total,
+    }
+    if mode == "detected" and page_numbers:
+        payload["pages"] = list(page_numbers)
+    return payload
+
+
 def hydrate_listing_state_from_pending(state, pending_data):
     if not pending_data:
         return None
@@ -72,7 +84,9 @@ def hydrate_listing_state_from_pending(state, pending_data):
     header_row_value = pending_data.get("header_row") if extension in {".xlsx", ".xls"} else ""
     pdf_pages_label = ""
     if extension == ".pdf":
-        if pdf_pages.get("mode") == "custom" and pdf_pages.get("start") and pdf_pages.get("end"):
+        if pdf_pages.get("mode") == "detected" and pdf_pages.get("pages"):
+            pdf_pages_label = ", ".join(str(page) for page in pdf_pages.get("pages") or [])
+        elif pdf_pages.get("mode") == "custom" and pdf_pages.get("start") and pdf_pages.get("end"):
             pdf_pages_label = f"{pdf_pages['start']} - {pdf_pages['end']}"
         else:
             pdf_pages_label = "Toutes les pages"
@@ -122,12 +136,32 @@ def _parse_pdf_pages_selection(
     pages_mode,
     page_start_raw,
     page_end_raw,
+    default_pages=None,
     default_start=None,
     default_end=None,
 ):
-    resolved_mode = "custom" if pages_mode == "custom" else "all"
-    if resolved_mode != "custom":
-        return resolved_mode, None, None
+    if pages_mode == "custom":
+        resolved_mode = "custom"
+    elif pages_mode == "detected":
+        resolved_mode = "detected"
+    else:
+        resolved_mode = "all"
+    if resolved_mode == "all":
+        return resolved_mode, None, None, None
+    if resolved_mode == "detected":
+        detected_pages = []
+        for value in default_pages or []:
+            try:
+                number = parse_int(value)
+            except ValueError:
+                continue
+            if number is None or number < 1 or number > total_pages or number in detected_pages:
+                continue
+            detected_pages.append(number)
+        if not detected_pages:
+            listing_errors.append("Aucune page PDF détectée comme exploitable.")
+            return resolved_mode, None, None, None
+        return resolved_mode, detected_pages[0], detected_pages[-1], detected_pages
 
     page_start = None
     page_end = None
@@ -142,7 +176,7 @@ def _parse_pdf_pages_selection(
         except ValueError:
             listing_errors.append("Page PDF fin invalide.")
     if listing_errors:
-        return resolved_mode, None, None
+        return resolved_mode, None, None, None
 
     page_start = page_start or default_start or 1
     page_end = page_end if page_end is not None else (default_end or total_pages)
@@ -154,8 +188,8 @@ def _parse_pdf_pages_selection(
         or page_end > total_pages
     ):
         listing_errors.append("Plage de pages PDF invalide.")
-        return resolved_mode, None, None
-    return resolved_mode, page_start, page_end
+        return resolved_mode, None, None, None
+    return resolved_mode, page_start, page_end, None
 
 
 def handle_pallet_listing_action(
@@ -180,6 +214,7 @@ def handle_pallet_listing_action(
         header_row_raw = (request.POST.get("listing_header_row") or "").strip()
         pdf_page_start = None
         pdf_page_end = None
+        pdf_page_numbers = None
         listing_header_row = state["listing_header_row"] or 1
         header_row_error = None
 
@@ -239,11 +274,12 @@ def handle_pallet_listing_action(
                         recommended_pages = analysis.get("recommended_pages") or {}
                         listing_pdf_pages_mode = (
                             recommended_pages.get("mode")
-                            if recommended_pages.get("mode") in {"all", "custom"}
+                            if recommended_pages.get("mode") in {"all", "custom", "detected"}
                             else "all"
                         )
                         pdf_page_start = recommended_pages.get("start")
                         pdf_page_end = recommended_pages.get("end")
+                        pdf_page_numbers = recommended_pages.get("pages") or []
                 if extension != ".pdf" and not listing_errors:
                     extract_options = build_listing_extract_options(
                         extension,
@@ -252,6 +288,7 @@ def handle_pallet_listing_action(
                         listing_pdf_pages_mode,
                         pdf_page_start,
                         pdf_page_end,
+                        pdf_page_numbers,
                     )
                     try:
                         headers, rows = extract_tabular_data(
@@ -277,10 +314,13 @@ def handle_pallet_listing_action(
                         "file_type": listing_file_type,
                         "pdf_analysis": analysis,
                         "pdf_pages": {
-                            "mode": listing_pdf_pages_mode,
-                            "start": pdf_page_start,
-                            "end": pdf_page_end,
-                            "total": int(state["listing_pdf_total_pages"] or 0) or "",
+                            **_build_pending_pdf_pages_payload(
+                                mode=listing_pdf_pages_mode,
+                                start=pdf_page_start,
+                                end=pdf_page_end,
+                                total=int(state["listing_pdf_total_pages"] or 0) or "",
+                                page_numbers=pdf_page_numbers,
+                            )
                         },
                         "receipt_meta": {
                             "received_on": listing_form.cleaned_data["received_on"].isoformat(),
@@ -312,10 +352,13 @@ def handle_pallet_listing_action(
                         "header_row": listing_header_row,
                         "file_type": listing_file_type,
                         "pdf_pages": {
-                            "mode": listing_pdf_pages_mode,
-                            "start": pdf_page_start,
-                            "end": pdf_page_end,
-                            "total": int(state["listing_pdf_total_pages"] or 0) or "",
+                            **_build_pending_pdf_pages_payload(
+                                mode=listing_pdf_pages_mode,
+                                start=pdf_page_start,
+                                end=pdf_page_end,
+                                total=int(state["listing_pdf_total_pages"] or 0) or "",
+                                page_numbers=pdf_page_numbers,
+                            )
                         },
                         "receipt_meta": {
                             "received_on": listing_form.cleaned_data["received_on"].isoformat(),
@@ -364,12 +407,14 @@ def handle_pallet_listing_action(
             listing_pdf_pages_mode,
             pdf_page_start,
             pdf_page_end,
+            pdf_page_numbers,
         ) = _parse_pdf_pages_selection(
             listing_errors=listing_errors,
             total_pages=total_pages,
             pages_mode=listing_pdf_pages_mode,
             page_start_raw=listing_pdf_page_start,
             page_end_raw=listing_pdf_page_end,
+            default_pages=default_pages.get("pages") or analysis.get("extractable_pages") or [],
             default_start=default_pages.get("start"),
             default_end=default_pages.get("end"),
         )
@@ -384,10 +429,13 @@ def handle_pallet_listing_action(
             return None
 
         pending["pdf_pages"] = {
-            "mode": listing_pdf_pages_mode,
-            "start": pdf_page_start,
-            "end": pdf_page_end,
-            "total": total_pages,
+            **_build_pending_pdf_pages_payload(
+                mode=listing_pdf_pages_mode,
+                start=pdf_page_start,
+                end=pdf_page_end,
+                total=total_pages,
+                page_numbers=pdf_page_numbers,
+            ),
         }
         data = Path(pending["file_path"]).read_bytes()
         extract_options = build_listing_extract_options(
@@ -397,6 +445,7 @@ def handle_pallet_listing_action(
             listing_pdf_pages_mode,
             pdf_page_start,
             pdf_page_end,
+            pdf_page_numbers,
         )
         try:
             headers, rows = extract_tabular_data(

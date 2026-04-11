@@ -1424,13 +1424,31 @@ class ScanBootstrapUiTests(TestCase):
                 "total_pages": 2,
                 "mode": "mixed",
                 "pages": [
-                    {"number": 1, "extractable": True, "has_text": True, "has_table": True},
-                    {"number": 2, "extractable": False, "has_text": False, "has_table": False},
+                    {
+                        "number": 1,
+                        "extractable": True,
+                        "has_text": True,
+                        "has_table": True,
+                        "line_count": 2,
+                        "column_count": 2,
+                        "extraction_strategy": "table",
+                        "preview_text": "Nom  Qte | Mask  3",
+                    },
+                    {
+                        "number": 2,
+                        "extractable": False,
+                        "has_text": False,
+                        "has_table": False,
+                        "line_count": 0,
+                        "column_count": 0,
+                        "extraction_strategy": "none",
+                        "preview_text": "",
+                    },
                 ],
                 "extractable_pages": [1],
-                "recommended_pages": {"mode": "custom", "start": 1, "end": 1},
+                "recommended_pages": {"mode": "detected", "start": 1, "end": 1, "pages": [1]},
             },
-            "pdf_pages": {"mode": "custom", "start": 1, "end": 1, "total": 2},
+            "pdf_pages": {"mode": "detected", "start": 1, "end": 1, "pages": [1], "total": 2},
             "receipt_meta": {
                 "received_on": "2026-01-10",
                 "pallet_count": 2,
@@ -1446,6 +1464,9 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="listing_pdf_page_start"')
         self.assertContains(response, 'id="listing_pdf_page_end"')
         self.assertContains(response, "Pages détectées")
+        self.assertContains(response, 'value="detected"')
+        self.assertContains(response, "Nom  Qte | Mask  3")
+        self.assertContains(response, "Méthode")
 
     def test_scan_receive_listing_renders_incomplete_product_rows(self):
         Product.objects.create(

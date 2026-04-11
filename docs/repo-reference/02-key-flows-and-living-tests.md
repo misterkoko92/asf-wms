@@ -86,7 +86,8 @@ Use it when you need to answer:
   observation when the operator marks the reception non-conform
 - the dedicated listing flow under `/scan/receive-listing/` keeps Excel/CSV mapping and review,
   but PDF now enters an explicit analysis stage before mapping so operators can inspect detected
-  pages, extractable text/table coverage, and the page range actually sent to mapping
+  pages, extractable text/table coverage, extraction strategy, short text previews, and either
+  the detected-page subset or the manual page range actually sent to mapping
 - listing reception can create and receive incomplete products when only partial catalog metadata
   is known; such products remain visible in the listing cockpit until operators complete them one
   by one or through guarded bulk updates

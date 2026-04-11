@@ -24,6 +24,10 @@ except ImportError:  # pragma: no cover - optional dependency at runtime
 
 TRUE_VALUES = {"true", "1", "yes", "y", "oui", "o", "vrai"}
 FALSE_VALUES = {"false", "0", "no", "n", "non", "faux"}
+PDF_WORD_ROW_TOLERANCE = 3
+PDF_WORD_COLUMN_TOLERANCE = 48
+PDF_PREVIEW_LINE_LIMIT = 2
+PDF_PREVIEW_TEXT_LIMIT = 160
 
 
 def normalize_header(value):
@@ -166,6 +170,163 @@ def _coerce_cell(value):
     return str(value).strip()
 
 
+def _normalize_pdf_row(row):
+    return [_coerce_cell(cell) for cell in (row or [])]
+
+
+def _normalize_pdf_rows(rows):
+    return [_normalize_pdf_row(row) for row in (rows or []) if row is not None]
+
+
+def _split_pdf_text_line(line):
+    raw = str(line or "").strip()
+    if not raw:
+        return []
+    for pattern in (r"\s*\|\s*", r"\s*;\s*", r"\t+", r"\s{2,}"):
+        cells = [_coerce_cell(cell) for cell in re.split(pattern, raw)]
+        cells = [cell for cell in cells if cell]
+        if len(cells) > 1:
+            return cells
+    return [_coerce_cell(raw)]
+
+
+def _build_pdf_preview_text(text_lines):
+    cleaned_lines = [_coerce_cell(line) for line in (text_lines or []) if _coerce_cell(line)]
+    if not cleaned_lines:
+        return ""
+    preview = " | ".join(cleaned_lines[:PDF_PREVIEW_LINE_LIMIT])
+    if len(preview) <= PDF_PREVIEW_TEXT_LIMIT:
+        return preview
+    return preview[: PDF_PREVIEW_TEXT_LIMIT - 1].rstrip() + "…"
+
+
+def _is_usable_pdf_rows(rows):
+    normalized_rows = _normalize_pdf_rows(rows)
+    if len(normalized_rows) < 2:
+        return False
+    if len([cell for cell in normalized_rows[0] if cell]) < 2:
+        return False
+    return any(len([cell for cell in row if cell]) >= 2 for row in normalized_rows[1:])
+
+
+def _extract_pdf_rows_from_text_lines(text_lines):
+    rows = [_split_pdf_text_line(line) for line in (text_lines or [])]
+    rows = [row for row in rows if row]
+    if not _is_usable_pdf_rows(rows):
+        return []
+    return rows
+
+
+def _group_pdf_words_by_row(words):
+    grouped_rows = []
+    for word in sorted(words, key=lambda item: (float(item["top"]), float(item["x0"]))):
+        top = float(word["top"])
+        current = None
+        for row in grouped_rows:
+            if abs(row["top"] - top) <= PDF_WORD_ROW_TOLERANCE:
+                current = row
+                break
+        if current is None:
+            current = {"top": top, "words": []}
+            grouped_rows.append(current)
+        current["words"].append(word)
+        current["top"] = sum(float(existing["top"]) for existing in current["words"]) / len(
+            current["words"]
+        )
+    return grouped_rows
+
+
+def _derive_pdf_column_anchors(grouped_rows):
+    anchors = []
+    for row in grouped_rows:
+        for word in sorted(row["words"], key=lambda item: float(item["x0"])):
+            x0 = float(word["x0"])
+            anchor_index = None
+            for idx, anchor in enumerate(anchors):
+                if abs(anchor - x0) <= PDF_WORD_COLUMN_TOLERANCE:
+                    anchor_index = idx
+                    break
+            if anchor_index is None:
+                anchors.append(x0)
+            else:
+                anchors[anchor_index] = (anchors[anchor_index] + x0) / 2
+    return sorted(anchors)
+
+
+def _extract_pdf_rows_from_words(page):
+    extract_words = getattr(page, "extract_words", None)
+    if not callable(extract_words):
+        return []
+    raw_words = extract_words() or []
+    words = []
+    for word in raw_words:
+        text = _coerce_cell(word.get("text"))
+        if not text or "x0" not in word or "top" not in word:
+            continue
+        words.append({"text": text, "x0": float(word["x0"]), "top": float(word["top"])})
+    if not words:
+        return []
+
+    grouped_rows = _group_pdf_words_by_row(words)
+    anchors = _derive_pdf_column_anchors(grouped_rows)
+    if len(anchors) < 2:
+        return []
+
+    rows = []
+    for row in sorted(grouped_rows, key=lambda item: item["top"]):
+        cells = [""] * len(anchors)
+        last_index = 0
+        for word in sorted(row["words"], key=lambda item: item["x0"]):
+            candidate_indexes = range(last_index, len(anchors))
+            index = min(candidate_indexes, key=lambda idx: abs(anchors[idx] - word["x0"]))
+            last_index = index
+            cells[index] = f"{cells[index]} {word['text']}".strip()
+        last_filled = max((idx for idx, value in enumerate(cells) if value), default=-1)
+        if last_filled >= 0:
+            rows.append(cells[: last_filled + 1])
+    if not _is_usable_pdf_rows(rows):
+        return []
+    return rows
+
+
+def _select_pdf_page_rows(page):
+    table = page.extract_table()
+    table_rows = _normalize_pdf_rows(table)
+    if _is_usable_pdf_rows(table_rows):
+        return table_rows, "table"
+
+    text_lines = [line for line in (page.extract_text() or "").splitlines() if line.strip()]
+    text_rows = _extract_pdf_rows_from_text_lines(text_lines)
+    if text_rows:
+        return text_rows, "text"
+
+    word_rows = _extract_pdf_rows_from_words(page)
+    if word_rows:
+        return word_rows, "words"
+
+    return [], "none"
+
+
+def _resolve_pdf_page_numbers(total_pages, page_numbers=None, page_start=None, page_end=None):
+    if page_numbers is not None:
+        numbers = []
+        for value in page_numbers:
+            number = parse_int(value)
+            if number is None or number < 1 or number > total_pages:
+                raise ValueError("Plage de pages PDF invalide.")
+            if number not in numbers:
+                numbers.append(number)
+        if not numbers:
+            raise ValueError("Plage de pages PDF invalide.")
+        return numbers
+
+    start = page_start or 1
+    end = page_end or total_pages
+    if start < 1 or end < start or end > total_pages:
+        raise ValueError("Plage de pages PDF invalide.")
+    return list(range(start, end + 1))
+
+
 def _extract_csv_table(data):
     text = decode_text(data)
     lines = [line for line in text.splitlines() if line.strip()]
@@ -239,40 +400,37 @@ def _extract_xls_table(data, sheet_name=None, header_row=1):
     return headers, rows
 
 
-def _extract_pdf_table(data, page_start=None, page_end=None):
+def _extract_pdf_table(data, page_start=None, page_end=None, page_numbers=None):
     if pdfplumber is None:
         raise ValueError("pdfplumber est requis pour importer des PDF texte.")
     with pdfplumber.open(BytesIO(data)) as pdf:
         total_pages = len(pdf.pages)
-        start = page_start or 1
-        end = page_end or total_pages
-        if start < 1 or end < start or end > total_pages:
-            raise ValueError("Plage de pages PDF invalide.")
-        pages = pdf.pages[start - 1 : end]
+        page_sequence = _resolve_pdf_page_numbers(
+            total_pages,
+            page_numbers=page_numbers,
+            page_start=page_start,
+            page_end=page_end,
+        )
         tables = []
-        for page in pages:
-            table = page.extract_table()
-            if table and len(table) > 1:
-                tables.append(table)
-                continue
-            text = page.extract_text() or ""
-            if text:
-                lines = [line for line in text.splitlines() if line.strip()]
-                if len(lines) > 1:
-                    split_rows = [re.split(r"\s{2,}", line.strip()) for line in lines]
-                    tables.append(split_rows)
+        for page_number in page_sequence:
+            rows, _strategy = _select_pdf_page_rows(pdf.pages[page_number - 1])
+            if rows:
+                tables.append(rows)
         if not tables:
             raise ValueError("PDF scanne non supporte (aucun texte detecte).")
     headers = None
     rows = []
     for table in tables:
-        if not table:
+        normalized_table = _normalize_pdf_rows(table)
+        if not normalized_table:
             continue
         if headers is None:
-            headers = table[0]
-            rows.extend(table[1:])
+            headers = normalized_table[0]
+            rows.extend(normalized_table[1:])
         else:
-            rows.extend(table[1:] if table[0] == headers else table)
+            rows.extend(
+                normalized_table[1:] if normalized_table[0] == headers else normalized_table
+            )
     if headers is None:
         raise ValueError("Impossible d'extraire un tableau du PDF.")
     max_len = max(len(headers), *(len(row) for row in rows)) if rows else len(headers)
@@ -292,29 +450,25 @@ def analyze_pdf_listing(data):
         page_diagnostics = []
         extractable_pages = []
         for number, page in enumerate(pdf.pages, start=1):
-            table = page.extract_table()
-            has_table = table is not None and len(table) > 0
             text_lines = [line for line in (page.extract_text() or "").splitlines() if line.strip()]
             has_text = bool(text_lines)
-            extractable = has_table or len(text_lines) > 1
+            table = page.extract_table()
+            has_table = table is not None and len(table) > 0
+            rows, extraction_strategy = _select_pdf_page_rows(page)
+            extractable = bool(rows)
             if extractable:
                 extractable_pages.append(number)
-            column_count = 0
-            if has_table:
-                column_count = max((len(row or []) for row in table), default=0)
-            elif text_lines:
-                column_count = max(
-                    (len(re.split(r"\s{2,}", line.strip())) for line in text_lines),
-                    default=0,
-                )
+            column_count = max((len(row or []) for row in rows), default=0)
             page_diagnostics.append(
                 {
                     "number": number,
                     "has_text": has_text,
                     "has_table": has_table,
                     "extractable": extractable,
-                    "line_count": len(table) if has_table else len(text_lines),
+                    "line_count": len(rows) if rows else len(text_lines),
                     "column_count": column_count,
+                    "extraction_strategy": extraction_strategy,
+                    "preview_text": _build_pdf_preview_text(text_lines),
                 }
             )
 
@@ -325,12 +479,18 @@ def analyze_pdf_listing(data):
     else:
         mode = "mixed"
 
-    recommended_pages = {"mode": "all", "start": None, "end": None}
+    recommended_pages = {
+        "mode": "all",
+        "start": None,
+        "end": None,
+        "pages": list(extractable_pages),
+    }
     if extractable_pages and len(extractable_pages) != total_pages:
         recommended_pages = {
-            "mode": "custom",
+            "mode": "detected",
             "start": extractable_pages[0],
             "end": extractable_pages[-1],
+            "pages": list(extractable_pages),
         }
 
     return {
@@ -352,9 +512,18 @@ def extract_tabular_data(data, extension, sheet_name=None, header_row=1, pdf_pag
     if extension == ".pdf":
         page_start = None
         page_end = None
+        page_numbers = None
         if pdf_pages:
-            page_start, page_end = pdf_pages
-        return _extract_pdf_table(data, page_start=page_start, page_end=page_end)
+            if isinstance(pdf_pages, list):
+                page_numbers = pdf_pages
+            else:
+                page_start, page_end = pdf_pages
+        return _extract_pdf_table(
+            data,
+            page_start=page_start,
+            page_end=page_end,
+            page_numbers=page_numbers,
+        )
     raise ValueError("Format de fichier non supporté.")
 
 

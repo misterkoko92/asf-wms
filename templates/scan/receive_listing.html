@@ -90,6 +90,8 @@
       var bulkCategoryValue = document.querySelector('[data-bulk-value="category"]');
       var bulkLocationValue = document.querySelector('[data-bulk-value="location"]');
       var bulkBooleanValue = document.querySelector('[data-bulk-value="boolean"]');
+      var pdfModeInputs = document.querySelectorAll('input[name="listing_pdf_pages_mode"]');
+      var pdfCustomRange = document.querySelector('[data-pdf-custom-range]');
 
       function detectTypeFromName(name) {
         if (!name) {
@@ -175,6 +177,26 @@
           syncBulkValueVisibility(bulkFieldName.value);
         });
         syncBulkValueVisibility(bulkFieldName.value);
+      }
+
+      function syncPdfRangeVisibility() {
+        if (!pdfCustomRange) {
+          return;
+        }
+        var selectedMode = 'all';
+        pdfModeInputs.forEach(function(input) {
+          if (input.checked) {
+            selectedMode = input.value;
+          }
+        });
+        pdfCustomRange.hidden = selectedMode !== 'custom';
+      }
+
+      if (pdfModeInputs.length) {
+        pdfModeInputs.forEach(function(input) {
+          input.addEventListener('change', syncPdfRangeVisibility);
+        });
+        syncPdfRangeVisibility();
       }
     })();
   </script>

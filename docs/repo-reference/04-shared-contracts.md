@@ -265,7 +265,8 @@ Current contract:
 - `/scan/receive-pallet/` stores the operator observation in `Receipt.notes`
 - `/scan/receive-listing/` owns the file-import contract for listing reception:
   Excel/CSV still enter direct mapping/review, while PDF first persists an analysis payload
-  (`total_pages`, page diagnostics, recommended page range) before the operator triggers mapping
+  (`total_pages`, page diagnostics, extraction strategy, preview text, and recommended
+  `all`/`detected`/manual page selection) before the operator triggers mapping
 - listing-created products may persist with `Product.is_incomplete=True`; the same route renders
   the operator cockpit to open one product at a time or apply guarded bulk updates to
   non-identifier fields across multiple incomplete products

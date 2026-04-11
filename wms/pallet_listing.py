@@ -167,15 +167,18 @@ def _clean_listing_value(value):
 
 
 def build_listing_extract_options(
-    extension, sheet_name, header_row, pdf_mode, page_start, page_end
+    extension, sheet_name, header_row, pdf_mode, page_start, page_end, page_numbers=None
 ):
     options = {}
     if extension in {".xlsx", ".xls"}:
         if sheet_name:
             options["sheet_name"] = sheet_name
         options["header_row"] = header_row or 1
-    if extension == ".pdf" and pdf_mode == "custom":
-        options["pdf_pages"] = (page_start, page_end)
+    if extension == ".pdf":
+        if pdf_mode == "custom":
+            options["pdf_pages"] = (page_start, page_end)
+        elif pdf_mode == "detected" and page_numbers:
+            options["pdf_pages"] = list(page_numbers)
     return options
 
 
@@ -188,6 +191,7 @@ def pending_listing_extract_options(pending_data):
         pdf_pages.get("mode") or "all",
         pdf_pages.get("start"),
         pdf_pages.get("end"),
+        pdf_pages.get("pages"),
     )
 
 
