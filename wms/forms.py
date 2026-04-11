@@ -351,14 +351,18 @@ class ScanListingEntryForm(forms.Form):
             ("pdf", "PDF"),
         ),
         required=True,
-        widget=forms.Select(attrs={"class": "form-select ui-select--lg"}),
+        widget=forms.Select(
+            attrs={"class": "form-select ui-select--lg scan-listing-intake-file-type-select"}
+        ),
     )
     listing_entry_receipt_id = forms.ModelChoiceField(
         label=_("Lier à une réception"),
         queryset=Receipt.objects.none(),
         required=True,
         empty_label=_("Sélectionner une réception"),
-        widget=forms.Select(attrs={"class": "form-select ui-select--xl"}),
+        widget=forms.Select(
+            attrs={"class": "form-select ui-select--xl scan-listing-intake-receipt-select"}
+        ),
     )
 
     def __init__(self, *args, receipts_qs=None, **kwargs):
@@ -814,8 +818,8 @@ class ScanShipmentForm(forms.Form):
 
         self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
         self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
-        self.fields["recipient_contact"].label_from_instance = (
-            lambda obj: build_shipment_recipient_select_label(
+        self.fields["recipient_contact"].label_from_instance = lambda obj: (
+            build_shipment_recipient_select_label(
                 obj,
                 destination=selected_destination,
             )

@@ -79,6 +79,32 @@ def _build_pending_pdf_pages_payload(*, mode, start, end, total, page_numbers=No
     return payload
 
 
+def _selected_suggestion_ids(post_data):
+    return [
+        suggestion_id.strip()
+        for suggestion_id in post_data.getlist("selected_suggestion_ids")
+        if suggestion_id and suggestion_id.strip()
+    ]
+
+
+def _merge_hidden_suggestion_ids(existing_ids, selected_suggestions):
+    hidden_ids = {
+        suggestion_id for suggestion_id in (existing_ids or []) if str(suggestion_id or "").strip()
+    }
+    hidden_ids.update(
+        str(suggestion.get("id") or "").strip()
+        for suggestion in (selected_suggestions or [])
+        if str(suggestion.get("id") or "").strip()
+    )
+    return sorted(hidden_ids)
+
+
+def _review_overrides_from_request_or_pending(request, rows, mapping, pending):
+    if any(key.startswith("row_") for key in request.POST.keys()):
+        return capture_listing_review_overrides_from_post(request.POST, rows, mapping)
+    return dict(pending.get("review_overrides") or {})
+
+
 def hydrate_listing_state_from_pending(state, pending_data):
     if not pending_data:
         return None
@@ -403,6 +429,7 @@ def handle_pallet_listing_action(
                             ),
                         },
                     }
+                    pending["stage"] = "analysis"
                     request.session["pallet_listing_pending"] = pending
                     request.session.pop("pallet_listing_last_incomplete_product_ids", None)
                     state["listing_stage"] = "analysis"
@@ -455,6 +482,7 @@ def handle_pallet_listing_action(
                             ),
                         },
                     }
+                    pending["stage"] = "mapping"
                     request.session["pallet_listing_pending"] = pending
                     request.session.pop("pallet_listing_last_incomplete_product_ids", None)
                     state["listing_stage"] = "mapping"
@@ -548,6 +576,7 @@ def handle_pallet_listing_action(
         mapping_defaults = build_listing_mapping_defaults(headers)
         pending["headers"] = headers
         pending["mapping"] = mapping_defaults
+        pending["stage"] = "mapping"
         request.session["pallet_listing_pending"] = pending
         state["listing_stage"] = "mapping"
         state["listing_columns"] = build_listing_columns(headers, rows, mapping_defaults)
@@ -580,51 +609,99 @@ def handle_pallet_listing_action(
             state["listing_columns"] = build_listing_columns(headers, rows, mapping)
         else:
             pending["mapping"] = mapping
+            pending.pop("review_overrides", None)
+            pending.pop("dismissed_suggestion_ids", None)
             request.session["pallet_listing_pending"] = pending
             headers, rows = load_listing_table(pending)
-            review_state = build_listing_review_state(rows, mapping)
+            review_state = build_listing_review_state(
+                rows,
+                mapping,
+                review_overrides=pending.get("review_overrides"),
+                dismissed_suggestion_ids=pending.get("dismissed_suggestion_ids"),
+            )
             state["listing_rows"] = review_state["rows"]
             state["listing_group_suggestions"] = review_state["group_suggestions"]
-            state["listing_stage"] = "review"
+            state["listing_stage"] = (
+                "suggestions" if review_state["group_suggestions"] else "review"
+            )
+            pending["stage"] = state["listing_stage"]
+            request.session["pallet_listing_pending"] = pending
         return None
 
     if action.startswith("listing_apply_suggestion_group"):
+        request.POST = request.POST.copy()
+        request.POST.setlist("selected_suggestion_ids", [action.partition(":")[2].strip()])
+        action = "listing_apply_suggestions"
+
+    if action in {"listing_apply_suggestions", "listing_dismiss_suggestions"}:
         pending = request.session.get("pallet_listing_pending")
         token = request.POST.get("pending_token")
         if not pending or pending.get("token") != token:
             messages.error(request, "Session d'import expirée.")
             return redirect("scan:scan_receive_listing")
 
-        suggestion_id = action.partition(":")[2].strip()
         headers, rows = load_listing_table(pending)
         mapping = pending.get("mapping") or {}
-        review_overrides = capture_listing_review_overrides_from_post(request.POST, rows, mapping)
-        review_state = build_listing_review_state(rows, mapping, review_overrides=review_overrides)
-        suggestion = next(
-            (
-                suggestion_item
-                for suggestion_item in review_state["group_suggestions"]
-                if suggestion_item.get("id") == suggestion_id
-            ),
-            None,
+        review_overrides = _review_overrides_from_request_or_pending(
+            request, rows, mapping, pending
         )
+        dismissed_suggestion_ids = pending.get("dismissed_suggestion_ids") or []
+        review_state = build_listing_review_state(
+            rows,
+            mapping,
+            review_overrides=review_overrides,
+            dismissed_suggestion_ids=dismissed_suggestion_ids,
+        )
+        selected_ids = _selected_suggestion_ids(request.POST)
         state["listing_stage"] = "review"
-        if suggestion is None:
+        if not selected_ids:
+            listing_errors.append("Sélectionnez au moins une proposition à traiter.")
+            state["listing_rows"] = review_state["rows"]
+            state["listing_group_suggestions"] = review_state["group_suggestions"]
+            state["listing_stage"] = (
+                "suggestions" if review_state["group_suggestions"] else "review"
+            )
+            return None
+
+        selected_suggestions = [
+            suggestion_item
+            for suggestion_item in review_state["group_suggestions"]
+            if suggestion_item.get("id") in selected_ids
+        ]
+        if not selected_suggestions:
             listing_errors.append("Suggestion introuvable ou obsolète.")
             state["listing_rows"] = review_state["rows"]
             state["listing_group_suggestions"] = review_state["group_suggestions"]
             return None
 
-        apply_listing_group_suggestion_to_overrides(review_overrides, suggestion)
+        if action == "listing_apply_suggestions":
+            for suggestion in selected_suggestions:
+                apply_listing_group_suggestion_to_overrides(review_overrides, suggestion)
+            pending["dismissed_suggestion_ids"] = _merge_hidden_suggestion_ids(
+                dismissed_suggestion_ids,
+                selected_suggestions,
+            )
+        else:
+            pending["dismissed_suggestion_ids"] = _merge_hidden_suggestion_ids(
+                dismissed_suggestion_ids,
+                selected_suggestions,
+            )
+
         pending["review_overrides"] = review_overrides
         request.session["pallet_listing_pending"] = pending
         updated_review_state = build_listing_review_state(
             rows,
             mapping,
             review_overrides=review_overrides,
+            dismissed_suggestion_ids=pending.get("dismissed_suggestion_ids"),
         )
         state["listing_rows"] = updated_review_state["rows"]
         state["listing_group_suggestions"] = updated_review_state["group_suggestions"]
+        state["listing_stage"] = (
+            "suggestions" if updated_review_state["group_suggestions"] else "review"
+        )
+        pending["stage"] = state["listing_stage"]
+        request.session["pallet_listing_pending"] = pending
         return None
 
     if action == "listing_confirm":

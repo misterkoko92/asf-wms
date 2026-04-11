@@ -1,64 +1,124 @@
 {% load i18n %}
 
-<div id="scan-receive-listing-suggestions-card" class="scan-card card border-0 ui-comp-card mb-3">
-  <h3 class="ui-comp-title">{% trans "Suggestions détectées" %}</h3>
-  <p class="scan-help">
-    {% trans "Les suggestions remplissent uniquement les champs encore vides. Le nom peut être ajusté automatiquement lorsqu'une marque détectée est retirée du libellé source." %}
-  </p>
-  <div class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
-    {% for suggestion in listing_group_suggestions %}
-      <details class="scan-card card border-0 ui-comp-card">
-        <summary class="d-flex flex-wrap align-items-center gap-2">
-          <strong>{{ suggestion.field_label }}</strong>
-          <span>{{ suggestion.proposed_value }}</span>
-          <span class="badge text-bg-light">{{ suggestion.confidence }}</span>
-          <span class="badge text-bg-light">{{ suggestion.source }}</span>
-          <span class="scan-help">
-            {% blocktrans count counter=suggestion.preview_rows|length %}{{ counter }} ligne concernée{% plural %}{{ counter }} lignes concernées{% endblocktrans %}
-          </span>
-          <span class="scan-help">{% trans "Voir les lignes" %}</span>
-        </summary>
-        <div class="scan-table-wrap table-responsive mt-3">
-          <table class="scan-table table table-sm table-hover">
-            <thead>
-              <tr>
-                <th>{% trans "Ligne" %}</th>
-                <th>EAN</th>
-                <th>{% trans "Nom source" %}</th>
-                <th>{% trans "Valeur actuelle" %}</th>
-                <th>{% trans "Valeur proposée" %}</th>
-                <th>{% trans "Produit lié" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in suggestion.preview_rows %}
+<div
+  id="scan-receive-listing-suggestions-card"
+  class="scan-card card border-0 ui-comp-card scan-listing-review-subcard"
+>
+  <div id="scan-receive-listing-suggestions-block">
+    <h2 class="ui-comp-title">{% trans "Suggestions détectées" %}</h2>
+    <p class="scan-help">
+      {% trans "Les suggestions remplissent uniquement les champs encore vides. Le nom peut être ajusté automatiquement lorsqu'une marque détectée est retirée du libellé source." %}
+    </p>
+    <p class="scan-help">
+      {% trans "Les suggestions non traitées restent visibles dans la page \"MAJ Stock\" et pourront être traitées ultérieurement." %}
+    </p>
+    {% if listing_errors %}
+      {% for error in listing_errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+    <form
+      method="post"
+      id="scan-receive-listing-suggestions-form"
+      class="scan-filters ui-comp-form scan-listing-suggestions-list"
+    >
+      {% csrf_token %}
+      <input type="hidden" name="pending_token" value="{{ listing_token }}">
+      <div class="scan-help scan-listing-suggestion-counter" aria-live="polite">
+        {% trans "Suggestions cochées :" %}
+        <strong data-selected-suggestions-count>0</strong>/<strong data-total-suggestions-count>{{ listing_suggestions_total_count }}</strong>
+      </div>
+      {% for suggestion in listing_group_suggestions %}
+        <details class="scan-card card border-0 ui-comp-card scan-listing-suggestion-item">
+          <summary class="d-flex flex-wrap align-items-center gap-2">
+            <input
+              type="checkbox"
+              name="selected_suggestion_ids"
+              value="{{ suggestion.id }}"
+              class="form-check-input"
+              onclick="event.stopPropagation();"
+            >
+            <strong>{{ suggestion.proposed_value }}</strong>
+            <span class="badge text-bg-primary">
+              {% trans "Champ proposé" %}: {{ suggestion.field_label }}
+            </span>
+            <span class="badge text-bg-success">
+              {% trans "Indice de correspondance" %}: {{ suggestion.confidence }}
+            </span>
+            <span class="badge text-bg-light">{{ suggestion.source }}</span>
+            <span class="scan-help">
+              {% blocktrans count counter=suggestion.preview_rows|length %}{{ counter }} ligne concernée{% plural %}{{ counter }} lignes concernées{% endblocktrans %}
+            </span>
+            <span class="scan-help">{% trans "Voir les lignes" %}</span>
+          </summary>
+          <div class="scan-meta-grid mt-3">
+            <div class="scan-meta-item">
+              <strong>{% trans "Champ proposé" %}</strong>
+              <span>{{ suggestion.field_label }}</span>
+            </div>
+            <div class="scan-meta-item">
+              <strong>{% trans "Valeur proposée" %}</strong>
+              <span>{{ suggestion.proposed_value }}</span>
+            </div>
+            <div class="scan-meta-item">
+              <strong>{% trans "Indice de correspondance" %}</strong>
+              <span>{{ suggestion.confidence }}</span>
+            </div>
+            <div class="scan-meta-item">
+              <strong>{% trans "Source" %}</strong>
+              <span>{{ suggestion.source }}</span>
+            </div>
+          </div>
+          <div class="scan-table-wrap table-responsive mt-3">
+            <table class="scan-table table table-sm table-hover">
+              <thead>
                 <tr>
-                  <td>{{ row.index }}</td>
-                  <td>{{ row.ean|default:"-" }}</td>
-                  <td>{{ row.name|default:"-" }}</td>
-                  <td>{{ row.current_value|default:"-" }}</td>
-                  <td>{{ row.proposed_value|default:"-" }}</td>
-                  <td>{{ row.linked_product|default:"-" }}</td>
+                  <th>{% trans "Ligne" %}</th>
+                  <th>EAN</th>
+                  <th>{% trans "Nom source" %}</th>
+                  <th>{% trans "Valeur actuelle" %}</th>
+                  <th>{% trans "Valeur proposée" %}</th>
+                  <th>{% trans "Produit lié" %}</th>
                 </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="6">{% trans "Aucune ligne prévisualisable." %}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <div class="scan-filter-actions ui-comp-actions mt-3">
-          <button
-            type="submit"
-            name="action"
-            value="listing_apply_suggestion_group:{{ suggestion.id }}"
-            class="scan-submit secondary btn btn-secondary"
-          >
-            {% trans "Appliquer aux lignes proposées" %}
-          </button>
-        </div>
-      </details>
-    {% endfor %}
+              </thead>
+              <tbody>
+                {% for row in suggestion.preview_rows %}
+                  <tr>
+                    <td>{{ row.index }}</td>
+                    <td>{{ row.ean|default:"-" }}</td>
+                    <td>{{ row.name|default:"-" }}</td>
+                    <td>{{ row.current_value|default:"-" }}</td>
+                    <td>{{ row.proposed_value|default:"-" }}</td>
+                    <td>{{ row.linked_product|default:"-" }}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="6">{% trans "Aucune ligne prévisualisable." %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      {% endfor %}
+      <div class="scan-filter-actions ui-comp-actions scan-listing-step-actions">
+        <button
+          type="submit"
+          name="action"
+          value="listing_apply_suggestions"
+          class="scan-submit btn btn-primary"
+        >
+          {% trans "Accepter les propositions sélectionnées" %}
+        </button>
+        <button
+          type="submit"
+          name="action"
+          value="listing_dismiss_suggestions"
+          class="btn btn-tertiary"
+        >
+          {% trans "Refuser les propositions sélectionnées" %}
+        </button>
+      </div>
+    </form>
   </div>
 </div>

@@ -89,6 +89,9 @@ Use it when you need to answer:
   existing pallet receipt before any upload card appears
 - the listing intake keeps a hard warning that reception linking is mandatory and exposes a
   shortcut back to `/scan/receive-pallet/` for operators who still need to create that reception
+- once a listing session is in progress, reloading `/scan/receive-listing/` must restore the
+  active step (`upload`, PDF analysis, mapping, assisted suggestions, review, or post-confirm
+  incomplete-products recap) and scroll operators directly to the card they still need to process
 - Excel/CSV still keep the existing mapping and review steps, while PDF now enters an explicit
   analysis stage before mapping so operators can inspect detected pages, extractable text/table
   coverage, extraction strategy, short text previews, and either the detected-page subset or the
@@ -96,10 +99,14 @@ Use it when you need to answer:
 - listing reception can create and receive incomplete products when only partial catalog metadata
   is known; the incomplete-products recap only appears after the final import confirmation and is
   scoped to the products created or reused by that last confirmed listing import
-- listing review now carries an assisted-suggestion layer before final confirmation: exact EAN can
-  preselect an existing product automatically, global suggestion groups expose a compact preview of
-  affected rows, and applying a suggestion only fills still-empty fields while preserving manual
-  row selection
+- after mapping, assisted suggestions now run as their own dedicated step before the review table:
+  exact EAN can preselect an existing product automatically, global suggestion groups expose a
+  compact preview of affected rows, operators can accept or refuse selected suggestions in batch,
+  and applying a suggestion only fills still-empty fields while preserving manual row selection
+- the listing review table now stays full width, only renders columns that contain at least one
+  value in the current review state, and must keep the quick audit columns for product status
+  (`Nouveau produit` / `Produit connu`), match type, and the fields auto-completed by assisted
+  suggestions or matched-product fallbacks
 - `/scan/stock-update/` is now the persistent operator cockpit for incomplete products across the
   whole warehouse: the classic `MAJ stock` form is collapsed by default while the incomplete
   products block opens by default, supports the same guarded batch edits, can be filtered by

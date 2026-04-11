@@ -10,34 +10,32 @@
   {% if listing_entry_form.non_field_errors %}
     <div class="scan-message error">{{ listing_entry_form.non_field_errors }}</div>
   {% endif %}
-  <form method="post" class="scan-filters ui-comp-form" novalidate>
+  <form method="post" class="scan-filters ui-comp-form scan-listing-intake-form" novalidate>
     {% csrf_token %}
     <input type="hidden" name="action" value="listing_configure">
-    <div class="scan-inline scan-inline-equal">
-      <div class="scan-field">
-        <label class="form-label" for="{{ listing_entry_form.listing_entry_file_type.id_for_label }}">
-          {{ listing_entry_form.listing_entry_file_type.label }}
-        </label>
-        {{ listing_entry_form.listing_entry_file_type }}
-        {% for error in listing_entry_form.listing_entry_file_type.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
-      <div class="scan-field">
-        <label class="form-label" for="{{ listing_entry_form.listing_entry_receipt_id.id_for_label }}">
-          {{ listing_entry_form.listing_entry_receipt_id.label }}
-        </label>
-        {{ listing_entry_form.listing_entry_receipt_id }}
-        {% for error in listing_entry_form.listing_entry_receipt_id.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-        <div class="scan-help">
-          {% blocktrans %}
-            Attention : il est obligatoire de lier l'import à une réception. Assurez-vous d'avoir déjà créé la
-            réception avant de poursuivre l'import.
-          {% endblocktrans %}
-        </div>
-      </div>
+    <div class="scan-field scan-listing-intake-field scan-listing-intake-field--file-type">
+      <label class="form-label" for="{{ listing_entry_form.listing_entry_file_type.id_for_label }}">
+        {{ listing_entry_form.listing_entry_file_type.label }}
+      </label>
+      {{ listing_entry_form.listing_entry_file_type }}
+      {% for error in listing_entry_form.listing_entry_file_type.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="scan-field scan-listing-intake-field scan-listing-intake-field--receipt">
+      <label class="form-label" for="{{ listing_entry_form.listing_entry_receipt_id.id_for_label }}">
+        {{ listing_entry_form.listing_entry_receipt_id.label }}
+      </label>
+      {{ listing_entry_form.listing_entry_receipt_id }}
+      {% for error in listing_entry_form.listing_entry_receipt_id.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="scan-help scan-listing-intake-warning">
+      {% blocktrans %}
+        Attention : il est obligatoire de lier l'import à une réception. Assurez-vous d'avoir déjà créé la
+        réception avant de poursuivre l'import.
+      {% endblocktrans %}
     </div>
     <div class="scan-filter-actions ui-comp-actions">
       <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider" %}</button>

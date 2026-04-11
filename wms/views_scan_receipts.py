@@ -257,6 +257,12 @@ def scan_receive_listing(request):
             **incomplete_products_context,
         }
     )
+    if context["show_incomplete_products_card"] and context.get("listing_focus_card_id") in {
+        None,
+        "",
+        "scan-receive-listing-intake-card",
+    }:
+        context["listing_focus_card_id"] = "scan-receive-listing-incomplete-products-card"
     return render(request, TEMPLATE_RECEIVE_LISTING, context)
 
 

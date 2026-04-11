@@ -153,6 +153,16 @@ LISTING_REVIEW_OVERRIDE_FIELDS = [
 ]
 
 
+def _normalize_suggestion_ids(suggestion_ids):
+    return [
+        suggestion_id
+        for suggestion_id in (
+            _clean_listing_value(raw_suggestion_id) for raw_suggestion_id in (suggestion_ids or [])
+        )
+        if suggestion_id
+    ]
+
+
 def _listing_row_empty(row):
     return all(not str(value or "").strip() for value in row)
 
@@ -346,6 +356,72 @@ def _enrich_group_suggestions(group_suggestions, review_rows):
     return enriched
 
 
+def _filter_group_suggestions(group_suggestions, dismissed_suggestion_ids):
+    dismissed = set(_normalize_suggestion_ids(dismissed_suggestion_ids))
+    if not dismissed:
+        return list(group_suggestions)
+    return [
+        suggestion
+        for suggestion in group_suggestions
+        if _clean_listing_value(suggestion.get("id")) not in dismissed
+    ]
+
+
+def _completed_field_labels(source_row, values):
+    labels = []
+    tracked_fields = [
+        *PALLET_REVIEW_FIELDS,
+        *PALLET_LOCATION_FIELDS,
+        ("rack_color", "Couleur rack"),
+    ]
+    for field_name, label in tracked_fields:
+        source_value = _clean_listing_value(source_row.get(field_name))
+        current_value = _clean_listing_value(values.get(field_name))
+        if not current_value:
+            continue
+        if field_name == "name":
+            if current_value != source_value:
+                labels.append(label)
+            continue
+        if not source_value:
+            labels.append(label)
+    return labels
+
+
+def build_listing_visible_columns(listing_rows, *, review_fields=None, location_fields=None):
+    review_fields = review_fields or PALLET_REVIEW_FIELDS
+    location_fields = location_fields or PALLET_LOCATION_FIELDS
+
+    visible_review_fields = []
+    for field_name, label in review_fields:
+        if any(
+            str(field.get("value") or field.get("existing") or "").strip()
+            for row in listing_rows
+            for field in row.get("fields", [])
+            if field.get("name") == field_name
+        ):
+            visible_review_fields.append((field_name, label))
+
+    visible_location_fields = []
+    for field_name, label in location_fields:
+        if any(
+            str(location.get("value") or location.get("existing") or "").strip()
+            for row in listing_rows
+            for location in row.get("locations", [])
+            if location.get("name") == field_name
+        ):
+            visible_location_fields.append((field_name, label))
+
+    show_rack_color_column = any(
+        str((row.get("values") or {}).get("rack_color") or "").strip() for row in listing_rows
+    )
+    return {
+        "review_fields": visible_review_fields,
+        "location_fields": visible_location_fields,
+        "show_rack_color_column": show_rack_color_column,
+    }
+
+
 def build_listing_extract_options(
     extension, sheet_name, header_row, pdf_mode, page_start, page_end, page_numbers=None
 ):
@@ -375,7 +451,14 @@ def pending_listing_extract_options(pending_data):
     )
 
 
-def build_listing_review_state(rows, mapping, *, start_index=2, review_overrides=None):
+def build_listing_review_state(
+    rows,
+    mapping,
+    *,
+    start_index=2,
+    review_overrides=None,
+    dismissed_suggestion_ids=None,
+):
     mapped_rows = apply_listing_mapping(rows, mapping)
     match_labels = {
         "barcode": "Barcode",
@@ -402,6 +485,7 @@ def build_listing_review_state(rows, mapping, *, start_index=2, review_overrides
             values[key] = _clean_listing_value(row.get(key))
         values["quantity"] = _clean_listing_value(row.get("quantity"))
         values["rack_color"] = _clean_listing_value(row.get("rack_color"))
+        source_values = dict(values)
 
         sku, name, brand = extract_product_identity(row)
         matches, match_type = find_product_matches(
@@ -460,6 +544,7 @@ def build_listing_review_state(rows, mapping, *, start_index=2, review_overrides
                     "name": field,
                     "label": label,
                     "value": values.get(field, ""),
+                    "source": source_values.get(field, ""),
                     "existing": existing.get(field, "") if existing else "",
                 }
             )
@@ -470,9 +555,11 @@ def build_listing_review_state(rows, mapping, *, start_index=2, review_overrides
                     "name": key,
                     "label": label,
                     "value": values.get(key, ""),
+                    "source": source_values.get(key, ""),
                     "existing": existing.get(key, "") if existing else "",
                 }
             )
+        completion_labels = _completed_field_labels(source_values, values)
 
         review.append(
             {
@@ -485,14 +572,19 @@ def build_listing_review_state(rows, mapping, *, start_index=2, review_overrides
                 "match_options": match_options,
                 "default_match": default_match,
                 "match_badge": match_badge,
+                "status_label": ("Nouveau produit" if default_match == "new" else "Produit connu"),
+                "completion_labels": completion_labels,
+                "completion_summary": ", ".join(completion_labels) or "-",
                 "line_suggestions": suggestion_state["line_suggestions"].get(row_key, []),
             }
         )
+    filtered_group_suggestions = _filter_group_suggestions(
+        suggestion_state["group_suggestions"],
+        dismissed_suggestion_ids,
+    )
     return {
         "rows": review,
-        "group_suggestions": _enrich_group_suggestions(
-            suggestion_state["group_suggestions"], review
-        ),
+        "group_suggestions": _enrich_group_suggestions(filtered_group_suggestions, review),
     }
 
 

@@ -11,6 +11,7 @@ from wms.pallet_listing import (
     build_listing_mapping_defaults,
     build_listing_review_rows,
     build_listing_review_state,
+    build_listing_visible_columns,
     load_listing_table,
     pending_listing_extract_options,
 )
@@ -254,6 +255,115 @@ class PalletListingTests(SimpleTestCase):
                 }
             ],
         )
+
+    def test_build_listing_visible_columns_only_keeps_columns_with_values(self):
+        listing_rows = [
+            {
+                "fields": [
+                    {"name": "name", "value": "Thermometre frontal", "existing": ""},
+                    {"name": "brand", "value": "BRAUN", "existing": ""},
+                    {"name": "ean", "value": "", "existing": "1234567890123"},
+                    {"name": "category_l1", "value": "", "existing": ""},
+                ],
+                "locations": [
+                    {"name": "warehouse", "value": "MAIN", "existing": ""},
+                    {"name": "zone", "value": "", "existing": ""},
+                ],
+                "values": {"rack_color": "Bleu"},
+            },
+            {
+                "fields": [
+                    {"name": "name", "value": "Masque", "existing": ""},
+                    {"name": "brand", "value": "", "existing": ""},
+                    {"name": "ean", "value": "", "existing": ""},
+                    {"name": "category_l1", "value": "", "existing": ""},
+                ],
+                "locations": [
+                    {"name": "warehouse", "value": "", "existing": ""},
+                    {"name": "zone", "value": "", "existing": ""},
+                ],
+                "values": {"rack_color": ""},
+            },
+        ]
+
+        visible_columns = build_listing_visible_columns(listing_rows)
+
+        self.assertEqual(
+            visible_columns["review_fields"],
+            [("name", "Nom"), ("brand", "Marque"), ("ean", "EAN")],
+        )
+        self.assertEqual(visible_columns["location_fields"], [("warehouse", "Entrepôt")])
+        self.assertTrue(visible_columns["show_rack_color_column"])
+
+    def test_build_listing_review_state_filters_dismissed_suggestions_and_exposes_completion_summary(
+        self,
+    ):
+        mapping = {0: "name", 1: "ean", 2: "quantity"}
+        rows = [["Braun Thermometre Frontal", "1234567890123", "3"]]
+
+        with mock.patch(
+            "wms.pallet_listing.build_listing_assisted_suggestions",
+            return_value={
+                "auto_matches": {
+                    "row-2": {
+                        "product_id": 42,
+                        "match_type": "ean",
+                    }
+                },
+                "line_suggestions": {},
+                "group_suggestions": [
+                    {
+                        "id": "brand:braun",
+                        "field_name": "brand",
+                        "proposed_value": "BRAUN",
+                        "confidence": "Forte",
+                        "source": "Base + Batch",
+                        "row_keys": ["row-2"],
+                        "per_row_updates": {"row-2": {"brand": "BRAUN"}},
+                    },
+                    {
+                        "id": "category:braun",
+                        "field_name": "category",
+                        "proposed_value": "Thermomètres",
+                        "confidence": "Forte",
+                        "source": "Base + Batch",
+                        "row_keys": ["row-2"],
+                        "per_row_updates": {"row-2": {"category_l1": "Thermomètres"}},
+                    },
+                ],
+            },
+        ):
+            with mock.patch(
+                "wms.pallet_listing.extract_product_identity",
+                return_value=("", "Braun Thermometre Frontal", ""),
+            ):
+                with mock.patch(
+                    "wms.pallet_listing.find_product_matches",
+                    return_value=([], None),
+                ):
+                    review_state = build_listing_review_state(
+                        rows,
+                        mapping,
+                        review_overrides={
+                            "row-2": {
+                                "selection": "new",
+                                "values": {
+                                    "brand": "BRAUN",
+                                    "category_l1": "Thermomètres",
+                                },
+                            }
+                        },
+                        dismissed_suggestion_ids=["category:braun"],
+                    )
+
+        self.assertEqual(
+            [suggestion["id"] for suggestion in review_state["group_suggestions"]],
+            ["brand:braun"],
+        )
+        row = review_state["rows"][0]
+        self.assertEqual(row["status_label"], "Nouveau produit")
+        self.assertEqual(row["completion_labels"], ["Marque", "Cat L1"])
+        self.assertEqual(row["completion_summary"], "Marque, Cat L1")
 
     def test_apply_listing_group_suggestion_to_overrides_only_updates_new_rows_and_empty_fields(
         self,

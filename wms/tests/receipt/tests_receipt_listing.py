@@ -113,6 +113,96 @@ class ReceiptListingFlowTests(TestCase):
             ],
         )
 
+    def test_build_receive_listing_state_get_restores_review_stage_from_pending(self):
+        request = self._request(method="GET")
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-review",
+            "stage": "review",
+            "mapping": {0: "name", 1: "quantity"},
+            "review_overrides": {"row-2": {"selection": "new", "values": {"brand": "BRAUN"}}},
+            "dismissed_suggestion_ids": ["brand:other"],
+        }
+        listing_state = self._listing_state()
+        listing_state["listing_stage"] = None
+        listing_state["listing_rows"] = []
+        listing_state["listing_group_suggestions"] = []
+
+        with mock.patch(
+            "wms.receipt_listing_state.init_listing_state",
+            return_value=listing_state,
+        ):
+            with mock.patch(
+                "wms.receipt_listing_state.hydrate_listing_state_from_pending",
+                return_value={"received_on": "2026-01-10"},
+            ):
+                with mock.patch(
+                    "wms.receipt_listing_state.load_listing_table",
+                    return_value=(["Nom", "Quantite"], [["Masque", "3"]]),
+                ) as load_mock:
+                    with mock.patch(
+                        "wms.receipt_listing_state.build_listing_review_state",
+                        return_value={
+                            "rows": [{"index": 2, "values": {"name": "Masque"}}],
+                            "group_suggestions": [{"id": "brand:braun"}],
+                        },
+                    ) as review_mock:
+                        state = build_receive_listing_state(request, action="")
+
+        self.assertIsNone(state["response"])
+        self.assertEqual(state["listing_state"]["listing_stage"], "review")
+        self.assertEqual(
+            state["listing_state"]["listing_rows"], [{"index": 2, "values": {"name": "Masque"}}]
+        )
+        self.assertEqual(
+            state["listing_state"]["listing_group_suggestions"], [{"id": "brand:braun"}]
+        )
+        load_mock.assert_called_once_with(request.session["pallet_listing_pending"])
+        review_mock.assert_called_once_with(
+            [["Masque", "3"]],
+            {0: "name", 1: "quantity"},
+            review_overrides={"row-2": {"selection": "new", "values": {"brand": "BRAUN"}}},
+            dismissed_suggestion_ids=["brand:other"],
+        )
+
+    def test_build_receive_listing_state_get_restores_suggestions_stage_from_pending(self):
+        request = self._request(method="GET")
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-suggestions",
+            "stage": "suggestions",
+            "mapping": {0: "name", 1: "quantity"},
+        }
+        listing_state = self._listing_state()
+        listing_state["listing_stage"] = None
+        listing_state["listing_rows"] = []
+        listing_state["listing_group_suggestions"] = []
+
+        with mock.patch(
+            "wms.receipt_listing_state.init_listing_state",
+            return_value=listing_state,
+        ):
+            with mock.patch(
+                "wms.receipt_listing_state.hydrate_listing_state_from_pending",
+                return_value={"received_on": "2026-01-10"},
+            ):
+                with mock.patch(
+                    "wms.receipt_listing_state.load_listing_table",
+                    return_value=(["Nom", "Quantite"], [["Masque", "3"]]),
+                ):
+                    with mock.patch(
+                        "wms.receipt_listing_state.build_listing_review_state",
+                        return_value={
+                            "rows": [{"index": 2, "values": {"name": "Masque"}}],
+                            "group_suggestions": [{"id": "brand:braun"}],
+                        },
+                    ):
+                        state = build_receive_listing_state(request, action="")
+
+        self.assertIsNone(state["response"])
+        self.assertEqual(state["listing_state"]["listing_stage"], "suggestions")
+        self.assertEqual(
+            state["listing_state"]["listing_group_suggestions"], [{"id": "brand:braun"}]
+        )
+
     def test_build_receive_listing_state_get_skips_post_handlers(self):
         request = self._request(method="GET")
         request.session["pallet_listing_pending"] = {"token": "tok-get"}
@@ -161,3 +251,5 @@ class ReceiptListingFlowTests(TestCase):
         self.assertEqual(context["listing_entry_file_type"], "")
         self.assertEqual(context["listing_entry_receipt_id"], "")
         self.assertIsNone(context["listing_pdf_analysis"])
+        self.assertEqual(context["listing_focus_card_id"], "scan-receive-pallet-review-card")
+        self.assertEqual(context["listing_suggestions_total_count"], 1)

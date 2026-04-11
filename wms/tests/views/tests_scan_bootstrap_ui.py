@@ -937,8 +937,7 @@ class ScanBootstrapUiTests(TestCase):
         core_content = core_path.read_text(encoding="utf-8")
 
         self.assertIn(
-            ".scan-bootstrap-enabled .ui-number-input {\n"
-            "  --ui-number-input-btn-width: 1.15rem;",
+            ".scan-bootstrap-enabled .ui-number-input {\n  --ui-number-input-btn-width: 1.15rem;",
             css_content,
         )
         self.assertIn(
@@ -1420,6 +1419,8 @@ class ScanBootstrapUiTests(TestCase):
         )
         self.assertContains(response, reverse("scan:scan_receive_pallet"))
         self.assertContains(response, ">Créer une réception<")
+        self.assertContains(response, "scan-listing-intake-form")
+        self.assertContains(response, "scan-listing-intake-receipt-select")
         self.assertNotContains(response, 'id="scan-receive-listing-pdf-card"')
         self.assertNotContains(response, 'id="scan-receive-listing-excel-card"')
         self.assertNotContains(response, 'id="scan-receive-listing-csv-card"')
@@ -1476,6 +1477,7 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_receive_listing"))
         self.assertContains(response, 'id="scan-receive-listing-analysis-card"')
         self.assertContains(response, 'id="scan-receive-listing-pdf-card"')
+        self.assertContains(response, "scan-receive-listing-analysis-card")
         self.assertNotContains(response, 'id="scan-receive-listing-excel-card"')
         self.assertNotContains(response, 'id="scan-receive-listing-csv-card"')
         self.assertContains(response, 'name="listing_pdf_pages_mode"')
@@ -1518,11 +1520,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Produit Incomplet")
         self.assertContains(response, "Ouvrir")
 
-    def test_scan_receive_listing_review_renders_suggestions_card_and_auto_ean_badge(self):
+    def test_scan_receive_listing_suggestions_stage_renders_batch_actions_and_counter(self):
         listing_context = {
             "active": "receive_listing",
             "listing_entry_form": ScanListingEntryForm(),
-            "listing_stage": "review",
+            "listing_stage": "suggestions",
             "listing_columns": [],
             "listing_rows": [
                 {
@@ -1551,6 +1553,9 @@ class ScanBootstrapUiTests(TestCase):
                     ],
                     "default_match": "product:42",
                     "match_badge": "Match auto EAN",
+                    "status_label": "Produit connu",
+                    "completion_labels": ["Marque"],
+                    "completion_summary": "Marque",
                     "line_suggestions": [],
                 }
             ],
@@ -1577,9 +1582,11 @@ class ScanBootstrapUiTests(TestCase):
             ],
             "listing_errors": [],
             "listing_token": "tok-review",
+            "listing_suggestions_total_count": 1,
             "listing_meta": {},
             "review_fields": [("name", "Nom"), ("brand", "Marque"), ("ean", "EAN")],
             "location_fields": [],
+            "show_rack_color_column": False,
             "listing_sheet_names": [],
             "listing_sheet_name": "",
             "listing_header_row": 1,
@@ -1592,6 +1599,7 @@ class ScanBootstrapUiTests(TestCase):
             "listing_entry_file_type": "pdf",
             "listing_entry_receipt_id": "",
             "listing_selected_receipt": None,
+            "listing_focus_card_id": "scan-receive-listing-suggestions-card",
             "show_incomplete_products_card": False,
         }
 
@@ -1607,12 +1615,128 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-receive-listing-suggestions-card"')
+        self.assertContains(response, 'id="scan-receive-listing-suggestions-block"')
+        self.assertNotContains(response, 'id="scan-receive-listing-review-table-card"')
         self.assertContains(response, "Suggestions détectées")
-        self.assertContains(response, "Match auto EAN")
+        self.assertContains(response, "Champ proposé")
+        self.assertContains(response, "Indice de correspondance")
         self.assertContains(response, "Voir les lignes")
+        self.assertContains(response, "Suggestions cochées :")
         self.assertContains(response, "Braun Thermometre frontal")
         self.assertContains(response, "SKU-42 - Thermomètre Braun")
-        self.assertContains(response, "Appliquer aux lignes proposées")
+        self.assertContains(
+            response,
+            'Les suggestions non traitées restent visibles dans la page "MAJ Stock" et pourront être traitées ultérieurement.',
+        )
+        self.assertContains(response, "Accepter les propositions sélectionnées", count=1)
+        self.assertContains(response, "Refuser les propositions sélectionnées", count=1)
+        self.assertNotContains(response, "Valider tous les imports cochés")
+
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertIn(".scan-bootstrap-enabled .scan-listing-step-actions {", css_content)
+        self.assertIn("flex-wrap: nowrap;", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-listing-step-actions > * {", css_content)
+        self.assertIn("flex: 1 1 0;", css_content)
+
+    def test_scan_receive_listing_review_stage_renders_compact_review_table(self):
+        listing_context = {
+            "active": "receive_listing",
+            "listing_entry_form": ScanListingEntryForm(),
+            "listing_stage": "review",
+            "listing_columns": [],
+            "listing_rows": [
+                {
+                    "index": 2,
+                    "values": {
+                        "name": "Braun Thermometre frontal",
+                        "brand": "BRAUN",
+                        "ean": "1234567890123",
+                        "quantity": "3",
+                        "rack_color": "",
+                    },
+                    "fields": [
+                        {
+                            "name": "name",
+                            "label": "Nom",
+                            "value": "Braun Thermometre frontal",
+                            "source": "Braun Thermometre frontal",
+                            "existing": "",
+                        },
+                        {
+                            "name": "brand",
+                            "label": "Marque",
+                            "value": "BRAUN",
+                            "source": "",
+                            "existing": "",
+                        },
+                        {
+                            "name": "ean",
+                            "label": "EAN",
+                            "value": "1234567890123",
+                            "source": "1234567890123",
+                            "existing": "",
+                        },
+                    ],
+                    "locations": [],
+                    "existing": {"sku": "SKU-42", "name": "Thermomètre Braun"},
+                    "match_type": "EAN",
+                    "match_options": [
+                        {
+                            "value": "product:42",
+                            "label": "SKU-42 - Thermomètre Braun",
+                            "data": {"sku": "SKU-42", "name": "Thermomètre Braun"},
+                        }
+                    ],
+                    "default_match": "product:42",
+                    "match_badge": "Match auto EAN",
+                    "status_label": "Produit connu",
+                    "completion_labels": ["Marque"],
+                    "completion_summary": "Marque",
+                    "line_suggestions": [],
+                }
+            ],
+            "listing_group_suggestions": [],
+            "listing_errors": [],
+            "listing_token": "tok-review",
+            "listing_suggestions_total_count": 0,
+            "listing_meta": {},
+            "review_fields": [("name", "Nom"), ("brand", "Marque"), ("ean", "EAN")],
+            "location_fields": [],
+            "show_rack_color_column": False,
+            "listing_sheet_names": [],
+            "listing_sheet_name": "",
+            "listing_header_row": 1,
+            "listing_pdf_pages_mode": "all",
+            "listing_pdf_page_start": "",
+            "listing_pdf_page_end": "",
+            "listing_pdf_total_pages": "",
+            "listing_pdf_analysis": None,
+            "listing_file_type": "pdf",
+            "listing_entry_file_type": "pdf",
+            "listing_entry_receipt_id": "",
+            "listing_selected_receipt": None,
+            "listing_focus_card_id": "scan-receive-pallet-review-card",
+            "show_incomplete_products_card": False,
+        }
+
+        with mock.patch(
+            "wms.views_scan_receipts.build_receive_listing_state",
+            return_value={"response": None},
+        ):
+            with mock.patch(
+                "wms.views_scan_receipts.build_receive_listing_context",
+                return_value=listing_context,
+            ):
+                response = self.client.get(reverse("scan:scan_receive_listing"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-receive-listing-review-table-card"')
+        self.assertNotContains(response, 'id="scan-receive-listing-suggestions-card"')
+        self.assertContains(response, "Match auto EAN")
+        self.assertContains(response, "Champs complétés")
+        self.assertContains(response, "Valider tous les imports cochés")
+        self.assertContains(response, "Annuler l'import")
 
     def test_scan_stock_update_exposes_collapsed_stock_card_and_open_incomplete_cockpit(self):
         response = self.client.get(reverse("scan:scan_stock_update"))

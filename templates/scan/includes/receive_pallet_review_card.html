@@ -5,6 +5,11 @@
   <p class="scan-help">
     {% trans "Vérifiez les correspondances. Si un produit existe, seules quantité et emplacement seront mis à jour." %}
   </p>
+  {% if listing_errors %}
+    {% for error in listing_errors %}
+      <div class="scan-message error">{{ error }}</div>
+    {% endfor %}
+  {% endif %}
   {% if listing_meta %}
     <div class="scan-meta-grid">
       <div class="scan-meta-item">
@@ -59,146 +64,187 @@
       {% endif %}
     </div>
   {% endif %}
-  <form method="post" id="scan-receive-listing-review-form" class="scan-filters ui-comp-form">
+  <form
+    method="post"
+    id="scan-receive-listing-review-form"
+    class="scan-filters ui-comp-form scan-listing-review-form"
+  >
     {% csrf_token %}
     <input type="hidden" name="pending_token" value="{{ listing_token }}">
-    {% if listing_group_suggestions %}
-      {% include "scan/includes/receive_listing_suggestions_card.html" %}
-    {% endif %}
-    <div class="scan-table-wrap table-responsive">
-      <table class="scan-table table table-sm table-hover">
-        <thead>
-          <tr>
-            <th>{% trans "Valider" %}</th>
-            <th>{% trans "Match" %}</th>
-            <th>SKU</th>
-            {% for field in review_fields %}
-              <th>{{ field.1 }}</th>
-            {% endfor %}
-            {% for location in location_fields %}
-              <th>{{ location.1 }}</th>
-            {% endfor %}
-            <th>{% trans "Couleur rack" %}</th>
-            <th>{% trans "Quantité" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in listing_rows %}
-            <tr data-row-index="{{ row.index }}">
-              <td>
-                <input type="checkbox" name="row_{{ row.index }}_apply" value="1" checked>
-              </td>
-              <td>
-                <div><strong>{{ row.match_type }}</strong></div>
-                {% if row.match_badge %}
-                  <div><span class="badge text-bg-success">{{ row.match_badge }}</span></div>
-                {% endif %}
-                <select name="row_{{ row.index }}_match" class="form-select ui-select--lg listing-match" data-row-index="{{ row.index }}">
-                  <option value="new" {% if row.default_match == "new" %}selected{% endif %}>{% trans "Nouveau produit" %}</option>
-                  {% for option in row.match_options %}
-                    <option
-                      value="{{ option.value }}"
-                      {% if row.default_match == option.value %}selected{% endif %}
-                      data-sku="{{ option.data.sku }}"
-                      data-name="{{ option.data.name }}"
-                      data-brand="{{ option.data.brand }}"
-                      data-color="{{ option.data.color }}"
-                      data-category_l1="{{ option.data.category_l1 }}"
-                      data-category_l2="{{ option.data.category_l2 }}"
-                      data-category_l3="{{ option.data.category_l3 }}"
-                      data-category_l4="{{ option.data.category_l4 }}"
-                      data-barcode="{{ option.data.barcode }}"
-                      data-tags="{{ option.data.tags }}"
-                      data-length_cm="{{ option.data.length_cm }}"
-                      data-width_cm="{{ option.data.width_cm }}"
-                      data-height_cm="{{ option.data.height_cm }}"
-                      data-weight_g="{{ option.data.weight_g }}"
-                      data-volume_cm3="{{ option.data.volume_cm3 }}"
-                      data-storage_conditions="{{ option.data.storage_conditions }}"
-                      data-perishable="{{ option.data.perishable }}"
-                      data-quarantine_default="{{ option.data.quarantine_default }}"
-                      data-notes="{{ option.data.notes }}"
-                      data-warehouse="{{ option.data.warehouse }}"
-                      data-zone="{{ option.data.zone }}"
-                      data-aisle="{{ option.data.aisle }}"
-                      data-shelf="{{ option.data.shelf }}"
-                    >
-                      {{ option.label }}
-                    </option>
-                  {% endfor %}
-                </select>
-                <input
-                  type="text"
-                  name="row_{{ row.index }}_match_override"
-                  placeholder='{% trans "SKU / barcode / nom" %}'
-                  class="scan-inline-gap"
-                >
-              </td>
-              <td>
-                <span class="listing-sku" data-sku>
-                  {% if row.default_match == "new" %}AUTO{% else %}{{ row.existing.sku }}{% endif %}
-                </span>
-              </td>
-              {% for field in row.fields %}
-                <td>
-                  <input
-                    type="text"
-                    name="row_{{ row.index }}_{{ field.name }}"
-                    value="{% if row.default_match == "new" %}{{ field.value }}{% else %}{{ field.existing }}{% endif %}"
-                    data-field="{{ field.name }}"
-                    data-import="{{ field.value }}"
-                    data-lock="product"
-                    {% if row.default_match != "new" %}readonly{% endif %}
-                  >
-                  {% if row.existing %}
-                    <small>{% blocktrans %}Import: {{ field.value }}{% endblocktrans %}</small>
-                  {% endif %}
-                </td>
+    <div
+      id="scan-receive-listing-review-table-card"
+      class="scan-card card border-0 ui-comp-card scan-listing-review-subcard"
+    >
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>{% trans "Valider" %}</th>
+              <th>{% trans "Statut" %}</th>
+              <th>{% trans "Type matching" %}</th>
+              <th>{% trans "Sélection produit" %}</th>
+              <th>SKU</th>
+              <th>{% trans "Champs complétés" %}</th>
+              {% for field in review_fields %}
+                <th>{{ field.1 }}</th>
               {% endfor %}
-              {% for location in row.locations %}
-                <td>
-                  <input
-                    type="text"
-                    name="row_{{ row.index }}_{{ location.name }}"
-                    value="{{ location.value }}"
-                    data-field="{{ location.name }}"
-                    data-import="{{ location.value }}"
-                  >
-                  {% if row.existing and location.existing %}
-                    <small>{% blocktrans %}BDD: {{ location.existing }}{% endblocktrans %}</small>
-                  {% endif %}
-                </td>
+              {% for location in location_fields %}
+                <th>{{ location.1 }}</th>
               {% endfor %}
-              <td>
-                <input
-                  type="text"
-                  name="row_{{ row.index }}_rack_color"
-                  value="{{ row.values.rack_color }}"
-                  data-field="rack_color"
-                  data-import="{{ row.values.rack_color }}"
-                >
-              </td>
-              <td>
-                <input
-                  type="number"
-                  name="row_{{ row.index }}_quantity"
-                  value="{{ row.values.quantity }}"
-                  min="1"
-                  step="1"
-                >
-              </td>
+              {% if show_rack_color_column %}
+                <th>{% trans "Couleur rack" %}</th>
+              {% endif %}
+              <th>{% trans "Quantité" %}</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for row in listing_rows %}
+              <tr data-row-index="{{ row.index }}">
+                <td>
+                  <input type="checkbox" name="row_{{ row.index }}_apply" value="1" checked>
+                </td>
+                <td>
+                  <strong data-status-label>{{ row.status_label }}</strong>
+                </td>
+                <td>
+                  <div><strong>{{ row.match_type }}</strong></div>
+                  {% if row.match_badge %}
+                    <div><span class="badge text-bg-success">{{ row.match_badge }}</span></div>
+                  {% endif %}
+                </td>
+                <td>
+                  <select
+                    name="row_{{ row.index }}_match"
+                    class="form-select ui-select--lg listing-match"
+                    data-row-index="{{ row.index }}"
+                  >
+                    <option value="new" {% if row.default_match == "new" %}selected{% endif %}>
+                      {% trans "Nouveau produit" %}
+                    </option>
+                    {% for option in row.match_options %}
+                      <option
+                        value="{{ option.value }}"
+                        {% if row.default_match == option.value %}selected{% endif %}
+                        data-sku="{{ option.data.sku }}"
+                        data-name="{{ option.data.name }}"
+                        data-brand="{{ option.data.brand }}"
+                        data-color="{{ option.data.color }}"
+                        data-category_l1="{{ option.data.category_l1 }}"
+                        data-category_l2="{{ option.data.category_l2 }}"
+                        data-category_l3="{{ option.data.category_l3 }}"
+                        data-category_l4="{{ option.data.category_l4 }}"
+                        data-barcode="{{ option.data.barcode }}"
+                        data-tags="{{ option.data.tags }}"
+                        data-length_cm="{{ option.data.length_cm }}"
+                        data-width_cm="{{ option.data.width_cm }}"
+                        data-height_cm="{{ option.data.height_cm }}"
+                        data-weight_g="{{ option.data.weight_g }}"
+                        data-volume_cm3="{{ option.data.volume_cm3 }}"
+                        data-storage_conditions="{{ option.data.storage_conditions }}"
+                        data-perishable="{{ option.data.perishable }}"
+                        data-quarantine_default="{{ option.data.quarantine_default }}"
+                        data-notes="{{ option.data.notes }}"
+                        data-warehouse="{{ option.data.warehouse }}"
+                        data-zone="{{ option.data.zone }}"
+                        data-aisle="{{ option.data.aisle }}"
+                        data-shelf="{{ option.data.shelf }}"
+                      >
+                        {{ option.label }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <input
+                    type="text"
+                    name="row_{{ row.index }}_match_override"
+                    placeholder='{% trans "SKU / barcode / nom" %}'
+                    class="scan-inline-gap"
+                  >
+                </td>
+                <td>
+                  <span class="listing-sku" data-sku>
+                    {% if row.default_match == "new" %}AUTO{% else %}{{ row.existing.sku }}{% endif %}
+                  </span>
+                </td>
+                <td>
+                  <span data-completed-fields>{{ row.completion_summary }}</span>
+                </td>
+                {% for field in row.fields %}
+                  {% for visible_field in review_fields %}
+                    {% if visible_field.0 == field.name %}
+                      <td>
+                        <input
+                          type="text"
+                          name="row_{{ row.index }}_{{ field.name }}"
+                          value="{% if row.default_match == "new" %}{{ field.value }}{% else %}{{ field.existing }}{% endif %}"
+                          data-field="{{ field.name }}"
+                          data-import="{{ field.value }}"
+                          data-source="{{ field.source }}"
+                          data-completion-label="{{ field.label }}"
+                          data-lock="product"
+                          {% if row.default_match != "new" %}readonly{% endif %}
+                        >
+                        {% if row.existing %}
+                          <small>{% blocktrans %}Import: {{ field.value }}{% endblocktrans %}</small>
+                        {% endif %}
+                      </td>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+                {% for location in row.locations %}
+                  {% for visible_location in location_fields %}
+                    {% if visible_location.0 == location.name %}
+                      <td>
+                        <input
+                          type="text"
+                          name="row_{{ row.index }}_{{ location.name }}"
+                          value="{{ location.value }}"
+                          data-field="{{ location.name }}"
+                          data-import="{{ location.value }}"
+                          data-source="{{ location.source }}"
+                          data-completion-label="{{ location.label }}"
+                        >
+                        {% if row.existing and location.existing %}
+                          <small>{% blocktrans %}BDD: {{ location.existing }}{% endblocktrans %}</small>
+                        {% endif %}
+                      </td>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+                {% if show_rack_color_column %}
+                  <td>
+                    <input
+                      type="text"
+                      name="row_{{ row.index }}_rack_color"
+                      value="{{ row.values.rack_color }}"
+                      data-field="rack_color"
+                      data-import="{{ row.values.rack_color }}"
+                      data-source="{{ row.values.rack_color }}"
+                      data-completion-label="Couleur rack"
+                    >
+                  </td>
+                {% endif %}
+                <td>
+                  <input
+                    type="number"
+                    name="row_{{ row.index }}_quantity"
+                    value="{{ row.values.quantity }}"
+                    min="1"
+                    step="1"
+                  >
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div class="scan-filter-actions ui-comp-actions">
-      <button type="submit" name="action" value="listing_confirm" class="scan-submit btn btn-primary">{% trans "Valider tous les imports coches" %}</button>
+    <div class="scan-filter-actions ui-comp-actions scan-listing-step-actions">
+      <button type="submit" name="action" value="listing_confirm" class="scan-submit btn btn-primary">
+        {% trans "Valider tous les imports cochés" %}
+      </button>
+      <button type="submit" name="action" value="listing_cancel" class="btn btn-tertiary">
+        {% trans "Annuler l'import" %}
+      </button>
     </div>
-  </form>
-  <form method="post" class="scan-filters ui-comp-form">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="listing_cancel">
-    <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Annuler import" %}</button>
   </form>
 </div>

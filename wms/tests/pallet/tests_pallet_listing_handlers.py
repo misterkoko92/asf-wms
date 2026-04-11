@@ -830,7 +830,7 @@ class PalletListingHandlersTests(TestCase):
         )
         self.assertEqual(state["listing_columns"], [{"index": 0}])
 
-    def test_handle_listing_map_success_moves_to_review(self):
+    def test_handle_listing_map_success_moves_to_suggestions_when_present(self):
         request = self._request(
             {
                 "pending_token": "tok-review",
@@ -864,7 +864,7 @@ class PalletListingHandlersTests(TestCase):
                     state=state,
                 )
         self.assertIsNone(response)
-        self.assertEqual(state["listing_stage"], "review")
+        self.assertEqual(state["listing_stage"], "suggestions")
         self.assertEqual(state["listing_rows"], [{"index": 2, "values": {"name": "Masque"}}])
         self.assertEqual(
             state["listing_group_suggestions"],
@@ -874,6 +874,44 @@ class PalletListingHandlersTests(TestCase):
             request.session["pallet_listing_pending"]["mapping"],
             {0: "name", 1: "quantity"},
         )
+        self.assertEqual(
+            request.session["pallet_listing_pending"]["stage"],
+            "suggestions",
+        )
+
+    def test_handle_listing_map_success_moves_directly_to_review_without_suggestions(self):
+        request = self._request(
+            {
+                "pending_token": "tok-review",
+                "map_0": "name",
+                "map_1": "quantity",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-review",
+            "headers": ["Nom", "Quantite"],
+        }
+        state = init_listing_state()
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["Masque", "3"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.build_listing_review_state",
+                return_value={
+                    "rows": [{"index": 2, "values": {"name": "Masque"}}],
+                    "group_suggestions": [],
+                },
+            ):
+                response = handle_pallet_listing_action(
+                    request,
+                    action="listing_map",
+                    listing_form=self._listing_form(valid=True),
+                    state=state,
+                )
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "review")
+        self.assertEqual(request.session["pallet_listing_pending"]["stage"], "review")
 
     def test_handle_listing_map_ignorés_empty_mapping_fields(self):
         request = self._request(
@@ -905,11 +943,11 @@ class PalletListingHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIn("Champs requis manquants: name", state["listing_errors"])
 
-    def test_handle_listing_apply_suggestion_group_updates_review_state_and_pending_overrides(self):
+    def test_handle_listing_apply_suggestions_updates_review_state_and_pending_overrides(self):
         request = self._request(
             {
                 "pending_token": "tok-suggestion",
-                "action": "listing_apply_suggestion_group:brand:braun",
+                "selected_suggestion_ids": ["brand:braun", "category:braun"],
                 "row_2_match": "new",
                 "row_2_name": "BRAUN Thermometre frontal",
             }
@@ -918,6 +956,139 @@ class PalletListingHandlersTests(TestCase):
             "token": "tok-suggestion",
             "headers": ["Nom", "Quantite"],
             "mapping": {0: "name", 1: "quantity"},
+            "dismissed_suggestion_ids": ["brand:other"],
+        }
+        state = init_listing_state()
+        review_overrides = {
+            "row-2": {
+                "selection": "new",
+                "values": {"name": "BRAUN Thermometre frontal", "brand": ""},
+            }
+        }
+        build_review_state_calls = []
+        initial_review_state = {
+            "rows": [{"index": 2, "values": {"name": "BRAUN Thermometre frontal", "brand": ""}}],
+            "group_suggestions": [
+                {
+                    "id": "brand:braun",
+                    "field_name": "brand",
+                    "per_row_updates": {"row-2": {"brand": "BRAUN", "name": "Thermometre frontal"}},
+                },
+                {
+                    "id": "category:braun",
+                    "field_name": "category",
+                    "per_row_updates": {"row-2": {"category_l1": "Thermomètres"}},
+                },
+            ],
+        }
+        updated_review_state = {
+            "rows": [
+                {
+                    "index": 2,
+                    "values": {
+                        "name": "Thermometre frontal",
+                        "brand": "BRAUN",
+                        "category_l1": "Thermomètres",
+                    },
+                }
+            ],
+            "group_suggestions": [],
+        }
+
+        with mock.patch(
+            "wms.pallet_listing_handlers.load_listing_table",
+            return_value=(["Nom", "Quantite"], [["BRAUN Thermometre frontal", "3"]]),
+        ):
+            with mock.patch(
+                "wms.pallet_listing_handlers.capture_listing_review_overrides_from_post",
+                return_value=review_overrides,
+            ):
+                with mock.patch(
+                    "wms.pallet_listing_handlers.build_listing_review_state",
+                    side_effect=lambda *args, **kwargs: (
+                        build_review_state_calls.append(kwargs)
+                        or (
+                            initial_review_state
+                            if len(build_review_state_calls) == 1
+                            else updated_review_state
+                        )
+                    ),
+                ):
+                    with mock.patch(
+                        "wms.pallet_listing_handlers.apply_listing_group_suggestion_to_overrides",
+                        side_effect=lambda overrides, suggestion: overrides["row-2"][
+                            "values"
+                        ].update(
+                            {
+                                "brand": "BRAUN",
+                                "name": "Thermometre frontal",
+                                "category_l1": "Thermomètres",
+                            }
+                            if suggestion["id"] == "category:braun"
+                            else {"brand": "BRAUN", "name": "Thermometre frontal"}
+                        ),
+                    ) as apply_mock:
+                        response = handle_pallet_listing_action(
+                            request,
+                            action="listing_apply_suggestions",
+                            listing_form=self._listing_form(valid=True),
+                            state=state,
+                        )
+
+        self.assertIsNone(response)
+        self.assertEqual(state["listing_stage"], "review")
+        self.assertEqual(
+            state["listing_rows"],
+            [
+                {
+                    "index": 2,
+                    "values": {
+                        "name": "Thermometre frontal",
+                        "brand": "BRAUN",
+                        "category_l1": "Thermomètres",
+                    },
+                }
+            ],
+        )
+        self.assertEqual(state["listing_group_suggestions"], [])
+        self.assertEqual(
+            request.session["pallet_listing_pending"]["review_overrides"],
+            {
+                "row-2": {
+                    "selection": "new",
+                    "values": {
+                        "name": "Thermometre frontal",
+                        "brand": "BRAUN",
+                        "category_l1": "Thermomètres",
+                    },
+                }
+            },
+        )
+        self.assertEqual(
+            request.session["pallet_listing_pending"]["dismissed_suggestion_ids"],
+            ["brand:braun", "brand:other", "category:braun"],
+        )
+        self.assertEqual(apply_mock.call_count, 2)
+        self.assertEqual(request.session["pallet_listing_pending"]["stage"], "review")
+        self.assertEqual(
+            build_review_state_calls[1]["dismissed_suggestion_ids"],
+            ["brand:braun", "brand:other", "category:braun"],
+        )
+
+    def test_handle_listing_dismiss_suggestions_persists_hidden_suggestion_ids(self):
+        request = self._request(
+            {
+                "pending_token": "tok-dismiss",
+                "selected_suggestion_ids": ["brand:braun"],
+                "row_2_match": "new",
+                "row_2_name": "BRAUN Thermometre frontal",
+            }
+        )
+        request.session["pallet_listing_pending"] = {
+            "token": "tok-dismiss",
+            "headers": ["Nom", "Quantite"],
+            "mapping": {0: "name", 1: "quantity"},
+            "dismissed_suggestion_ids": ["brand:other"],
         }
         state = init_listing_state()
         review_overrides = {
@@ -932,12 +1103,12 @@ class PalletListingHandlersTests(TestCase):
                 {
                     "id": "brand:braun",
                     "field_name": "brand",
-                    "per_row_updates": {"row-2": {"brand": "BRAUN", "name": "Thermometre frontal"}},
+                    "per_row_updates": {"row-2": {"brand": "BRAUN"}},
                 }
             ],
         }
         updated_review_state = {
-            "rows": [{"index": 2, "values": {"name": "Thermometre frontal", "brand": "BRAUN"}}],
+            "rows": [{"index": 2, "values": {"name": "BRAUN Thermometre frontal", "brand": ""}}],
             "group_suggestions": [],
         }
 
@@ -953,36 +1124,21 @@ class PalletListingHandlersTests(TestCase):
                     "wms.pallet_listing_handlers.build_listing_review_state",
                     side_effect=[initial_review_state, updated_review_state],
                 ):
-                    with mock.patch(
-                        "wms.pallet_listing_handlers.apply_listing_group_suggestion_to_overrides",
-                        side_effect=lambda overrides, suggestion: overrides["row-2"][
-                            "values"
-                        ].update({"brand": "BRAUN", "name": "Thermometre frontal"}),
-                    ) as apply_mock:
-                        response = handle_pallet_listing_action(
-                            request,
-                            action="listing_apply_suggestion_group:brand:braun",
-                            listing_form=self._listing_form(valid=True),
-                            state=state,
-                        )
+                    response = handle_pallet_listing_action(
+                        request,
+                        action="listing_dismiss_suggestions",
+                        listing_form=self._listing_form(valid=True),
+                        state=state,
+                    )
 
         self.assertIsNone(response)
         self.assertEqual(state["listing_stage"], "review")
-        self.assertEqual(
-            state["listing_rows"],
-            [{"index": 2, "values": {"name": "Thermometre frontal", "brand": "BRAUN"}}],
-        )
         self.assertEqual(state["listing_group_suggestions"], [])
         self.assertEqual(
-            request.session["pallet_listing_pending"]["review_overrides"],
-            {
-                "row-2": {
-                    "selection": "new",
-                    "values": {"name": "Thermometre frontal", "brand": "BRAUN"},
-                }
-            },
+            request.session["pallet_listing_pending"]["dismissed_suggestion_ids"],
+            ["brand:braun", "brand:other"],
         )
-        apply_mock.assert_called_once()
+        self.assertEqual(request.session["pallet_listing_pending"]["stage"], "review")
 
     def test_handle_listing_confirm_expired_session_redirects(self):
         request = self._request({"pending_token": "wrong"})
