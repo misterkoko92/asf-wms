@@ -1,0 +1,63 @@
+{% extends "scan/base.html" %}
+
+{% block title %}Validations comptes{% endblock %}
+
+{% block content %}
+  <section class="scan-card card border-0 ui-comp-card">
+    <div class="ui-comp-panel d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-start">
+      <div>
+        <h1 class="ui-comp-title mb-1">Validations comptes</h1>
+        <p class="scan-help mb-0">Traitez les demandes publiques et corrigez le type final si nécessaire avant validation.</p>
+      </div>
+      <div class="ui-comp-actions">
+        <span class="badge text-bg-secondary">{{ account_requests|length }} en attente</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="scan-field ui-comp-panel mt-3">
+    <div class="table-responsive">
+      <table id="scan-account-validations-list" class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Structure</th>
+            <th>Email</th>
+            <th>Type demandé</th>
+            <th>Escale</th>
+            <th>Créée le</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for account_request in account_requests %}
+            <tr>
+              <td>{{ account_request.association_name }}</td>
+              <td>{{ account_request.email }}</td>
+              <td>{{ account_request.get_account_type_display }}</td>
+              <td>
+                {% if account_request.destination %}
+                  {{ account_request.destination.city }} ({{ account_request.destination.iata_code }})
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ account_request.created_at|date:"d/m/Y H:i" }}</td>
+              <td class="text-end">
+                <a
+                  href="{% url 'scan:scan_account_validation_detail' account_request.id %}"
+                  class="btn btn-primary btn-sm"
+                >
+                  Traiter
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">Aucune demande en attente.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

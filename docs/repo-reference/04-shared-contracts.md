@@ -112,6 +112,8 @@ Current contract:
   - `Réception palette`
   - `Listing`
   - `Réception association`
+- the shared `Gestion` group now exposes `Validations comptes` for users allowed by
+  `user_can_review_account_requests()`
 - `/scan/receive-pallet/` is now the manual pallet-only screen and keeps a shortcut toward
   `/scan/receive-listing/`; file-upload contracts for listing imports must stay on the dedicated
   listing route
@@ -120,6 +122,9 @@ Current contract:
 - warehouse-preparation screens under `/scan/preparation-runs/` must set `active="preparation_runs"` so the shared group expands and highlights correctly
 - the warehouse-preparation settings screen at `/scan/preparation-runs/settings/` uses the same
   `active="preparation_runs"` highlight and preparateur permission scope as the list/create/detail flow
+- the scan shell pending-account banner in `templates/scan/base.html` must link to
+  `/scan/account-validations/` for validator-group staff and only fall back to the admin changelist
+  for users who can see the pending count but not the scan review flow
 
 Maintenance rule:
 
@@ -130,6 +135,53 @@ Reference tests:
 
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_views_scan_preparation.py`
+
+### Public Account Review Contract
+
+Primary runtime sources:
+
+- `wms/views_scan_account_validations.py`
+- `wms/forms_scan_account_validations.py`
+- `wms/admin_account_request_approval.py`
+- `wms/account_request_review_service.py`
+- `wms/models_domain/portal.py`
+- `templates/scan/account_validation_list.html`
+- `templates/scan/account_validation_detail.html`
+- `templates/scan/includes/account_validation_request_summary.html`
+- `templates/scan/includes/account_validation_review_form.html`
+- `wms/admin.py`
+
+Current contract:
+
+- `/scan/account-validations/` is the primary operator review surface for pending
+  `PublicAccountRequest` rows
+- access is granted to superusers and staff in the configured validation group via
+  `user_can_review_account_requests()` and `scan_account_validator_required`
+- the detail page can approve a request with a final type different from the original signup type,
+  especially `shipper -> recipient`
+- `PublicAccountRequest.account_type` keeps the final operative type used for provisioning and
+  access emails
+- `PublicAccountRequest.requested_account_type` preserves the original requested type when the
+  operator changes it during review
+- `PublicAccountRequest.review_snapshot` stores the reviewed approval payload, including the final
+  type and recipient-completion fields
+- Django admin remains a minimal fallback: it exposes `destination` and a readonly link back to the
+  scan review detail, but the operational correction workflow lives on the scan page
+
+Maintenance rule:
+
+- if the public account review flow changes, keep the scan views/forms/templates, the shared
+  approval path, the validator permission helper, the scan nav/banner contract, and the admin
+  fallback link aligned in the same work
+- if the approval payload or corrected-type semantics change, update the portal/party tests and
+  repo-reference text in the same work
+
+Reference tests:
+
+- `wms/tests/views/tests_views_scan_account_validations.py`
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/portal/tests_portal_role_review_gate.py`
+- `wms/tests/admin/tests_account_request_handlers.py`
 
 ### Scan Recipient Needs Priority Contract
 

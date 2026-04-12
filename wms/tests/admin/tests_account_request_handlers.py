@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import Group
@@ -389,4 +390,35 @@ class AccountRequestFormHandlerTests(TestCase):
         release_mock.assert_called_once_with(
             email="association@example.com",
             client_ip="10.0.0.9",
+        )
+
+
+class PublicAccountRequestAdminTests(TestCase):
+    def setUp(self):
+        self.admin_view = admin.site._registry[PublicAccountRequest]
+        self.pending_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Association Admin Review",
+            email="admin-review@example.com",
+            phone="0102030405",
+            address_line1="1 Rue Admin Review",
+            address_line2="",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+        )
+
+    def test_public_account_request_admin_exposes_destination_in_fieldsets(self):
+        primary_fields = self.admin_view.fieldsets[0][1]["fields"]
+
+        self.assertIn("destination", primary_fields)
+        self.assertIn("scan_review_link", self.admin_view.readonly_fields)
+
+    def test_public_account_request_admin_builds_scan_review_link_for_pending_rows(self):
+        html = self.admin_view.scan_review_link(self.pending_request)
+
+        self.assertIn(
+            f"/scan/account-validations/{self.pending_request.id}/",
+            html,
         )

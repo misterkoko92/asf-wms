@@ -1,0 +1,39 @@
+<section class="scan-card card border-0 ui-comp-card">
+  <div class="ui-comp-panel">
+    <h2 class="ui-comp-title h5 mb-3">Demande reçue</h2>
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Structure</dt>
+      <dd class="col-sm-9">{{ account_request.association_name }}</dd>
+      <dt class="col-sm-3">Type demandé</dt>
+      <dd class="col-sm-9">{{ account_request.get_account_type_display }}</dd>
+      <dt class="col-sm-3">Email</dt>
+      <dd class="col-sm-9">{{ account_request.email }}</dd>
+      <dt class="col-sm-3">Téléphone</dt>
+      <dd class="col-sm-9">{{ account_request.phone|default:"-" }}</dd>
+      <dt class="col-sm-3">Adresse</dt>
+      <dd class="col-sm-9">
+        {{ account_request.address_line1 }}<br>
+        {% if account_request.address_line2 %}{{ account_request.address_line2 }}<br>{% endif %}
+        {{ account_request.postal_code }} {{ account_request.city }} {{ account_request.country }}
+      </dd>
+      <dt class="col-sm-3">Escale</dt>
+      <dd class="col-sm-9">
+        {% if account_request.destination %}
+          {{ account_request.destination.city }} ({{ account_request.destination.iata_code }})
+        {% else %}
+          -
+        {% endif %}
+      </dd>
+      <dt class="col-sm-3">Documents</dt>
+      <dd class="col-sm-9">
+        <ul class="mb-0 ps-3">
+          {% for document in account_request.documents.all %}
+            <li>{{ document.get_doc_type_display }} - {{ document.get_status_display }}</li>
+          {% empty %}
+            <li>Aucun document</li>
+          {% endfor %}
+        </ul>
+      </dd>
+    </dl>
+  </div>
+</section>

@@ -48,6 +48,8 @@ from .views_public import (
     scan_public_order_summary,
 )
 from .views_scan import (
+    scan_account_validation_detail,
+    scan_account_validation_list,
     scan_admin_carton_formats,
     scan_admin_contacts,
     scan_admin_design,
@@ -189,6 +191,8 @@ SCAN_FLOW_EXPORTS = (
     "scan_billing_settings",
     "scan_billing_equivalence",
     "scan_billing_editor",
+    "scan_account_validation_list",
+    "scan_account_validation_detail",
     "scan_order",
     "scan_orders_view",
     "scan_prepare_kits",

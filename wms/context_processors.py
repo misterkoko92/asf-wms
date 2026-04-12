@@ -13,6 +13,7 @@ from .models import (
     ShipmentValidationStatus,
 )
 from .runtime_settings import get_runtime_settings_instance
+from .view_permissions import user_can_review_account_requests
 
 
 def _normalize_font_name(value, fallback):
@@ -88,15 +89,21 @@ def _resolve_design_tokens():
 
 def admin_notifications(request):
     user = getattr(request, "user", None)
-    if not user or not user.is_authenticated or not user.is_superuser:
+    if not user or not user.is_authenticated:
         return {}
-    pending_account_requests = PublicAccountRequest.objects.filter(
-        status=PublicAccountRequestStatus.PENDING
-    ).count()
-    pending_recipient_validations = ShipmentRecipientOrganization.objects.filter(
-        validation_status=ShipmentValidationStatus.PENDING,
-        is_active=True,
-    ).count()
+    pending_account_requests = 0
+    pending_recipient_validations = 0
+    if user_can_review_account_requests(user):
+        pending_account_requests = PublicAccountRequest.objects.filter(
+            status=PublicAccountRequestStatus.PENDING
+        ).count()
+    if user.is_superuser:
+        pending_recipient_validations = ShipmentRecipientOrganization.objects.filter(
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        ).count()
+    if not pending_account_requests and not pending_recipient_validations:
+        return {}
     return {
         "admin_pending_account_requests": pending_account_requests,
         "admin_pending_recipient_validations": pending_recipient_validations,
@@ -109,4 +116,5 @@ def ui_context(request):
         "wms_design_tokens": _resolve_design_tokens(),
         "scan_billing_visible": user_can_access_billing_scan(user),
         "scan_billing_admin_visible": user_can_manage_billing_admin(user),
+        "scan_can_review_account_requests": user_can_review_account_requests(user),
     }

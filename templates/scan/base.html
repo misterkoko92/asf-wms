@@ -167,7 +167,11 @@
         {% if admin_pending_account_requests %}
           <div class="scan-message warning">
             {% blocktrans with pending_count=admin_pending_account_requests %}Nouvelles demandes de compte en attente : {{ pending_count }}{% endblocktrans %}
-            (<a href="{% url 'admin:wms_publicaccountrequest_changelist' %}">{% trans "voir" %}</a>)
+            (
+            <a href="{% if scan_can_review_account_requests %}{% url 'scan:scan_account_validation_list' %}{% else %}{% url 'admin:wms_publicaccountrequest_changelist' %}{% endif %}">
+              {% trans "voir" %}
+            </a>
+            )
           </div>
         {% endif %}
         <div id="scan-sync-banner" class="scan-sync-banner" data-sync-url="{% url 'scan:scan_sync' %}" data-sync-interval="8000">

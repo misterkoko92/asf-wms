@@ -1,5 +1,6 @@
 from functools import wraps
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -37,11 +38,25 @@ BLOCKED_MESSAGES = {
     BLOCKED_REASON_REVIEW_PENDING: BLOCKED_MESSAGE_REVIEW_PENDING,
     BLOCKED_REASON_COMPLIANCE_REQUIRED: BLOCKED_MESSAGE_COMPLIANCE_REQUIRED,
 }
+ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 
 
 def require_superuser(request):
     if not request.user.is_superuser:
         raise PermissionDenied
+
+
+def user_can_review_account_requests(user):
+    if not getattr(user, "is_authenticated", False) or not getattr(user, "is_staff", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    group_name = getattr(
+        settings,
+        "ACCOUNT_REQUEST_VALIDATION_GROUP_NAME",
+        ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT,
+    )
+    return user.groups.filter(name=group_name).exists()
 
 
 def scan_staff_required(view):
@@ -52,6 +67,17 @@ def scan_staff_required(view):
             raise PermissionDenied
         request.scan_is_preparateur = user_is_preparateur(request.user)
         if not is_scan_view_allowed_for_user(request):
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
+def scan_account_validator_required(view):
+    @scan_staff_required
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if not user_can_review_account_requests(request.user):
             raise PermissionDenied
         return view(request, *args, **kwargs)
 

@@ -349,6 +349,90 @@ class PortalRoleReviewGateTests(TestCase):
         self.assertFalse(ok)
         self.assertEqual(reason, "expediteur ASF manquant")
 
+    def test_approve_account_request_can_review_shipper_request_as_recipient(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-reviewed-recipient",
+            email="admin-reviewed-recipient@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        shipper_contact = Contact.objects.create(
+            name="Expediteur autorise review",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ensure_shipment_shipper(
+            shipper_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Request Reviewed As Recipient",
+            email="reviewed-as-recipient@example.org",
+            phone="+22373333333",
+            address_line1="1 Rue Review",
+            address_line2="",
+            postal_code="",
+            city="Bamako",
+            country="Mali",
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+            review_overrides={
+                "final_account_type": PublicAccountRequestType.RECIPIENT,
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_contact.id],
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "first_name": "Aicha",
+                "last_name": "Traore",
+            },
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        account_request.refresh_from_db()
+        self.assertEqual(account_request.status, PublicAccountRequestStatus.APPROVED)
+        self.assertEqual(account_request.requested_account_type, PublicAccountRequestType.SHIPPER)
+        self.assertEqual(account_request.account_type, PublicAccountRequestType.RECIPIENT)
+        self.assertEqual(
+            account_request.review_snapshot["final_account_type"],
+            PublicAccountRequestType.RECIPIENT,
+        )
+        self.assertEqual(account_request.review_snapshot["destination_id"], self.destination.id)
+        self.assertEqual(
+            account_request.review_snapshot["allowed_shipper_ids"],
+            [shipper_contact.id],
+        )
+        approved_user = get_user_model().objects.get(email=account_request.email)
+        self.assertFalse(AssociationProfile.objects.filter(user=approved_user).exists())
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=account_request.contact,
+            destination=self.destination,
+        )
+        self.assertTrue(
+            PortalAccessGrant.objects.filter(
+                user=approved_user,
+                role=PortalAccessRole.RECIPIENT_ADMIN,
+                recipient_organization=shipment_recipient,
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper__organization=shipper_contact,
+                recipient_organization=shipment_recipient,
+                is_active=True,
+            ).exists()
+        )
+
     def test_approve_recipient_account_request_reactivates_existing_scope_objects(self):
         admin_user = get_user_model().objects.create_user(
             username="admin-recipient-reactivation",

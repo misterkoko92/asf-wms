@@ -354,6 +354,14 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
 
     account_access_info.short_description = gettext_lazy("Accès portail")
 
+    def scan_review_link(self, obj):
+        if obj.status != models.PublicAccountRequestStatus.PENDING:
+            return "-"
+        url = reverse("scan:scan_account_validation_detail", args=[obj.id])
+        return format_html('<a href="{}">Ouvrir la revue scan</a>', url)
+
+    scan_review_link.short_description = gettext_lazy("Revue scan")
+
     def status_badge(self, obj):
         return render_admin_status_badge(
             status_value=obj.status,
@@ -364,7 +372,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
     status_badge.short_description = "status"
     status_badge.admin_order_field = "status"
 
-    readonly_fields = ("created_at", "reviewed_at", "account_access_info")
+    readonly_fields = ("created_at", "reviewed_at", "account_access_info", "scan_review_link")
     fieldsets = (
         (
             None,
@@ -378,6 +386,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                     "status",
                     "link",
                     "contact",
+                    "destination",
                     "notes",
                 )
             },
@@ -396,7 +405,15 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         ),
         (
             gettext_lazy("Validation"),
-            {"fields": ("created_at", "reviewed_at", "reviewed_by", "account_access_info")},
+            {
+                "fields": (
+                    "created_at",
+                    "reviewed_at",
+                    "reviewed_by",
+                    "account_access_info",
+                    "scan_review_link",
+                )
+            },
         ),
     )
 

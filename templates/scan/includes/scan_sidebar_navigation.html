@@ -126,21 +126,29 @@
     <div class="scan-sidebar-group">
       <button
         id="scan-sidebar-management-toggle"
-        class="scan-sidebar-group-toggle{% if active == 'billing_editor' %} active{% endif %}"
+        class="scan-sidebar-group-toggle{% if active == 'billing_editor' or active == 'account_validations' %} active{% endif %}"
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#scan-sidebar-management-group"
-        aria-expanded="{% if active == 'billing_editor' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active == 'billing_editor' or active == 'account_validations' %}true{% else %}false{% endif %}"
         aria-controls="scan-sidebar-management-group"
       >
         <span>Gestion</span>
       </button>
       <div
         id="scan-sidebar-management-group"
-        class="collapse scan-sidebar-group-links{% if active == 'billing_editor' %} show{% endif %}"
+        class="collapse scan-sidebar-group-links{% if active == 'billing_editor' or active == 'account_validations' %} show{% endif %}"
       >
         {% if not request.scan_is_preparateur %}
           <a href="{% url 'planning:run_list' %}" class="scan-sidebar-child-link">Planning</a>
+        {% endif %}
+        {% if scan_can_review_account_requests %}
+          <a
+            href="{% url 'scan:scan_account_validation_list' %}"
+            class="scan-sidebar-child-link{% if active == 'account_validations' %} active{% endif %}"
+          >
+            Validations comptes
+          </a>
         {% endif %}
         {% if scan_billing_visible %}
           <a href="{% url 'scan:scan_billing_editor' %}" class="scan-sidebar-child-link{% if active == 'billing_editor' %} active{% endif %}">{% trans "Edition Devis/Facture" %}</a>
