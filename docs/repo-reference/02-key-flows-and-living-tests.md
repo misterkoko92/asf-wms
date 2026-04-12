@@ -84,10 +84,16 @@ Use it when you need to answer:
 - receipt operator capture on `/scan/receive-pallet/`, `/scan/receive-listing/`, and
   `/scan/receive-association/`, including persisted `Receipt.conformity_status` and a mandatory
   observation when the operator marks the reception non-conform
+- the `Contacts -> Validations` hub under `/scan/contacts/validations/`, with a dedicated
+  `Validation expéditeurs` queue under `/scan/account-validations/` and
+  `Validation destinataires` queue under `/scan/contacts/validations/recipients/`
 - validator-group account review under `/scan/account-validations/` and
   `/scan/account-validations/<id>/`, including one-screen correction of the final business type,
   recipient data completion, and operator approval or rejection without going back through the
   Django admin changelist
+- superuser recipient review under `/scan/contacts/validations/recipients/` and
+  `/scan/contacts/validations/recipients/<id>/`, reusing the shared admin contact write path from
+  a dedicated validation dossier instead of the overloaded contacts directory
 - the dedicated listing flow under `/scan/receive-listing/` now starts with an intake gate:
   operators must choose the file type (`CSV`, `Excel`, `PDF`) and must link the import to an
   existing pallet receipt before any upload card appears
@@ -230,8 +236,9 @@ If you change shipment sequencing, status rules, document-first creation behavio
 - association authentication and account maintenance
 - public account requests now distinguish `shipper`, `recipient`, and `user`, while legacy
   `association` rows remain accepted as shipper-equivalent during approval
-- operator review of public account requests is now scan-first: validator-group staff review
-  pending rows under `/scan/account-validations/`, while Django admin remains a bounded fallback
+- operator review of public account requests is now scan-first: validator-group staff enter via
+  `/scan/contacts/validations/` and review pending shipper rows under `/scan/account-validations/`,
+  while Django admin remains a bounded fallback
 - recipient public account requests must choose exactly one delivery stop up front because
   recipient portal access is scoped to one `ShipmentRecipientOrganization (organization,
   destination)`

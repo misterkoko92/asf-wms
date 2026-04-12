@@ -1,0 +1,55 @@
+{% extends "scan/base.html" %}
+
+{% block title %}Validation destinataires{% endblock %}
+
+{% block content %}
+  <section class="scan-card card border-0 ui-comp-card">
+    <div class="ui-comp-panel d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-start">
+      <div>
+        <h1 class="ui-comp-title mb-1">Validation destinataires</h1>
+        <p class="scan-help mb-0">Traitez les structures destinataires en attente et ouvrez chaque dossier pour qualification ASF.</p>
+      </div>
+      <div class="ui-comp-actions d-flex gap-2">
+        <span class="badge text-bg-secondary">{{ recipient_validations|length }} en attente</span>
+        <a href="{% url 'scan:scan_contact_validations_hub' %}" class="btn btn-secondary btn-sm">Retour aux validations</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="scan-field ui-comp-panel mt-3">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Structure</th>
+            <th>Escale</th>
+            <th>Expéditeurs autorisés</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for recipient_validation in recipient_validations %}
+            <tr>
+              <td>{{ recipient_validation.organization.name }}</td>
+              <td>{{ recipient_validation.destination.city }}</td>
+              <td>
+                {% for link in recipient_validation.active_shipper_links %}
+                  {{ link.shipper.organization.name }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                  -
+                {% endfor %}
+              </td>
+              <td class="text-end">
+                <a href="{% url 'scan:scan_recipient_validation_detail' recipient_validation.id %}" class="btn btn-primary btn-sm">Ouvrir</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">Aucun destinataire en attente.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

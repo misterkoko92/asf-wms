@@ -4,49 +4,6 @@
 {% block content %}
     <div data-admin-contacts-crud="1">
     {% include "scan/includes/admin_contacts_intro_card.html" %}
-    {% if admin_pending_recipient_validations %}
-    <div class="scan-message warning ui-comp-alert mb-3" role="alert">
-        <strong class="ui-comp-alert-title">
-            {% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}
-        </strong>
-        <div class="ui-comp-alert-body mt-2">
-            <div class="scan-table-wrap table-responsive">
-                <table class="scan-table table table-sm table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>{% trans "Structure" %}</th>
-                            <th>{% trans "Type métier" %}</th>
-                            <th>{% trans "Destination" %}</th>
-                            <th>{% trans "Expéditeurs autorisés" %}</th>
-                            <th>{% trans "Action" %}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for recipient_validation in pending_recipient_validations %}
-                            <tr>
-                                <td>{{ recipient_validation.organization.name }}</td>
-                                <td>{% trans "Destinataire" %}</td>
-                                <td>{{ recipient_validation.destination.city }}</td>
-                                <td>
-                                    {% if recipient_validation.allowed_shipper_names %}
-                                        {{ recipient_validation.allowed_shipper_names|join:", " }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td class="text-nowrap">
-                                    <a class="btn btn-primary btn-sm" href="{{ recipient_validation.verify_url }}">
-                                        {% trans "Vérifier" %}
-                                    </a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
     <div id="scan-admin-contacts-create-destination" class="scan-card card border-0 ui-comp-card">
         <details class="scan-admin-table-accordion" id="scan-admin-create-destination"{% if destination_form_open %} open{% endif %}>
@@ -86,85 +43,7 @@
     </div>
 
     {% include "scan/includes/admin_contacts_filters_card.html" %}
-    {% include "scan/includes/admin_contacts_shipment_cockpit.html" %}
     {% include "scan/includes/admin_contacts_directory_card.html" %}
     {% include "scan/includes/admin_contacts_correspondents_card.html" %}
-
-    <script>
-      (function () {
-        var shipmentLinkSelect = document.getElementById("scan-shipment-link-id");
-        var shipmentRecipientContactSelect = document.getElementById(
-          "scan-shipment-recipient-contact-id"
-        );
-
-        function syncShipmentAuthorizedRecipientOptions() {
-          if (!shipmentLinkSelect || !shipmentRecipientContactSelect) {
-            return;
-          }
-          var selectedLinkId = shipmentLinkSelect.value || "";
-          shipmentRecipientContactSelect.value = "";
-          Array.prototype.forEach.call(
-            shipmentRecipientContactSelect.options,
-            function (option, index) {
-              if (!option.value) {
-                option.hidden = false;
-                option.disabled = false;
-                return;
-              }
-              var matches = option.dataset.linkId === selectedLinkId;
-              option.hidden = !matches;
-              option.disabled = !matches;
-              if (matches && index === 1) {
-                shipmentRecipientContactSelect.value = option.value;
-              }
-            }
-          );
-        }
-
-        function syncMergeTargets() {
-          var sourceSelect = document.getElementById(
-            "scan-merge-source-recipient-organization"
-          );
-          var targetSelect = document.getElementById(
-            "scan-merge-target-recipient-organization"
-          );
-          if (!sourceSelect || !targetSelect) {
-            return;
-          }
-          var sourceOption = sourceSelect.options[sourceSelect.selectedIndex];
-          var sourceDestinationId = sourceOption ? sourceOption.dataset.destinationId : "";
-          Array.prototype.forEach.call(targetSelect.options, function (option) {
-            if (!option.value) {
-              option.hidden = false;
-              option.disabled = false;
-              return;
-            }
-            var sameDestination = option.dataset.destinationId === sourceDestinationId;
-            var isSameRow = option.value === sourceSelect.value;
-            option.hidden = !(sameDestination && !isSameRow);
-            option.disabled = !(sameDestination && !isSameRow);
-          });
-          if (
-            targetSelect.value &&
-            (targetSelect.value === sourceSelect.value ||
-              (targetSelect.options[targetSelect.selectedIndex] || {}).disabled)
-          ) {
-            targetSelect.value = "";
-          }
-        }
-
-        if (shipmentLinkSelect) {
-          shipmentLinkSelect.addEventListener("change", syncShipmentAuthorizedRecipientOptions);
-          syncShipmentAuthorizedRecipientOptions();
-        }
-        var mergeSourceSelect = document.getElementById(
-          "scan-merge-source-recipient-organization"
-        );
-        if (mergeSourceSelect) {
-          mergeSourceSelect.addEventListener("change", syncMergeTargets);
-          syncMergeTargets();
-        }
-      })();
-    </script>
     </div>
 {% endblock %}

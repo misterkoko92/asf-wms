@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from urllib.parse import urlencode
 
 from django.contrib import admin, messages
@@ -71,11 +72,13 @@ def _select_scan_copy(*, french, english):
 
 
 TEMPLATE_SCAN_ADMIN_CONTACTS = "scan/admin_contacts.html"
+TEMPLATE_SCAN_CONTACT_ROLES = "scan/contact_roles.html"
 TEMPLATE_SCAN_ADMIN_RECIPIENT_ORGANIZATION_DETAIL = "scan/admin_recipient_organization_detail.html"
 TEMPLATE_SCAN_ADMIN_CARTON_FORMATS = "scan/admin_carton_formats.html"
 TEMPLATE_SCAN_ADMIN_PRODUCTS = "scan/admin_products.html"
 TEMPLATE_SCAN_PRODUCT_LABELS = "scan/admin_product_labels.html"
 ACTIVE_SCAN_ADMIN_CONTACTS = "admin_contacts"
+ACTIVE_SCAN_CONTACT_ROLES = "contacts_roles"
 ACTIVE_SCAN_ADMIN_CARTON_FORMATS = "admin_carton_formats"
 ACTIVE_SCAN_ADMIN_PRODUCTS = "admin_products"
 ACTIVE_SCAN_PRODUCT_LABELS = "product_labels"
@@ -269,6 +272,16 @@ def _build_contacts_url(*, query, contact_filter, destination_filter="", edit_id
     return url
 
 
+def _build_contacts_roles_url(*, destination_filter=""):
+    params = {}
+    if destination_filter:
+        params["destination_id"] = destination_filter
+    url = reverse("scan:scan_contacts_roles")
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    return url
+
+
 def _safe_registered_admin_url(*, model, viewname):
     if model not in admin.site._registry:
         return ""
@@ -426,17 +439,13 @@ def _build_admin_recipient_preference_context(
         preference_form_data_by_product_id=preference_form_data_by_product_id,
     )
     return {
-        "active": ACTIVE_SCAN_ADMIN_CONTACTS,
+        "active": ACTIVE_SCAN_CONTACT_ROLES,
         "query": query,
         "contact_filter": contact_filter,
         "destination_filter": destination_filter,
         "recipient_organization": recipient_organization,
         "preference_errors": preference_errors or [],
-        "back_url": _build_contacts_url(
-            query=query,
-            contact_filter=contact_filter,
-            destination_filter=destination_filter,
-        ),
+        "back_url": _build_contacts_roles_url(destination_filter=destination_filter),
         "preference_filter_reset_url": preference_filter_reset_url,
         "preference_filter_hidden_fields": [
             {"name": "q", "value": query},
@@ -447,26 +456,22 @@ def _build_admin_recipient_preference_context(
     }
 
 
-@scan_staff_required
-@require_http_methods(["GET", "POST"])
-def scan_admin_contacts(request):
-    _require_superuser(request)
-    query = (request.GET.get("q") or request.POST.get("q") or "").strip()
-    edit_contact_id = (request.GET.get("edit") or "").strip()
-    page = (request.GET.get("page") or request.POST.get("page") or "").strip()
-    cockpit_filters = parse_cockpit_filters(
-        role=request.GET.get("role") or request.POST.get("role") or "",
-        shipper_org_id=request.GET.get("shipper_org_id")
-        or request.POST.get("shipper_org_id")
-        or "",
-    )
-    destination_filter = _normalize_destination_filter(
-        request.GET.get("destination_id") or request.POST.get("destination_id")
-    )
-    contact_filter = _normalize_contact_filter(
-        request.GET.get("contact_type") or request.POST.get("contact_type")
-    )
+def _build_contacts_editing_structure_context(editing_contact):
+    editing_structure_contact = None
+    editing_structure_documents = []
+    if editing_contact is not None:
+        if editing_contact.contact_type == ContactType.PERSON and editing_contact.organization_id:
+            editing_structure_contact = editing_contact.organization
+        elif editing_contact.contact_type == ContactType.ORGANIZATION:
+            editing_structure_contact = editing_contact
+        if editing_structure_contact is not None:
+            editing_structure_documents = list(
+                editing_structure_contact.recipient_structure_documents.order_by("-uploaded_at")
+            )
+    return editing_structure_contact, editing_structure_documents
 
+
+def _build_contacts_directory_context(*, query, contact_filter, destination_filter, page):
     base_contacts_qs = _apply_contact_filter(
         Contact.objects.select_related("organization").order_by("name", "id"),
         contact_filter,
@@ -497,6 +502,82 @@ def scan_admin_contacts(request):
     if destination_filter:
         correspondents = correspondents.filter(destinations_as_correspondent__id=destination_filter)
     correspondents = _apply_contact_query(correspondents, query)
+    current_contacts_url = _build_contacts_url(
+        query=query,
+        contact_filter=contact_filter,
+        destination_filter=destination_filter,
+        page=contacts_page.number,
+    )
+    return {
+        "query": query,
+        "contact_filter": contact_filter,
+        "destination_filter": destination_filter,
+        "contact_filter_choices": CONTACT_FILTER_CHOICES,
+        "destination_filter_choices": list(
+            Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
+        ),
+        "contacts": list(contacts_page.object_list),
+        "contacts_page": contacts_page,
+        "contacts_total_count": contacts_paginator.count,
+        "contacts_page_prev_url": (
+            _build_contacts_url(
+                query=query,
+                contact_filter=contact_filter,
+                destination_filter=destination_filter,
+                page=contacts_page.previous_page_number(),
+            )
+            if contacts_page.has_previous()
+            else ""
+        ),
+        "contacts_page_next_url": (
+            _build_contacts_url(
+                query=query,
+                contact_filter=contact_filter,
+                destination_filter=destination_filter,
+                page=contacts_page.next_page_number(),
+            )
+            if contacts_page.has_next()
+            else ""
+        ),
+        "contacts_current_url": current_contacts_url,
+        "correspondents": correspondents,
+        "contacts_admin_url": reverse("admin:contacts_contact_changelist"),
+        "contact_add_url": reverse("admin:contacts_contact_add"),
+        "destination_admin_url": reverse("admin:wms_destination_changelist"),
+        "destination_add_url": reverse("admin:wms_destination_add"),
+        "portal_access_admin_url": _safe_registered_admin_url(
+            model=PortalAccessGrant,
+            viewname="admin:wms_portalaccessgrant_changelist",
+        ),
+        "recipient_organization_admin_url": _safe_registered_admin_url(
+            model=ShipmentRecipientOrganization,
+            viewname="admin:wms_shipmentrecipientorganization_changelist",
+        ),
+        "recipient_product_preference_admin_url": _safe_registered_admin_url(
+            model=RecipientProductPreference,
+            viewname="admin:wms_recipientproductpreference_changelist",
+        ),
+        "recipient_structure_document_admin_url": _safe_registered_admin_url(
+            model=RecipientStructureDocument,
+            viewname="admin:wms_recipientstructuredocument_changelist",
+        ),
+        "contact_action_merge_targets": list(contacts_page.object_list),
+    }
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_admin_contacts(request):
+    _require_superuser(request)
+    query = (request.GET.get("q") or request.POST.get("q") or "").strip()
+    edit_contact_id = (request.GET.get("edit") or "").strip()
+    page = (request.GET.get("page") or request.POST.get("page") or "").strip()
+    destination_filter = _normalize_destination_filter(
+        request.GET.get("destination_id") or request.POST.get("destination_id")
+    )
+    contact_filter = _normalize_contact_filter(
+        request.GET.get("contact_type") or request.POST.get("contact_type")
+    )
 
     crud_context = build_admin_contacts_forms(edit_contact_id=edit_contact_id)
 
@@ -559,76 +640,20 @@ def scan_admin_contacts(request):
                 destination_filter=destination_filter,
                 page=page,
             )
-        elif action == ACTION_SET_DEFAULT_AUTHORIZED_RECIPIENT_CONTACT:
-            ok, message = set_default_authorized_recipient_contact(data=request.POST)
-            if ok:
-                messages.success(request, message)
-            else:
-                messages.error(request, message)
-            return _build_contacts_redirect(
-                query=query,
-                contact_filter=contact_filter,
-                destination_filter=destination_filter,
-                page=page,
-            )
-        elif action == ACTION_SET_STOPOVER_CORRESPONDENT_RECIPIENT_ORGANIZATION:
-            ok, message = set_stopover_correspondent_recipient_organization(data=request.POST)
-            if ok:
-                messages.success(request, message)
-            else:
-                messages.error(request, message)
-            return _build_contacts_redirect(
-                query=query,
-                contact_filter=contact_filter,
-                destination_filter=destination_filter,
-                page=page,
-            )
-        elif action == ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS:
-            ok, message = merge_shipment_recipient_organizations(data=request.POST)
-            if ok:
-                messages.success(request, message)
-            else:
-                messages.error(request, message)
-            return _build_contacts_redirect(
-                query=query,
-                contact_filter=contact_filter,
-                destination_filter=destination_filter,
-                page=page,
-            )
         else:
             messages.error(request, _("Action de contact non reconnue."))
 
-    cockpit_context = build_cockpit_context(
-        query=query,
-        filters=cockpit_filters,
-        destination_id=destination_filter,
-    )
-    editing_structure_contact = None
-    editing_structure_documents = []
-    editing_contact = crud_context.get("editing_contact")
-    if editing_contact is not None:
-        if editing_contact.contact_type == ContactType.PERSON and editing_contact.organization_id:
-            editing_structure_contact = editing_contact.organization
-        elif editing_contact.contact_type == ContactType.ORGANIZATION:
-            editing_structure_contact = editing_contact
-        if editing_structure_contact is not None:
-            editing_structure_documents = list(
-                editing_structure_contact.recipient_structure_documents.order_by("-uploaded_at")
-            )
-    pending_recipient_validations = _build_pending_recipient_validations(
-        query=query,
-        contact_filter=contact_filter,
-        destination_filter=destination_filter,
-        page=page,
+    editing_structure_contact, editing_structure_documents = (
+        _build_contacts_editing_structure_context(crud_context.get("editing_contact"))
     )
     editing_contact_requires_recipient_validation = _editing_contact_requires_recipient_validation(
         crud_context.get("editing_contact")
     )
-    current_contacts_url = _build_contacts_url(
+    directory_context = _build_contacts_directory_context(
         query=query,
         contact_filter=contact_filter,
         destination_filter=destination_filter,
-        page=contacts_page.number,
+        page=page,
     )
 
     return render(
@@ -636,63 +661,9 @@ def scan_admin_contacts(request):
         TEMPLATE_SCAN_ADMIN_CONTACTS,
         {
             "active": ACTIVE_SCAN_ADMIN_CONTACTS,
-            "query": query,
-            "contact_filter": contact_filter,
-            "destination_filter": destination_filter,
-            "contact_filter_choices": CONTACT_FILTER_CHOICES,
-            "destination_filter_choices": list(
-                Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
-            ),
-            "pending_recipient_validations": pending_recipient_validations,
             "editing_contact_requires_recipient_validation": (
                 editing_contact_requires_recipient_validation
             ),
-            "contacts": contacts,
-            "contacts_page": contacts_page,
-            "contacts_total_count": contacts_paginator.count,
-            "contacts_page_prev_url": (
-                _build_contacts_url(
-                    query=query,
-                    contact_filter=contact_filter,
-                    destination_filter=destination_filter,
-                    page=contacts_page.previous_page_number(),
-                )
-                if contacts_page.has_previous()
-                else ""
-            ),
-            "contacts_page_next_url": (
-                _build_contacts_url(
-                    query=query,
-                    contact_filter=contact_filter,
-                    destination_filter=destination_filter,
-                    page=contacts_page.next_page_number(),
-                )
-                if contacts_page.has_next()
-                else ""
-            ),
-            "contacts_current_url": current_contacts_url,
-            "correspondents": correspondents,
-            "contacts_admin_url": reverse("admin:contacts_contact_changelist"),
-            "contact_add_url": reverse("admin:contacts_contact_add"),
-            "destination_admin_url": reverse("admin:wms_destination_changelist"),
-            "destination_add_url": reverse("admin:wms_destination_add"),
-            "portal_access_admin_url": _safe_registered_admin_url(
-                model=PortalAccessGrant,
-                viewname="admin:wms_portalaccessgrant_changelist",
-            ),
-            "recipient_organization_admin_url": _safe_registered_admin_url(
-                model=ShipmentRecipientOrganization,
-                viewname="admin:wms_shipmentrecipientorganization_changelist",
-            ),
-            "recipient_product_preference_admin_url": _safe_registered_admin_url(
-                model=RecipientProductPreference,
-                viewname="admin:wms_recipientproductpreference_changelist",
-            ),
-            "recipient_structure_document_admin_url": _safe_registered_admin_url(
-                model=RecipientStructureDocument,
-                viewname="admin:wms_recipientstructuredocument_changelist",
-            ),
-            "contact_action_merge_targets": contacts,
             "destination_form_open": bool(
                 crud_context["destination_form"].is_bound
                 or crud_context["destination_duplicate_candidates"]
@@ -704,8 +675,49 @@ def scan_admin_contacts(request):
             ),
             "editing_structure_contact": editing_structure_contact,
             "editing_structure_documents": editing_structure_documents,
+            **directory_context,
             **crud_context,
-            **cockpit_context,
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_contacts_roles(request):
+    _require_superuser(request)
+    destination_filter = _normalize_destination_filter(
+        request.GET.get("destination_id") or request.POST.get("destination_id")
+    )
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == ACTION_SET_DEFAULT_AUTHORIZED_RECIPIENT_CONTACT:
+            ok, message = set_default_authorized_recipient_contact(data=request.POST)
+        elif action == ACTION_SET_STOPOVER_CORRESPONDENT_RECIPIENT_ORGANIZATION:
+            ok, message = set_stopover_correspondent_recipient_organization(data=request.POST)
+        elif action == ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS:
+            ok, message = merge_shipment_recipient_organizations(data=request.POST)
+        else:
+            ok, message = False, _("Action de role expédition non reconnue.")
+        getattr(messages, "success" if ok else "error")(request, message)
+        return redirect(_build_contacts_roles_url(destination_filter=destination_filter))
+
+    return render(
+        request,
+        TEMPLATE_SCAN_CONTACT_ROLES,
+        {
+            "active": ACTIVE_SCAN_CONTACT_ROLES,
+            "destination_filter": destination_filter,
+            "destination_filter_choices": list(
+                Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
+            ),
+            "query": "",
+            "contact_filter": CONTACT_FILTER_ALL,
+            "contacts_page": SimpleNamespace(number=1),
+            **build_cockpit_context(
+                query="",
+                filters=parse_cockpit_filters(),
+                destination_id=destination_filter,
+            ),
         },
     )
 

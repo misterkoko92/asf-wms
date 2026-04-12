@@ -216,8 +216,9 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         nav_html = self._scan_sidebar_html(response)
-        self.assertIn("/scan/account-validations/", nav_html)
-        self.assertIn("Validations comptes", nav_html)
+        self.assertIn('id="scan-sidebar-contacts-toggle"', nav_html)
+        self.assertIn("/scan/contacts/validations/", nav_html)
+        self.assertIn("Validations", nav_html)
         self.assertContains(response, "Nouvelles demandes de compte en attente")
         self.assertContains(response, "/scan/account-validations/")
 
@@ -563,7 +564,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         utility_nav_html = self._scan_utility_nav_html(response)
         self.assertIn('id="scan-masthead-notifications"', utility_nav_html)
-        self.assertIn(reverse("scan:scan_admin_contacts"), utility_nav_html)
+        self.assertIn("/scan/contacts/validations/recipients/", utility_nav_html)
         self.assertIn("ui-comp-count-badge", utility_nav_html)
         self.assertIn(">1</span>", utility_nav_html)
 
@@ -580,6 +581,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
                 'id="scan-sidebar-shipments-toggle"',
+                'id="scan-sidebar-contacts-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -605,6 +607,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
                 'id="scan-sidebar-shipments-toggle"',
+                'id="scan-sidebar-contacts-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -631,6 +634,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
                 'id="scan-sidebar-shipments-toggle"',
+                'id="scan-sidebar-contacts-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -1177,12 +1181,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="scan-admin-contacts-create-destination"')
         self.assertContains(response, 'id="scan-admin-contacts-create-contact"')
         self.assertContains(response, 'id="scan-admin-contacts-filters"')
-        self.assertContains(response, 'id="scan-admin-contacts-cockpit"')
         self.assertContains(response, 'id="scan-admin-contacts-directory-card"')
         self.assertContains(response, 'id="scan-admin-contacts-correspondents-card"')
-        self.assertContains(response, "ui-comp-card", count=7)
+        self.assertContains(response, "ui-comp-card", count=6)
         self.assertContains(response, 'data-admin-contacts-crud="1"')
-        self.assertContains(response, 'data-table-tools="1"', count=5)
+        self.assertContains(response, 'data-table-tools="1"', count=2)
         content = response.content.decode()
         directory_match = re.search(
             r'(<div id="scan-admin-contacts-directory-card".*?)<div id="scan-admin-contacts-correspondents-card"',
@@ -1190,25 +1193,21 @@ class ScanBootstrapUiTests(TestCase):
             re.S,
         )
         self.assertIsNotNone(directory_match)
-        self.assertNotIn('data-table-tools="1"', directory_match.group(1))
+        self.assertIn('data-table-tools="1"', directory_match.group(1))
         self.assertContains(response, 'id="scan-admin-contact-action-panel"')
-        self.assertContains(response, 'value="set_default_authorized_recipient_contact"')
-        self.assertContains(response, 'value="set_stopover_correspondent_recipient_organization"')
-        self.assertContains(response, 'value="merge_shipment_recipient_organizations"')
-        self.assertContains(response, 'id="scan-shipment-link-id"')
-        self.assertContains(response, 'id="scan-merge-target-recipient-organization"')
+        self.assertNotContains(response, 'id="scan-admin-contacts-cockpit"')
         self.assertContains(response, reverse("admin:contacts_contact_changelist"))
         self.assertContains(response, reverse("admin:wms_destination_changelist"))
 
-    def test_scan_admin_contacts_cockpit_stacks_read_only_tables_one_per_line(self):
+    def test_scan_contacts_roles_cockpit_stacks_read_only_tables_one_per_line(self):
         self.client.force_login(self.superuser)
 
-        response = self.client.get(reverse("scan:scan_admin_contacts"))
+        response = self.client.get(reverse("scan:scan_contacts_roles"))
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         cockpit_match = re.search(
-            r'(<div id="scan-admin-contacts-cockpit".*?)<div id="scan-admin-contacts-directory-card"',
+            r'(<div id="scan-admin-contacts-cockpit".*?)</section>',
             content,
             re.S,
         )

@@ -1,0 +1,51 @@
+{% extends "scan/base.html" %}
+
+{% block title %}Validations contacts{% endblock %}
+
+{% block content %}
+  <section class="scan-card card border-0 ui-comp-card">
+    <div class="ui-comp-panel d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-start">
+      <div>
+        <h1 class="ui-comp-title mb-1">Validations</h1>
+        <p class="scan-help mb-0">Centralisez les validations expéditeurs et destinataires depuis un point d'entrée unique.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mt-3">
+    <div class="row g-3">
+      <div class="col-12 col-xl-6">
+        <div class="scan-card card border-0 ui-comp-card h-100">
+          <div class="ui-comp-panel d-flex flex-column gap-3 h-100">
+            <div>
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <h2 class="ui-comp-title h5 mb-0">Validation expéditeurs</h2>
+                <span class="badge text-bg-secondary">{{ account_validation_count }} en attente</span>
+              </div>
+              <p class="scan-help mb-0 mt-2">Demandes publiques d'accès à qualifier avant ouverture du compte.</p>
+            </div>
+            <div class="mt-auto">
+              <a href="{% url 'scan:scan_account_validation_list' %}" class="btn btn-primary btn-sm">Ouvrir la file</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-6">
+        <div class="scan-card card border-0 ui-comp-card h-100">
+          <div class="ui-comp-panel d-flex flex-column gap-3 h-100">
+            <div>
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <h2 class="ui-comp-title h5 mb-0">Validation destinataires</h2>
+                <span class="badge text-bg-secondary">{{ recipient_validation_count }} en attente</span>
+              </div>
+              <p class="scan-help mb-0 mt-2">Structures destinataires à qualifier avant exposition complète dans le flux métier.</p>
+            </div>
+            <div class="mt-auto">
+              <a href="{% url 'scan:scan_recipient_validation_list' %}" class="btn btn-primary btn-sm">Ouvrir la file</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

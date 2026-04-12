@@ -73,7 +73,7 @@ class ScanAccountValidationViewTests(TestCase):
         response = self.client.get(self.list_url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Validations comptes")
+        self.assertContains(response, "Validation expéditeurs")
         self.assertContains(response, self.pending_request.association_name)
         self.assertContains(response, "Traiter")
         self.assertEqual(response.context["active"], "account_validations")

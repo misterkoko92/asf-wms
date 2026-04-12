@@ -82,6 +82,22 @@ urlpatterns = [
         views.scan_account_validation_detail,
         name="scan_account_validation_detail",
     ),
+    path(
+        "contacts/validations/",
+        views.scan_contact_validations_hub,
+        name="scan_contact_validations_hub",
+    ),
+    path(
+        "contacts/validations/recipients/",
+        views.scan_recipient_validation_list,
+        name="scan_recipient_validation_list",
+    ),
+    path(
+        "contacts/validations/recipients/<int:recipient_organization_id>/",
+        views.scan_recipient_validation_detail,
+        name="scan_recipient_validation_detail",
+    ),
+    path("contacts/roles/", views.scan_contacts_roles, name="scan_contacts_roles"),
     path("stock-update/", views.scan_stock_update, name="scan_stock_update"),
     path("orders-view/", views.scan_orders_view, name="scan_orders_view"),
     path("orders/", views.scan_order, name="scan_order"),

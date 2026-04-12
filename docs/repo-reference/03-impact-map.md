@@ -99,12 +99,15 @@ Always check:
 - `wms/admin_contacts_merge_service.py` as the compatibility adapter for admin contact merge flows
 - `wms/parties/merge.py` when recipient organizations or contact graphs can be merged, deduplicated, or re-scoped
 - `wms/parties/rebuild.py` and `wms/management/commands/rebuild_recipient_party_graph.py` when canonical recipient graph repair or compatibility projection rebuilds are part of the rollout
-- `wms/views_scan_admin.py` and `templates/scan/includes/admin_contacts_contact_form.html` when admin must review the same recipient data
+- `wms/views_scan_admin.py`, `wms/views_scan_account_validations.py`,
+  `templates/scan/includes/admin_contacts_contact_form.html`, and
+  `templates/scan/recipient_validation_detail.html` when scan/admin and validation surfaces must
+  review the same recipient data
 
 Ask yourself:
 
 - will scan shipment forms now show different shippers, recipients, or correspondents?
-- does a portal change also require an admin contacts cockpit change?
+- does a portal change also require a `Rôles expédition` cockpit change?
 - if scan/admin contact business types changed, did `contacts/models.py`,
   `wms/forms_admin_contacts_contact.py`, `wms/admin_contacts_contact_service.py`,
   `wms/admin_contacts_crud.py`, `wms/static/scan/scan.js`, and
@@ -115,7 +118,8 @@ Ask yourself:
 - if the public shipment-party import surface changed, did `wms/parties/__init__.py`,
   `wms/application/parties/__init__.py`, and `wms/tests/core/tests_v33_contracts.py`
   move with it?
-- do structure compliance fields or uploaded recipient documents also need to appear on `scan/contacts`?
+- do structure compliance fields or uploaded recipient documents also need to appear on
+  `scan/contacts` and the dedicated recipient-validation dossier?
 - do linked/default authorizations still stay unique and active?
 - can admin merge flows preserve or deduplicate the same recipient compliance documents without losing them?
 - do any organization-only recipient runtime lookups now need `(organization, destination)` scope instead?
