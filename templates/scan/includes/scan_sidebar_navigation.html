@@ -125,30 +125,53 @@
 
     <div class="scan-sidebar-group">
       <button
+        id="scan-sidebar-contacts-toggle"
+        class="scan-sidebar-group-toggle{% if active == 'admin_contacts' or active == 'contacts_roles' or active == 'contacts_validations' or active == 'account_validations' or active == 'recipient_validations' or active == 'admin_recipient_organization_detail' %} active{% endif %}"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#scan-sidebar-contacts-group"
+        aria-expanded="{% if active == 'admin_contacts' or active == 'contacts_roles' or active == 'contacts_validations' or active == 'account_validations' or active == 'recipient_validations' or active == 'admin_recipient_organization_detail' %}true{% else %}false{% endif %}"
+        aria-controls="scan-sidebar-contacts-group"
+      >
+        <span>Contacts</span>
+      </button>
+      <div
+        id="scan-sidebar-contacts-group"
+        class="collapse scan-sidebar-group-links{% if active == 'admin_contacts' or active == 'contacts_roles' or active == 'contacts_validations' or active == 'account_validations' or active == 'recipient_validations' or active == 'admin_recipient_organization_detail' %} show{% endif %}"
+      >
+        {% if request.user.is_superuser %}
+          <a href="{% url 'scan:scan_admin_contacts' %}" class="scan-sidebar-child-link{% if active == 'admin_contacts' %} active{% endif %}">Répertoire</a>
+          <a href="{% url 'scan:scan_contacts_roles' %}" class="scan-sidebar-child-link{% if active == 'contacts_roles' or active == 'admin_recipient_organization_detail' %} active{% endif %}">Rôles expédition</a>
+        {% endif %}
+        {% if scan_can_review_account_requests %}
+          <a
+            href="{% url 'scan:scan_contact_validations_hub' %}"
+            class="scan-sidebar-child-link{% if active == 'contacts_validations' or active == 'account_validations' or active == 'recipient_validations' %} active{% endif %}"
+          >
+            Validations
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="scan-sidebar-group">
+      <button
         id="scan-sidebar-management-toggle"
-        class="scan-sidebar-group-toggle{% if active == 'billing_editor' or active == 'account_validations' %} active{% endif %}"
+        class="scan-sidebar-group-toggle{% if active == 'billing_editor' %} active{% endif %}"
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#scan-sidebar-management-group"
-        aria-expanded="{% if active == 'billing_editor' or active == 'account_validations' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active == 'billing_editor' %}true{% else %}false{% endif %}"
         aria-controls="scan-sidebar-management-group"
       >
         <span>Gestion</span>
       </button>
       <div
         id="scan-sidebar-management-group"
-        class="collapse scan-sidebar-group-links{% if active == 'billing_editor' or active == 'account_validations' %} show{% endif %}"
+        class="collapse scan-sidebar-group-links{% if active == 'billing_editor' %} show{% endif %}"
       >
         {% if not request.scan_is_preparateur %}
           <a href="{% url 'planning:run_list' %}" class="scan-sidebar-child-link">Planning</a>
-        {% endif %}
-        {% if scan_can_review_account_requests %}
-          <a
-            href="{% url 'scan:scan_account_validation_list' %}"
-            class="scan-sidebar-child-link{% if active == 'account_validations' %} active{% endif %}"
-          >
-            Validations comptes
-          </a>
         {% endif %}
         {% if scan_billing_visible %}
           <a href="{% url 'scan:scan_billing_editor' %}" class="scan-sidebar-child-link{% if active == 'billing_editor' %} active{% endif %}">{% trans "Edition Devis/Facture" %}</a>

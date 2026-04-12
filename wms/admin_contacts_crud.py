@@ -180,9 +180,18 @@ def _contact_initial_from_instance(contact: Contact) -> dict[str, object]:
     return initial
 
 
-def build_admin_contacts_forms(*, edit_contact_id=None, destination_form=None, contact_form=None):
+def build_admin_contacts_forms(
+    *,
+    edit_contact_id=None,
+    destination_form=None,
+    contact_form=None,
+    allowed_business_types=None,
+):
     editing_contact = None
     contact_form_mode = "create"
+    contact_form_kwargs = {}
+    if allowed_business_types is not None:
+        contact_form_kwargs["allowed_business_types"] = allowed_business_types
 
     if destination_form is None:
         destination_form = DestinationCrudForm(initial={"is_active": True})
@@ -192,11 +201,14 @@ def build_admin_contacts_forms(*, edit_contact_id=None, destination_form=None, c
             Contact.objects.filter(pk=edit_contact_id).select_related("organization").first()
         )
         if editing_contact is not None and contact_form is None:
-            contact_form = ContactCrudForm(initial=_contact_initial_from_instance(editing_contact))
+            contact_form = ContactCrudForm(
+                initial=_contact_initial_from_instance(editing_contact),
+                **contact_form_kwargs,
+            )
             contact_form_mode = "edit"
 
     if contact_form is None:
-        contact_form = ContactCrudForm(initial={"is_active": True})
+        contact_form = ContactCrudForm(initial={"is_active": True}, **contact_form_kwargs)
 
     return {
         "destination_form": destination_form,
@@ -208,10 +220,10 @@ def build_admin_contacts_forms(*, edit_contact_id=None, destination_form=None, c
     }
 
 
-def _rebind_with_duplicate_review(form_class, data, *, count: int):
+def _rebind_with_duplicate_review(form_class, data, *, count: int, form_kwargs=None):
     mutable_data = data.copy()
     mutable_data["duplicate_candidates_count"] = str(count)
-    form = form_class(mutable_data)
+    form = form_class(mutable_data, **(form_kwargs or {}))
     form.is_valid()
     return form
 
@@ -267,7 +279,9 @@ def handle_destination_submission(post_data) -> AdminContactsCrudOutcome:
     )
 
 
-def handle_contact_submission(post_data) -> AdminContactsCrudOutcome:
+def handle_contact_submission(
+    post_data, *, allowed_business_types=None
+) -> AdminContactsCrudOutcome:
     editing_contact = None
     editing_contact_id = (post_data.get("editing_contact_id") or "").strip()
     if editing_contact_id.isdigit():
@@ -277,7 +291,11 @@ def handle_contact_submission(post_data) -> AdminContactsCrudOutcome:
             .first()
         )
 
-    form = ContactCrudForm(post_data)
+    contact_form_kwargs = {}
+    if allowed_business_types is not None:
+        contact_form_kwargs["allowed_business_types"] = allowed_business_types
+
+    form = ContactCrudForm(post_data, **contact_form_kwargs)
     if not form.is_valid():
         return AdminContactsCrudOutcome(
             should_redirect=False,
@@ -301,6 +319,7 @@ def handle_contact_submission(post_data) -> AdminContactsCrudOutcome:
                     ContactCrudForm,
                     post_data,
                     count=len(candidates),
+                    form_kwargs=contact_form_kwargs,
                 ),
                 contact_duplicate_candidates=candidates,
                 contact_form_mode="edit" if editing_contact is not None else "create",

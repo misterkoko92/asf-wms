@@ -94,7 +94,12 @@ Current contract:
 - preparateur-only scan users keep a reduced sidebar with direct links to:
   - `Préparation`
   - `Runs magasin`
-- the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`, `Préparation`, `Expéditions`, `Gestion`
+- the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`,
+  `Préparation`, `Expéditions`, `Contacts`, `Gestion`
+- the shared `Contacts` group currently exposes, in order:
+  - `Répertoire` for superusers
+  - `Rôles expédition` for superusers
+  - `Validations` for users allowed by `user_can_review_account_requests()`
 - the shared `Stocks` group currently exposes, in order:
   - `Vue Stock`
   - `Vue Besoins`
@@ -112,8 +117,8 @@ Current contract:
   - `Réception palette`
   - `Listing`
   - `Réception association`
-- the shared `Gestion` group now exposes `Validations comptes` for users allowed by
-  `user_can_review_account_requests()`
+- the shared `Gestion` group is reduced to transversal operations such as planning and billing; it
+  no longer hosts contact-management or validation entry points
 - `/scan/receive-pallet/` is now the manual pallet-only screen and keeps a shortcut toward
   `/scan/receive-listing/`; file-upload contracts for listing imports must stay on the dedicated
   listing route
@@ -122,9 +127,9 @@ Current contract:
 - warehouse-preparation screens under `/scan/preparation-runs/` must set `active="preparation_runs"` so the shared group expands and highlights correctly
 - the warehouse-preparation settings screen at `/scan/preparation-runs/settings/` uses the same
   `active="preparation_runs"` highlight and preparateur permission scope as the list/create/detail flow
-- the scan shell pending-account banner in `templates/scan/base.html` must link to
-  `/scan/account-validations/` for validator-group staff and only fall back to the admin changelist
-  for users who can see the pending count but not the scan review flow
+- the scan shell pending-recipient banner in `templates/scan/base.html` must link to
+  `/scan/contacts/validations/recipients/` for superusers; recipient validation no longer lives on
+  the contacts directory
 
 Maintenance rule:
 
@@ -145,6 +150,7 @@ Primary runtime sources:
 - `wms/admin_account_request_approval.py`
 - `wms/account_request_review_service.py`
 - `wms/models_domain/portal.py`
+- `templates/scan/contact_validations_hub.html`
 - `templates/scan/account_validation_list.html`
 - `templates/scan/account_validation_detail.html`
 - `templates/scan/includes/account_validation_request_summary.html`
@@ -153,7 +159,8 @@ Primary runtime sources:
 
 Current contract:
 
-- `/scan/account-validations/` is the primary operator review surface for pending
+- `/scan/contacts/validations/` is the operator entry point for contact-related validation work
+- `/scan/account-validations/` is the dedicated `Validation expéditeurs` queue for pending
   `PublicAccountRequest` rows
 - access is granted to superusers and staff in the configured validation group via
   `user_can_review_account_requests()` and `scan_account_validator_required`
@@ -168,6 +175,36 @@ Current contract:
 - Django admin remains a minimal fallback: it exposes `destination` and a readonly link back to the
   scan review detail, but the operational correction workflow lives on the scan page
 
+### Recipient Validation Contract
+
+Primary runtime sources:
+
+- `wms/views_scan_account_validations.py`
+- `wms/admin_contacts_crud.py`
+- `wms/admin_contacts_contact_service.py`
+- `templates/scan/contact_validations_hub.html`
+- `templates/scan/recipient_validation_list.html`
+- `templates/scan/recipient_validation_detail.html`
+- `templates/scan/includes/admin_contacts_contact_form.html`
+
+Current contract:
+
+- `/scan/contacts/validations/recipients/` is the dedicated `Validation destinataires` queue for
+  pending `ShipmentRecipientOrganization` rows
+- access is limited to superusers via `scan_staff_required` plus `_require_superuser()`
+- `/scan/contacts/validations/recipients/<id>/` acts as a validation dossier and reuses the shared
+  admin contact form instead of exposing recipient validation inline on the contacts directory
+- recipient validation must keep using the same `ACTION_SAVE_CONTACT` submission path and runtime
+  recipient shared-profile update semantics as scan/admin contact edits
+- structure compliance fields, uploaded recipient documents, and allowed shipper context shown on
+  the validation dossier must stay aligned with the shared recipient data model and write path
+
+Maintenance rule:
+
+- if recipient validation routes, labels, or write semantics change, update the validation hub,
+  recipient list/detail templates, the admin contact shared form/service, the scan banner/nav
+  contract, and the regression tests in the same work
+
 Maintenance rule:
 
 - if the public account review flow changes, keep the scan views/forms/templates, the shared
@@ -179,6 +216,7 @@ Maintenance rule:
 Reference tests:
 
 - `wms/tests/views/tests_views_scan_account_validations.py`
+- `wms/tests/views/tests_views_scan_contact_validations.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/portal/tests_portal_role_review_gate.py`
 - `wms/tests/admin/tests_account_request_handlers.py`

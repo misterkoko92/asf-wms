@@ -26,13 +26,45 @@
       </dd>
       <dt class="col-sm-3">Documents</dt>
       <dd class="col-sm-9">
-        <ul class="mb-0 ps-3">
-          {% for document in account_request.documents.all %}
-            <li>{{ document.get_doc_type_display }} - {{ document.get_status_display }}</li>
-          {% empty %}
-            <li>Aucun document</li>
-          {% endfor %}
-        </ul>
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Statut</th>
+                <th>Fichier</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for document in account_request.documents.all %}
+                <tr>
+                  <td>{{ document.get_doc_type_display }}</td>
+                  <td>{{ document.get_status_display }}</td>
+                  <td>
+                    {% if document.file and document.scan_status == "clean" %}
+                      <a class="scan-scan-btn btn btn-tertiary btn-sm"
+                         href="{{ document.file.url }}"
+                         target="_blank"
+                         rel="noopener">{{ document.file.name }}</a>
+                    {% elif document.scan_status == "infected" %}
+                      <span class="scan-help">Bloqué (fichier suspect).</span>
+                    {% elif document.scan_status == "error" %}
+                      <span class="scan-help">Fichier indisponible (scan en erreur).</span>
+                    {% elif document.file %}
+                      <span class="scan-help">Quarantaine (scan antivirus en cours).</span>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="3">Aucun document</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </dd>
     </dl>
   </div>

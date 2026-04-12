@@ -129,10 +129,10 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             kwargs={"recipient_organization_id": recipient_organization.id},
         )
 
-    def test_scan_admin_contacts_renders_shipment_party_cockpit(self):
+    def test_scan_contacts_roles_renders_shipment_party_cockpit(self):
         self.client.force_login(self.superuser)
 
-        response = self.client.get(reverse("scan:scan_admin_contacts"))
+        response = self.client.get(reverse("scan:scan_contacts_roles"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Pilotage contacts expédition")
@@ -169,7 +169,11 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             [link.id for link in response.context["cockpit_shipment_links"]],
             [self.link.id],
         )
-        self.assertContains(response, self._detail_url())
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_admin_contacts")}?edit={self.shipper_org.id}"',
+        )
+        self.assertContains(response, self._detail_url(), count=2)
         self.assertContains(response, "Ouvrir")
 
     def test_scan_admin_recipient_detail_shows_current_preferences(self):
@@ -526,7 +530,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         )
 
         response = self.client.post(
-            reverse("scan:scan_admin_contacts"),
+            reverse("scan:scan_contacts_roles"),
             {
                 "action": "set_default_authorized_recipient_contact",
                 "link_id": str(self.link.id),
@@ -560,7 +564,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         )
 
         response = self.client.post(
-            reverse("scan:scan_admin_contacts"),
+            reverse("scan:scan_contacts_roles"),
             {
                 "action": "set_stopover_correspondent_recipient_organization",
                 "recipient_organization_id": str(other_recipient_organization.id),
@@ -614,7 +618,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         )
 
         response = self.client.post(
-            reverse("scan:scan_admin_contacts"),
+            reverse("scan:scan_contacts_roles"),
             {
                 "action": "merge_shipment_recipient_organizations",
                 "source_recipient_organization_id": str(source_recipient_organization.id),
@@ -640,7 +644,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             ).exists()
         )
 
-    def test_scan_admin_contacts_destination_filter_scopes_cockpit_and_correspondents(self):
+    def test_scan_contacts_roles_destination_filter_scopes_cockpit_and_correspondents(self):
         self.client.force_login(self.superuser)
         other_correspondent_org = Contact.objects.create(
             name="Correspondant Dakar",
@@ -711,7 +715,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         )
 
         response = self.client.get(
-            reverse("scan:scan_admin_contacts"),
+            reverse("scan:scan_contacts_roles"),
             {"destination_id": str(self.destination.id)},
         )
 
@@ -732,6 +736,6 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             [self.link.id],
         )
         self.assertEqual(
-            [contact.id for contact in response.context["correspondents"]],
+            [contact.id for contact in response.context["cockpit_shipment_correspondents"]],
             [self.correspondent_org.id],
         )

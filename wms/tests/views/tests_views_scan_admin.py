@@ -235,7 +235,7 @@ class ScanAdminViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-admin-table-accordion")
-        self.assertContains(response, 'data-table-tools="1"', count=5)
+        self.assertContains(response, 'data-table-tools="1"', count=2)
         self.assertNotContains(response, 'scan-admin-table-accordion" open')
 
     def test_scan_admin_contacts_renders_creation_cards_before_filters(self):
@@ -255,6 +255,18 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, 'id="scan-admin-create-destination" open')
         self.assertNotContains(response, 'id="scan-admin-create-contact" open')
         self.assertContains(response, 'data-required-marker="entity_type"')
+
+    def test_scan_admin_contacts_contact_creation_gate_compacts_notes_and_details(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="business_type"')
+        self.assertContains(response, 'name="entity_type"')
+        self.assertContains(response, 'data-contact-stage="details"')
+        self.assertContains(response, 'name="notes"')
+        self.assertContains(response, 'rows="2"')
 
     def test_contact_crud_form_uses_country_choices(self):
         form = ContactCrudForm()
@@ -338,7 +350,7 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "Quarantaine (scan antivirus en cours).")
         self.assertContains(response, clean_document.file.name)
 
-    def test_scan_admin_contacts_lists_pending_recipient_validations_with_verify_action(self):
+    def test_scan_admin_contacts_no_longer_renders_pending_recipient_validations_block(self):
         self.client.force_login(self.superuser)
         pending_contact = Contact.objects.create(
             name="Destinataire en attente",
@@ -390,23 +402,8 @@ class ScanAdminViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_admin_contacts"))
 
         self.assertEqual(response.status_code, 200)
-        pending_validations = response.context["pending_recipient_validations"]
-        self.assertEqual(
-            [item["organization"] for item in pending_validations],
-            [pending_contact],
-        )
-        self.assertContains(response, "Destinataires en attente de validation")
-        self.assertContains(response, "<th>Type métier</th>", html=True)
-        self.assertContains(response, pending_contact.name)
-        self.assertContains(response, "Destinataire")
-        self.assertContains(response, self.destination.city)
-        self.assertContains(response, shipper_contact.name)
-        self.assertContains(
-            response,
-            f'href="{reverse("scan:scan_admin_contacts")}?edit={pending_contact.id}"',
-        )
-        self.assertContains(response, "Vérifier")
-        self.assertNotContains(response, "Pour lever cette alerte")
+        self.assertNotContains(response, "<th>Type métier</th>", html=True)
+        self.assertNotContains(response, "Vérifier")
 
     def test_scan_admin_contacts_pending_recipient_edit_uses_validate_label(self):
         self.client.force_login(self.superuser)
@@ -632,13 +629,32 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, "Destinations (admin)")
         self.assertNotContains(response, "Ajouter destination (admin)")
 
-    def test_scan_settings_menu_holds_admin_tools_while_management_keeps_workflow_links(self):
+    def test_scan_admin_contacts_correspondents_card_exposes_open_action(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Correspondants configurés")
+        self.assertContains(response, "<th>Actions</th>", html=True)
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_admin_contacts")}?edit={self.correspondent.id}"',
+        )
+        self.assertContains(response, "Ouvrir")
+
+    def test_scan_contacts_sidebar_group_holds_contact_workflows_while_settings_keeps_admin_tools(
+        self,
+    ):
         self.client.force_login(self.superuser)
 
         response = self.client.get(reverse("scan:scan_import"))
 
         self.assertEqual(response.status_code, 200)
         html = response.content.decode("utf-8")
+        contacts_start = html.index('id="scan-sidebar-contacts-toggle"')
+        contacts_end = html.index("</nav>", contacts_start)
+        contacts_html = html[contacts_start:contacts_end]
         management_start = html.index('id="scan-sidebar-management-toggle"')
         management_end = html.index("</nav>", management_start)
         management_html = html[management_start:management_end]
@@ -646,12 +662,15 @@ class ScanAdminViewTests(TestCase):
         admin_end = html.index("</nav>", admin_start)
         admin_html = html[admin_start:admin_end]
 
+        self.assertIn(reverse("scan:scan_admin_contacts"), contacts_html)
+        self.assertIn("/scan/contacts/roles/", contacts_html)
+        self.assertIn("/scan/contacts/validations/", contacts_html)
         self.assertIn(reverse("planning:run_list"), management_html)
         self.assertIn(reverse("scan:scan_billing_editor"), management_html)
         self.assertNotIn(reverse("scan:scan_import"), management_html)
         self.assertNotIn(reverse("scan:scan_admin_contacts"), management_html)
         self.assertIn(reverse("scan:scan_import"), admin_html)
-        self.assertIn(reverse("scan:scan_admin_contacts"), admin_html)
+        self.assertNotIn(reverse("scan:scan_admin_contacts"), admin_html)
         self.assertIn(reverse("scan:scan_product_labels"), admin_html)
         self.assertIn(reverse("scan:scan_out"), admin_html)
         self.assertIn(reverse("scan:scan_billing_settings"), admin_html)

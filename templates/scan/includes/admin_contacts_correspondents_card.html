@@ -12,6 +12,7 @@
                         <th>{% trans "Type" %}</th>
                         <th>{% trans "Organisation" %}</th>
                         <th>{% trans "Escales" %}</th>
+                        <th>{% trans "Actions" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -29,10 +30,14 @@
                                     -
                                 {% endfor %}
                             </td>
+                            <td class="text-nowrap">
+                                <a class="btn btn-secondary btn-sm"
+                                   href="{% url 'scan:scan_admin_contacts' %}?edit={{ contact.id }}">{% trans "Ouvrir" %}</a>
+                            </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="4">{% trans "Aucun correspondant configuré." %}</td>
+                            <td colspan="5">{% trans "Aucun correspondant configuré." %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

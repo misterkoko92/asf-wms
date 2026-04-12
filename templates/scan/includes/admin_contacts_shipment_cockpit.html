@@ -19,6 +19,7 @@
                                     <th>{% trans "Référent par défaut" %}</th>
                                     <th>{% trans "Statut ASF" %}</th>
                                     <th>{% trans "Liens actifs" %}</th>
+                                    <th>{% trans "Actions" %}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -28,10 +29,14 @@
                                         <td>{{ shipper.default_contact|default:"-" }}</td>
                                         <td>{{ shipper.get_validation_status_display }}</td>
                                         <td>{{ shipper.active_link_count }}</td>
+                                        <td class="text-nowrap">
+                                            <a class="btn btn-secondary btn-sm"
+                                               href="{% url 'scan:scan_admin_contacts' %}?edit={{ shipper.organization_id }}">{% trans "Ouvrir" %}</a>
+                                        </td>
                                     </tr>
                                 {% empty %}
                                     <tr>
-                                        <td colspan="4">{% trans "Aucun expéditeur enregistré." %}</td>
+                                        <td colspan="5">{% trans "Aucun expéditeur enregistré." %}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -132,6 +137,7 @@
                                     <th>{% trans "Escale" %}</th>
                                     <th>{% trans "Structure" %}</th>
                                     <th>{% trans "Statut ASF" %}</th>
+                                    <th>{% trans "Actions" %}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -140,10 +146,14 @@
                                         <td>{{ correspondent.destination }}</td>
                                         <td>{{ correspondent.organization.name }}</td>
                                         <td>{{ correspondent.get_validation_status_display }}</td>
+                                        <td class="text-nowrap">
+                                            <a class="btn btn-secondary btn-sm"
+                                               href="{% url 'scan:scan_admin_recipient_organization_detail' recipient_organization_id=correspondent.id %}">{% trans "Ouvrir" %}</a>
+                                        </td>
                                     </tr>
                                 {% empty %}
                                     <tr>
-                                        <td colspan="3">{% trans "Aucun correspondant d'escale enregistré." %}</td>
+                                        <td colspan="4">{% trans "Aucun correspondant d'escale enregistré." %}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -155,9 +165,12 @@
     </div>
     <hr>
     <div class="row g-3 ui-comp-form">
-        <div class="col-12 col-xl-4">
-            <div class="ui-comp-panel p-3 border rounded-3 h-100">
+        <div class="col-12 contact-roles-action-block">
+            <div class="ui-comp-panel p-3 border rounded-3">
                 <h4 class="h6 mb-2">{% trans "Définir le référent destinataire par défaut" %}</h4>
+                <p class="scan-help mb-3">
+                    {% trans "Choisissez d'abord un lien expéditeur → destinataire, puis le référent autorisé qui doit devenir le contact par défaut." %}
+                </p>
                 <form method="post" class="row g-2">
                     {% csrf_token %}
                     <input type="hidden"
@@ -207,9 +220,12 @@
                 </form>
             </div>
         </div>
-        <div class="col-12 col-xl-4">
-            <div class="ui-comp-panel p-3 border rounded-3 h-100">
+        <div class="col-12 contact-roles-action-block">
+            <div class="ui-comp-panel p-3 border rounded-3">
                 <h4 class="h6 mb-2">{% trans "Changer le correspondant actif d'une escale" %}</h4>
+                <p class="scan-help mb-3">
+                    {% trans "Activez ici la structure destinataire qui sert de correspondant d'escale pour une destination donnée." %}
+                </p>
                 <form method="post" class="row g-2">
                     {% csrf_token %}
                     <input type="hidden"
@@ -246,9 +262,12 @@
                 </form>
             </div>
         </div>
-        <div class="col-12 col-xl-4">
-            <div class="ui-comp-panel p-3 border rounded-3 h-100">
+        <div class="col-12 contact-roles-action-block">
+            <div class="ui-comp-panel p-3 border rounded-3">
                 <h4 class="h6 mb-2">{% trans "Fusionner deux structures destinataires" %}</h4>
+                <p class="scan-help mb-3">
+                    {% trans "Utilisez cette action uniquement pour regrouper deux fiches de la même escale. Les référents et autorisations sont transférés vers la cible." %}
+                </p>
                 <form method="post" class="row g-2">
                     {% csrf_token %}
                     <input type="hidden"
@@ -291,9 +310,6 @@
                                 {% endif %}
                             {% endfor %}
                         </select>
-                        <div class="form-text">
-                            {% trans "La fusion doit rester sur la même escale. Les référents et autorisations sont transférés vers la cible." %}
-                        </div>
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-warning">{% trans "Fusionner" %}</button>

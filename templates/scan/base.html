@@ -72,7 +72,7 @@
           {% if request.user.is_superuser and not request.scan_is_preparateur and admin_pending_recipient_validations %}
             <a
               id="scan-masthead-notifications"
-              href="{% url 'scan:scan_admin_contacts' %}"
+              href="{% url 'scan:scan_recipient_validation_list' %}"
               class="btn btn-warning btn-sm scan-utility-link scan-utility-icon-link scan-utility-count-link"
               aria-label="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
               title="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
@@ -97,7 +97,6 @@
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><h6 class="dropdown-header">Général</h6></li>
                 <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a></li>
-                <li><a href="{% url 'scan:scan_admin_contacts' %}" class="dropdown-item{% if active == 'admin_contacts' %} active{% endif %}">{% trans "Contacts" %}</a></li>
                 <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><h6 class="dropdown-header">Produit</h6></li>

@@ -162,6 +162,14 @@ class ContactCrudFormTests(TestCase):
         labels = [label for value, label in choices[1:]]
         self.assertEqual(labels, sorted(labels, key=lambda value: value.casefold()))
 
+    def test_business_type_choices_can_be_restricted_for_validation_flows(self):
+        form = ContactCrudForm(allowed_business_types=("shipper", "recipient"))
+
+        self.assertEqual(
+            [value for value, _label in form.fields["business_type"].choices],
+            ["", "recipient", "shipper"],
+        )
+
     def test_allowed_shipper_queryset_only_lists_active_shippers(self):
         active_shipper_org = Contact.objects.create(
             name="ASF Active",
