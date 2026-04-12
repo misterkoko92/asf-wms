@@ -1,10 +1,15 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
 from contacts.models import Contact, ContactType
 from wms.models import (
+    AccountDocument,
+    AccountDocumentType,
     Destination,
+    DocumentReviewStatus,
+    DocumentScanStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
@@ -88,6 +93,66 @@ class ScanAccountValidationViewTests(TestCase):
         self.assertContains(response, 'name="final_account_type"')
         self.assertContains(response, PublicAccountRequestType.SHIPPER.label)
         self.assertContains(response, "Valider le compte")
+
+    def test_scan_account_validation_detail_normalizes_legacy_association_to_shipper(self):
+        self.pending_request.account_type = PublicAccountRequestType.ASSOCIATION
+        self.pending_request.save(update_fields=["account_type"])
+        self.client.force_login(self.validator_user)
+
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["form"].initial["final_account_type"],
+            PublicAccountRequestType.SHIPPER,
+        )
+        choice_values = [
+            value for value, _label in response.context["form"].fields["final_account_type"].choices
+        ]
+        self.assertEqual(len(choice_values), 2)
+        self.assertCountEqual(
+            choice_values,
+            [PublicAccountRequestType.RECIPIENT, PublicAccountRequestType.SHIPPER],
+        )
+
+    def test_scan_account_validation_detail_exposes_dynamic_sections_and_safe_document_links(
+        self,
+    ):
+        clean_document = AccountDocument.objects.create(
+            account_request=self.pending_request,
+            doc_type=AccountDocumentType.STATUTES,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("statutes.pdf", b"%PDF-1.4 statutes"),
+            scan_status=DocumentScanStatus.CLEAN,
+        )
+        AccountDocument.objects.create(
+            account_request=self.pending_request,
+            doc_type=AccountDocumentType.REGISTRATION_PROOF,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("registration-proof.pdf", b"%PDF-1.4 registration proof"),
+            scan_status=DocumentScanStatus.PENDING,
+            scan_message="Scan antivirus en cours.",
+        )
+        self.client.force_login(self.validator_user)
+
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Qualification opérateur")
+        self.assertContains(response, "Données métier")
+        self.assertContains(response, 'data-account-validation-field="1"')
+        self.assertContains(response, 'data-account-validation-required-marker="organization_name"')
+        choice_values = [
+            value for value, _label in response.context["form"].fields["final_account_type"].choices
+        ]
+        self.assertEqual(len(choice_values), 2)
+        self.assertCountEqual(
+            choice_values,
+            [PublicAccountRequestType.RECIPIENT, PublicAccountRequestType.SHIPPER],
+        )
+        self.assertContains(response, clean_document.file.name)
+        self.assertContains(response, clean_document.file.url)
+        self.assertContains(response, "Quarantaine (scan antivirus en cours).")
 
     def test_scan_account_validation_detail_can_approve_shipper_as_recipient(self):
         self.client.force_login(self.validator_user)

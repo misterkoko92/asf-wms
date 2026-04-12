@@ -21,9 +21,17 @@ BUSINESS_TYPE_OPTIONS = (
 )
 
 
-def build_business_type_choices():
+def build_business_type_choices(*, allowed_business_types=None):
+    allowed_values = None
+    if allowed_business_types is not None:
+        allowed_values = {
+            str(value).strip() for value in allowed_business_types if str(value).strip()
+        }
+    options = BUSINESS_TYPE_OPTIONS
+    if allowed_values is not None:
+        options = tuple(choice for choice in BUSINESS_TYPE_OPTIONS if choice[0] in allowed_values)
     return (("", _("Choisir...")),) + tuple(
-        sorted(BUSINESS_TYPE_OPTIONS, key=lambda choice: str(choice[1]).casefold())
+        sorted(options, key=lambda choice: str(choice[1]).casefold())
     )
 
 
@@ -108,9 +116,12 @@ class ContactCrudForm(forms.Form):
     )
     duplicate_target_id = forms.IntegerField(required=False, widget=forms.HiddenInput)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, allowed_business_types=None, **kwargs):
+        self.allowed_business_types = tuple(allowed_business_types or ())
         super().__init__(*args, **kwargs)
-        self.fields["business_type"].choices = build_business_type_choices()
+        self.fields["business_type"].choices = build_business_type_choices(
+            allowed_business_types=self.allowed_business_types or None
+        )
         current_country = self._current_country_value()
         self.fields["country"].choices = build_country_choices(
             current_country,
@@ -142,7 +153,7 @@ class ContactCrudForm(forms.Form):
                 widget.attrs.setdefault("class", "form-select ui-select--md")
             elif isinstance(widget, forms.Textarea):
                 widget.attrs.setdefault("class", "form-control")
-                widget.attrs.setdefault("rows", "3")
+                widget.attrs["rows"] = "2"
             else:
                 widget.attrs.setdefault("class", "form-control")
         self.fields["destination_id"].widget.attrs["class"] = "form-select ui-select--lg"

@@ -1165,8 +1165,10 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("data-contact-action-select", js_content)
         self.assertIn("data-contact-field-group", js_content)
         self.assertIn("data-required-marker", js_content)
+        self.assertIn("data-contact-stage", js_content)
         self.assertIn("required.add('entity_type')", js_content)
         self.assertIn("field.disabled = shouldHide", js_content)
+        self.assertIn("detailsReady", js_content)
         self.assertIn("event.target.closest('[data-contact-action-select=\"1\"]')", js_content)
         self.assertIn("merge_contact", js_content)
         self.assertIn("deactivate_contact", js_content)
@@ -1216,7 +1218,8 @@ class ScanBootstrapUiTests(TestCase):
         tables_section, actions_section = cockpit_content.split("<hr>", 1)
         self.assertNotIn('class="col-12 col-xl-6"', tables_section)
         self.assertEqual(tables_section.count('class="col-12">'), 4)
-        self.assertEqual(actions_section.count('class="col-12 col-xl-4">'), 3)
+        self.assertNotIn('class="col-12 col-xl-4"', actions_section)
+        self.assertEqual(actions_section.count("contact-roles-action-block"), 3)
 
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))

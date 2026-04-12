@@ -28,21 +28,47 @@
 {% block extra_scripts %}
   <script>
     (function () {
+      const form = document.querySelector('[data-account-validation-form="1"]');
       const typeField = document.getElementById('{{ form.final_account_type.id_for_label }}');
-      const recipientFields = Array.from(document.querySelectorAll('.account-validation-recipient-only'));
-      if (!typeField || recipientFields.length === 0) {
+      if (!form || !typeField) {
         return;
       }
 
-      function syncRecipientFields() {
-        const isRecipient = typeField.value === 'recipient';
-        recipientFields.forEach((node) => {
-          node.hidden = !isRecipient;
+      function splitTypes(value) {
+        return String(value || '')
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      function syncValidationFields() {
+        const selectedType = typeField.value || '';
+        const requiredFields = new Set(['organization_name', 'email', 'address_line1']);
+        if (selectedType === 'recipient') {
+          ['destination_id', 'legal_form', 'beneficiary_count', 'first_name', 'last_name'].forEach((fieldName) => {
+            requiredFields.add(fieldName);
+          });
+        }
+
+        form.querySelectorAll('[data-account-validation-field="1"]').forEach((node) => {
+          const supportedTypes = splitTypes(node.dataset.accountValidationTypes);
+          const shouldShow = !supportedTypes.length || supportedTypes.includes(selectedType);
+          node.hidden = !shouldShow;
+          node.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !shouldShow;
+            if (field.type === 'hidden') {
+              field.disabled = false;
+            }
+          });
+        });
+
+        form.querySelectorAll('[data-account-validation-required-marker]').forEach((marker) => {
+          marker.hidden = !requiredFields.has(marker.dataset.accountValidationRequiredMarker);
         });
       }
 
-      typeField.addEventListener('change', syncRecipientFields);
-      syncRecipientFields();
+      typeField.addEventListener('change', syncValidationFields);
+      syncValidationFields();
     })();
   </script>
 {% endblock %}

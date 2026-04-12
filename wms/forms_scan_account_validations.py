@@ -8,10 +8,16 @@ from contacts.models import Contact, ContactType, RecipientLegalForm
 from .models import Destination, PublicAccountRequestType, ShipmentShipper
 
 STRUCTURE_ACCOUNT_TYPES = {
-    PublicAccountRequestType.ASSOCIATION,
     PublicAccountRequestType.SHIPPER,
     PublicAccountRequestType.RECIPIENT,
 }
+
+
+def _normalized_structure_account_type(value):
+    normalized_value = (value or "").strip()
+    if normalized_value == PublicAccountRequestType.ASSOCIATION:
+        return PublicAccountRequestType.SHIPPER
+    return normalized_value
 
 
 class ScanAccountValidationReviewForm(forms.Form):
@@ -107,7 +113,8 @@ class ScanAccountValidationReviewForm(forms.Form):
 
         return {
             "final_account_type": snapshot.get("final_account_type")
-            or account_request.account_type,
+            and _normalized_structure_account_type(snapshot.get("final_account_type"))
+            or _normalized_structure_account_type(account_request.account_type),
             "organization_name": snapshot.get("organization_name")
             or account_request.association_name
             or getattr(organization, "name", ""),
@@ -136,7 +143,11 @@ class ScanAccountValidationReviewForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        final_account_type = (cleaned_data.get("final_account_type") or "").strip()
+        final_account_type = _normalized_structure_account_type(
+            cleaned_data.get("final_account_type")
+        )
+        if final_account_type != cleaned_data.get("final_account_type"):
+            cleaned_data["final_account_type"] = final_account_type
 
         if final_account_type == PublicAccountRequestType.USER:
             return cleaned_data

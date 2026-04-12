@@ -256,6 +256,18 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, 'id="scan-admin-create-contact" open')
         self.assertContains(response, 'data-required-marker="entity_type"')
 
+    def test_scan_admin_contacts_contact_creation_gate_compacts_notes_and_details(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="business_type"')
+        self.assertContains(response, 'name="entity_type"')
+        self.assertContains(response, 'data-contact-stage="details"')
+        self.assertContains(response, 'name="notes"')
+        self.assertContains(response, 'rows="2"')
+
     def test_contact_crud_form_uses_country_choices(self):
         form = ContactCrudForm()
 
@@ -616,6 +628,20 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, "Ajouter un contact (admin)")
         self.assertNotContains(response, "Destinations (admin)")
         self.assertNotContains(response, "Ajouter destination (admin)")
+
+    def test_scan_admin_contacts_correspondents_card_exposes_open_action(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Correspondants configurés")
+        self.assertContains(response, "<th>Actions</th>", html=True)
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_admin_contacts")}?edit={self.correspondent.id}"',
+        )
+        self.assertContains(response, "Ouvrir")
 
     def test_scan_contacts_sidebar_group_holds_contact_workflows_while_settings_keeps_admin_tools(
         self,

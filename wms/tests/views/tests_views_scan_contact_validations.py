@@ -9,6 +9,7 @@ from wms.models import (
     PublicAccountRequestStatus,
     PublicAccountRequestType,
     ShipmentRecipientOrganization,
+    ShipmentShipper,
     ShipmentValidationStatus,
 )
 
@@ -132,3 +133,57 @@ class ScanContactValidationsViewTests(TestCase):
         self.assertContains(response, "Décision ASF")
         self.assertContains(response, "Valider le destinataire")
         self.assertContains(response, self.destination.city)
+
+    def test_scan_recipient_validation_detail_reuses_operator_qualification_gate(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(self.recipient_detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Qualification opérateur")
+        self.assertContains(
+            response,
+            "Corrigez le type final si la demande a été créée avec le mauvais profil",
+        )
+        self.assertContains(response, 'data-contact-stage="details"')
+        self.assertContains(response, 'name="notes"')
+        self.assertContains(response, 'rows="2"')
+        self.assertEqual(
+            [
+                value
+                for value, _label in response.context["contact_form"]
+                .fields["business_type"]
+                .choices
+            ],
+            ["", "recipient", "shipper"],
+        )
+
+    def test_scan_recipient_validation_detail_can_requalify_pending_recipient_as_shipper(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self.recipient_detail_url,
+            {
+                "action": "save_contact",
+                "editing_contact_id": str(self.pending_recipient_contact.id),
+                "business_type": "shipper",
+                "organization_name": self.pending_recipient_contact.name,
+                "first_name": "Aicha",
+                "last_name": "Traore",
+                "email": "shipper-validation@example.org",
+                "phone": "+22370000001",
+                "address_line1": "1 Rue Validation",
+                "city": "Abidjan",
+                "country": "COTE D'IVOIRE",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipient_list_url)
+        self.pending_recipient.refresh_from_db()
+        self.assertEqual(
+            self.pending_recipient.validation_status, ShipmentValidationStatus.REJECTED
+        )
+        shipper = ShipmentShipper.objects.get(organization=self.pending_recipient_contact)
+        self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)

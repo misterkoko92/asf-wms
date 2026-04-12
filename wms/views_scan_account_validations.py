@@ -42,6 +42,7 @@ TEMPLATE_ACCOUNT_VALIDATION_DETAIL = "scan/account_validation_detail.html"
 TEMPLATE_CONTACT_VALIDATIONS_HUB = "scan/contact_validations_hub.html"
 TEMPLATE_RECIPIENT_VALIDATION_LIST = "scan/recipient_validation_list.html"
 TEMPLATE_RECIPIENT_VALIDATION_DETAIL = "scan/recipient_validation_detail.html"
+RECIPIENT_VALIDATION_ALLOWED_BUSINESS_TYPES = ("shipper", "recipient")
 
 
 def _account_validation_list_queryset():
@@ -182,13 +183,25 @@ def scan_recipient_validation_detail(request, recipient_organization_id):
         pk=recipient_organization_id,
     )
     organization = recipient_organization.organization
-    crud_context = build_admin_contacts_forms(edit_contact_id=organization.id)
+    crud_context = build_admin_contacts_forms(
+        edit_contact_id=organization.id,
+        allowed_business_types=RECIPIENT_VALIDATION_ALLOWED_BUSINESS_TYPES,
+    )
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
         if action == ACTION_SAVE_CONTACT:
-            outcome = handle_contact_submission(request.POST)
+            outcome = handle_contact_submission(
+                request.POST,
+                allowed_business_types=RECIPIENT_VALIDATION_ALLOWED_BUSINESS_TYPES,
+            )
             if outcome.should_redirect:
+                selected_business_type = (request.POST.get("business_type") or "").strip()
+                if selected_business_type == "recipient":
+                    recipient_organization.validation_status = ShipmentValidationStatus.VALIDATED
+                elif selected_business_type == "shipper":
+                    recipient_organization.validation_status = ShipmentValidationStatus.REJECTED
+                recipient_organization.save(update_fields=["validation_status"])
                 getattr(messages, outcome.message_level or "success")(
                     request, outcome.message or ""
                 )

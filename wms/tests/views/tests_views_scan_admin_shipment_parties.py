@@ -169,7 +169,11 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
             [link.id for link in response.context["cockpit_shipment_links"]],
             [self.link.id],
         )
-        self.assertContains(response, self._detail_url())
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_admin_contacts")}?edit={self.shipper_org.id}"',
+        )
+        self.assertContains(response, self._detail_url(), count=2)
         self.assertContains(response, "Ouvrir")
 
     def test_scan_admin_recipient_detail_shows_current_preferences(self):

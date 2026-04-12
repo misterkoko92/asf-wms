@@ -19,14 +19,14 @@
     {% endif %}
     <div class="col-12">
         <div class="row g-3">
-            <div class="scan-field col-12 col-lg-4">
+            <div class="scan-field col-12 col-lg-6">
                 <label class="form-label" for="{{ contact_form.business_type.id_for_label }}">
                     {{ contact_form.business_type.label }} *
                 </label>
                 {{ contact_form.business_type }}
                 {{ contact_form.business_type.errors }}
             </div>
-            <div class="scan-field col-12 col-lg-4" data-contact-entity-wrapper="1">
+            <div class="scan-field col-12 col-lg-6" data-contact-entity-wrapper="1">
                 <label class="form-label" for="{{ contact_form.entity_type.id_for_label }}">
                     {{ contact_form.entity_type.label }}
                     <span class="text-danger"
@@ -36,12 +36,9 @@
                 {{ contact_form.entity_type }}
                 {{ contact_form.entity_type.errors }}
             </div>
-            <div class="scan-field col-12 col-lg-4 d-flex align-items-end">
-                {% ui_switch field=contact_form.is_active wide=True %}
-            </div>
         </div>
     </div>
-    <div class="col-12">
+    <div class="col-12" data-contact-stage="details">
         <div class="row g-3">
             <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="organization"
@@ -162,7 +159,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12">
+    <div class="col-12" data-contact-stage="details">
         <div class="row g-3">
             <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="registry"
@@ -196,7 +193,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12">
+    <div class="col-12" data-contact-stage="details">
         <div class="row g-3">
             <div class="scan-field col-12 col-lg-6">
                 <label class="form-label" for="{{ contact_form.address_line1.id_for_label }}">
@@ -249,7 +246,7 @@
             </div>
         </div>
     </div>
-    <div class="col-12">
+    <div class="col-12" data-contact-stage="details">
         <div class="row g-3">
             <div class="scan-field col-12 col-lg-4"
                  data-contact-field-group="shipment-destination"
@@ -282,7 +279,14 @@
             </div>
         </div>
     </div>
-    <div class="scan-field col-12">
+    <div class="col-12" data-contact-stage="details">
+        <div class="row g-3">
+            <div class="scan-field col-12 col-lg-4 d-flex align-items-end">
+                {% ui_switch field=contact_form.is_active wide=True %}
+            </div>
+        </div>
+    </div>
+    <div class="scan-field col-12" data-contact-stage="details">
         <label class="form-label" for="{{ contact_form.notes.id_for_label }}">
             {{ contact_form.notes.label }}
         </label>
@@ -290,7 +294,7 @@
         {{ contact_form.notes.errors }}
     </div>
     {% if contact_form_mode == "edit" and editing_structure_contact %}
-        <div class="col-12">
+        <div class="col-12" data-contact-stage="details">
             <div class="ui-comp-panel border rounded-3 p-3">
                 <h4 class="h6 mb-2">{% trans "Documents de structure" %}</h4>
                 <p class="scan-help mb-3">{{ editing_structure_contact.name }}</p>
@@ -341,7 +345,7 @@
         </div>
     {% endif %}
     {% if contact_duplicate_candidates %}
-        <div class="col-12">
+        <div class="col-12" data-contact-stage="details">
             <div class="ui-comp-panel border rounded-3 p-3">
                 <h4 class="h6 mb-2">{% trans "Doublons probables" %}</h4>
                 <p class="scan-help mb-3">
@@ -408,7 +412,7 @@
             </div>
         </div>
     {% endif %}
-    <div class="col-12 d-flex flex-wrap gap-2">
+    <div class="col-12 d-flex flex-wrap gap-2" data-contact-stage="details">
         <button type="submit" class="btn btn-primary">
             {% if contact_form_mode == "edit" %}
                 {% if editing_contact_requires_recipient_validation %}

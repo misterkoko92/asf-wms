@@ -38,13 +38,45 @@
             </dd>
             <dt class="col-sm-4">Documents</dt>
             <dd class="col-sm-8">
-              <ul class="mb-0 ps-3">
-                {% for document in editing_structure_documents %}
-                  <li>{{ document.get_doc_type_display }} - {{ document.get_status_display }}</li>
-                {% empty %}
-                  <li>Aucun document</li>
-                {% endfor %}
-              </ul>
+              <div class="scan-table-wrap table-responsive">
+                <table class="scan-table table table-sm table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Statut</th>
+                      <th>Fichier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for document in editing_structure_documents %}
+                      <tr>
+                        <td>{{ document.get_doc_type_display }}</td>
+                        <td>{{ document.get_status_display }}</td>
+                        <td>
+                          {% if document.file and document.scan_status == "clean" %}
+                            <a class="scan-scan-btn btn btn-tertiary btn-sm"
+                               href="{{ document.file.url }}"
+                               target="_blank"
+                               rel="noopener">{{ document.file.name }}</a>
+                          {% elif document.scan_status == "infected" %}
+                            <span class="scan-help">Bloqué (fichier suspect).</span>
+                          {% elif document.scan_status == "error" %}
+                            <span class="scan-help">Fichier indisponible (scan en erreur).</span>
+                          {% elif document.file %}
+                            <span class="scan-help">Quarantaine (scan antivirus en cours).</span>
+                          {% else %}
+                            -
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% empty %}
+                      <tr>
+                        <td colspan="3">Aucun document</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
             </dd>
           </dl>
         </div>
@@ -54,6 +86,16 @@
       <section class="scan-card card border-0 ui-comp-card">
         <div class="ui-comp-panel">
           <h2 class="ui-comp-title h5 mb-3">Décision ASF</h2>
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-lg-4">
+              <h3 class="ui-comp-title h6 mb-2">Qualification opérateur</h3>
+            </div>
+            <div class="col-12 col-lg-8">
+              <div class="alert alert-warning mb-0">
+                Corrigez le type final si la demande a été créée avec le mauvais profil, puis complétez les champs nécessaires avant validation.
+              </div>
+            </div>
+          </div>
           <p class="scan-help mb-3">Corrigez les données métier nécessaires puis validez le destinataire depuis ce dossier dédié.</p>
           {% include "scan/includes/admin_contacts_contact_form.html" %}
         </div>

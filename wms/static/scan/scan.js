@@ -3605,7 +3605,9 @@
       'first_name',
       'last_name',
       'destination_id',
-      'allowed_shipper_ids'
+      'allowed_shipper_ids',
+      'legal_form',
+      'beneficiary_count'
     ];
 
     const setSectionFieldsDisabled = (section, shouldHide) => {
@@ -3634,12 +3636,27 @@
       }
       const businessType = businessField.value || '';
       const entityType = resolveContactEntityType(businessType);
+      const detailsReady = Boolean(businessType) && Boolean(entityType);
 
-      if (entityWrapper) {
-        entityWrapper.hidden = Boolean(lockedEntityTypes[businessType]);
-      }
       if (entityField) {
-        entityField.disabled = Boolean(entityWrapper && entityWrapper.hidden);
+        entityField.disabled = Boolean(lockedEntityTypes[businessType]);
+      }
+      if (entityWrapper) {
+        entityWrapper.hidden = false;
+      }
+
+      contactForm.querySelectorAll('[data-contact-stage="details"]').forEach(section => {
+        section.hidden = !detailsReady;
+        setSectionFieldsDisabled(section, !detailsReady);
+      });
+
+      if (!detailsReady) {
+        syncManagedRequiredState(new Set());
+        contactForm.querySelectorAll('[data-required-marker]').forEach(marker => {
+          marker.hidden = marker.dataset.requiredMarker !== 'entity_type';
+        });
+        toggleDuplicateTargetGroups(contactForm);
+        return;
       }
 
       contactForm
