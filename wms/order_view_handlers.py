@@ -35,7 +35,7 @@ def handle_orders_view_action(request, *, orders_qs):
         if order.review_status != OrderReviewStatus.APPROVED:
             messages.error(request, "Commande non validée.")
             return redirect("scan:scan_orders_view")
-        shipment = create_shipment_for_order(order=order)
+        shipment = create_shipment_for_order(order=order, force_new=True)
         attach_order_documents_to_shipment(order, shipment)
         return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 

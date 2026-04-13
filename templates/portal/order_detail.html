@@ -103,21 +103,17 @@
         <p>{% trans "Aucun document pour le moment." %}</p>
       {% endif %}
 
-      {% if can_upload_docs %}
-        <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="upload_docs">
-          {% for value, label in order_doc_types %}
-            <div class="portal-doc-upload-row">
-              <label class="form-label" for="id_doc_{{ value }}">{{ label }}</label>
-              {% ui_file_input name="doc_file_"|add:value field_id="id_doc_"|add:value %}
-            </div>
-          {% endfor %}
-          <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter les documents" %}</button>
-        </form>
-      {% else %}
-        <p class="scan-help">{% trans "Les documents sont disponibles après validation ASF." %}</p>
-      {% endif %}
+      <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="upload_docs">
+        {% for value, label in order_doc_types %}
+          <div class="portal-doc-upload-row">
+            <label class="form-label" for="id_doc_{{ value }}">{{ label }}</label>
+            {% ui_file_input name="doc_file_"|add:value field_id="id_doc_"|add:value %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter les documents" %}</button>
+      </form>
     </div>
   </div>
 {% endblock %}

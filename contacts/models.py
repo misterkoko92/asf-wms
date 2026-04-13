@@ -55,6 +55,7 @@ class Contact(models.Model):
         blank=True,
     )
     beneficiary_count = models.PositiveIntegerField(null=True, blank=True)
+    is_humanitarian_attestation_exempt = models.BooleanField(default=False)
     asf_id = models.CharField(max_length=20, blank=True, null=True, unique=True)
     use_organization_address = models.BooleanField(default=False)
     notes = models.TextField(blank=True)

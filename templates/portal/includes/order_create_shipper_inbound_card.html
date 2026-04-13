@@ -1,0 +1,172 @@
+{% load i18n %}
+<div id="portal-order-create-shipper-inbound-card" class="scan-card portal-card card border-0 ui-comp-card">
+  <div class="scan-field">
+    <div class="form-check">
+      <input
+        class="form-check-input"
+        type="checkbox"
+        id="has_shipper_inbound"
+        name="has_shipper_inbound"
+        value="1"
+        {% if form_data.has_shipper_inbound %}checked{% endif %}
+      >
+      <label class="form-check-label" for="has_shipper_inbound">
+        {% trans "La structure prépare ses propres colis" %}
+      </label>
+    </div>
+  </div>
+
+  <div class="scan-field">
+    <label class="form-label" for="arrival_mode">{% trans "Mode d'arrivée" %}</label>
+    <select class="form-select ui-select--lg" id="arrival_mode" name="arrival_mode">
+      <option value="">---------</option>
+      <option value="dropoff_warehouse" {% if form_data.arrival_mode == "dropoff_warehouse" %}selected{% endif %}>
+        {% trans "Dépôt à l'entrepôt" %}
+      </option>
+      <option value="pickup_requested" {% if form_data.arrival_mode == "pickup_requested" %}selected{% endif %}>
+        {% trans "Enlèvement demandé" %}
+      </option>
+    </select>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label" for="declared_carton_count">{% trans "Nombre de colis" %}</label>
+      <input class="form-control" id="declared_carton_count" name="declared_carton_count" type="number" min="0" value="{{ form_data.declared_carton_count }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="declared_out_of_format_count">{% trans "Nombre de hors format" %}</label>
+      <input class="form-control" id="declared_out_of_format_count" name="declared_out_of_format_count" type="number" min="0" value="{{ form_data.declared_out_of_format_count }}">
+    </div>
+  </div>
+
+  <div class="scan-divider"></div>
+
+  <h3 class="portal-section-title ui-comp-title">{% trans "Enlèvement" %}</h3>
+  <p class="scan-help">
+    - Vos colis doivent être mis sur une palette filmée, dans le but de garantir de bonnes conditions de transport.<br>
+    - Les palettes doivent être facilement accessibles par le transporteur (pas de sous sol, pas de port de charge...).<br>
+    - Nous transmettons les informations de contacts, horaires et dates mais elles ne sont pas toujours prises en compte. Dans la mesure du possible, restez disponible dans 2 à 4 jours suivant la confirmation de prise en compte de votre demande.
+  </p>
+
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label" for="pickup_address_book_entry_id">{% trans "Adresse d'enlèvement enregistrée" %}</label>
+      <select
+        class="form-select ui-select--lg"
+        id="pickup_address_book_entry_id"
+        name="pickup_address_book_entry_id"
+      >
+        <option value="">{% trans "Nouvelle adresse / saisie manuelle" %}</option>
+        {% for option in pickup_address_options %}
+          <option value="{{ option.id }}" {% if form_data.pickup_address_book_entry_id == option.id %}selected{% endif %}>
+            {{ option.label }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if pickup_address_options %}
+        <div class="scan-help">{% trans "Les adresses les plus récentes apparaissent en premier." %}</div>
+      {% endif %}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_company_name">{% trans "Entreprise (si disponible)" %}</label>
+      <input class="form-control" id="pickup_company_name" name="pickup_company_name" value="{{ form_data.pickup_company_name }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_contact_name">{% trans "Contact" %}</label>
+      <input class="form-control" id="pickup_contact_name" name="pickup_contact_name" value="{{ form_data.pickup_contact_name }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_contact_phone">{% trans "Téléphone principal" %}</label>
+      <input class="form-control" id="pickup_contact_phone" name="pickup_contact_phone" value="{{ form_data.pickup_contact_phone }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_contact_phone_2">{% trans "Téléphone secondaire" %}</label>
+      <input class="form-control" id="pickup_contact_phone_2" name="pickup_contact_phone_2" value="{{ form_data.pickup_contact_phone_2 }}">
+    </div>
+    <div class="col-md-8">
+      <label class="form-label" for="pickup_address_line1">{% trans "Adresse" %}</label>
+      <input class="form-control" id="pickup_address_line1" name="pickup_address_line1" value="{{ form_data.pickup_address_line1 }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="pickup_address_line2">{% trans "Complément" %}</label>
+      <input class="form-control" id="pickup_address_line2" name="pickup_address_line2" value="{{ form_data.pickup_address_line2 }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="pickup_postal_code">{% trans "Code postal" %}</label>
+      <input class="form-control" id="pickup_postal_code" name="pickup_postal_code" value="{{ form_data.pickup_postal_code }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="pickup_city">{% trans "Ville" %}</label>
+      <input class="form-control" id="pickup_city" name="pickup_city" value="{{ form_data.pickup_city }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="pickup_country">{% trans "Pays" %}</label>
+      <input class="form-control" id="pickup_country" name="pickup_country" value="{{ form_data.pickup_country }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_available_from_date">{% trans "Date de mise à disposition des palettes" %}</label>
+      <input class="form-control" id="pickup_available_from_date" name="pickup_available_from_date" type="date" value="{{ form_data.pickup_available_from_date }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_requested_for_date">{% trans "Date d'enlèvement souhaitée (non garantie)" %}</label>
+      <input class="form-control" id="pickup_requested_for_date" name="pickup_requested_for_date" type="date" value="{{ form_data.pickup_requested_for_date }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_opening_slot_1_start">{% trans "Ouverture matin" %}</label>
+      <input class="form-control" id="pickup_opening_slot_1_start" name="pickup_opening_slot_1_start" type="time" value="{{ form_data.pickup_opening_slot_1_start }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_opening_slot_1_end">{% trans "Fermeture matin" %}</label>
+      <input class="form-control" id="pickup_opening_slot_1_end" name="pickup_opening_slot_1_end" type="time" value="{{ form_data.pickup_opening_slot_1_end }}">
+    </div>
+  </div>
+
+  <div class="scan-field mt-3">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="pickup_has_midday_break" name="pickup_has_midday_break" value="1" {% if form_data.pickup_has_midday_break %}checked{% endif %}>
+      <label class="form-check-label" for="pickup_has_midday_break">{% trans "Interruption en journée" %}</label>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_opening_slot_2_start">{% trans "Ouverture après-midi" %}</label>
+      <input class="form-control" id="pickup_opening_slot_2_start" name="pickup_opening_slot_2_start" type="time" value="{{ form_data.pickup_opening_slot_2_start }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="pickup_opening_slot_2_end">{% trans "Fermeture après-midi" %}</label>
+      <input class="form-control" id="pickup_opening_slot_2_end" name="pickup_opening_slot_2_end" type="time" value="{{ form_data.pickup_opening_slot_2_end }}">
+    </div>
+  </div>
+
+  <div class="scan-field mt-3">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="pickup_has_no_access_constraints" name="pickup_has_no_access_constraints" value="1" {% if form_data.pickup_has_no_access_constraints %}checked{% endif %}>
+      <label class="form-check-label" for="pickup_has_no_access_constraints">{% trans "Aucune contrainte d'accès" %}</label>
+    </div>
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="pickup_access_constraints_details">{% trans "Contraintes d'accès" %}</label>
+    <textarea class="form-control" id="pickup_access_constraints_details" name="pickup_access_constraints_details" rows="2">{{ form_data.pickup_access_constraints_details }}</textarea>
+  </div>
+
+  <div class="scan-field">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="save_pickup_address" name="save_pickup_address" value="1" {% if form_data.save_pickup_address %}checked{% endif %}>
+      <label class="form-check-label" for="save_pickup_address">{% trans "Enregistrer cette adresse pour les prochains enlèvements" %}</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="tail_lift_required" name="tail_lift_required" value="1" {% if form_data.tail_lift_required %}checked{% endif %}>
+      <label class="form-check-label" for="tail_lift_required">{% trans "Camion avec hayon nécessaire" %}</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="pallet_truck_required" name="pallet_truck_required" value="1" {% if form_data.pallet_truck_required %}checked{% endif %}>
+      <label class="form-check-label" for="pallet_truck_required">{% trans "Transpalette nécessaire" %}</label>
+    </div>
+    <div class="form-check mt-2">
+      <input class="form-check-input" type="checkbox" id="pickup_information_confirmed" name="pickup_information_confirmed" value="1" {% if form_data.pickup_information_confirmed %}checked{% endif %}>
+      <label class="form-check-label" for="pickup_information_confirmed">{% trans "Je confirme avoir toutes les informations nécessaires à l'enlèvement." %}</label>
+    </div>
+  </div>
+</div>

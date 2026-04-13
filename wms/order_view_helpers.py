@@ -15,7 +15,6 @@ def _order_reference_label(order):
 
 def _order_next_action_payload(order):
     review_status = getattr(order, "review_status", "") or ""
-    shipment = getattr(order, "shipment", None)
 
     if review_status == OrderReviewStatus.PENDING:
         return {
@@ -29,9 +28,9 @@ def _order_next_action_payload(order):
             "tone": "warning",
             "can_create_shipment": False,
         }
-    if review_status == OrderReviewStatus.APPROVED and shipment is None:
+    if review_status == OrderReviewStatus.APPROVED:
         return {
-            "label": "Créer l'expédition",
+            "label": "Créer une expédition",
             "tone": "ready",
             "can_create_shipment": True,
         }
@@ -52,6 +51,8 @@ def build_orders_view_rows(orders_qs):
     wanted_docs = {
         OrderDocumentType.DONATION_ATTESTATION,
         OrderDocumentType.HUMANITARIAN_ATTESTATION,
+        OrderDocumentType.PACKING_LIST_GLOBAL,
+        OrderDocumentType.PACKING_LIST_BY_CARTON,
     }
     rows = []
     for order in orders_qs:

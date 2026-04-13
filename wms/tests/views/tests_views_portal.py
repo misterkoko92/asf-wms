@@ -2048,9 +2048,15 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
         order.refresh_from_db()
         self.assertIsNotNone(order.shipment_id)
+        created_shipment_link = order.shipment_links.order_by("-id").first()
+        self.assertIsNotNone(created_shipment_link)
+        self.assertEqual(order.shipment_links.count(), 2)
         self.assertEqual(
             create_response.url,
-            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": order.shipment_id}),
+            reverse(
+                "scan:scan_shipment_edit",
+                kwargs={"shipment_id": created_shipment_link.shipment_id},
+            ),
         )
 
         shipment_response = self.client.get(create_response.url)

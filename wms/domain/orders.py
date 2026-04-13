@@ -13,6 +13,7 @@ from ..models import (
     Order,
     OrderLine,
     OrderReservation,
+    OrderShipmentLink,
     OrderStatus,
     Shipment,
     ShipmentStatus,
@@ -214,18 +215,29 @@ def _sync_existing_shipment_from_order(shipment: Shipment, *, defaults):
         shipment.save(update_fields=sorted(set(update_fields)))
 
 
-def create_shipment_for_order(*, order: Order):
+def create_shipment_for_order(*, order: Order, force_new: bool = False):
     defaults = _build_shipment_defaults_from_order(order)
-    if order.shipment_id:
+    if order.shipment_id and not force_new:
         shipment = order.shipment
         _sync_existing_shipment_from_order(shipment, defaults=defaults)
+        OrderShipmentLink.objects.get_or_create(
+            order=order,
+            shipment=shipment,
+            defaults={"created_by": order.created_by},
+        )
         return shipment
     shipment = Shipment.objects.create(
         status=ShipmentStatus.DRAFT,
         **defaults,
     )
-    order.shipment = shipment
-    order.save(update_fields=["shipment"])
+    OrderShipmentLink.objects.get_or_create(
+        order=order,
+        shipment=shipment,
+        defaults={"created_by": order.created_by},
+    )
+    if not order.shipment_id:
+        order.shipment = shipment
+        order.save(update_fields=["shipment"])
     return shipment
 
 

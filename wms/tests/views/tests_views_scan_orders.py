@@ -5,7 +5,8 @@ from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 
-from wms.models import OrderReviewStatus
+from wms.models import Order, OrderReviewStatus, Shipment, ShipmentStatus
+from wms.order_view_helpers import build_orders_view_rows
 
 
 class ScanOrdersViewsTests(TestCase):
@@ -206,3 +207,73 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/orders_view.html")
         self.assertEqual(response.context_data["orders"], [{"id": 2, "reference": "ORD-2"}])
+
+    def test_build_orders_view_rows_allows_creating_additional_shipments_for_approved_order(self):
+        shipment = Shipment.objects.create(
+            reference="EXP-ORDERS-001",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+        order = Order.objects.create(
+            association_contact=None,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            review_status=OrderReviewStatus.APPROVED,
+            shipment=shipment,
+        )
+
+        rows = build_orders_view_rows(Order.objects.filter(id=order.id))
+
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(rows[0]["can_create_shipment"])
+
+    def test_scan_orders_view_create_shipment_uses_force_new_for_approved_order(self):
+        existing_shipment = Shipment.objects.create(
+            reference="EXP-ORDERS-EXISTING",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+        new_shipment = Shipment.objects.create(
+            reference="EXP-ORDERS-NEW",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+        order = Order.objects.create(
+            association_contact=None,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            review_status=OrderReviewStatus.APPROVED,
+            shipment=existing_shipment,
+        )
+
+        with (
+            mock.patch(
+                "wms.order_view_handlers.create_shipment_for_order",
+                return_value=new_shipment,
+            ) as create_shipment_mock,
+            mock.patch("wms.order_view_handlers.attach_order_documents_to_shipment") as attach_mock,
+        ):
+            response = self.client.post(
+                reverse("scan:scan_orders_view"),
+                {
+                    "action": "create_shipment",
+                    "order_id": str(order.id),
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        create_shipment_mock.assert_called_once_with(order=order, force_new=True)
+        attach_mock.assert_called_once_with(order, new_shipment)

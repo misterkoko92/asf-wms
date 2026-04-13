@@ -9,6 +9,7 @@
   <form method="post" novalidate class="ui-comp-form" id="portal-order-create-form">
     {% csrf_token %}
     {% include "portal/includes/order_create_routing_card.html" %}
+    {% include "portal/includes/order_create_shipper_inbound_card.html" %}
     {% include "portal/includes/order_create_ready_cartons_card.html" %}
     {% include "portal/includes/order_create_ready_kits_card.html" %}
     {% include "portal/includes/order_create_unit_products_card.html" %}
@@ -19,6 +20,7 @@
   {{ category_paths_by_row|json_script:"portal-category-paths-by-row" }}
   {{ category_labels_by_id|json_script:"portal-category-labels-by-id" }}
   {{ category_filter_max_depth|json_script:"portal-category-filter-max-depth" }}
+  {{ pickup_address_options|json_script:"portal-pickup-address-options" }}
   {% if carton_format %}
     {{ carton_format|json_script:"portal-carton-data" }}
   {% endif %}
@@ -93,6 +95,67 @@
       if (destinationSelect && recipientSelect) {
         destinationSelect.addEventListener('change', renderRecipientOptions);
         renderRecipientOptions();
+      }
+
+      const pickupAddressOptionsEl = document.getElementById('portal-pickup-address-options');
+      const pickupAddressSelect = document.getElementById('pickup_address_book_entry_id');
+      let pickupAddressOptions = [];
+      try {
+        pickupAddressOptions = JSON.parse(
+          pickupAddressOptionsEl ? pickupAddressOptionsEl.textContent || '[]' : '[]'
+        );
+      } catch (err) {
+        pickupAddressOptions = [];
+      }
+
+      const fillPickupField = (fieldId, value) => {
+        const field = document.getElementById(fieldId);
+        if (!field || value === undefined || value === null) {
+          return;
+        }
+        if (field.type === 'checkbox') {
+          field.checked = !!value;
+          return;
+        }
+        field.value = value;
+      };
+
+      const applyPickupAddressEntry = entryId => {
+        const entry = pickupAddressOptions.find(option => String(option.id) === String(entryId));
+        if (!entry) {
+          return;
+        }
+        [
+          'pickup_company_name',
+          'pickup_contact_name',
+          'pickup_contact_phone',
+          'pickup_contact_phone_2',
+          'pickup_address_line1',
+          'pickup_address_line2',
+          'pickup_postal_code',
+          'pickup_city',
+          'pickup_country',
+          'pickup_opening_slot_1_start',
+          'pickup_opening_slot_1_end',
+          'pickup_opening_slot_2_start',
+          'pickup_opening_slot_2_end',
+          'pickup_access_constraints_details'
+        ].forEach(fieldId => fillPickupField(fieldId, entry[fieldId]));
+        [
+          'pickup_has_midday_break',
+          'pickup_has_no_access_constraints',
+          'tail_lift_required',
+          'pallet_truck_required'
+        ].forEach(fieldId => fillPickupField(fieldId, entry[fieldId]));
+      };
+
+      if (pickupAddressSelect) {
+        pickupAddressSelect.addEventListener('change', event => {
+          if (!event.target.value) {
+            return;
+          }
+          applyPickupAddressEntry(event.target.value);
+        });
       }
 
       const cartonDataEl = document.getElementById('portal-carton-data');

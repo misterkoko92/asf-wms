@@ -392,6 +392,9 @@ Current contract:
   movement instead of replacing existing stock quantities on the matched product
 - `/scan/receive-association/` reuses `pickup_charge_comment` as the operator observation field
 - when the operator marks a reception non-conform, the observation field becomes mandatory in both forms
+- `/scan/receive-association/` may optionally attach the reception to an order inbound delivery; in
+  that case the handler must also create one real `Carton` per declared carton with
+  `source_kind=shipper_received` and `source_receipt=<receipt>`
 
 Maintenance rule:
 
@@ -888,6 +891,14 @@ Current contract:
 - the explicit helper pair is `shipment_can_be_confirmed_ready(shipment)` and `confirm_shipment_ready(shipment, user)`
 - this action is for dossier-level confirmation after physical preparation, especially for shipments created by warehouse proposal conversion
 - confirmation is only valid while the shipment remains editable and every carton is already in `ASSIGNED` or `LABELED`
+- when a shipment is linked to an order, clean order-level attestations are part of the readiness
+  gate: donation is always required, and humanitarian attestation is required unless the linked
+  shipper / association contact is marked exempt
+- when a shipment contains any `Carton` with `source_kind=shipper_received`, readiness also requires
+  a linked and conform inbound association receipt plus clean order-level `packing_list_global` and
+  `packing_list_by_carton` documents
+- order linkage for readiness checks must resolve through `OrderShipmentLink`; `order.shipment`
+  remains only a compatibility pointer for older single-shipment surfaces
 - confirmation relabels remaining `ASSIGNED` cartons to `LABELED`, then sets the shipment to `ShipmentStatus.PACKED` and stamps `ready_at`
 - the dossier action is explicit in `scan/shipment/<id>/edit/`; it must not be folded into generic shipment edit POST handling or preparation-run review actions
 - planning-vols eligibility stays restricted to `ShipmentStatus.PACKED` and `ShipmentStatus.PLANNED`; `ShipmentStatus.PICKING` stays excluded even if its `ready_at` window would otherwise match

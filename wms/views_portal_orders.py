@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.dateparse import parse_date, parse_time
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
@@ -16,12 +17,14 @@ from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
 from .document_uploads import validate_document_upload
 from .models import (
+    AssociationPickupAddress,
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
     Order,
     OrderDocument,
     OrderDocumentType,
+    OrderInboundArrivalMode,
     OrderReviewStatus,
     PortalAccessRole,
     ProductCategory,
@@ -76,8 +79,25 @@ ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION = _(
 ERROR_PRODUCT_REQUIRED = _("Ajoutez au moins un produit.")
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse association manquante.")
 ERROR_RECIPIENT_INVALID = _("Destinataire invalide.")
-ERROR_ORDER_UPLOAD_NOT_APPROVED = _("Documents disponibles après validation de la commande.")
 ERROR_ORDER_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
+ERROR_INBOUND_CARTON_COUNT_REQUIRED = _("Nombre de colis expéditeur requis.")
+ERROR_INBOUND_OUT_OF_FORMAT_INVALID = _("Nombre de hors format invalide.")
+ERROR_INBOUND_ARRIVAL_MODE_REQUIRED = _("Mode d'arrivée des colis expéditeur requis.")
+ERROR_PICKUP_PHONE_REQUIRED = _("Au moins un numéro de téléphone est requis pour l'enlèvement.")
+ERROR_PICKUP_CONTACT_REQUIRED = _("Contact d'enlèvement requis.")
+ERROR_PICKUP_ADDRESS_REQUIRED = _("Adresse d'enlèvement requise.")
+ERROR_PICKUP_POSTAL_CODE_REQUIRED = _("Code postal d'enlèvement requis.")
+ERROR_PICKUP_CITY_REQUIRED = _("Ville d'enlèvement requise.")
+ERROR_PICKUP_COUNTRY_REQUIRED = _("Pays d'enlèvement requis.")
+ERROR_PICKUP_AVAILABLE_FROM_REQUIRED = _("Date de mise à disposition des palettes requise.")
+ERROR_PICKUP_SLOT_1_REQUIRED = _("Premier créneau d'ouverture requis.")
+ERROR_PICKUP_SLOT_2_REQUIRED = _("Deuxième créneau d'ouverture requis si interruption en journée.")
+ERROR_PICKUP_ACCESS_CONSTRAINTS_REQUIRED = _(
+    "Renseignez une contrainte d'accès ou cochez Aucune contrainte d'accès."
+)
+ERROR_PICKUP_CONFIRMATION_REQUIRED = _(
+    "Confirmez avoir toutes les informations nécessaires à l'enlèvement."
+)
 
 MESSAGE_ORDER_SENT = _("Order sent.")
 MESSAGE_ORDER_DOCUMENT_ADDED = _("Document ajouté.")
@@ -239,7 +259,255 @@ def _available_destination_ids(allowed_destination_ids_by_recipient):
 
 
 def _build_order_create_defaults():
-    return {"destination_id": "", "recipient_id": "", "notes": ""}
+    return {
+        "destination_id": "",
+        "recipient_id": "",
+        "notes": "",
+        "has_shipper_inbound": False,
+        "arrival_mode": "",
+        "declared_carton_count": "",
+        "declared_out_of_format_count": "0",
+        "pickup_address_book_entry_id": "",
+        "save_pickup_address": False,
+        "pickup_company_name": "",
+        "pickup_contact_name": "",
+        "pickup_contact_phone": "",
+        "pickup_contact_phone_2": "",
+        "pickup_address_line1": "",
+        "pickup_address_line2": "",
+        "pickup_postal_code": "",
+        "pickup_city": "",
+        "pickup_country": DEFAULT_COUNTRY,
+        "pickup_available_from_date": "",
+        "pickup_requested_for_date": "",
+        "pickup_opening_slot_1_start": "",
+        "pickup_opening_slot_1_end": "",
+        "pickup_has_midday_break": False,
+        "pickup_opening_slot_2_start": "",
+        "pickup_opening_slot_2_end": "",
+        "pickup_has_no_access_constraints": False,
+        "pickup_access_constraints_details": "",
+        "tail_lift_required": True,
+        "pallet_truck_required": True,
+        "pickup_information_confirmed": False,
+    }
+
+
+def _is_checked(raw_value):
+    return str(raw_value or "").strip().lower() in {"1", "true", "on", "yes"}
+
+
+def _normalize_form_bool(form_data, key, raw_value):
+    form_data[key] = _is_checked(raw_value)
+    return form_data[key]
+
+
+def _format_optional_time(value):
+    if value is None:
+        return ""
+    return value.strftime("%H:%M")
+
+
+def _build_pickup_address_option(entry):
+    label_parts = [
+        entry.label,
+        entry.pickup_company_name,
+        entry.pickup_address_line1,
+        entry.pickup_city,
+    ]
+    label = " - ".join(part.strip() for part in label_parts if (part or "").strip())
+    if not label:
+        label = f"Adresse enlèvement #{entry.id}"
+    return {
+        "id": str(entry.id),
+        "label": label,
+        "pickup_company_name": entry.pickup_company_name or "",
+        "pickup_contact_name": entry.pickup_contact_name or "",
+        "pickup_contact_phone": entry.pickup_contact_phone or "",
+        "pickup_contact_phone_2": entry.pickup_contact_phone_2 or "",
+        "pickup_address_line1": entry.pickup_address_line1 or "",
+        "pickup_address_line2": entry.pickup_address_line2 or "",
+        "pickup_postal_code": entry.pickup_postal_code or "",
+        "pickup_city": entry.pickup_city or "",
+        "pickup_country": entry.pickup_country or DEFAULT_COUNTRY,
+        "pickup_opening_slot_1_start": _format_optional_time(entry.pickup_opening_slot_1_start),
+        "pickup_opening_slot_1_end": _format_optional_time(entry.pickup_opening_slot_1_end),
+        "pickup_has_midday_break": bool(entry.pickup_has_midday_break),
+        "pickup_opening_slot_2_start": _format_optional_time(entry.pickup_opening_slot_2_start),
+        "pickup_opening_slot_2_end": _format_optional_time(entry.pickup_opening_slot_2_end),
+        "pickup_has_no_access_constraints": bool(entry.pickup_has_no_access_constraints),
+        "pickup_access_constraints_details": entry.pickup_access_constraints_details or "",
+        "tail_lift_required": bool(entry.tail_lift_required),
+        "pallet_truck_required": bool(entry.pallet_truck_required),
+    }
+
+
+def _build_pickup_address_options(profile):
+    entries = AssociationPickupAddress.objects.filter(association_contact=profile.contact).order_by(
+        "-is_default",
+        "-last_used_at",
+        "-times_used",
+        "label",
+        "id",
+    )
+    return [_build_pickup_address_option(entry) for entry in entries]
+
+
+def _resolve_pickup_address_entry(profile, raw_entry_id):
+    entry_id = parse_int_safe(raw_entry_id)
+    if not entry_id:
+        return None
+    return AssociationPickupAddress.objects.filter(
+        id=entry_id,
+        association_contact=profile.contact,
+    ).first()
+
+
+def _apply_pickup_address_entry_to_form_data(form_data, *, entry, post_data):
+    if entry is None:
+        return
+
+    for field_name in (
+        "pickup_company_name",
+        "pickup_contact_name",
+        "pickup_contact_phone",
+        "pickup_contact_phone_2",
+        "pickup_address_line1",
+        "pickup_address_line2",
+        "pickup_postal_code",
+        "pickup_city",
+        "pickup_country",
+        "pickup_opening_slot_1_start",
+        "pickup_opening_slot_1_end",
+        "pickup_opening_slot_2_start",
+        "pickup_opening_slot_2_end",
+        "pickup_access_constraints_details",
+    ):
+        if form_data.get(field_name):
+            continue
+        value = _build_pickup_address_option(entry).get(field_name)
+        if value is not None:
+            form_data[field_name] = value
+
+    for field_name in (
+        "pickup_has_midday_break",
+        "pickup_has_no_access_constraints",
+        "tail_lift_required",
+        "pallet_truck_required",
+    ):
+        if field_name in post_data:
+            continue
+        form_data[field_name] = getattr(entry, field_name)
+
+
+def _validate_shipper_inbound(form_data, errors):
+    if not form_data["has_shipper_inbound"]:
+        return None
+
+    carton_count = parse_int_safe(form_data["declared_carton_count"])
+    if carton_count is None or carton_count <= 0:
+        errors.append(ERROR_INBOUND_CARTON_COUNT_REQUIRED)
+        carton_count = None
+
+    out_of_format_count = parse_int_safe(form_data["declared_out_of_format_count"])
+    if out_of_format_count is None or out_of_format_count < 0:
+        errors.append(ERROR_INBOUND_OUT_OF_FORMAT_INVALID)
+        out_of_format_count = 0
+
+    arrival_mode = (form_data["arrival_mode"] or "").strip()
+    allowed_modes = {choice[0] for choice in OrderInboundArrivalMode.choices}
+    if arrival_mode not in allowed_modes:
+        errors.append(ERROR_INBOUND_ARRIVAL_MODE_REQUIRED)
+
+    payload = {
+        "arrival_mode": arrival_mode,
+        "declared_carton_count": carton_count or 0,
+        "declared_out_of_format_count": out_of_format_count or 0,
+        "pickup_address_book_entry": form_data.get("pickup_address_book_entry"),
+        "save_pickup_address": bool(form_data.get("save_pickup_address")),
+        "notes": "",
+    }
+
+    if arrival_mode != OrderInboundArrivalMode.PICKUP_REQUESTED:
+        return payload
+
+    if not form_data["pickup_contact_name"].strip():
+        errors.append(ERROR_PICKUP_CONTACT_REQUIRED)
+    if not (
+        form_data["pickup_contact_phone"].strip() or form_data["pickup_contact_phone_2"].strip()
+    ):
+        errors.append(ERROR_PICKUP_PHONE_REQUIRED)
+    if not form_data["pickup_address_line1"].strip():
+        errors.append(ERROR_PICKUP_ADDRESS_REQUIRED)
+    if not form_data["pickup_postal_code"].strip():
+        errors.append(ERROR_PICKUP_POSTAL_CODE_REQUIRED)
+    if not form_data["pickup_city"].strip():
+        errors.append(ERROR_PICKUP_CITY_REQUIRED)
+    if not form_data["pickup_country"].strip():
+        errors.append(ERROR_PICKUP_COUNTRY_REQUIRED)
+
+    pickup_available_from_date = None
+    if not form_data["pickup_available_from_date"].strip():
+        errors.append(ERROR_PICKUP_AVAILABLE_FROM_REQUIRED)
+    else:
+        pickup_available_from_date = parse_date(form_data["pickup_available_from_date"])
+        if pickup_available_from_date is None:
+            errors.append(ERROR_PICKUP_AVAILABLE_FROM_REQUIRED)
+
+    pickup_requested_for_date = None
+    if form_data["pickup_requested_for_date"].strip():
+        pickup_requested_for_date = parse_date(form_data["pickup_requested_for_date"])
+
+    pickup_slot_1_start = parse_time(form_data["pickup_opening_slot_1_start"])
+    pickup_slot_1_end = parse_time(form_data["pickup_opening_slot_1_end"])
+    if pickup_slot_1_start is None or pickup_slot_1_end is None:
+        errors.append(ERROR_PICKUP_SLOT_1_REQUIRED)
+
+    pickup_slot_2_start = None
+    pickup_slot_2_end = None
+    if form_data["pickup_has_midday_break"]:
+        pickup_slot_2_start = parse_time(form_data["pickup_opening_slot_2_start"])
+        pickup_slot_2_end = parse_time(form_data["pickup_opening_slot_2_end"])
+        if pickup_slot_2_start is None or pickup_slot_2_end is None:
+            errors.append(ERROR_PICKUP_SLOT_2_REQUIRED)
+
+    if (
+        not form_data["pickup_has_no_access_constraints"]
+        and not form_data["pickup_access_constraints_details"].strip()
+    ):
+        errors.append(ERROR_PICKUP_ACCESS_CONSTRAINTS_REQUIRED)
+
+    if not form_data["pickup_information_confirmed"]:
+        errors.append(ERROR_PICKUP_CONFIRMATION_REQUIRED)
+
+    payload.update(
+        {
+            "pickup_company_name": form_data["pickup_company_name"].strip(),
+            "pickup_contact_name": form_data["pickup_contact_name"].strip(),
+            "pickup_contact_phone": form_data["pickup_contact_phone"].strip(),
+            "pickup_contact_phone_2": form_data["pickup_contact_phone_2"].strip(),
+            "pickup_address_line1": form_data["pickup_address_line1"].strip(),
+            "pickup_address_line2": form_data["pickup_address_line2"].strip(),
+            "pickup_postal_code": form_data["pickup_postal_code"].strip(),
+            "pickup_city": form_data["pickup_city"].strip(),
+            "pickup_country": form_data["pickup_country"].strip() or DEFAULT_COUNTRY,
+            "pickup_available_from_date": pickup_available_from_date,
+            "pickup_requested_for_date": pickup_requested_for_date,
+            "pickup_opening_slot_1_start": pickup_slot_1_start,
+            "pickup_opening_slot_1_end": pickup_slot_1_end,
+            "pickup_has_midday_break": form_data["pickup_has_midday_break"],
+            "pickup_opening_slot_2_start": pickup_slot_2_start,
+            "pickup_opening_slot_2_end": pickup_slot_2_end,
+            "pickup_has_no_access_constraints": form_data["pickup_has_no_access_constraints"],
+            "pickup_access_constraints_details": form_data[
+                "pickup_access_constraints_details"
+            ].strip(),
+            "tail_lift_required": form_data["tail_lift_required"],
+            "pallet_truck_required": form_data["pallet_truck_required"],
+            "pickup_information_confirmed": form_data["pickup_information_confirmed"],
+        }
+    )
+    return payload
 
 
 def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_destination):
@@ -358,6 +626,7 @@ def _build_order_create_context(
     ready_carton_rows,
     ready_kit_rows,
     total_selected_ready_cartons,
+    pickup_address_options,
 ):
     carton_format = get_default_carton_format()
     carton_data = build_carton_format_data(carton_format)
@@ -430,6 +699,7 @@ def _build_order_create_context(
         "category_labels_by_id": category_labels_by_id,
         "category_filter_max_depth": category_filter_max_depth,
         "carton_format": carton_data,
+        "pickup_address_options": pickup_address_options,
     }
 
 
@@ -442,10 +712,6 @@ def _get_portal_order_or_404(profile, order_id):
 
 
 def _handle_order_document_upload(request, order):
-    if order.review_status != OrderReviewStatus.APPROVED:
-        messages.error(request, ERROR_ORDER_UPLOAD_NOT_APPROVED)
-        return redirect("portal:portal_order_detail", order_id=order.id)
-
     payload, error = validate_document_upload(
         request,
         doc_type_choices=OrderDocumentType.choices,
@@ -470,10 +736,6 @@ def _handle_order_document_upload(request, order):
 
 
 def _handle_order_document_uploads(request, order):
-    if order.review_status != OrderReviewStatus.APPROVED:
-        messages.error(request, ERROR_ORDER_UPLOAD_NOT_APPROVED)
-        return redirect("portal:portal_order_detail", order_id=order.id)
-
     created = 0
     for doc_type, _label in OrderDocumentType.choices:
         uploaded = request.FILES.get(f"doc_file_{doc_type}")
@@ -515,7 +777,7 @@ def _build_order_detail_context(order):
         "total_estimated_cartons": total_estimated_cartons,
         "order_documents": order.documents.all(),
         "order_doc_types": sorted_choices(OrderDocumentType.choices),
-        "can_upload_docs": order.review_status == OrderReviewStatus.APPROVED,
+        "can_upload_docs": True,
         "order_status_display": order.order_status_display,
         "review_status_display": order.review_status_display,
         "shipment_status_display": order.shipment_status_display,
@@ -579,6 +841,7 @@ def portal_order_create(request):
     )
 
     product_options, product_by_id, available_by_id = build_product_selection_data()
+    pickup_address_options = _build_pickup_address_options(profile)
 
     form_data = _build_order_create_defaults()
     errors = []
@@ -601,6 +864,94 @@ def portal_order_create(request):
         form_data["destination_id"] = (request.POST.get("destination_id") or "").strip()
         form_data["recipient_id"] = (request.POST.get("recipient_id") or "").strip()
         form_data["notes"] = (request.POST.get("notes") or "").strip()
+        _normalize_form_bool(
+            form_data, "has_shipper_inbound", request.POST.get("has_shipper_inbound")
+        )
+        form_data["arrival_mode"] = (request.POST.get("arrival_mode") or "").strip()
+        form_data["declared_carton_count"] = (
+            request.POST.get("declared_carton_count") or ""
+        ).strip()
+        form_data["declared_out_of_format_count"] = (
+            request.POST.get("declared_out_of_format_count") or "0"
+        ).strip()
+        form_data["pickup_address_book_entry_id"] = (
+            request.POST.get("pickup_address_book_entry_id") or ""
+        ).strip()
+        _normalize_form_bool(
+            form_data,
+            "save_pickup_address",
+            request.POST.get("save_pickup_address"),
+        )
+        form_data["pickup_company_name"] = (request.POST.get("pickup_company_name") or "").strip()
+        form_data["pickup_contact_name"] = (request.POST.get("pickup_contact_name") or "").strip()
+        form_data["pickup_contact_phone"] = (request.POST.get("pickup_contact_phone") or "").strip()
+        form_data["pickup_contact_phone_2"] = (
+            request.POST.get("pickup_contact_phone_2") or ""
+        ).strip()
+        form_data["pickup_address_line1"] = (request.POST.get("pickup_address_line1") or "").strip()
+        form_data["pickup_address_line2"] = (request.POST.get("pickup_address_line2") or "").strip()
+        form_data["pickup_postal_code"] = (request.POST.get("pickup_postal_code") or "").strip()
+        form_data["pickup_city"] = (request.POST.get("pickup_city") or "").strip()
+        form_data["pickup_country"] = (
+            request.POST.get("pickup_country") or DEFAULT_COUNTRY
+        ).strip()
+        form_data["pickup_available_from_date"] = (
+            request.POST.get("pickup_available_from_date") or ""
+        ).strip()
+        form_data["pickup_requested_for_date"] = (
+            request.POST.get("pickup_requested_for_date") or ""
+        ).strip()
+        form_data["pickup_opening_slot_1_start"] = (
+            request.POST.get("pickup_opening_slot_1_start") or ""
+        ).strip()
+        form_data["pickup_opening_slot_1_end"] = (
+            request.POST.get("pickup_opening_slot_1_end") or ""
+        ).strip()
+        _normalize_form_bool(
+            form_data,
+            "pickup_has_midday_break",
+            request.POST.get("pickup_has_midday_break"),
+        )
+        form_data["pickup_opening_slot_2_start"] = (
+            request.POST.get("pickup_opening_slot_2_start") or ""
+        ).strip()
+        form_data["pickup_opening_slot_2_end"] = (
+            request.POST.get("pickup_opening_slot_2_end") or ""
+        ).strip()
+        _normalize_form_bool(
+            form_data,
+            "pickup_has_no_access_constraints",
+            request.POST.get("pickup_has_no_access_constraints"),
+        )
+        form_data["pickup_access_constraints_details"] = (
+            request.POST.get("pickup_access_constraints_details") or ""
+        ).strip()
+        _normalize_form_bool(
+            form_data, "tail_lift_required", request.POST.get("tail_lift_required")
+        )
+        _normalize_form_bool(
+            form_data,
+            "pallet_truck_required",
+            request.POST.get("pallet_truck_required"),
+        )
+        _normalize_form_bool(
+            form_data,
+            "pickup_information_confirmed",
+            request.POST.get("pickup_information_confirmed"),
+        )
+        form_data["pickup_address_book_entry"] = _resolve_pickup_address_entry(
+            profile,
+            form_data["pickup_address_book_entry_id"],
+        )
+        if (
+            form_data["has_shipper_inbound"]
+            and form_data["arrival_mode"] == OrderInboundArrivalMode.PICKUP_REQUESTED
+        ):
+            _apply_pickup_address_entry_to_form_data(
+                form_data,
+                entry=form_data["pickup_address_book_entry"],
+                post_data=request.POST,
+            )
 
         if not form_data["destination_id"]:
             errors.append(ERROR_DESTINATION_REQUIRED)
@@ -665,7 +1016,13 @@ def portal_order_create(request):
             product_by_id=product_by_id,
             available_by_id=available_by_id,
         )
-        if not line_items and not selected_ready_carton_ids and not selected_ready_kit_ids:
+        inbound_delivery_data = _validate_shipper_inbound(form_data, errors)
+        if (
+            not line_items
+            and not selected_ready_carton_ids
+            and not selected_ready_kit_ids
+            and not inbound_delivery_data
+        ):
             errors.append(ERROR_PRODUCT_REQUIRED)
 
         destination = _resolve_destination(
@@ -718,6 +1075,7 @@ def portal_order_create(request):
                     notes=form_data["notes"],
                     line_items=line_items,
                     ready_carton_ids=selected_ready_carton_ids + selected_ready_kit_ids,
+                    inbound_delivery_data=inbound_delivery_data,
                 )
             except StockError as exc:
                 errors.append(str(exc))
@@ -752,6 +1110,7 @@ def portal_order_create(request):
             ready_carton_rows=ready_carton_rows,
             ready_kit_rows=ready_kit_rows,
             total_selected_ready_cartons=total_selected_ready_cartons,
+            pickup_address_options=pickup_address_options,
         ),
     )
 

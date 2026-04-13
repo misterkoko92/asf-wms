@@ -4,6 +4,10 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 
 from .models import (
+    Carton,
+    CartonSourceKind,
+    CartonStatus,
+    OrderInboundDelivery,
     Receipt,
     ReceiptConformityStatus,
     ReceiptHorsFormat,
@@ -11,7 +15,7 @@ from .models import (
     ReceiptType,
 )
 from .scan_helpers import parse_int, resolve_default_warehouse, resolve_product
-from .services import StockError, receive_receipt_line
+from .services import StockError, generate_carton_code, receive_receipt_line
 
 
 def get_receipt_lines_state(receipt):
@@ -52,6 +56,7 @@ def handle_receipt_association_post(
             if not warehouse:
                 create_form.add_error(None, _("Aucun entrepôt configuré."))
             else:
+                inbound_order = create_form.cleaned_data.get("inbound_delivery_order")
                 receipt = Receipt.objects.create(
                     receipt_type=ReceiptType.ASSOCIATION,
                     status=ReceiptStatus.DRAFT,
@@ -76,6 +81,14 @@ def handle_receipt_association_post(
                     warehouse=warehouse,
                     created_by=request.user,
                 )
+                if inbound_order is not None:
+                    inbound_delivery = OrderInboundDelivery.objects.filter(
+                        order=inbound_order,
+                        receipt__isnull=True,
+                    ).first()
+                    if inbound_delivery is not None:
+                        inbound_delivery.receipt = receipt
+                        inbound_delivery.save(update_fields=["receipt"])
                 for index, line in enumerate(line_values, start=1):
                     if line["description"]:
                         ReceiptHorsFormat.objects.create(
@@ -83,6 +96,13 @@ def handle_receipt_association_post(
                             line_number=index,
                             description=line["description"],
                         )
+                for _index in range(int(receipt.carton_count or 0)):
+                    Carton.objects.create(
+                        code=generate_carton_code(type_code="AS"),
+                        status=CartonStatus.PACKED,
+                        source_kind=CartonSourceKind.SHIPPER_RECEIVED,
+                        source_receipt=receipt,
+                    )
                 messages.success(
                     request,
                     _("Réception association enregistrée (ref %(reference)s).")

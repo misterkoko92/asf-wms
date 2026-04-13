@@ -38,6 +38,7 @@ from .models import (
     ShipmentRecipientOrganization,
     ShipmentStatus,
 )
+from .order_helpers import resolve_linked_order_for_shipment
 from .pack_handlers import build_pack_defaults, handle_pack_post
 from .prepare_kits_helpers import (
     _parse_carton_ids,
@@ -1296,11 +1297,7 @@ def scan_shipment_edit(request, shipment_id):
         )
 
     assigned_carton_options = build_carton_options(assigned_cartons)
-    related_order = None
-    try:
-        related_order = shipment.order
-    except Shipment.order.RelatedObjectDoesNotExist:
-        related_order = None
+    related_order = resolve_linked_order_for_shipment(shipment)
     related_order_lines = []
     if related_order is not None:
         related_order_lines = list(

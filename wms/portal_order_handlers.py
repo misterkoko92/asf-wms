@@ -1,10 +1,19 @@
 from collections import defaultdict
 
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
-from .models import Carton, CartonStatus, Order, OrderStatus
+from .models import (
+    AssociationPickupAddress,
+    Carton,
+    CartonStatus,
+    Order,
+    OrderInboundArrivalMode,
+    OrderInboundDelivery,
+    OrderStatus,
+)
 from .services import StockError, create_shipment_for_order, reserve_stock_for_order
 from .shipment_status import sync_shipment_ready_state
 
@@ -69,6 +78,72 @@ def _assign_ready_cartons_to_order(*, order, shipment, ready_cartons, user):
     sync_shipment_ready_state(shipment)
 
 
+def _build_pickup_address_label(inbound_delivery_data):
+    label = (inbound_delivery_data.get("pickup_company_name") or "").strip()
+    if label:
+        return label
+    address_line = (inbound_delivery_data.get("pickup_address_line1") or "").strip()
+    city = (inbound_delivery_data.get("pickup_city") or "").strip()
+    if address_line and city:
+        return f"{address_line} - {city}"
+    return address_line or city or ""
+
+
+def _sync_pickup_address_entry(*, profile, inbound_delivery, selected_entry, save_requested):
+    if inbound_delivery.arrival_mode != OrderInboundArrivalMode.PICKUP_REQUESTED:
+        return selected_entry
+
+    address_fields = {
+        "pickup_company_name": inbound_delivery.pickup_company_name,
+        "pickup_contact_name": inbound_delivery.pickup_contact_name,
+        "pickup_contact_phone": inbound_delivery.pickup_contact_phone,
+        "pickup_contact_phone_2": inbound_delivery.pickup_contact_phone_2,
+        "pickup_address_line1": inbound_delivery.pickup_address_line1,
+        "pickup_address_line2": inbound_delivery.pickup_address_line2,
+        "pickup_postal_code": inbound_delivery.pickup_postal_code,
+        "pickup_city": inbound_delivery.pickup_city,
+        "pickup_country": inbound_delivery.pickup_country,
+        "pickup_opening_slot_1_start": inbound_delivery.pickup_opening_slot_1_start,
+        "pickup_opening_slot_1_end": inbound_delivery.pickup_opening_slot_1_end,
+        "pickup_has_midday_break": inbound_delivery.pickup_has_midday_break,
+        "pickup_opening_slot_2_start": inbound_delivery.pickup_opening_slot_2_start,
+        "pickup_opening_slot_2_end": inbound_delivery.pickup_opening_slot_2_end,
+        "pickup_has_no_access_constraints": inbound_delivery.pickup_has_no_access_constraints,
+        "pickup_access_constraints_details": inbound_delivery.pickup_access_constraints_details,
+        "tail_lift_required": inbound_delivery.tail_lift_required,
+        "pallet_truck_required": inbound_delivery.pallet_truck_required,
+        "pickup_information_confirmed": inbound_delivery.pickup_information_confirmed,
+    }
+
+    address_entry = selected_entry
+    if address_entry is None and save_requested:
+        address_entry = AssociationPickupAddress.objects.create(
+            association_contact=profile.contact,
+            label=_build_pickup_address_label(address_fields),
+            **address_fields,
+        )
+    elif address_entry is not None and save_requested:
+        for field_name, value in address_fields.items():
+            setattr(address_entry, field_name, value)
+        if not address_entry.label:
+            address_entry.label = _build_pickup_address_label(address_fields)
+        address_entry.save(
+            update_fields=[
+                "label",
+                *address_fields.keys(),
+                "updated_at",
+            ]
+        )
+
+    if address_entry is None:
+        return None
+
+    address_entry.times_used = int(address_entry.times_used or 0) + 1
+    address_entry.last_used_at = timezone.now()
+    address_entry.save(update_fields=["times_used", "last_used_at", "updated_at"])
+    return address_entry
+
+
 def create_portal_order(
     *,
     user,
@@ -81,10 +156,14 @@ def create_portal_order(
     notes,
     line_items,
     ready_carton_ids=None,
+    inbound_delivery_data=None,
 ):
     with transaction.atomic():
         ready_cartons = _resolve_ready_cartons(ready_carton_ids)
         shipper_contact = profile.contact
+        inbound_delivery_data = dict(inbound_delivery_data or {})
+        selected_pickup_address_entry = inbound_delivery_data.pop("pickup_address_book_entry", None)
+        save_pickup_address = bool(inbound_delivery_data.pop("save_pickup_address", False))
         order = Order.objects.create(
             reference="",
             status=OrderStatus.DRAFT,
@@ -101,8 +180,28 @@ def create_portal_order(
         )
         for product, quantity in line_items:
             order.lines.create(product=product, quantity=quantity)
+        inbound_delivery = None
+        if inbound_delivery_data:
+            inbound_delivery = OrderInboundDelivery.objects.create(
+                order=order,
+                pickup_address_book_entry=selected_pickup_address_entry,
+                **inbound_delivery_data,
+            )
+            pickup_address_entry = _sync_pickup_address_entry(
+                profile=profile,
+                inbound_delivery=inbound_delivery,
+                selected_entry=selected_pickup_address_entry,
+                save_requested=save_pickup_address,
+            )
+            if (
+                pickup_address_entry is not None
+                and inbound_delivery.pickup_address_book_entry_id != pickup_address_entry.id
+            ):
+                inbound_delivery.pickup_address_book_entry = pickup_address_entry
+                inbound_delivery.save(update_fields=["pickup_address_book_entry"])
         shipment = create_shipment_for_order(order=order)
-        reserve_stock_for_order(order=order)
+        if line_items or ready_cartons:
+            reserve_stock_for_order(order=order)
         _assign_ready_cartons_to_order(
             order=order,
             shipment=shipment,

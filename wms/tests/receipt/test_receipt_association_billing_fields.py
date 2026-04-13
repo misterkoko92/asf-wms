@@ -9,6 +9,11 @@ from django.urls import reverse
 from contacts.models import Contact, ContactCapability, ContactCapabilityType, ContactType
 from wms.forms import ScanReceiptAssociationForm
 from wms.models import (
+    Carton,
+    CartonSourceKind,
+    Order,
+    OrderInboundArrivalMode,
+    OrderInboundDelivery,
     Receipt,
     ReceiptType,
     Warehouse,
@@ -129,3 +134,40 @@ class AssociationReceiptBillingFieldsTests(TestCase):
         self.assertEqual(receipt.pickup_charge_currency, "USD")
         self.assertEqual(receipt.pickup_charge_comment, "Enlevement externe a facturer.")
         self.assertTrue(receipt.pickup_charge_proof)
+
+    def test_scan_receive_association_links_order_inbound_and_creates_shipper_cartons(self):
+        order = Order.objects.create(
+            association_contact=self.source_contact,
+            shipper_name=self.source_contact.name,
+            shipper_contact=self.source_contact,
+            recipient_name="Association Dest",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+        inbound_delivery = OrderInboundDelivery.objects.create(
+            order=order,
+            arrival_mode=OrderInboundArrivalMode.DROPOFF_WAREHOUSE,
+            declared_carton_count=3,
+            declared_out_of_format_count=0,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_receive_association"),
+            {
+                "received_on": "2026-03-07",
+                "carton_count": 3,
+                "hors_format_count": 0,
+                "source_contact": self.source_contact.id,
+                "carrier_contact": self.carrier_contact.id,
+                "inbound_delivery_order": str(order.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        inbound_delivery.refresh_from_db()
+        self.assertIsNotNone(inbound_delivery.receipt_id)
+        cartons = Carton.objects.filter(source_receipt=inbound_delivery.receipt).order_by("id")
+        self.assertEqual(cartons.count(), 3)
+        self.assertTrue(
+            all(carton.source_kind == CartonSourceKind.SHIPPER_RECEIVED for carton in cartons)
+        )

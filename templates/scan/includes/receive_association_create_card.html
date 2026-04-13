@@ -44,6 +44,14 @@
     </div>
 
     <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-3">
+      <label class="form-label" for="id_inbound_delivery_order">{{ create_form.inbound_delivery_order.label }}</label>
+      {{ create_form.inbound_delivery_order }}
+      {% for error in create_form.inbound_delivery_order.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-3">
       <label class="form-label" for="id_carrier_contact">{{ create_form.carrier_contact.label }}</label>
       {{ create_form.carrier_contact }}
       {% for error in create_form.carrier_contact.errors %}
