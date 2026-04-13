@@ -107,8 +107,10 @@ DELETE_BATCHES = (
         "shipment_order_receipt_runtime",
         (
             "wms.ReceiptShipmentAllocation",
+            "wms.OrderShipmentLink",
             "wms.OrderReservation",
             "wms.OrderDocument",
+            "wms.OrderInboundDelivery",
             "wms.OrderLine",
             "wms.Document",
             "wms.ShipmentTrackingEvent",
@@ -139,6 +141,7 @@ DELETE_BATCHES = (
             "wms.BillingAssociationPriceOverride",
             "wms.AssociationBillingProfile",
             "wms.AssociationProfile",
+            "wms.AssociationPickupAddress",
             "wms.VolunteerAvailability",
             "wms.VolunteerConstraint",
             "wms.VolunteerUnavailability",

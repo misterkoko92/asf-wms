@@ -31,7 +31,10 @@ def resolve_linked_order_for_shipment(shipment):
     except type(shipment).order.RelatedObjectDoesNotExist:
         pass
 
-    link = shipment.order_links.select_related("order").order_by("id").first()
+    order_links = getattr(shipment, "order_links", None)
+    if order_links is None:
+        return None
+    link = order_links.select_related("order").order_by("id").first()
     return getattr(link, "order", None)
 
 

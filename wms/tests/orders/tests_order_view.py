@@ -109,11 +109,11 @@ class OrderViewHandlersTests(TestCase):
             ) as attach_mock:
                 response = handle_orders_view_action(request, orders_qs=Order.objects.all())
         self.assertEqual(response.status_code, 302)
-        create_mock.assert_called_once_with(order=order)
+        create_mock.assert_called_once_with(order=order, force_new=True)
         attach_mock.assert_called_once_with(order, generated_shipment)
         self.assertEqual(response.url, "/scan/shipment/321/edit/")
 
-    def test_handle_orders_view_action_uses_existing_shipment(self):
+    def test_handle_orders_view_action_creates_new_shipment_even_with_legacy_pointer(self):
         shipment = self._create_shipment()
         order = self._create_order(
             review_status=OrderReviewStatus.APPROVED,
@@ -132,7 +132,7 @@ class OrderViewHandlersTests(TestCase):
             ) as attach_mock:
                 response = handle_orders_view_action(request, orders_qs=Order.objects.all())
         self.assertEqual(response.status_code, 302)
-        create_mock.assert_called_once_with(order=order)
+        create_mock.assert_called_once_with(order=order, force_new=True)
         attach_mock.assert_called_once_with(order, shipment)
         self.assertEqual(response.url, f"/scan/shipment/{shipment.id}/edit/")
 
@@ -265,7 +265,7 @@ class OrderViewHelpersTests(TestCase):
         self.assertEqual(rows[1]["next_action_label"], "Recontacter l'association")
         self.assertFalse(rows[1]["can_create_shipment"])
 
-        self.assertEqual(rows[2]["next_action_label"], "Créer l'expédition")
+        self.assertEqual(rows[2]["next_action_label"], "Créer une expédition")
         self.assertTrue(rows[2]["can_create_shipment"])
 
         self.assertEqual(rows[3]["next_action_label"], "Expliquer le refus")

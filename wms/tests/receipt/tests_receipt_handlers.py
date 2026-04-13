@@ -128,17 +128,19 @@ class ReceiptHandlersTests(TestCase):
                 with mock.patch(
                     "wms.receipt_handlers.ReceiptHorsFormat.objects.create"
                 ) as hors_mock:
-                    with mock.patch("wms.receipt_handlers.messages.success") as success_mock:
-                        response, line_errors = handle_receipt_association_post(
-                            request,
-                            create_form=form,
-                            line_values=[{"description": "HF1"}, {"description": "HF2"}],
-                            line_count=2,
-                        )
+                    with mock.patch("wms.receipt_handlers.Carton.objects.create") as carton_mock:
+                        with mock.patch("wms.receipt_handlers.messages.success") as success_mock:
+                            response, line_errors = handle_receipt_association_post(
+                                request,
+                                create_form=form,
+                                line_values=[{"description": "HF1"}, {"description": "HF2"}],
+                                line_count=2,
+                            )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(line_errors, {})
         receipt_create_mock.assert_called_once()
         self.assertEqual(hors_mock.call_count, 2)
+        self.assertEqual(carton_mock.call_count, 2)
         success_mock.assert_called_once()
         self.assertTrue(response.url.endswith("?receipt_id=17"))
 

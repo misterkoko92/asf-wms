@@ -57,13 +57,14 @@ def handle_receipt_association_post(
                 create_form.add_error(None, _("Aucun entrepôt configuré."))
             else:
                 inbound_order = create_form.cleaned_data.get("inbound_delivery_order")
+                carton_count = int(create_form.cleaned_data.get("carton_count") or 0)
                 receipt = Receipt.objects.create(
                     receipt_type=ReceiptType.ASSOCIATION,
                     status=ReceiptStatus.DRAFT,
                     source_contact=create_form.cleaned_data["source_contact"],
                     carrier_contact=create_form.cleaned_data["carrier_contact"],
                     received_on=create_form.cleaned_data["received_on"],
-                    carton_count=create_form.cleaned_data["carton_count"],
+                    carton_count=carton_count,
                     hors_format_count=line_count or None,
                     pickup_charge_amount=create_form.cleaned_data.get("pickup_charge_amount"),
                     pickup_charge_currency=(
@@ -96,12 +97,12 @@ def handle_receipt_association_post(
                             line_number=index,
                             description=line["description"],
                         )
-                for _index in range(int(receipt.carton_count or 0)):
+                for _index in range(carton_count):
                     Carton.objects.create(
                         code=generate_carton_code(type_code="AS"),
                         status=CartonStatus.PACKED,
                         source_kind=CartonSourceKind.SHIPPER_RECEIVED,
-                        source_receipt=receipt,
+                        source_receipt_id=receipt.id,
                     )
                 messages.success(
                     request,

@@ -8,6 +8,7 @@ from django.test import TestCase
 
 from contacts.models import Contact, ContactType
 from wms.models import (
+    AssociationPickupAddress,
     AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
@@ -15,12 +16,17 @@ from wms.models import (
     Destination,
     Location,
     OperationalJobRun,
+    Order,
+    OrderInboundArrivalMode,
+    OrderInboundDelivery,
+    OrderShipmentLink,
     PlanningDestinationRule,
     PlanningParameterSet,
     PortalAccessGrant,
     PortalAccessRole,
     Product,
     PublicAccountRequest,
+    Receipt,
     ReceiptDonorSequence,
     RecipientProductPreference,
     RecipientStructureDocument,
@@ -239,6 +245,60 @@ class ResetOperationalDataCommandTests(TestCase):
     def test_apply_deletes_operational_models_and_preserves_reference_models(self):
         stdout = StringIO()
         OperationalJobRun.objects.create(job_key="ops-refresh")
+        shipment = Shipment.objects.create(
+            reference="RESET-EXP-001",
+            status="draft",
+            shipper_name="Association A",
+            recipient_name="Recipient A",
+            correspondent_name="Correspondent A",
+            destination=self.destination,
+            destination_address="1 rue de Paris",
+            destination_country="France",
+        )
+        order = Order.objects.create(
+            reference="RESET-CMD-001",
+            status="draft",
+            shipper_name="Association A",
+            recipient_name="Recipient A",
+            correspondent_name="Correspondent A",
+            association_contact=self.association,
+            shipper_contact=self.association,
+            recipient_contact=self.recipient,
+            destination_address="1 rue de Paris",
+            destination_city="Paris",
+            destination_country="France",
+            shipment=shipment,
+            created_by=self.user,
+        )
+        pickup_address = AssociationPickupAddress.objects.create(
+            association_contact=self.association,
+            label="Entrepot partenaire",
+            pickup_contact_name="Alice Shipper",
+            pickup_contact_phone="0102030405",
+            pickup_address_line1="1 rue de Paris",
+            pickup_postal_code="75001",
+            pickup_city="Paris",
+            pickup_country="France",
+            pickup_has_no_access_constraints=True,
+            pickup_information_confirmed=True,
+        )
+        receipt = Receipt.objects.create(
+            reference="RESET-REC-001",
+            receipt_type="association",
+            status="received",
+            source_contact=self.association,
+            carton_count=1,
+            warehouse=self.warehouse,
+            conformity_status="conform",
+        )
+        OrderInboundDelivery.objects.create(
+            order=order,
+            arrival_mode=OrderInboundArrivalMode.DROPOFF_WAREHOUSE,
+            declared_carton_count=1,
+            pickup_address_book_entry=pickup_address,
+            receipt=receipt,
+        )
+        OrderShipmentLink.objects.create(order=order, shipment=shipment, created_by=self.user)
 
         call_command("reset_operational_data", "--apply", stdout=stdout)
 
@@ -260,6 +320,12 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(ReceiptDonorSequence.objects.exists())
         self.assertFalse(CartonSequence.objects.exists())
         self.assertFalse(OperationalJobRun.objects.exists())
+        self.assertFalse(AssociationPickupAddress.objects.exists())
+        self.assertFalse(Order.objects.exists())
+        self.assertFalse(OrderInboundDelivery.objects.exists())
+        self.assertFalse(OrderShipmentLink.objects.exists())
+        self.assertFalse(Receipt.objects.exists())
+        self.assertFalse(Shipment.objects.exists())
         self.assertTrue(Warehouse.objects.filter(pk=self.warehouse.pk).exists())
         self.assertTrue(Location.objects.filter(pk=self.location.pk).exists())
         self.assertTrue(WmsRuntimeSettings.objects.filter(pk=self.runtime_settings.pk).exists())
