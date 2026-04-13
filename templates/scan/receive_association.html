@@ -4,6 +4,7 @@
 {% block title %}WMS Scan - {% trans "Réception association" %}{% endblock %}
 
 {% block content %}
+  {% include "scan/includes/receive_association_workflow_card.html" %}
   {% include "scan/includes/receive_association_create_card.html" %}
 
   {% if selected_receipt %}

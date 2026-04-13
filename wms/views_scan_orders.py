@@ -75,8 +75,13 @@ def _build_orders_queryset():
             "recipient_contact",
             "created_by",
             "shipment",
+            "inbound_delivery__receipt",
         )
-        .prefetch_related("documents")
+        .prefetch_related(
+            "documents",
+            "shipment_links__shipment",
+            "inbound_delivery__receipt__shipper_cartons",
+        )
         .order_by("-created_at")
     )
 

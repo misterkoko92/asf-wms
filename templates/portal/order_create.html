@@ -97,6 +97,37 @@
         renderRecipientOptions();
       }
 
+      const shipperInboundToggle = document.getElementById('has_shipper_inbound');
+      const shipperInboundCollapse = document.getElementById(
+        'portal-order-create-shipper-inbound-collapse'
+      );
+      const arrivalModeSelect = document.getElementById('arrival_mode');
+      const pickupCollapse = document.getElementById('portal-order-create-pickup-collapse');
+
+      const setCollapseState = (element, isOpen) => {
+        if (!element) {
+          return;
+        }
+        element.classList.toggle('show', Boolean(isOpen));
+        element.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+      };
+
+      const syncInboundSections = () => {
+        const hasInbound = Boolean(shipperInboundToggle && shipperInboundToggle.checked);
+        setCollapseState(shipperInboundCollapse, hasInbound);
+        const wantsPickup =
+          hasInbound && arrivalModeSelect && arrivalModeSelect.value === 'pickup_requested';
+        setCollapseState(pickupCollapse, wantsPickup);
+      };
+
+      if (shipperInboundToggle) {
+        shipperInboundToggle.addEventListener('change', syncInboundSections);
+      }
+      if (arrivalModeSelect) {
+        arrivalModeSelect.addEventListener('change', syncInboundSections);
+      }
+      syncInboundSections();
+
       const pickupAddressOptionsEl = document.getElementById('portal-pickup-address-options');
       const pickupAddressSelect = document.getElementById('pickup_address_book_entry_id');
       let pickupAddressOptions = [];

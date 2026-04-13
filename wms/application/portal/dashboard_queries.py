@@ -1,4 +1,4 @@
-from django.db.models import DateTimeField, F, Max, Q, Value
+from django.db.models import Max, Q, Value
 from django.db.models.functions import Coalesce
 
 from wms.models import (
@@ -41,13 +41,9 @@ def _portal_dashboard_orders_queryset(profile):
                 "destination_city",
                 Value(""),
             ),
-            shipped_at=Coalesce(
-                Max(
-                    "shipment__tracking_events__created_at",
-                    filter=Q(shipment__tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
-                ),
-                F("shipment__created_at"),
-                output_field=DateTimeField(),
+            shipped_at=Max(
+                "shipment__tracking_events__created_at",
+                filter=Q(shipment__tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
             ),
             received_correspondent_at=Max(
                 "shipment__tracking_events__created_at",

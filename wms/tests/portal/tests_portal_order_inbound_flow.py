@@ -122,6 +122,42 @@ class PortalOrderInboundFlowTests(PortalBaseTestCase):
         )
         self.assertIsNone(order.inbound_delivery.pickup_requested_for_date)
 
+    def test_portal_order_create_reopens_collapses_after_pickup_validation_error(self):
+        payload = self._base_payload()
+        payload.update(
+            {
+                "arrival_mode": OrderInboundArrivalMode.PICKUP_REQUESTED,
+                "pickup_contact_name": "Alice",
+                "pickup_contact_phone": "",
+                "pickup_contact_phone_2": "",
+                "pickup_address_line1": "12 Rue Logistique",
+                "pickup_postal_code": "75010",
+                "pickup_city": "Paris",
+                "pickup_country": "France",
+                "pickup_available_from_date": "2026-04-20",
+                "pickup_opening_slot_1_start": "09:00",
+                "pickup_opening_slot_1_end": "12:00",
+                "pickup_has_no_access_constraints": "1",
+                "tail_lift_required": "1",
+                "pallet_truck_required": "1",
+                "pickup_information_confirmed": "1",
+            }
+        )
+
+        response = self.client.post(self.order_create_url, payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'id="portal-order-create-shipper-inbound-collapse" class="collapse show"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            'id="portal-order-create-pickup-collapse" class="collapse show"',
+            html=False,
+        )
+
     def test_portal_order_detail_allows_upload_before_approval(self):
         order = Order.objects.create(
             association_contact=self.profile.contact,

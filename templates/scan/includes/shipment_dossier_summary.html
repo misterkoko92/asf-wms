@@ -1,4 +1,22 @@
 <div id="shipment-dossier-summary" class="row g-3">
+  {% if order_workflow_summary %}
+    <div class="col-12">
+      <div class="scan-field">
+        <div class="form-label fw-bold">Commande liée</div>
+        <div>{{ order_workflow_summary.reference_label }}</div>
+        {% if order_workflow_summary.has_inbound_delivery %}
+          <div class="scan-help">
+            Colis expéditeur disponibles {{ order_workflow_summary.unassigned_shipper_carton_count }} / {{ order_workflow_summary.declared_carton_count }}
+          </div>
+          {% if order_workflow_summary.receipt_reference %}
+            <div class="scan-help">Réception liée : {{ order_workflow_summary.receipt_reference }}</div>
+          {% else %}
+            <div class="scan-help">Aucune réception expéditeur liée pour le moment.</div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
   <div class="col-12 col-md-6 col-xl-4">
     <div class="scan-field">
       <div class="form-label fw-bold">Expéditeur</div>

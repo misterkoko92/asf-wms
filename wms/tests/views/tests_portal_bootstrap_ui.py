@@ -258,6 +258,33 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "Kits disponibles")
         self.assertContains(response, "Produits à l'unité")
         self.assertContains(response, 'id="ready-carton-estimate-total"')
+
+    def test_portal_order_create_collapses_shipper_inbound_sections_by_default(self):
+        response = self.client.get(reverse("portal:portal_order_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-order-create-shipper-inbound-collapse"')
+        self.assertContains(response, 'id="portal-order-create-pickup-collapse"')
+        self.assertContains(
+            response,
+            'id="portal-order-create-shipper-inbound-collapse" class="collapse"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            'id="portal-order-create-pickup-collapse" class="collapse"',
+            html=False,
+        )
+        self.assertNotContains(
+            response,
+            'id="portal-order-create-shipper-inbound-collapse" class="collapse show"',
+            html=False,
+        )
+        self.assertNotContains(
+            response,
+            'id="portal-order-create-pickup-collapse" class="collapse show"',
+            html=False,
+        )
         self.assertContains(response, 'id="carton-estimate-total"')
 
     def test_portal_account_uses_bootstrap_forms_and_tables(self):

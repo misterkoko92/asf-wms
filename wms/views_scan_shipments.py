@@ -410,6 +410,36 @@ def _build_tracking_page_data(shipment):
     return documents, carton_docs, additional_docs, events
 
 
+def _build_shipment_order_workflow_summary(shipment):
+    order = resolve_linked_order_for_shipment(shipment)
+    if order is None:
+        return None
+    try:
+        inbound_delivery = order.inbound_delivery
+    except AttributeError:
+        inbound_delivery = None
+    except type(order).inbound_delivery.RelatedObjectDoesNotExist:
+        inbound_delivery = None
+    if inbound_delivery is None:
+        return {
+            "reference_label": order.reference or f"CMD-{order.id}",
+            "declared_carton_count": 0,
+            "unassigned_shipper_carton_count": 0,
+            "has_inbound_delivery": False,
+        }
+    receipt = getattr(inbound_delivery, "receipt", None)
+    shipper_cartons = list(receipt.shipper_cartons.all()) if receipt is not None else []
+    return {
+        "reference_label": order.reference or f"CMD-{order.id}",
+        "receipt_reference": getattr(receipt, "reference", ""),
+        "declared_carton_count": int(getattr(inbound_delivery, "declared_carton_count", 0) or 0),
+        "unassigned_shipper_carton_count": sum(
+            1 for carton in shipper_cartons if not getattr(carton, "shipment_id", None)
+        ),
+        "has_inbound_delivery": True,
+    }
+
+
 def _shipment_dossier_is_locked(shipment):
     return shipment.status in DOSSIER_LOCKED_SHIPMENT_STATUSES
 
@@ -435,6 +465,7 @@ def _shipment_dossier_extra_context(
     is_locked,
     edit_mode,
 ):
+    order_workflow_summary = _build_shipment_order_workflow_summary(shipment)
     return {
         "is_edit": True,
         "shipment": shipment,
@@ -458,6 +489,7 @@ def _shipment_dossier_extra_context(
         "carton_doc_count": len(carton_docs),
         "dossier_last_activity_at": getattr(shipment, "dossier_last_activity_at", None),
         "dossier_last_activity_label": getattr(shipment, "dossier_last_activity_label", ""),
+        "order_workflow_summary": order_workflow_summary,
     }
 
 

@@ -15,7 +15,15 @@ from .incomplete_products import (
     build_incomplete_products_context,
     build_incomplete_products_queryset,
 )
-from .models import Product, Receipt, ReceiptShipmentAllocation, ReceiptType
+from .models import (
+    Order,
+    OrderReviewStatus,
+    Product,
+    Receipt,
+    ReceiptShipmentAllocation,
+    ReceiptType,
+)
+from .order_helpers import attach_order_documents_to_shipment
 from .receipt_handlers import (
     build_hors_format_lines,
     handle_receipt_action,
@@ -32,6 +40,8 @@ from .receipt_pallet_state import (
 from .receipt_scan_state import build_receipt_scan_state
 from .receipt_view_helpers import build_receipts_view_rows
 from .scan_helpers import build_product_options
+from .services import create_shipment_for_order
+from .status_presenters import present_shipment_status
 from .view_permissions import scan_staff_required
 
 TEMPLATE_RECEIPTS_VIEW = "scan/receipts_view.html"
@@ -120,6 +130,10 @@ def _render_receive_association(
             "selected_receipt": selected_receipt,
             "allocation_form": allocation_form,
             "receipt_allocations": receipt_allocations,
+            "workflow_context": _build_receive_association_workflow_context(
+                request=request,
+                selected_receipt=selected_receipt,
+            ),
         },
     )
 
@@ -143,6 +157,80 @@ def _build_receipt_allocation_rows(receipt):
         .filter(receipt=receipt)
         .order_by("shipment__reference", "id")
     )
+
+
+def _requested_inbound_order(request):
+    raw_order_id = (request.POST.get("order_id") or request.GET.get("order_id") or "").strip()
+    if not raw_order_id:
+        return None
+    try:
+        order_id = int(raw_order_id)
+    except (TypeError, ValueError):
+        return None
+    return (
+        Order.objects.filter(id=order_id, inbound_delivery__isnull=False)
+        .select_related("association_contact", "inbound_delivery__receipt")
+        .prefetch_related(
+            "shipment_links__shipment",
+            "inbound_delivery__receipt__shipper_cartons",
+        )
+        .first()
+    )
+
+
+def _workflow_order_for_receipt(*, request, selected_receipt):
+    if selected_receipt is not None:
+        try:
+            inbound_delivery = selected_receipt.order_inbound_delivery
+        except AttributeError:
+            inbound_delivery = None
+        except type(selected_receipt).order_inbound_delivery.RelatedObjectDoesNotExist:
+            inbound_delivery = None
+        if inbound_delivery is not None:
+            return (
+                Order.objects.filter(id=inbound_delivery.order_id)
+                .select_related("association_contact", "inbound_delivery__receipt")
+                .prefetch_related(
+                    "shipment_links__shipment",
+                    "inbound_delivery__receipt__shipper_cartons",
+                )
+                .first()
+            )
+    return _requested_inbound_order(request)
+
+
+def _build_receive_association_workflow_context(*, request, selected_receipt):
+    order = _workflow_order_for_receipt(request=request, selected_receipt=selected_receipt)
+    if order is None:
+        return None
+    inbound_delivery = getattr(order, "inbound_delivery", None)
+    receipt = selected_receipt or getattr(inbound_delivery, "receipt", None)
+    linked_shipments = []
+    for link in order.shipment_links.all():
+        shipment = getattr(link, "shipment", None)
+        if shipment is None:
+            continue
+        linked_shipments.append(
+            {
+                "id": shipment.id,
+                "reference": shipment.reference,
+                "status_label": present_shipment_status(shipment)["label"],
+            }
+        )
+    shipper_cartons = list(receipt.shipper_cartons.all()) if receipt is not None else []
+    return {
+        "order": order,
+        "reference_label": order.reference or f"CMD-{order.id}",
+        "receipt": receipt,
+        "declared_carton_count": int(getattr(inbound_delivery, "declared_carton_count", 0) or 0),
+        "can_create_linked_shipment": (
+            bool(receipt is not None) and order.review_status == OrderReviewStatus.APPROVED
+        ),
+        "linked_shipments": linked_shipments,
+        "shipper_received_unassigned_carton_count": sum(
+            1 for carton in shipper_cartons if not getattr(carton, "shipment_id", None)
+        ),
+    }
 
 
 @scan_staff_required
@@ -306,10 +394,20 @@ def scan_receive_association(request):
         build_hors_format_lines(request) if action != "add_allocation" else (0, [])
     )
     line_errors = {}
+    requested_order = _requested_inbound_order(request)
+    create_form_initial = {}
+    if requested_order is not None:
+        create_form_initial["inbound_delivery_order"] = requested_order.id
+        if requested_order.association_contact_id:
+            create_form_initial["source_contact"] = requested_order.association_contact_id
     create_form = (
-        ScanReceiptAssociationForm(request.POST or None, request.FILES or None)
+        ScanReceiptAssociationForm(
+            request.POST or None,
+            request.FILES or None,
+            initial=create_form_initial,
+        )
         if request.method != "POST" or action != "add_allocation"
-        else ScanReceiptAssociationForm()
+        else ScanReceiptAssociationForm(initial=create_form_initial)
     )
     allocation_form = (
         ReceiptShipmentAllocationForm(request.POST or None, receipt=selected_receipt)
@@ -317,7 +415,21 @@ def scan_receive_association(request):
         else None
     )
     if request.method == "POST":
-        if action == "add_allocation" and selected_receipt is not None:
+        if action == "create_linked_shipment":
+            order = _workflow_order_for_receipt(request=request, selected_receipt=selected_receipt)
+            if order is None:
+                messages.error(request, "Commande expéditeur introuvable.")
+            elif order.review_status != OrderReviewStatus.APPROVED:
+                messages.error(request, "Commande non validée.")
+            else:
+                shipment = create_shipment_for_order(order=order, force_new=True)
+                attach_order_documents_to_shipment(order, shipment)
+                messages.success(
+                    request,
+                    f"Expédition {shipment.reference} créée depuis la réception association.",
+                )
+                return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+        elif action == "add_allocation" and selected_receipt is not None:
             allocation_form = ReceiptShipmentAllocationForm(request.POST, receipt=selected_receipt)
             if allocation_form.is_valid():
                 allocation = allocation_form.save(commit=False)
