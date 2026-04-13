@@ -177,6 +177,45 @@ class CorrespondentRecipientPromotionTests(TestCase):
             ).exists()
         )
 
+    def test_promote_correspondent_org_keeps_one_runtime_row_per_destination(self):
+        from contacts.correspondent_recipient_promotion import (
+            promote_correspondent_to_recipient_ready,
+        )
+
+        organization = Contact.objects.create(
+            name="Multi Destination Correspondent Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Douala",
+            iata_code="DLA",
+            country="Cameroun",
+            correspondent_contact=organization,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Bangui",
+            iata_code="BGF",
+            country="RCA",
+            correspondent_contact=organization,
+            is_active=True,
+        )
+
+        result = promote_correspondent_to_recipient_ready(organization)
+
+        self.assertTrue(result.shipment_recipient_created)
+        recipient_orgs = ShipmentRecipientOrganization.objects.filter(
+            organization=organization,
+            is_correspondent=True,
+            is_active=True,
+        ).order_by("destination__iata_code")
+        self.assertEqual(recipient_orgs.count(), 2)
+        self.assertEqual(
+            list(recipient_orgs.values_list("destination__iata_code", flat=True)),
+            ["BGF", "DLA"],
+        )
+
     def test_promote_person_without_org_attaches_support_org_and_creates_recipient(self):
         from contacts.correspondent_recipient_promotion import (
             SUPPORT_ORGANIZATION_NAME,

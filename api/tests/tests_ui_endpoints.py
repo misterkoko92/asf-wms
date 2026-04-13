@@ -14,7 +14,6 @@ from contacts.capabilities import ContactCapabilityType
 from contacts.models import Contact, ContactType
 from wms.application.parties.use_cases import (
     update_recipient_shared_profile,
-    update_runtime_recipient_shared_profile,
 )
 from wms.application.portal.dashboard_queries import build_portal_dashboard_payload
 from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
@@ -2668,10 +2667,12 @@ class UiApiEndpointsTests(TestCase):
 
     def test_ui_portal_recipient_patch_uses_active_recipient_scope(self):
         with mock.patch(
-            "api.v1.ui_views.update_runtime_recipient_shared_profile",
+            "api.v1.ui_views.update_runtime_recipient_profile",
             create=True,
-            wraps=update_runtime_recipient_shared_profile,
         ) as update_runtime_profile:
+            update_runtime_profile.return_value = mock.Mock(
+                recipient_organization=self.shipment_recipient_organization
+            )
             response = self.recipient_scope_client.patch(
                 f"/api/v1/ui/portal/recipients/{self.shipment_recipient_organization.id}/",
                 {
@@ -2694,6 +2695,63 @@ class UiApiEndpointsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         update_runtime_profile.assert_called_once()
+
+    def test_ui_portal_recipient_get_returns_persisted_flags_for_recipient_scope(self):
+        AssociationRecipient.objects.create(
+            association_contact=self.association_contact,
+            synced_contact=self.shipment_recipient_organization.organization,
+            destination=self.destination,
+            structure_name=self.shipment_recipient_organization.organization.name,
+            notify_deliveries=True,
+            is_delivery_contact=True,
+            is_active=True,
+        )
+
+        response = self.recipient_scope_client.get(
+            f"/api/v1/ui/portal/recipients/{self.shipment_recipient_organization.id}/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["recipient"]["notify_deliveries"])
+        self.assertTrue(response.json()["recipient"]["is_delivery_contact"])
+
+    def test_ui_portal_recipient_patch_persists_flags_for_recipient_scope(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.association_contact,
+            synced_contact=self.shipment_recipient_organization.organization,
+            destination=self.destination,
+            structure_name=self.shipment_recipient_organization.organization.name,
+            notify_deliveries=False,
+            is_delivery_contact=False,
+            is_active=True,
+        )
+
+        response = self.recipient_scope_client.patch(
+            f"/api/v1/ui/portal/recipients/{self.shipment_recipient_organization.id}/",
+            {
+                "destination_id": self.destination.id,
+                "structure_name": "UI Recipient Updated",
+                "contact_title": AssociationContactTitle.MRS,
+                "contact_last_name": "Diallo",
+                "contact_first_name": "Aicha",
+                "phones": "0100000001",
+                "emails": "aicha.diallo@example.org",
+                "address_line1": "3 Rue Test",
+                "postal_code": "75003",
+                "city": "Paris",
+                "country": "France",
+                "notify_deliveries": True,
+                "is_delivery_contact": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        recipient.refresh_from_db()
+        self.assertTrue(recipient.notify_deliveries)
+        self.assertTrue(recipient.is_delivery_contact)
+        self.assertTrue(response.json()["recipient"]["notify_deliveries"])
+        self.assertTrue(response.json()["recipient"]["is_delivery_contact"])
 
     def test_ui_portal_account_patch_updates_profile(self):
         response = self.portal_client.patch(

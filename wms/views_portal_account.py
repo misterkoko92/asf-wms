@@ -9,15 +9,19 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
-from contacts.models import Contact, ContactAddress, ContactType, RecipientLegalForm
+from contacts.models import Contact, RecipientLegalForm
 
 from .account_request_handlers import handle_account_request_form
 from .application.parties.use_cases import (
     save_recipient_product_preference,
     update_recipient_shared_profile,
+    update_runtime_recipient_profile,
     upsert_recipient_structure_documents,
 )
-from .application.portal.dashboard_queries import build_recipient_scope_home_payload
+from .application.portal.dashboard_queries import (
+    build_recipient_scope_home_payload,
+    build_runtime_recipient_profile_payload,
+)
 from .country_choices import DEFAULT_COUNTRY, build_country_choices, is_known_country
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
@@ -45,7 +49,6 @@ from .models import (
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
 )
-from .parties.projections import refresh_legacy_association_recipient_projection
 from .portal_helpers import get_contact_address
 from .recipient_preference_view_helpers import (
     build_recipient_preference_catalog_context,
@@ -155,6 +158,10 @@ RECIPIENT_STRUCTURE_DOCUMENT_FIELDS = (
         ERROR_RECIPIENT_STATUTES_REQUIRED,
     ),
 )
+RECIPIENT_STRUCTURE_UPLOAD_FIELDS = {
+    doc_type: field_name
+    for doc_type, field_name, _error_message in RECIPIENT_STRUCTURE_DOCUMENT_FIELDS
+}
 PRODUCT_PREFERENCE_SCOPE_PRODUCT = "product"
 PRODUCT_PREFERENCE_SCOPE_CATEGORY = "category"
 PRODUCT_PREFERENCE_SCOPE_CHOICES = (
@@ -646,208 +653,19 @@ def _get_runtime_recipient_organization(recipient):
     )
 
 
-def _join_multi_values(values):
-    return "; ".join(value for value in values if value)
-
-
-def _get_runtime_recipient_projection(recipient_organization):
-    if recipient_organization is None:
-        return None
-    return (
-        AssociationRecipient.objects.filter(
-            synced_contact=recipient_organization.organization,
-            destination=recipient_organization.destination,
-        )
-        .order_by("id")
-        .first()
-    )
-
-
-def _get_runtime_primary_recipient_contact(recipient_organization):
-    if recipient_organization is None:
-        return None
-    return (
-        recipient_organization.recipient_contacts.select_related("contact")
-        .order_by("-is_active", "id")
-        .first()
-    )
-
-
 def _build_recipient_form_data_from_runtime(recipient_organization):
-    organization = recipient_organization.organization
-    address = organization.get_effective_address()
-    runtime_projection = _get_runtime_recipient_projection(recipient_organization)
-    shipment_contact = _get_runtime_primary_recipient_contact(recipient_organization)
-    contact = shipment_contact.contact if shipment_contact is not None else None
-    email_values = [
-        value for value in [getattr(contact, "email", ""), getattr(contact, "email2", "")] if value
-    ]
-    phone_values = [
-        value for value in [getattr(contact, "phone", ""), getattr(contact, "phone2", "")] if value
-    ]
-
+    payload = build_runtime_recipient_profile_payload(recipient_organization=recipient_organization)
     return {
         "destination_id": str(recipient_organization.destination_id or ""),
-        "structure_name": organization.name
-        or getattr(runtime_projection, "structure_name", "")
-        or "",
-        "legal_form": organization.legal_form
-        or getattr(runtime_projection, "legal_form", "")
-        or "",
-        "beneficiary_count": str(
-            organization.beneficiary_count
-            if organization.beneficiary_count is not None
-            else getattr(runtime_projection, "beneficiary_count", "") or ""
-        ),
+        "structure_name": payload["structure_name"],
+        "legal_form": payload["legal_form"],
+        "beneficiary_count": str(payload["beneficiary_count"] or ""),
         "reuse_existing_structure": True,
-        "contact_title": getattr(contact, "title", "")
-        or getattr(runtime_projection, "contact_title", "")
-        or "",
-        "contact_last_name": getattr(contact, "last_name", "")
-        or getattr(runtime_projection, "contact_last_name", "")
-        or "",
-        "contact_first_name": getattr(contact, "first_name", "")
-        or getattr(runtime_projection, "contact_first_name", "")
-        or "",
-        "phones": _join_multi_values(phone_values)
-        or getattr(runtime_projection, "phones", "")
-        or "",
-        "emails": _join_multi_values(email_values)
-        or getattr(runtime_projection, "emails", "")
-        or "",
-        "address_line1": getattr(address, "address_line1", "")
-        or getattr(runtime_projection, "address_line1", "")
-        or "",
-        "address_line2": getattr(address, "address_line2", "")
-        or getattr(runtime_projection, "address_line2", "")
-        or "",
-        "postal_code": getattr(address, "postal_code", "")
-        or getattr(runtime_projection, "postal_code", "")
-        or "",
-        "city": getattr(address, "city", "") or getattr(runtime_projection, "city", "") or "",
-        "country": getattr(address, "country", "")
-        or getattr(runtime_projection, "country", "")
-        or DEFAULT_COUNTRY,
-        "notes": organization.notes or getattr(runtime_projection, "notes", "") or "",
-        "notify_deliveries": bool(getattr(runtime_projection, "notify_deliveries", False)),
-        "is_delivery_contact": bool(getattr(runtime_projection, "is_delivery_contact", False)),
+        **{
+            **payload,
+            "country": payload["country"] or DEFAULT_COUNTRY,
+        },
     }
-
-
-def _upsert_runtime_recipient_address(organization, form_data):
-    address = (
-        organization.addresses.filter(is_default=True).first() or organization.addresses.first()
-    )
-    if address is None:
-        address = ContactAddress(contact=organization, is_default=True)
-    address.address_line1 = form_data["address_line1"]
-    address.address_line2 = form_data["address_line2"]
-    address.postal_code = form_data["postal_code"]
-    address.city = form_data["city"]
-    address.country = form_data["country"] or DEFAULT_COUNTRY
-    address.is_default = True
-    address.save()
-    return address
-
-
-def _upsert_runtime_recipient_contact(recipient_organization, form_data):
-    shipment_contact = _get_runtime_primary_recipient_contact(recipient_organization)
-    contact = shipment_contact.contact if shipment_contact is not None else None
-    if contact is None:
-        contact = Contact(
-            contact_type=ContactType.PERSON,
-            organization=recipient_organization.organization,
-            is_active=True,
-        )
-
-    contact.contact_type = ContactType.PERSON
-    contact.organization = recipient_organization.organization
-    contact.title = form_data["contact_title"]
-    contact.first_name = form_data["contact_first_name"]
-    contact.last_name = form_data["contact_last_name"]
-    full_name = " ".join(part for part in [contact.first_name, contact.last_name] if part).strip()
-    contact.name = full_name or contact.name or recipient_organization.organization.name
-    contact.email = form_data["email_values"][0] if form_data["email_values"] else ""
-    contact.email2 = form_data["email_values"][1] if len(form_data["email_values"]) > 1 else ""
-    contact.phone = form_data["phone_values"][0] if form_data["phone_values"] else ""
-    contact.phone2 = form_data["phone_values"][1] if len(form_data["phone_values"]) > 1 else ""
-    contact.is_active = True
-    contact.save()
-
-    if shipment_contact is None:
-        shipment_contact = recipient_organization.recipient_contacts.create(
-            contact=contact,
-            is_active=True,
-        )
-    else:
-        shipment_contact.contact = contact
-        shipment_contact.is_active = True
-        shipment_contact.save(update_fields=["contact", "is_active"])
-    return shipment_contact
-
-
-def _refresh_runtime_recipient_projections(recipient_organization, shipment_contact, form_data):
-    emails = _join_multi_values(form_data["email_values"])
-    phones = _join_multi_values(form_data["phone_values"])
-    projections = AssociationRecipient.objects.filter(
-        synced_contact=recipient_organization.organization,
-        destination=recipient_organization.destination,
-    ).select_related("association_contact")
-    for projection in projections:
-        refresh_legacy_association_recipient_projection(
-            projection=projection,
-            association_contact=projection.association_contact,
-            synced_contact=recipient_organization.organization,
-            recipient_organization=recipient_organization,
-            shipment_contact=shipment_contact,
-            structure_name=form_data["structure_name"],
-            contact_title=form_data["contact_title"],
-            contact_first_name=form_data["contact_first_name"],
-            contact_last_name=form_data["contact_last_name"],
-            emails=emails,
-            phones=phones,
-            address_line1=form_data["address_line1"],
-            address_line2=form_data["address_line2"],
-            postal_code=form_data["postal_code"],
-            city=form_data["city"],
-            country=form_data["country"] or DEFAULT_COUNTRY,
-            legal_form=form_data["legal_form"],
-            beneficiary_count=form_data.get("beneficiary_count_value"),
-            notes=form_data["notes"],
-            notify_deliveries=form_data["notify_deliveries"],
-            is_delivery_contact=form_data["is_delivery_contact"],
-            is_active=projection.is_active,
-        )
-
-
-def _update_runtime_recipient_profile(
-    *, recipient_organization, form_data, uploaded_by=None, files=None
-):
-    with transaction.atomic():
-        organization = recipient_organization.organization
-        organization.name = form_data["structure_name"]
-        organization.legal_form = form_data["legal_form"]
-        organization.beneficiary_count = form_data.get("beneficiary_count_value")
-        organization.notes = form_data["notes"]
-        organization.is_active = True
-        organization.save(
-            update_fields=[
-                "name",
-                "legal_form",
-                "beneficiary_count",
-                "notes",
-                "is_active",
-            ]
-        )
-        _upsert_runtime_recipient_address(organization, form_data)
-        shipment_contact = _upsert_runtime_recipient_contact(recipient_organization, form_data)
-        _refresh_runtime_recipient_projections(recipient_organization, shipment_contact, form_data)
-        _create_recipient_structure_documents(
-            contact=organization,
-            uploaded_by=uploaded_by,
-            files=files or {},
-        )
-    return recipient_organization
 
 
 def _recipient_shared_fields_are_read_only(recipient_organization):
@@ -1839,11 +1657,29 @@ def portal_recipient_profile(request):
                 errors.append(ERROR_RECIPIENT_DESTINATION_REQUIRED)
             errors.extend(_validate_recipient_uploaded_documents(request.FILES))
             if not errors:
-                _update_runtime_recipient_profile(
+                update_runtime_recipient_profile(
                     recipient_organization=recipient_organization,
-                    form_data=form_data,
+                    structure_name=form_data["structure_name"],
+                    contact_title=form_data["contact_title"],
+                    contact_first_name=form_data["contact_first_name"],
+                    contact_last_name=form_data["contact_last_name"],
+                    email_values=form_data["email_values"],
+                    phone_values=form_data["phone_values"],
+                    address_line1=form_data["address_line1"],
+                    address_line2=form_data["address_line2"],
+                    postal_code=form_data["postal_code"],
+                    city=form_data["city"],
+                    country=form_data["country"] or DEFAULT_COUNTRY,
+                    legal_form=form_data["legal_form"],
+                    beneficiary_count=form_data.get("beneficiary_count_value"),
+                    notes=form_data["notes"],
+                    notify_deliveries=form_data["notify_deliveries"],
+                    is_delivery_contact=form_data["is_delivery_contact"],
                     uploaded_by=request.user,
-                    files=request.FILES,
+                    files_by_type={
+                        doc_type: request.FILES.get(field_name)
+                        for doc_type, field_name in RECIPIENT_STRUCTURE_UPLOAD_FIELDS.items()
+                    },
                 )
                 messages.success(request, MESSAGE_RECIPIENT_UPDATED)
                 return redirect("portal:portal_recipient_profile")

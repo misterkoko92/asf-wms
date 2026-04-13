@@ -122,3 +122,37 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
         output = stdout.getvalue()
         self.assertIn("- Contacts changed: 0", output)
         self.assertIn("- Shipment recipients created: 0", output)
+
+    def test_apply_keeps_distinct_runtime_rows_for_multi_destination_correspondent(self):
+        organization = Contact.objects.create(
+            name="Multi Destination Backfill Correspondent",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Douala",
+            iata_code="DLA",
+            country="Cameroun",
+            correspondent_contact=organization,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Bangui",
+            iata_code="BGF",
+            country="RCA",
+            correspondent_contact=organization,
+            is_active=True,
+        )
+
+        call_command("backfill_correspondent_recipients", "--apply")
+
+        recipient_orgs = ShipmentRecipientOrganization.objects.filter(
+            organization=organization,
+            is_correspondent=True,
+            is_active=True,
+        ).order_by("destination__iata_code")
+        self.assertEqual(recipient_orgs.count(), 2)
+        self.assertEqual(
+            list(recipient_orgs.values_list("destination__iata_code", flat=True)),
+            ["BGF", "DLA"],
+        )

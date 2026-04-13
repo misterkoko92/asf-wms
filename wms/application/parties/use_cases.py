@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactAddress, ContactType
 from wms.document_scan import DocumentScanStatus
 from wms.document_scan_queue import queue_document_scan
 from wms.models import (
@@ -50,6 +50,14 @@ class RuntimeRecipientSharedProfileResult:
     recipient_organization: ShipmentRecipientOrganization
     shipment_contact: ShipmentRecipientContact
     refreshed_legacy_projections: list[AssociationRecipient]
+
+
+@dataclass(frozen=True)
+class RuntimeRecipientProfileResult:
+    recipient_organization: ShipmentRecipientOrganization
+    shipment_contact: ShipmentRecipientContact
+    refreshed_legacy_projections: list[AssociationRecipient]
+    uploaded_documents: list[RecipientStructureDocument]
 
 
 def _build_projection_candidate(
@@ -400,6 +408,215 @@ def update_runtime_recipient_shared_profile(
             recipient_organization=recipient_organization,
             shipment_contact=shipment_contact,
             refreshed_legacy_projections=refreshed_legacy_projections,
+        )
+
+
+def _join_multi_values(values):
+    return "; ".join(value for value in values if value)
+
+
+def _upsert_runtime_recipient_profile_address(
+    *,
+    organization,
+    address_line1="",
+    address_line2="",
+    postal_code="",
+    city="",
+    country="France",
+):
+    address = (
+        organization.addresses.filter(is_default=True).first() or organization.addresses.first()
+    )
+    if address is None:
+        address = ContactAddress(contact=organization, is_default=True)
+    address.address_line1 = address_line1
+    address.address_line2 = address_line2
+    address.postal_code = postal_code
+    address.city = city
+    address.country = (country or "France").strip() or "France"
+    address.is_default = True
+    address.save()
+    return address
+
+
+def _upsert_runtime_recipient_profile_contact(
+    *,
+    recipient_organization,
+    structure_name="",
+    contact_title="",
+    contact_first_name="",
+    contact_last_name="",
+    email_values=None,
+    phone_values=None,
+):
+    shipment_contact = (
+        recipient_organization.recipient_contacts.select_related("contact")
+        .order_by("-is_active", "id")
+        .first()
+    )
+    contact = shipment_contact.contact if shipment_contact is not None else None
+    if contact is None:
+        contact = Contact(
+            contact_type=ContactType.PERSON,
+            organization=recipient_organization.organization,
+            is_active=True,
+        )
+
+    emails = list(email_values or [])
+    phones = list(phone_values or [])
+    contact.contact_type = ContactType.PERSON
+    contact.organization = recipient_organization.organization
+    contact.title = contact_title
+    contact.first_name = contact_first_name
+    contact.last_name = contact_last_name
+    full_name = " ".join(part for part in [contact.first_name, contact.last_name] if part).strip()
+    contact.name = (
+        full_name
+        or contact.name
+        or (structure_name or "").strip()
+        or recipient_organization.organization.name
+        or "Referent destinataire"
+    )
+    contact.email = emails[0] if emails else ""
+    contact.email2 = emails[1] if len(emails) > 1 else ""
+    contact.phone = phones[0] if phones else ""
+    contact.phone2 = phones[1] if len(phones) > 1 else ""
+    contact.is_active = True
+    contact.save()
+
+    if shipment_contact is None:
+        shipment_contact = recipient_organization.recipient_contacts.create(
+            contact=contact,
+            is_active=True,
+        )
+    else:
+        shipment_contact.contact = contact
+        shipment_contact.is_active = True
+        shipment_contact.save(update_fields=["contact", "is_active"])
+    return shipment_contact
+
+
+def update_runtime_recipient_profile(
+    *,
+    recipient_organization,
+    structure_name="",
+    contact_title="",
+    contact_first_name="",
+    contact_last_name="",
+    email_values=None,
+    phone_values=None,
+    address_line1="",
+    address_line2="",
+    postal_code="",
+    city="",
+    country="France",
+    legal_form="",
+    beneficiary_count=None,
+    notes="",
+    notify_deliveries=False,
+    is_delivery_contact=False,
+    uploaded_by=None,
+    files_by_type=None,
+    queue_scan=True,
+):
+    with transaction.atomic():
+        organization = recipient_organization.organization
+        organization.name = (structure_name or "").strip()
+        organization.legal_form = legal_form or ""
+        organization.beneficiary_count = beneficiary_count
+        organization.notes = (notes or "").strip()
+        organization.is_active = True
+        organization.save(
+            update_fields=[
+                "name",
+                "legal_form",
+                "beneficiary_count",
+                "notes",
+                "is_active",
+            ]
+        )
+        _upsert_runtime_recipient_profile_address(
+            organization=organization,
+            address_line1=(address_line1 or "").strip(),
+            address_line2=(address_line2 or "").strip(),
+            postal_code=(postal_code or "").strip(),
+            city=(city or "").strip(),
+            country=(country or "").strip() or "France",
+        )
+        shipment_contact = _upsert_runtime_recipient_profile_contact(
+            recipient_organization=recipient_organization,
+            structure_name=(structure_name or "").strip(),
+            contact_title=(contact_title or "").strip(),
+            contact_first_name=(contact_first_name or "").strip(),
+            contact_last_name=(contact_last_name or "").strip(),
+            email_values=email_values or [],
+            phone_values=phone_values or [],
+        )
+        allowed_shipper_contacts = [
+            link.shipper.organization
+            for link in recipient_organization.shipper_links.filter(
+                is_active=True,
+                shipper__is_active=True,
+                shipper__organization__is_active=True,
+            ).select_related("shipper__organization")
+        ]
+        runtime_result = update_runtime_recipient_shared_profile(
+            organization=organization,
+            referent=shipment_contact.contact,
+            destination=recipient_organization.destination,
+            allowed_shipper_contacts=allowed_shipper_contacts,
+            is_correspondent=recipient_organization.is_correspondent,
+            is_active=recipient_organization.is_active,
+            validation_status=recipient_organization.validation_status,
+            refresh_legacy_projections=False,
+        )
+
+        refreshed_legacy_projections = []
+        projections = AssociationRecipient.objects.filter(
+            synced_contact=organization,
+            destination=recipient_organization.destination,
+        ).select_related("association_contact")
+        emails = _join_multi_values(email_values or [])
+        phones = _join_multi_values(phone_values or [])
+        for projection in projections:
+            refreshed_legacy_projections.append(
+                refresh_legacy_association_recipient_projection(
+                    projection=projection,
+                    association_contact=projection.association_contact,
+                    synced_contact=organization,
+                    recipient_organization=runtime_result.recipient_organization,
+                    shipment_contact=runtime_result.shipment_contact,
+                    structure_name=(structure_name or "").strip(),
+                    contact_title=(contact_title or "").strip(),
+                    contact_first_name=(contact_first_name or "").strip(),
+                    contact_last_name=(contact_last_name or "").strip(),
+                    emails=emails,
+                    phones=phones,
+                    address_line1=(address_line1 or "").strip(),
+                    address_line2=(address_line2 or "").strip(),
+                    postal_code=(postal_code or "").strip(),
+                    city=(city or "").strip(),
+                    country=(country or "").strip() or "France",
+                    legal_form=legal_form or "",
+                    beneficiary_count=beneficiary_count,
+                    notes=(notes or "").strip(),
+                    notify_deliveries=bool(notify_deliveries),
+                    is_delivery_contact=bool(is_delivery_contact),
+                    is_active=projection.is_active,
+                )
+            )
+
+        uploaded_documents = upsert_recipient_structure_documents(
+            contact=organization,
+            files_by_type=files_by_type or {},
+            uploaded_by=uploaded_by,
+            queue_scan=queue_scan,
+        )
+        return RuntimeRecipientProfileResult(
+            recipient_organization=runtime_result.recipient_organization,
+            shipment_contact=runtime_result.shipment_contact,
+            refreshed_legacy_projections=refreshed_legacy_projections,
+            uploaded_documents=uploaded_documents,
         )
 
 

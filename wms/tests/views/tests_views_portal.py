@@ -3047,6 +3047,25 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(home_response, "45 Rue Scope")
         self.assertContains(home_response, "Profil modifie par le destinataire")
 
+    def test_portal_recipient_profile_post_uses_runtime_recipient_profile_use_case(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Profile")
+        recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
+
+        with mock.patch(
+            "wms.views_portal_account.update_runtime_recipient_profile",
+            create=True,
+        ) as update_runtime_profile:
+            response = self.client.post(
+                self._recipient_profile_url(),
+                self._build_recipient_profile_payload(
+                    recipient_organization,
+                    structure_name="Structure Recipient Scope Updated",
+                ),
+            )
+
+        self.assertEqual(response.status_code, 302)
+        update_runtime_profile.assert_called_once()
+
     def test_portal_recipient_profile_post_upserts_structure_documents(self):
         recipient = self._create_synced_recipient(structure_name="Recipient Scope Docs")
         recipient_organization, recipient_user = self._activate_recipient_scope(recipient)
