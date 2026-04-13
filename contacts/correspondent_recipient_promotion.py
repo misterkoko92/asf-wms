@@ -162,6 +162,24 @@ def resolve_correspondent_recipient_organization(
     )
 
 
+def _upsert_correspondent_recipient_runtime(*, organization, destination):
+    existing = ShipmentRecipientOrganization.objects.filter(
+        organization=organization,
+        destination=destination,
+    ).first()
+    reactivated = bool(existing and not existing.is_active)
+    recipient, created = ShipmentRecipientOrganization.objects.update_or_create(
+        organization=organization,
+        destination=destination,
+        defaults={
+            "validation_status": ShipmentValidationStatus.VALIDATED,
+            "is_correspondent": True,
+            "is_active": True,
+        },
+    )
+    return recipient, created, reactivated
+
+
 def promote_correspondent_to_recipient_ready(
     contact,
 ) -> CorrespondentRecipientPromotionResult:
@@ -183,43 +201,14 @@ def promote_correspondent_to_recipient_ready(
         correspondent_contact=contact,
         is_active=True,
     ).order_by("id"):
-        recipient = ShipmentRecipientOrganization.objects.filter(
-            organization=organization,
-        ).first()
-        if recipient is None:
-            ShipmentRecipientOrganization.objects.create(
+        _recipient, recipient_created, recipient_reactivated = (
+            _upsert_correspondent_recipient_runtime(
                 organization=organization,
                 destination=destination,
-                validation_status=ShipmentValidationStatus.VALIDATED,
-                is_correspondent=True,
-                is_active=True,
             )
-            created = True
-            continue
-
-        updated_fields = []
-        if recipient.destination_id == destination.id:
-            if recipient.validation_status != ShipmentValidationStatus.VALIDATED:
-                recipient.validation_status = ShipmentValidationStatus.VALIDATED
-                updated_fields.append("validation_status")
-            if not recipient.is_correspondent:
-                recipient.is_correspondent = True
-                updated_fields.append("is_correspondent")
-            if not recipient.is_active:
-                recipient.is_active = True
-                updated_fields.append("is_active")
-                reactivated = True
-        elif not recipient.is_active:
-            recipient.destination = destination
-            recipient.validation_status = ShipmentValidationStatus.VALIDATED
-            recipient.is_correspondent = True
-            recipient.is_active = True
-            updated_fields.extend(
-                ["destination", "validation_status", "is_correspondent", "is_active"]
-            )
-            reactivated = True
-        if updated_fields:
-            recipient.save(update_fields=updated_fields)
+        )
+        created = created or recipient_created
+        reactivated = reactivated or recipient_reactivated
     return CorrespondentRecipientPromotionResult(
         changed=any(
             [

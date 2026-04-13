@@ -127,15 +127,20 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
             shippers_by_key[shipper_record["key"]] = shipper
 
         recipient_orgs_by_key: dict[str, ShipmentRecipientOrganization] = {}
-        recipient_contacts_by_contact_key: dict[str, ShipmentRecipientContact] = {}
-        recipient_orgs_by_contact_key: dict[str, ShipmentRecipientOrganization] = {}
+        recipient_contacts_by_recipient_and_contact_key: dict[
+            tuple[str, str], ShipmentRecipientContact
+        ] = {}
+        recipient_keys_by_contact_and_destination: dict[tuple[str, str], str] = {}
+        recipient_orgs_by_contact_and_destination: dict[
+            tuple[str, str], ShipmentRecipientOrganization
+        ] = {}
         for recipient_record in dataset.recipients:
             organization = contacts_by_key[recipient_record["contact_key"]]
             destination = destinations_by_iata[recipient_record["destination_iata"]]
             recipient_org, _created = ShipmentRecipientOrganization.objects.update_or_create(
                 organization=organization,
+                destination=destination,
                 defaults={
-                    "destination": destination,
                     "validation_status": ShipmentValidationStatus.VALIDATED,
                     "is_correspondent": bool(recipient_record.get("is_correspondent")),
                     "is_active": True,
@@ -148,17 +153,25 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                 defaults={"is_active": True},
             )
             recipient_orgs_by_key[recipient_record["key"]] = recipient_org
-            recipient_orgs_by_contact_key[recipient_record["contact_key"]] = recipient_org
-            recipient_contacts_by_contact_key[recipient_record["default_contact_key"]] = (
-                recipient_contact
-            )
+            recipient_orgs_by_contact_and_destination[
+                (recipient_record["contact_key"], recipient_record["destination_iata"])
+            ] = recipient_org
+            recipient_keys_by_contact_and_destination[
+                (recipient_record["contact_key"], recipient_record["destination_iata"])
+            ] = recipient_record["key"]
+            recipient_contacts_by_recipient_and_contact_key[
+                (recipient_record["key"], recipient_record["default_contact_key"])
+            ] = recipient_contact
 
-        for correspondent_record in dataset.correspondents:
-            organization_contact_key = correspondent_record.get("organization_contact_key", "")
-            contact_key = correspondent_record.get("contact_key", "")
-            if not organization_contact_key or not contact_key:
+        for destination_record in dataset.destinations:
+            organization_contact_key = destination_record.get("correspondent_org_contact_key", "")
+            contact_key = destination_record.get("correspondent_contact_key", "")
+            destination_iata = destination_record.get("iata_code", "")
+            if not organization_contact_key or not contact_key or not destination_iata:
                 continue
-            recipient_org = recipient_orgs_by_contact_key.get(organization_contact_key)
+            recipient_org = recipient_orgs_by_contact_and_destination.get(
+                (organization_contact_key, destination_iata)
+            )
             if recipient_org is None:
                 continue
             recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
@@ -166,7 +179,13 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                 contact=contacts_by_key[contact_key],
                 defaults={"is_active": True},
             )
-            recipient_contacts_by_contact_key[contact_key] = recipient_contact
+            recipient_key = recipient_keys_by_contact_and_destination.get(
+                (organization_contact_key, destination_iata)
+            )
+            if recipient_key:
+                recipient_contacts_by_recipient_and_contact_key[(recipient_key, contact_key)] = (
+                    recipient_contact
+                )
 
         for link_record in dataset.shipment_links:
             shipper = shippers_by_key[link_record["shipper_key"]]
@@ -178,7 +197,9 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
             )
             default_contact_key = link_record["default_recipient_contact_key"]
             for authorized_contact_key in link_record["authorized_recipient_contact_keys"]:
-                recipient_contact = recipient_contacts_by_contact_key[authorized_contact_key]
+                recipient_contact = recipient_contacts_by_recipient_and_contact_key[
+                    (link_record["recipient_key"], authorized_contact_key)
+                ]
                 authorization, _created = (
                     ShipmentAuthorizedRecipientContact.objects.update_or_create(
                         link=shipment_link,

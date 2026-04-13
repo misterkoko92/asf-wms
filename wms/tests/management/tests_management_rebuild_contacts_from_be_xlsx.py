@@ -705,6 +705,154 @@ class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
             ).exists()
         )
 
+    def test_apply_be_contact_dataset_keeps_distinct_recipient_runtime_rows_per_destination(self):
+        dataset = BeContactDataset(
+            contacts=[
+                {
+                    "key": "org:aviation sans frontieres",
+                    "name": "AVIATION SANS FRONTIERES",
+                    "contact_type": ContactType.ORGANIZATION,
+                },
+                {
+                    "key": "person:org:aviation sans frontieres:anne dupond",
+                    "name": "Anne Dupond",
+                    "contact_type": ContactType.PERSON,
+                    "first_name": "Anne",
+                    "last_name": "Dupond",
+                    "organization_key": "org:aviation sans frontieres",
+                },
+                {
+                    "key": "org:recipient a",
+                    "name": "Recipient A",
+                    "contact_type": ContactType.ORGANIZATION,
+                },
+                {
+                    "key": "person:org:recipient a:recipient rep",
+                    "name": "Recipient Rep",
+                    "contact_type": ContactType.PERSON,
+                    "first_name": "Recipient",
+                    "last_name": "Rep",
+                    "organization_key": "org:recipient a",
+                },
+                {
+                    "key": "person:org:recipient a:correspondent tnr",
+                    "name": "Correspondent TNR",
+                    "contact_type": ContactType.PERSON,
+                    "first_name": "Correspondent",
+                    "last_name": "TNR",
+                    "organization_key": "org:recipient a",
+                },
+                {
+                    "key": "person:org:recipient a:correspondent bgf",
+                    "name": "Correspondent BGF",
+                    "contact_type": ContactType.PERSON,
+                    "first_name": "Correspondent",
+                    "last_name": "BGF",
+                    "organization_key": "org:recipient a",
+                },
+            ],
+            shippers=[
+                {
+                    "key": "aviation sans frontieres",
+                    "name": "AVIATION SANS FRONTIERES",
+                    "country": "France",
+                    "contact_key": "org:aviation sans frontieres",
+                    "default_contact_key": "person:org:aviation sans frontieres:anne dupond",
+                }
+            ],
+            recipients=[
+                {
+                    "key": "recipient a:tnr",
+                    "name": "Recipient A",
+                    "status": "actif",
+                    "contact_key": "org:recipient a",
+                    "destination_iata": "TNR",
+                    "default_contact_key": "person:org:recipient a:recipient rep",
+                    "is_correspondent": True,
+                },
+                {
+                    "key": "recipient a:bgf",
+                    "name": "Recipient A",
+                    "status": "actif",
+                    "contact_key": "org:recipient a",
+                    "destination_iata": "BGF",
+                    "default_contact_key": "person:org:recipient a:recipient rep",
+                    "is_correspondent": True,
+                },
+            ],
+            correspondents=[
+                {
+                    "key": "correspondent tnr",
+                    "name": "Correspondent TNR",
+                    "country": "Madagascar",
+                    "contact_key": "person:org:recipient a:correspondent tnr",
+                    "organization_contact_key": "org:recipient a",
+                },
+                {
+                    "key": "correspondent bgf",
+                    "name": "Correspondent BGF",
+                    "country": "RCA",
+                    "contact_key": "person:org:recipient a:correspondent bgf",
+                    "organization_contact_key": "org:recipient a",
+                },
+            ],
+            destinations=[
+                {
+                    "key": "TNR",
+                    "city": "ANTANANARIVO",
+                    "country": "Madagascar",
+                    "iata_code": "TNR",
+                    "correspondent_key": "correspondent tnr",
+                    "correspondent_contact_key": "person:org:recipient a:correspondent tnr",
+                    "correspondent_org_contact_key": "org:recipient a",
+                },
+                {
+                    "key": "BGF",
+                    "city": "BANGUI",
+                    "country": "RCA",
+                    "iata_code": "BGF",
+                    "correspondent_key": "correspondent bgf",
+                    "correspondent_contact_key": "person:org:recipient a:correspondent bgf",
+                    "correspondent_org_contact_key": "org:recipient a",
+                },
+            ],
+            shipment_links=[
+                {
+                    "recipient_key": "recipient a:tnr",
+                    "shipper_key": "aviation sans frontieres",
+                    "destination_iata": "TNR",
+                    "default_recipient_contact_key": "person:org:recipient a:recipient rep",
+                    "authorized_recipient_contact_keys": ["person:org:recipient a:recipient rep"],
+                },
+                {
+                    "recipient_key": "recipient a:bgf",
+                    "shipper_key": "aviation sans frontieres",
+                    "destination_iata": "BGF",
+                    "default_recipient_contact_key": "person:org:recipient a:recipient rep",
+                    "authorized_recipient_contact_keys": ["person:org:recipient a:recipient rep"],
+                },
+            ],
+            review_items=[],
+        )
+
+        apply_be_contact_dataset(dataset)
+
+        recipient_orgs = ShipmentRecipientOrganization.objects.filter(
+            organization__name="Recipient A",
+        ).order_by("destination__iata_code")
+        self.assertEqual(recipient_orgs.count(), 2)
+        self.assertEqual(
+            list(recipient_orgs.values_list("destination__iata_code", flat=True)),
+            ["BGF", "TNR"],
+        )
+        self.assertEqual(
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper__organization__name="AVIATION SANS FRONTIERES",
+                recipient_organization__organization__name="Recipient A",
+            ).count(),
+            2,
+        )
+
 
 class RebuildContactsFromBeXlsxCommandTests(BeWorkbookMixin, TestCase):
     def setUp(self):

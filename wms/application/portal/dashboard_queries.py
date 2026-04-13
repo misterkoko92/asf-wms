@@ -2,6 +2,7 @@ from django.db.models import DateTimeField, F, Max, Q, Value
 from django.db.models.functions import Coalesce
 
 from wms.models import (
+    AssociationRecipient,
     Order,
     RecipientProductPreference,
     RecipientStructureDocument,
@@ -124,6 +125,97 @@ def _recipient_scope_address_lines(contact):
 def _recipient_scope_contact_label(contact):
     full_name = " ".join(part for part in [contact.first_name, contact.last_name] if part).strip()
     return full_name or contact.name or "-"
+
+
+def _join_multi_values(values):
+    return "; ".join(value for value in values if value)
+
+
+def _runtime_recipient_projection(recipient_organization):
+    return (
+        AssociationRecipient.objects.filter(
+            synced_contact=recipient_organization.organization,
+            destination=recipient_organization.destination,
+        )
+        .order_by("id")
+        .first()
+    )
+
+
+def _runtime_primary_recipient_contact(recipient_organization):
+    return (
+        ShipmentRecipientContact.objects.filter(
+            recipient_organization=recipient_organization,
+            is_active=True,
+        )
+        .select_related("contact")
+        .order_by("-is_active", "id")
+        .first()
+    )
+
+
+def build_runtime_recipient_profile_payload(*, recipient_organization):
+    recipient_organization = (
+        type(recipient_organization)
+        .objects.filter(pk=recipient_organization.pk)
+        .select_related("organization", "destination")
+        .get()
+    )
+    organization = recipient_organization.organization
+    address = organization.get_effective_address()
+    runtime_projection = _runtime_recipient_projection(recipient_organization)
+    shipment_contact = _runtime_primary_recipient_contact(recipient_organization)
+    contact = shipment_contact.contact if shipment_contact is not None else None
+    email_values = [
+        value for value in [getattr(contact, "email", ""), getattr(contact, "email2", "")] if value
+    ]
+    phone_values = [
+        value for value in [getattr(contact, "phone", ""), getattr(contact, "phone2", "")] if value
+    ]
+    return {
+        "structure_name": organization.name
+        or getattr(runtime_projection, "structure_name", "")
+        or "",
+        "contact_title": getattr(contact, "title", "")
+        or getattr(runtime_projection, "contact_title", "")
+        or "",
+        "contact_first_name": getattr(contact, "first_name", "")
+        or getattr(runtime_projection, "contact_first_name", "")
+        or "",
+        "contact_last_name": getattr(contact, "last_name", "")
+        or getattr(runtime_projection, "contact_last_name", "")
+        or "",
+        "phones": _join_multi_values(phone_values)
+        or getattr(runtime_projection, "phones", "")
+        or "",
+        "emails": _join_multi_values(email_values)
+        or getattr(runtime_projection, "emails", "")
+        or "",
+        "address_line1": getattr(address, "address_line1", "")
+        or getattr(runtime_projection, "address_line1", "")
+        or "",
+        "address_line2": getattr(address, "address_line2", "")
+        or getattr(runtime_projection, "address_line2", "")
+        or "",
+        "postal_code": getattr(address, "postal_code", "")
+        or getattr(runtime_projection, "postal_code", "")
+        or "",
+        "city": getattr(address, "city", "") or getattr(runtime_projection, "city", "") or "",
+        "country": getattr(address, "country", "")
+        or getattr(runtime_projection, "country", "")
+        or "France",
+        "legal_form": organization.legal_form
+        or getattr(runtime_projection, "legal_form", "")
+        or "",
+        "beneficiary_count": (
+            organization.beneficiary_count
+            if organization.beneficiary_count is not None
+            else getattr(runtime_projection, "beneficiary_count", None)
+        ),
+        "notes": organization.notes or getattr(runtime_projection, "notes", "") or "",
+        "notify_deliveries": bool(getattr(runtime_projection, "notify_deliveries", False)),
+        "is_delivery_contact": bool(getattr(runtime_projection, "is_delivery_contact", False)),
+    }
 
 
 def _recipient_scope_document_rows(recipient_organization):

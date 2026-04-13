@@ -202,3 +202,79 @@ class PartiesUseCasesTests(TestCase):
         )
         second_documents[0].refresh_from_db()
         self.assertEqual(second_documents[0].status, DocumentReviewStatus.PENDING)
+
+    def test_update_runtime_recipient_profile_updates_runtime_projection_and_documents(self):
+        shared_profile = use_cases.update_recipient_shared_profile(
+            association_contact=self.association,
+            destination=self.destination,
+            structure_name="Hopital Runtime",
+            contact_first_name="Awa",
+            contact_last_name="Diallo",
+            emails="runtime@example.org",
+            phones="+22373333333",
+            address_line1="4 Rue Runtime",
+            city="Bamako",
+            country="Mali",
+            notify_deliveries=False,
+            is_delivery_contact=False,
+            persist_projection=True,
+        )
+
+        result = use_cases.update_runtime_recipient_profile(
+            recipient_organization=shared_profile.recipient_organization,
+            structure_name="Hopital Runtime Updated",
+            contact_title="mr",
+            contact_first_name="Moussa",
+            contact_last_name="Traore",
+            email_values=["updated@example.org", "second@example.org"],
+            phone_values=["0102030405", "0607080910"],
+            address_line1="5 Rue Runtime",
+            address_line2="Bat A",
+            postal_code="75010",
+            city="Paris",
+            country="France",
+            legal_form="association",
+            beneficiary_count=77,
+            notes="Updated runtime profile",
+            notify_deliveries=True,
+            is_delivery_contact=True,
+            uploaded_by=self.user,
+            files_by_type={
+                RecipientStructureDocumentType.REGISTRATION_PROOF: SimpleUploadedFile(
+                    "proof.pdf",
+                    b"%PDF-1.7 runtime proof",
+                )
+            },
+        )
+
+        organization = result.recipient_organization.organization
+        organization.refresh_from_db()
+        self.assertEqual(organization.name, "Hopital Runtime Updated")
+        self.assertEqual(organization.legal_form, "association")
+        self.assertEqual(organization.beneficiary_count, 77)
+        self.assertEqual(organization.notes, "Updated runtime profile")
+        address = organization.get_effective_address()
+        self.assertIsNotNone(address)
+        self.assertEqual(address.address_line1, "5 Rue Runtime")
+        self.assertEqual(address.address_line2, "Bat A")
+        self.assertEqual(address.postal_code, "75010")
+        self.assertEqual(address.city, "Paris")
+        self.assertEqual(address.country, "France")
+        result.shipment_contact.contact.refresh_from_db()
+        self.assertEqual(result.shipment_contact.contact.title, "mr")
+        self.assertEqual(result.shipment_contact.contact.first_name, "Moussa")
+        self.assertEqual(result.shipment_contact.contact.last_name, "Traore")
+        self.assertEqual(result.shipment_contact.contact.email, "updated@example.org")
+        self.assertEqual(result.shipment_contact.contact.email2, "second@example.org")
+        self.assertEqual(result.shipment_contact.contact.phone, "0102030405")
+        self.assertEqual(result.shipment_contact.contact.phone2, "0607080910")
+        legacy_projection = AssociationRecipient.objects.get(pk=shared_profile.legacy_projection.pk)
+        self.assertTrue(legacy_projection.notify_deliveries)
+        self.assertTrue(legacy_projection.is_delivery_contact)
+        self.assertEqual(
+            RecipientStructureDocument.objects.filter(
+                contact=organization,
+                doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
+            ).count(),
+            1,
+        )
