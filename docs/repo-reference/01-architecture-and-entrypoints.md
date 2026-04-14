@@ -83,7 +83,8 @@ Practical rule:
 - Static assets: `wms/static/scan/`
 - Order-specific scan surfaces are now intentionally split:
   - `/scan/orders-view/` for the queue
-  - `/scan/orders/<id>/` for the operator dossier
+  - `/scan/orders/<id>/` for the operator dossier, including visible contacts/destination and
+    shipment-preparation actions
   - `/scan/orders/` for create / select / line maintenance
 - Stable scan asset facade: `templates/scan/base.html` keeps `scan.js` and `scan/modules/core.js`
   as the shared script entrypoints, while page-local scripts now attach through the

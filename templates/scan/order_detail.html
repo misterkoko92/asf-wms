@@ -15,6 +15,33 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Contacts & Destination" %}</h3>
+    <div class="scan-meta-grid">
+      <div class="scan-meta-item">
+        <strong>{% trans "Destination" %}</strong>
+        <div>{{ detail.destination_summary.primary }}</div>
+        {% if detail.destination_summary.secondary %}
+          <div class="scan-help">{{ detail.destination_summary.secondary }}</div>
+        {% endif %}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Expéditeur" %}</strong>
+        <div>{{ detail.shipper_summary.primary }}</div>
+        {% if detail.shipper_summary.secondary %}
+          <div class="scan-help">{{ detail.shipper_summary.secondary }}</div>
+        {% endif %}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Destinataire" %}</strong>
+        <div>{{ detail.recipient_summary.primary }}</div>
+        {% if detail.recipient_summary.secondary %}
+          <div class="scan-help">{{ detail.recipient_summary.secondary }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title">{% trans "Revue de commande" %}</h3>
     <div class="scan-meta-grid mb-3">
       <div class="scan-meta-item">
@@ -53,6 +80,13 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="create_shipment">
           <button type="submit" class="btn btn-success btn-sm">{{ detail.create_shipment_label }}</button>
+        </form>
+      {% endif %}
+      {% if detail.can_prepare_shipment_and_cartons %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_shipment_and_cartons">
+          <button type="submit" class="btn btn-warning btn-sm">{{ detail.prepare_shipment_and_cartons_label }}</button>
         </form>
       {% endif %}
       {% if detail.receipt_shortcut_url and not detail.receipt_reference %}

@@ -5,7 +5,7 @@ from django.utils import timezone
 from .models import OrderReviewStatus
 from .order_helpers import attach_order_documents_to_shipment
 from .scan_helpers import parse_int
-from .services import create_shipment_for_order
+from .services import StockError, create_shipment_for_order, prepare_order
 
 
 def _update_review_status(request, *, order):
@@ -31,6 +31,25 @@ def _create_shipment(request, *, order):
     shipment = create_shipment_for_order(order=order, force_new=True)
     attach_order_documents_to_shipment(order, shipment)
     return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+
+def _prepare_shipment_and_cartons(request, *, order):
+    if order.review_status != OrderReviewStatus.APPROVED:
+        messages.error(request, "Commande non validée.")
+        return redirect("scan:scan_order_detail", order_id=order.id)
+    try:
+        prepare_order(user=request.user, order=order)
+    except StockError as exc:
+        messages.error(request, str(exc))
+        return redirect("scan:scan_order_detail", order_id=order.id)
+    order.refresh_from_db()
+    shipment = getattr(order, "shipment", None)
+    if shipment is not None:
+        attach_order_documents_to_shipment(order, shipment)
+        messages.success(request, "Préparation lancée: colis créés et rattachés à l'expédition.")
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+    messages.success(request, "Préparation lancée.")
+    return redirect("scan:scan_order_detail", order_id=order.id)
 
 
 def handle_orders_view_action(request, *, orders_qs):
@@ -65,5 +84,8 @@ def handle_order_detail_action(request, *, order):
 
     if action == "create_shipment":
         return _create_shipment(request, order=order)
+
+    if action == "create_shipment_and_cartons":
+        return _prepare_shipment_and_cartons(request, order=order)
 
     return None

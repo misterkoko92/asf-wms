@@ -20,6 +20,7 @@ from wms.models import (
     Location,
     Order,
     OrderReviewStatus,
+    OrderStatus,
     PreparationCartonProposal,
     PreparationDestinationRule,
     PreparationParameterSet,
@@ -896,7 +897,8 @@ class ScanBootstrapUiTests(TestCase):
             recipient_name="Association Detail",
             destination_address="5 rue de la Paix",
             destination_country="France",
-            review_status=OrderReviewStatus.PENDING,
+            review_status=OrderReviewStatus.APPROVED,
+            status=OrderStatus.RESERVED,
         )
 
         response = self.client.get(reverse("scan:scan_order_detail", args=[order.id]))
@@ -904,8 +906,10 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
+        self.assertContains(response, "Contacts & Destination")
         self.assertContains(response, "Revue de commande")
         self.assertContains(response, "Mettre à jour")
+        self.assertContains(response, "Créer les colis et l&#x27;expédition")
 
     def test_scan_shipments_tracking_uses_design_classes_for_close_buttons(self):
         Shipment.objects.create(
