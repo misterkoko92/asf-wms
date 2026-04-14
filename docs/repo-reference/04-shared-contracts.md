@@ -392,6 +392,12 @@ Current contract:
   movement instead of replacing existing stock quantities on the matched product
 - `/scan/receive-association/` reuses `pickup_charge_comment` as the operator observation field
 - when the operator marks a reception non-conform, the observation field becomes mandatory in both forms
+- `/scan/receive-association/` may optionally attach the reception to an order inbound delivery; in
+  that case the handler must also create one real `Carton` per declared carton with
+  `source_kind=shipper_received` and `source_receipt=<receipt>`
+- `/scan/receive-association/` accepts `?order_id=<order>` to prefill the inbound order and
+  association, and the page now exposes a workflow helper card that can open/create linked shipment
+  dossiers once the approved order has a registered receipt
 
 Maintenance rule:
 
@@ -888,8 +894,19 @@ Current contract:
 - the explicit helper pair is `shipment_can_be_confirmed_ready(shipment)` and `confirm_shipment_ready(shipment, user)`
 - this action is for dossier-level confirmation after physical preparation, especially for shipments created by warehouse proposal conversion
 - confirmation is only valid while the shipment remains editable and every carton is already in `ASSIGNED` or `LABELED`
+- when a shipment is linked to an order, clean order-level attestations are part of the readiness
+  gate: donation is always required, and humanitarian attestation is required unless the linked
+  shipper / association contact is marked exempt
+- when a shipment contains any `Carton` with `source_kind=shipper_received`, readiness also requires
+  a linked and conform inbound association receipt plus clean order-level `packing_list_global` and
+  `packing_list_by_carton` documents
+- order linkage for readiness checks must resolve through `OrderShipmentLink`; `order.shipment`
+  remains only a compatibility pointer for older single-shipment surfaces
 - confirmation relabels remaining `ASSIGNED` cartons to `LABELED`, then sets the shipment to `ShipmentStatus.PACKED` and stamps `ready_at`
 - the dossier action is explicit in `scan/shipment/<id>/edit/`; it must not be folded into generic shipment edit POST handling or preparation-run review actions
+- when a shipment is linked to an order, the dossier summary now exposes the linked order reference
+  and, when relevant, the remaining `shipper_received` cartons still available for manual
+  assignment across the order's shipment dossiers
 - planning-vols eligibility stays restricted to `ShipmentStatus.PACKED` and `ShipmentStatus.PLANNED`; `ShipmentStatus.PICKING` stays excluded even if its `ready_at` window would otherwise match
 
 Maintenance rule:
@@ -998,6 +1015,8 @@ Current contract:
 - the portal UI API dashboard is now scope-aware and returns `mode="shipper"` or `mode="recipient"` so consumers can branch without re-deriving portal access rules
 - `dashboard_kpis` exposes `orders_total`, `orders_pending_review`, `orders_changes_requested`, `orders_with_shipment`, `orders_shipments_in_progress`
 - portal dashboard rows expose `next_step_label` and `next_step_tone` in both HTML context and UI API payloads
+- the shipper-facing `Date d'expédition` stays empty until the linked shipment reaches a real
+  `BOARDING_OK` tracking event; simple shipment dossier creation must not populate this date
 - the HTML table and the UI API must stay aligned on the meaning of "next step" for pending review, correction, preparation, and tracked shipment states
 
 Maintenance rule:

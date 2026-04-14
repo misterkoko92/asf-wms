@@ -26,6 +26,7 @@ from wms.models import (
     Order,
     OrderLine,
     OrderReservation,
+    OrderShipmentLink,
     OrderStatus,
     Product,
     ProductLot,
@@ -241,6 +242,26 @@ class DomainOrdersExtraTests(TestCase):
         same_shipment = create_shipment_for_order(order=order)
 
         self.assertEqual(same_shipment.id, shipment.id)
+
+    def test_create_shipment_for_order_creates_order_shipment_link(self):
+        order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=1)
+
+        shipment = create_shipment_for_order(order=order)
+
+        order.refresh_from_db()
+        self.assertEqual(order.shipment_id, shipment.id)
+        self.assertTrue(OrderShipmentLink.objects.filter(order=order, shipment=shipment).exists())
+
+    def test_create_shipment_for_order_force_new_adds_second_link(self):
+        order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=1)
+
+        first_shipment = create_shipment_for_order(order=order)
+        second_shipment = create_shipment_for_order(order=order, force_new=True)
+
+        order.refresh_from_db()
+        self.assertEqual(order.shipment_id, first_shipment.id)
+        self.assertNotEqual(first_shipment.id, second_shipment.id)
+        self.assertEqual(order.shipment_links.count(), 2)
 
     def test_create_shipment_for_order_rejects_name_only_contacts(self):
         shipper = Contact.objects.create(

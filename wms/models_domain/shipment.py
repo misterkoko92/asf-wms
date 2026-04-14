@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 
 from ..document_scan import DocumentScanStatus
 from .catalog import Product
-from .inventory import Destination, Location, ProductLot
+from .inventory import Destination, Location, ProductLot, Receipt
 
 
 class ShipmentStatus(models.TextChoices):
@@ -293,6 +293,11 @@ class CartonStatus(models.TextChoices):
     SHIPPED = "shipped", "Expédié"
 
 
+class CartonSourceKind(models.TextChoices):
+    WAREHOUSE_PREPARED = "warehouse_prepared", "Préparation ASF"
+    SHIPPER_RECEIVED = "shipper_received", "Réception expéditeur"
+
+
 class Carton(models.Model):
     code = models.CharField(max_length=80, unique=True)
     status = models.CharField(
@@ -321,6 +326,18 @@ class Carton(models.Model):
     )
     current_location = models.ForeignKey(Location, on_delete=models.PROTECT, null=True, blank=True)
     shipment = models.ForeignKey(Shipment, on_delete=models.SET_NULL, null=True, blank=True)
+    source_kind = models.CharField(
+        max_length=30,
+        choices=CartonSourceKind.choices,
+        default=CartonSourceKind.WAREHOUSE_PREPARED,
+    )
+    source_receipt = models.ForeignKey(
+        Receipt,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipper_cartons",
+    )
     preassigned_destination = models.ForeignKey(
         Destination,
         on_delete=models.SET_NULL,

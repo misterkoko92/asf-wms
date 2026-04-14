@@ -1,0 +1,41 @@
+{% if workflow_context %}
+  <div id="scan-receive-association-workflow-card" class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Flux commande expéditeur</h2>
+    <p class="scan-help ui-comp-note">
+      1. Enregistrer la réception liée à la commande. 2. Créer ou ouvrir une expédition. 3. Dans le dossier expédition, cliquer sur Modifier puis affecter les colis marqués Réception expéditeur.
+    </p>
+
+    <div class="scan-field">
+      <div class="form-label fw-bold">Commande liée</div>
+      <div>{{ workflow_context.reference_label }}</div>
+    </div>
+
+    <div class="scan-field">
+      <div class="form-label fw-bold">Colis expéditeur disponibles</div>
+      <div>
+        {{ workflow_context.shipper_received_unassigned_carton_count }} / {{ workflow_context.declared_carton_count }}
+      </div>
+      {% if workflow_context.receipt %}
+        <div class="scan-help">Réception enregistrée : {{ workflow_context.receipt.reference }}</div>
+      {% else %}
+        <div class="scan-help">Aucune réception liée pour le moment.</div>
+      {% endif %}
+    </div>
+
+    <div class="ui-comp-actions">
+      {% if workflow_context.can_create_linked_shipment and workflow_context.receipt %}
+        <form method="post" class="d-inline-flex">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_linked_shipment">
+          <input type="hidden" name="receipt_id" value="{{ workflow_context.receipt.id }}">
+          <button type="submit" class="scan-scan-btn btn btn-success">Créer une expédition liée</button>
+        </form>
+      {% endif %}
+      {% for shipment in workflow_context.linked_shipments %}
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_edit' shipment.id %}">
+          {{ shipment.reference }} · {{ shipment.status_label }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}

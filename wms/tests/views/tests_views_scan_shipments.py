@@ -13,9 +13,15 @@ from wms.helper_install import build_helper_install_context
 from wms.models import (
     Carton,
     CartonItem,
+    CartonSourceKind,
     CartonStatus,
     Destination,
     Location,
+    Order,
+    OrderInboundArrivalMode,
+    OrderInboundDelivery,
+    OrderReviewStatus,
+    OrderShipmentLink,
     Product,
     ProductLot,
     Receipt,
@@ -1435,6 +1441,31 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Valider")
         self.assertContains(response, "Refuser")
 
+    def test_scan_shipment_create_exposes_carton_source_labels(self):
+        warehouse = Warehouse.objects.create(name="Shipment labels warehouse")
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=warehouse,
+        )
+        Carton.objects.create(
+            code="AS-SHIPPER-001",
+            status=CartonStatus.PACKED,
+            source_kind=CartonSourceKind.SHIPPER_RECEIVED,
+            source_receipt=receipt,
+        )
+        Carton.objects.create(
+            code="AS-WAREHOUSE-001",
+            status=CartonStatus.PACKED,
+            source_kind=CartonSourceKind.WAREHOUSE_PREPARED,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        source_labels = [row["source_label"] for row in response.context["cartons_json"]]
+        self.assertIn("Réception expéditeur", source_labels)
+        self.assertIn("Préparation ASF", source_labels)
+
     def test_scan_shipment_edit_renders_read_only_dossier_when_shipment_is_locked(self):
         shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)
 
@@ -1506,6 +1537,58 @@ class ScanShipmentsViewsTests(TestCase):
             header_html.index('id="shipment-dossier-primary-actions"'),
             header_html.index('id="shipment-dossier-secondary-actions"'),
         )
+
+    def test_scan_shipment_edit_displays_inbound_workflow_summary(self):
+        warehouse = Warehouse.objects.create(name="Inbound workflow warehouse")
+        association = Contact.objects.create(
+            name="Association workflow",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=warehouse,
+            source_contact=association,
+        )
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        order = Order.objects.create(
+            association_contact=association,
+            shipper_name="Aviation Sans Frontieres",
+            recipient_name="Association Dest",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        OrderInboundDelivery.objects.create(
+            order=order,
+            arrival_mode=OrderInboundArrivalMode.DROPOFF_WAREHOUSE,
+            declared_carton_count=3,
+            receipt=receipt,
+        )
+        OrderShipmentLink.objects.create(order=order, shipment=shipment, created_by=self.staff_user)
+        Carton.objects.create(
+            code="AS-FLOW-UNASSIGNED",
+            status=CartonStatus.PACKED,
+            source_kind=CartonSourceKind.SHIPPER_RECEIVED,
+            source_receipt=receipt,
+        )
+        Carton.objects.create(
+            code="AS-FLOW-ASSIGNED",
+            status=CartonStatus.ASSIGNED,
+            source_kind=CartonSourceKind.SHIPPER_RECEIVED,
+            source_receipt=receipt,
+            shipment=shipment,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Commande liée")
+        self.assertContains(response, f"CMD-{order.id}")
+        self.assertContains(response, "Colis expéditeur disponibles")
+        self.assertContains(response, "1 / 3")
 
     def test_scan_shipment_edit_get_renders_context(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)

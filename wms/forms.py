@@ -566,6 +566,11 @@ class ScanReceiptAssociationForm(forms.Form):
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
+    inbound_delivery_order = forms.ModelChoiceField(
+        label=_("Commande expéditeur"),
+        queryset=Order.objects.none(),
+        required=False,
+    )
     carrier_contact = forms.ModelChoiceField(
         label=_("Transporteur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
@@ -604,7 +609,20 @@ class ScanReceiptAssociationForm(forms.Form):
         self.fields["carrier_contact"].queryset = _active_transporter_organizations()
         self.fields["source_contact"].label_from_instance = _contact_label
         self.fields["carrier_contact"].label_from_instance = _contact_label
+        self.fields["inbound_delivery_order"].queryset = (
+            Order.objects.filter(
+                inbound_delivery__isnull=False,
+                inbound_delivery__receipt__isnull=True,
+            )
+            .select_related("association_contact", "shipper_contact")
+            .order_by("-created_at")
+        )
+        self.fields["inbound_delivery_order"].label_from_instance = (
+            lambda order: order.reference
+            or f"Commande #{order.id} - {(order.shipper_name or '').strip() or '-'}"
+        )
         _select_single_choice(self.fields["source_contact"])
+        _select_single_choice(self.fields["inbound_delivery_order"])
         _select_single_choice(self.fields["carrier_contact"])
 
     def clean_pickup_charge_currency(self):

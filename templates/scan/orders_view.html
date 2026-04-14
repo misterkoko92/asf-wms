@@ -76,6 +76,20 @@
                   <span class="ui-comp-status-pill{% if row.next_action_tone != 'neutral' %} is-{{ row.next_action_tone }}{% endif %}">
                     {{ row.next_action_label }}
                   </span>
+                  {% if row.has_inbound_delivery %}
+                    <div class="scan-help mt-2">
+                      {{ row.declared_carton_count }} colis annoncés · {{ row.arrival_mode_label }}
+                    </div>
+                    {% if row.receipt_reference %}
+                      <div class="scan-help">
+                        Réception enregistrée : {{ row.receipt_reference }}
+                      </div>
+                    {% else %}
+                      <div class="scan-help">
+                        Réception entrepôt à enregistrer avant l'affectation des colis expéditeur.
+                      </div>
+                    {% endif %}
+                  {% endif %}
                 </td>
                 <td class="scan-orders-view-fulfillment-cell">
                   <div class="scan-orders-view-fulfillment">
@@ -86,13 +100,37 @@
                         </span>
                       </div>
                     {% endif %}
+                    {% if row.has_inbound_delivery and not row.receipt_reference %}
+                      <div class="scan-inline-actions">
+                        <a class="scan-scan-btn btn btn-tertiary" href="{{ row.receipt_shortcut_url }}">
+                          {% trans "Enregistrer la réception" %}
+                        </a>
+                      </div>
+                    {% endif %}
                     {% if row.can_create_shipment %}
                       <form method="post" class="scan-inline-actions">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="create_shipment">
                         <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                        <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Créer l'expédition" %}</button>
+                        <button type="submit" class="scan-scan-btn btn btn-success">{{ row.create_shipment_label }}</button>
                       </form>
+                    {% endif %}
+                    {% if row.linked_shipments %}
+                      <div class="scan-inline-actions">
+                        {% for shipment in row.linked_shipments %}
+                          <a
+                            class="scan-scan-btn btn btn-tertiary"
+                            href="{% url 'scan:scan_shipment_edit' shipment.id %}"
+                          >
+                            {{ shipment.reference }}
+                          </a>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                    {% if row.shipper_received_unassigned_carton_count %}
+                      <div class="scan-help">
+                        {{ row.shipper_received_unassigned_carton_count }} colis expéditeur encore à affecter.
+                      </div>
                     {% endif %}
                     {% if row.documents %}
                       <div class="scan-docs scan-orders-view-docs">

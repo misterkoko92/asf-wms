@@ -12,7 +12,7 @@ from contacts.models import RecipientLegalForm
 
 from ..document_scan import DocumentScanStatus
 from .catalog import Product
-from .inventory import Destination, ProductLot
+from .inventory import Destination, ProductLot, Receipt
 from .shipment import Shipment
 
 
@@ -38,6 +38,11 @@ class OrderReviewStatus(models.TextChoices):
     APPROVED = "approved", "Valider"
     REJECTED = "rejected", "Refuser"
     CHANGES_REQUESTED = "changes_requested", "Modifier"
+
+
+class OrderInboundArrivalMode(models.TextChoices):
+    DROPOFF_WAREHOUSE = "dropoff_warehouse", "Dépôt à l'entrepôt"
+    PICKUP_REQUESTED = "pickup_requested", "Enlèvement demandé"
 
 
 class Order(models.Model):
@@ -704,9 +709,122 @@ class OrderReservation(models.Model):
         return f"{self.order_line} - {self.product_lot} ({self.quantity})"
 
 
+class AssociationPickupAddress(models.Model):
+    association_contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.CASCADE,
+        related_name="pickup_addresses",
+    )
+    label = models.CharField(max_length=120, blank=True)
+    pickup_company_name = models.CharField(max_length=200, blank=True)
+    pickup_contact_name = models.CharField(max_length=200, blank=True)
+    pickup_contact_phone = models.CharField(max_length=40, blank=True)
+    pickup_contact_phone_2 = models.CharField(max_length=40, blank=True)
+    pickup_address_line1 = models.CharField(max_length=200, blank=True)
+    pickup_address_line2 = models.CharField(max_length=200, blank=True)
+    pickup_postal_code = models.CharField(max_length=20, blank=True)
+    pickup_city = models.CharField(max_length=120, blank=True)
+    pickup_country = models.CharField(max_length=80, default="France")
+    pickup_opening_slot_1_start = models.TimeField(null=True, blank=True)
+    pickup_opening_slot_1_end = models.TimeField(null=True, blank=True)
+    pickup_has_midday_break = models.BooleanField(default=False)
+    pickup_opening_slot_2_start = models.TimeField(null=True, blank=True)
+    pickup_opening_slot_2_end = models.TimeField(null=True, blank=True)
+    pickup_has_no_access_constraints = models.BooleanField(default=False)
+    pickup_access_constraints_details = models.TextField(blank=True)
+    tail_lift_required = models.BooleanField(default=True)
+    pallet_truck_required = models.BooleanField(default=True)
+    pickup_information_confirmed = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
+    times_used = models.PositiveIntegerField(default=0)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["association_contact__name", "label", "id"]
+
+    def __str__(self) -> str:
+        return self.label or self.pickup_address_line1 or f"Adresse enlèvement {self.pk}"
+
+
+class OrderInboundDelivery(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="inbound_delivery")
+    arrival_mode = models.CharField(max_length=30, choices=OrderInboundArrivalMode.choices)
+    declared_carton_count = models.PositiveIntegerField(default=0)
+    declared_out_of_format_count = models.PositiveIntegerField(default=0)
+    pickup_address_book_entry = models.ForeignKey(
+        AssociationPickupAddress,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_inbound_deliveries",
+    )
+    receipt = models.OneToOneField(
+        Receipt,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_inbound_delivery",
+    )
+    pickup_company_name = models.CharField(max_length=200, blank=True)
+    pickup_contact_name = models.CharField(max_length=200, blank=True)
+    pickup_contact_phone = models.CharField(max_length=40, blank=True)
+    pickup_contact_phone_2 = models.CharField(max_length=40, blank=True)
+    pickup_address_line1 = models.CharField(max_length=200, blank=True)
+    pickup_address_line2 = models.CharField(max_length=200, blank=True)
+    pickup_postal_code = models.CharField(max_length=20, blank=True)
+    pickup_city = models.CharField(max_length=120, blank=True)
+    pickup_country = models.CharField(max_length=80, default="France")
+    pickup_available_from_date = models.DateField(null=True, blank=True)
+    pickup_requested_for_date = models.DateField(null=True, blank=True)
+    pickup_opening_slot_1_start = models.TimeField(null=True, blank=True)
+    pickup_opening_slot_1_end = models.TimeField(null=True, blank=True)
+    pickup_has_midday_break = models.BooleanField(default=False)
+    pickup_opening_slot_2_start = models.TimeField(null=True, blank=True)
+    pickup_opening_slot_2_end = models.TimeField(null=True, blank=True)
+    pickup_has_no_access_constraints = models.BooleanField(default=False)
+    pickup_access_constraints_details = models.TextField(blank=True)
+    tail_lift_required = models.BooleanField(default=True)
+    pallet_truck_required = models.BooleanField(default=True)
+    pickup_information_confirmed = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Entrée expéditeur {self.order}"
+
+
+class OrderShipmentLink(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="shipment_links")
+    shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="order_links")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["order_id", "shipment_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "shipment"],
+                name="wms_order_shipment_link_unique",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.order} -> {self.shipment}"
+
+
 class OrderDocumentType(models.TextChoices):
     DONATION_ATTESTATION = "donation_attestation", "Attestation donation"
     HUMANITARIAN_ATTESTATION = "humanitarian_attestation", "Attestation aide humanitaire"
+    PACKING_LIST_GLOBAL = "packing_list_global", "Liste de colisage globale"
+    PACKING_LIST_BY_CARTON = "packing_list_by_carton", "Liste de colisage par colis"
     INVOICE = "invoice", "Facture"
     OTHER = "other", "Autre"
 

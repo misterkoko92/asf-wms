@@ -1,4 +1,4 @@
-from .models import Carton, CartonFormat, CartonStatus
+from .models import Carton, CartonFormat, CartonSourceKind, CartonStatus
 from .scan_parse import parse_decimal, parse_int
 from .scan_product_helpers import build_product_label
 
@@ -18,10 +18,16 @@ def _build_carton_option(carton, *, weight_total):
     label = carton.code
     if preassigned_destination_iata:
         label = f"{label} ({preassigned_destination_iata})"
+    source_label = (
+        "Réception expéditeur"
+        if getattr(carton, "source_kind", "") == CartonSourceKind.SHIPPER_RECEIVED
+        else "Préparation ASF"
+    )
     return {
         "id": carton.id,
         "code": carton.code,
         "label": label,
+        "source_label": source_label,
         "weight_g": weight_total,
         "shipment_id": getattr(carton, "shipment_id", None),
         "preassigned_destination_id": preassigned_destination_id,

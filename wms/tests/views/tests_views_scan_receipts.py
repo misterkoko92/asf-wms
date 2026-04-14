@@ -6,7 +6,19 @@ from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 
-from wms.models import Product, ProductCategory, Receipt, ReceiptType, Warehouse
+from contacts.models import Contact, ContactType
+from wms.models import (
+    Order,
+    OrderInboundArrivalMode,
+    OrderInboundDelivery,
+    OrderReviewStatus,
+    Product,
+    ProductCategory,
+    Receipt,
+    ReceiptType,
+    Shipment,
+    Warehouse,
+)
 
 
 class ScanReceiptsViewsTests(TestCase):
@@ -29,6 +41,27 @@ class ScanReceiptsViewsTests(TestCase):
             receipt_type=receipt_type,
             warehouse=self.warehouse,
         )
+
+    def _create_inbound_order(self, *, review_status=OrderReviewStatus.PENDING):
+        source_contact = Contact.objects.create(
+            name="Association inbound receipt",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        order = Order.objects.create(
+            association_contact=source_contact,
+            shipper_name=source_contact.name,
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            review_status=review_status,
+        )
+        OrderInboundDelivery.objects.create(
+            order=order,
+            arrival_mode=OrderInboundArrivalMode.DROPOFF_WAREHOUSE,
+            declared_carton_count=2,
+        )
+        return order
 
     def test_scan_receipts_view_filters_pallet_receipts(self):
         self._create_receipt(ReceiptType.PALLET)
@@ -416,3 +449,67 @@ class ScanReceiptsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/receive_association.html")
         self.assertEqual(response.context_data["line_errors"], {"0": "invalid"})
+
+    def test_scan_receive_association_get_prefills_inbound_order_from_querystring(self):
+        order = self._create_inbound_order()
+
+        with mock.patch(
+            "wms.views_scan_receipts.render",
+            side_effect=self._render_stub,
+        ):
+            response = self.client.get(
+                reverse("scan:scan_receive_association"),
+                {"order_id": str(order.id)},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context_data["create_form"].initial["inbound_delivery_order"],
+            order.id,
+        )
+        self.assertEqual(
+            response.context_data["create_form"].initial["source_contact"],
+            order.association_contact_id,
+        )
+
+    def test_scan_receive_association_can_create_linked_shipment_from_selected_receipt(self):
+        order = self._create_inbound_order(review_status=OrderReviewStatus.APPROVED)
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=self.warehouse,
+            source_contact=order.association_contact,
+        )
+        order.inbound_delivery.receipt = receipt
+        order.inbound_delivery.save(update_fields=["receipt"])
+        shipment = Shipment.objects.create(
+            reference="EXP-RECEIPT-LINK",
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+
+        with (
+            mock.patch(
+                "wms.views_scan_receipts.create_shipment_for_order",
+                return_value=shipment,
+            ) as create_shipment_mock,
+            mock.patch(
+                "wms.views_scan_receipts.attach_order_documents_to_shipment"
+            ) as attach_documents_mock,
+        ):
+            response = self.client.post(
+                reverse("scan:scan_receive_association"),
+                {
+                    "action": "create_linked_shipment",
+                    "receipt_id": str(receipt.id),
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id}),
+        )
+        create_shipment_mock.assert_called_once_with(order=order, force_new=True)
+        attach_documents_mock.assert_called_once_with(order, shipment)

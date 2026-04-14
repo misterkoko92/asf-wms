@@ -2060,10 +2060,13 @@
       const baseLabel = carton.weight_g
         ? `${carton.label || carton.code} (${carton.weight_g} g)`
         : carton.label || carton.code;
+      const withSource = carton.source_label
+        ? `${baseLabel} · ${carton.source_label}`
+        : baseLabel;
       const recipientOrganizationId =
         recipientPreferenceContext && recipientPreferenceContext.recipientOrganizationId;
       if (!recipientOrganizationId) {
-        return baseLabel;
+        return withSource;
       }
       const compatibility =
         carton.compatibility_by_recipient_organization_id &&
@@ -2072,7 +2075,7 @@
         compatibility && compatibility.bucket
           ? compatibilityBucketLabels[compatibility.bucket] || compatibility.bucket
           : '';
-      return bucketLabel ? `${baseLabel} [${bucketLabel}]` : baseLabel;
+      return bucketLabel ? `${withSource} [${bucketLabel}]` : withSource;
     };
 
     const getRecipientPreferenceContext = () => {

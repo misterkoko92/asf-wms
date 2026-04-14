@@ -21,6 +21,23 @@ from .scan_helpers import (
 )
 
 
+def resolve_linked_order_for_shipment(shipment):
+    if shipment is None:
+        return None
+    try:
+        return shipment.order
+    except AttributeError:
+        pass
+    except type(shipment).order.RelatedObjectDoesNotExist:
+        pass
+
+    order_links = getattr(shipment, "order_links", None)
+    if order_links is None:
+        return None
+    link = order_links.select_related("order").order_by("id").first()
+    return getattr(link, "order", None)
+
+
 def build_order_creator_info(order):
     contact = None
     if order.created_by:

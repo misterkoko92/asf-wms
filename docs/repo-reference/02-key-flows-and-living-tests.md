@@ -353,6 +353,23 @@ If order creation or status transitions change, inspect:
 - signal-driven side effects
 - any linked shipment preparation assumptions
 
+Current local-phase contract additions:
+
+- a portal shipper order may now contain ASF-stock lines, a declared shipper inbound delivery, or
+  both
+- portal order submission and ASF review no longer require supporting documents up front; document
+  completeness now blocks later shipment readiness when the shipment actually depends on them
+- one order may now link multiple shipment dossiers through `OrderShipmentLink`; the scan
+  `create_shipment` action always opens a new dossier while `order.shipment` remains a compatibility
+  pointer for older surfaces
+- `scan/receive-association/` can attach a receipt to the order inbound delivery and materialize the
+  declared shipper cartons as real `Carton` rows with `source_kind=shipper_received`
+- the legacy scan flow stays split across `Vue Commande`, `Réception association`, and
+  `Dossier expédition`, but these screens must now guide the operator explicitly:
+  `Vue Commande` links to the inbound receipt screen, `Réception association` can create a linked
+  shipment directly once the order is approved, and `Dossier expédition` shows the linked order plus
+  remaining shipper cartons still available for assignment
+
 ## 4. Emailing And Notification Routing
 
 ### Main runtime files

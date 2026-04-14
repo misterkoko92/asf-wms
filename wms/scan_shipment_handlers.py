@@ -19,6 +19,7 @@ from .models import (
     ShipmentPreferenceOverrideAction,
     ShipmentStatus,
 )
+from .order_helpers import resolve_linked_order_for_shipment
 from .recipient_product_preferences import (
     list_recipient_refusal_conflicts_for_carton,
     list_recipient_refusal_conflicts_for_products,
@@ -116,12 +117,7 @@ def _build_pack_redirect_url(*, shipment_reference):
 
 
 def _related_order_for_shipment(shipment):
-    try:
-        return shipment.order
-    except AttributeError:
-        return None
-    except Shipment.order.RelatedObjectDoesNotExist:
-        return None
+    return resolve_linked_order_for_shipment(shipment)
 
 
 def _validate_shipment_party_selection(*, shipper_contact, recipient_contact, destination):

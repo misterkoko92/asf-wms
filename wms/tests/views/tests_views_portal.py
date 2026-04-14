@@ -986,6 +986,23 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             "Suivre l'expédition",
         )
 
+    def test_portal_dashboard_does_not_mark_shipped_before_boarding_event(self):
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name=self.profile.contact.name,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            status=ShipmentStatus.DRAFT,
+        )
+        order = self._order(review_status=OrderReviewStatus.APPROVED)
+        order.shipment = shipment
+        order.save(update_fields=["shipment"])
+
+        payload = build_portal_dashboard_payload(profile=self.profile)
+
+        dashboard_order = next(item for item in payload["orders"] if item.id == order.id)
+        self.assertIsNone(dashboard_order.shipped_at)
+
     def test_portal_dashboard_uses_shared_payload_without_api_rows(self):
         self._order(review_status=OrderReviewStatus.PENDING)
         payload = build_portal_dashboard_payload(profile=self.profile)
@@ -2048,9 +2065,15 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
         order.refresh_from_db()
         self.assertIsNotNone(order.shipment_id)
+        created_shipment_link = order.shipment_links.order_by("-id").first()
+        self.assertIsNotNone(created_shipment_link)
+        self.assertEqual(order.shipment_links.count(), 2)
         self.assertEqual(
             create_response.url,
-            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": order.shipment_id}),
+            reverse(
+                "scan:scan_shipment_edit",
+                kwargs={"shipment_id": created_shipment_link.shipment_id},
+            ),
         )
 
         shipment_response = self.client.get(create_response.url)

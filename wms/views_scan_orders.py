@@ -20,7 +20,7 @@ ACTIVE_ORDERS_VIEW = "orders_view"
 def _build_orders_view_summary_cards(rows):
     to_validate = 0
     changes_requested = 0
-    approved_without_shipment = 0
+    approved_ready_for_shipments = 0
     rejected = 0
 
     for row in rows:
@@ -34,7 +34,7 @@ def _build_orders_view_summary_cards(rows):
             rejected += 1
 
         if review_status == OrderReviewStatus.APPROVED and can_create_shipment:
-            approved_without_shipment += 1
+            approved_ready_for_shipments += 1
 
     return [
         {
@@ -53,9 +53,9 @@ def _build_orders_view_summary_cards(rows):
         },
         {
             "id": "approved-without-shipment",
-            "label": "Validées sans expédition",
-            "value": approved_without_shipment,
-            "help": "À transformer en dossier",
+            "label": "Validées",
+            "value": approved_ready_for_shipments,
+            "help": "Commandes pouvant créer un dossier",
             "tone": "success",
         },
         {
@@ -75,8 +75,13 @@ def _build_orders_queryset():
             "recipient_contact",
             "created_by",
             "shipment",
+            "inbound_delivery__receipt",
         )
-        .prefetch_related("documents")
+        .prefetch_related(
+            "documents",
+            "shipment_links__shipment",
+            "inbound_delivery__receipt__shipper_cartons",
+        )
         .order_by("-created_at")
     )
 
