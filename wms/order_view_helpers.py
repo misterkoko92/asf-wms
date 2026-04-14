@@ -162,3 +162,14 @@ def build_orders_view_rows(orders_qs):
             }
         )
     return rows
+
+
+def build_order_detail_payload(order):
+    row = build_orders_view_rows([order])[0]
+    order_lines = list(order.lines.select_related("product").all())
+    remaining_total = sum(line.remaining_quantity for line in order_lines)
+    return {
+        **row,
+        "order_lines": order_lines,
+        "remaining_total": remaining_total,
+    }

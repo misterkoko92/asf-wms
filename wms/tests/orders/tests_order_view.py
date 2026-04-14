@@ -11,7 +11,7 @@ from wms.models import (
     Shipment,
     ShipmentStatus,
 )
-from wms.order_view_handlers import handle_orders_view_action
+from wms.order_view_handlers import handle_order_detail_action, handle_orders_view_action
 from wms.order_view_helpers import build_orders_view_rows
 
 
@@ -144,6 +144,62 @@ class OrderViewHandlersTests(TestCase):
         )
         response = handle_orders_view_action(request, orders_qs=Order.objects.all())
         self.assertIsNone(response)
+
+    def test_handle_order_detail_action_updates_review_status(self):
+        order = self._create_order(review_status=OrderReviewStatus.PENDING)
+        request = self.factory.post(
+            f"/scan/orders/{order.id}/",
+            {
+                "action": "update_status",
+                "review_status": OrderReviewStatus.APPROVED,
+            },
+        )
+
+        with mock.patch("wms.order_view_handlers.messages.success") as success_mock:
+            response = handle_order_detail_action(request, order=order)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"/scan/orders/{order.id}/")
+        order.refresh_from_db()
+        self.assertEqual(order.review_status, OrderReviewStatus.APPROVED)
+        self.assertIsNotNone(order.reviewed_at)
+        success_mock.assert_called_once_with(request, "Statut de validation mis à jour.")
+
+    def test_handle_order_detail_action_rejects_shipment_creation_when_not_approved(self):
+        order = self._create_order(review_status=OrderReviewStatus.PENDING)
+        request = self.factory.post(
+            f"/scan/orders/{order.id}/",
+            {"action": "create_shipment"},
+        )
+
+        with mock.patch("wms.order_view_handlers.messages.error") as error_mock:
+            response = handle_order_detail_action(request, order=order)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"/scan/orders/{order.id}/")
+        error_mock.assert_called_once_with(request, "Commande non validée.")
+
+    def test_handle_order_detail_action_creates_shipment_and_attaches_documents(self):
+        order = self._create_order(review_status=OrderReviewStatus.APPROVED)
+        generated_shipment = SimpleNamespace(id=654)
+        request = self.factory.post(
+            f"/scan/orders/{order.id}/",
+            {"action": "create_shipment"},
+        )
+
+        with mock.patch(
+            "wms.order_view_handlers.create_shipment_for_order",
+            return_value=generated_shipment,
+        ) as create_mock:
+            with mock.patch(
+                "wms.order_view_handlers.attach_order_documents_to_shipment"
+            ) as attach_mock:
+                response = handle_order_detail_action(request, order=order)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/scan/shipment/654/edit/")
+        create_mock.assert_called_once_with(order=order, force_new=True)
+        attach_mock.assert_called_once_with(order, generated_shipment)
 
 
 class OrderViewHelpersTests(TestCase):

@@ -1,0 +1,111 @@
+{% extends "scan/base.html" %}
+{% load i18n wms_status %}
+
+{% block title %}WMS Scan - {% trans "Dossier commande" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <div>
+        <h2 class="h4 mb-1 ui-comp-title">{{ detail.reference_label }}</h2>
+        <p class="scan-help ui-comp-note mb-0">{{ detail.association_name }} · {{ detail.order.created_at|date:"d/m/y H\\hi" }}</p>
+      </div>
+      <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_orders_view' %}">{% trans "Retour à la file" %}</a>
+    </div>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Revue de commande" %}</h3>
+    <div class="scan-meta-grid mb-3">
+      <div class="scan-meta-item">
+        <strong>{% trans "Statut" %}</strong>
+        <span class="{% status_pill_class detail.review_status_value 'order_review' %}">
+          {{ detail.review_status_display.label }}
+        </span>
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Prochaine étape" %}</strong>
+        {{ detail.next_action_label }}
+      </div>
+    </div>
+    <form method="post" class="ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_status">
+      <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="scan-field mb-0">
+          <label class="form-label" for="id_review_status">{% trans "Statut de revue" %}</label>
+          <select id="id_review_status" name="review_status" class="form-select form-select-sm ui-select--sm">
+            {% for value, label in review_status_choices %}
+              <option value="{{ value }}" {% if value == detail.order.review_status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">{% trans "Mettre à jour" %}</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Actions métier" %}</h3>
+    <div class="ui-comp-actions">
+      {% if detail.can_create_shipment %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_shipment">
+          <button type="submit" class="btn btn-success btn-sm">{{ detail.create_shipment_label }}</button>
+        </form>
+      {% endif %}
+      {% if detail.receipt_shortcut_url and not detail.receipt_reference %}
+        <a class="btn btn-tertiary btn-sm" href="{{ detail.receipt_shortcut_url }}">{% trans "Enregistrer la réception" %}</a>
+      {% endif %}
+      {% for shipment in detail.linked_shipments %}
+        <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_shipment_edit' shipment.id %}">{% trans "Ouvrir l'expédition" %}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Documents" %}</h3>
+    {% if detail.documents %}
+      <div class="scan-docs ui-comp-actions">
+        {% for doc in detail.documents %}
+          <a class="btn btn-tertiary btn-sm" href="{{ doc.url }}" target="_blank" rel="noopener">{{ doc.label }}</a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="scan-help ui-comp-note mb-0">{% trans "Aucun document." %}</p>
+    {% endif %}
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Lignes de commande" %}</h3>
+    {% if detail.order_lines %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Quantité" %}</th>
+              <th>{% trans "Réservé" %}</th>
+              <th>{% trans "Préparé" %}</th>
+              <th>{% trans "Restant" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in detail.order_lines %}
+              <tr>
+                <td>{{ line.product.name }}</td>
+                <td>{{ line.quantity }}</td>
+                <td>{{ line.reserved_quantity }}</td>
+                <td>{{ line.prepared_quantity }}</td>
+                <td>{{ line.remaining_quantity }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help ui-comp-note mb-0">{% trans "Aucune ligne pour cette commande." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}

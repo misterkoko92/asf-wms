@@ -100,6 +100,7 @@ urlpatterns = [
     path("contacts/roles/", views.scan_contacts_roles, name="scan_contacts_roles"),
     path("stock-update/", views.scan_stock_update, name="scan_stock_update"),
     path("orders-view/", views.scan_orders_view, name="scan_orders_view"),
+    path("orders/<int:order_id>/", views.scan_order_detail, name="scan_order_detail"),
     path("orders/", views.scan_order, name="scan_order"),
     path("pack/", views.scan_pack, name="scan_pack"),
     path("carton/<int:carton_id>/edit/", views.scan_carton_edit, name="scan_carton_edit"),

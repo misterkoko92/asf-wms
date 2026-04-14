@@ -28,9 +28,10 @@
             <tr>
               <th>{% trans "Commande" %}</th>
               <th>{% trans "Contact" %}</th>
-              <th>{% trans "Statut revue" %}</th>
-              <th>{% trans "Action attendue" %}</th>
-              <th>{% trans "Expédition & documents" %}</th>
+              <th>{% trans "Revue" %}</th>
+              <th>{% trans "Prochaine étape" %}</th>
+              <th>{% trans "Expédition" %}</th>
+              <th>{% trans "Actions" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -58,19 +59,6 @@
                       {{ row.review_status_display.label }}
                     </span>
                   </div>
-                  <form method="post" class="scan-orders-view-status-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="update_status">
-                    <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                    <select name="review_status" class="form-select form-select-sm ui-select--sm">
-                      {% for value, label in review_status_choices %}
-                        <option value="{{ value }}" {% if value == row.order.review_status %}selected{% endif %}>
-                          {{ label }}
-                        </option>
-                      {% endfor %}
-                    </select>
-                    <button type="submit" class="scan-scan-btn btn btn-secondary">{% trans "Mettre à jour" %}</button>
-                  </form>
                 </td>
                 <td class="scan-orders-view-action-cell">
                   <span class="ui-comp-status-pill{% if row.next_action_tone != 'neutral' %} is-{{ row.next_action_tone }}{% endif %}">
@@ -80,15 +68,9 @@
                     <div class="scan-help mt-2">
                       {{ row.declared_carton_count }} colis annoncés · {{ row.arrival_mode_label }}
                     </div>
-                    {% if row.receipt_reference %}
-                      <div class="scan-help">
-                        Réception enregistrée : {{ row.receipt_reference }}
-                      </div>
-                    {% else %}
-                      <div class="scan-help">
-                        Réception entrepôt à enregistrer avant l'affectation des colis expéditeur.
-                      </div>
-                    {% endif %}
+                    <div class="scan-help">
+                      {% if row.receipt_reference %}Réception {{ row.receipt_reference }}{% else %}Réception à enregistrer{% endif %}
+                    </div>
                   {% endif %}
                 </td>
                 <td class="scan-orders-view-fulfillment-cell">
@@ -100,30 +82,10 @@
                         </span>
                       </div>
                     {% endif %}
-                    {% if row.has_inbound_delivery and not row.receipt_reference %}
-                      <div class="scan-inline-actions">
-                        <a class="scan-scan-btn btn btn-tertiary" href="{{ row.receipt_shortcut_url }}">
-                          {% trans "Enregistrer la réception" %}
-                        </a>
-                      </div>
-                    {% endif %}
-                    {% if row.can_create_shipment %}
-                      <form method="post" class="scan-inline-actions">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="create_shipment">
-                        <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                        <button type="submit" class="scan-scan-btn btn btn-success">{{ row.create_shipment_label }}</button>
-                      </form>
-                    {% endif %}
                     {% if row.linked_shipments %}
-                      <div class="scan-inline-actions">
+                      <div>
                         {% for shipment in row.linked_shipments %}
-                          <a
-                            class="scan-scan-btn btn btn-tertiary"
-                            href="{% url 'scan:scan_shipment_edit' shipment.id %}"
-                          >
-                            {{ shipment.reference }}
-                          </a>
+                          <div>{{ shipment.reference }}</div>
                         {% endfor %}
                       </div>
                     {% endif %}
@@ -132,20 +94,13 @@
                         {{ row.shipper_received_unassigned_carton_count }} colis expéditeur encore à affecter.
                       </div>
                     {% endif %}
-                    {% if row.documents %}
-                      <div class="scan-docs scan-orders-view-docs">
-                        {% for doc in row.documents %}
-                          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
-                            {{ doc.label }}
-                          </a>
-                        {% endfor %}
-                      </div>
-                    {% elif row.review_status_value == approved_status %}
-                      <span class="scan-help">{% trans "Aucun document" %}</span>
-                    {% else %}
-                      <span class="scan-help">-</span>
-                    {% endif %}
+                    <div class="scan-help">
+                      {% if row.documents %}{{ row.documents|length }} document{{ row.documents|length|pluralize }}{% elif row.review_status_value == approved_status %}{% trans "Aucun document" %}{% else %}-{% endif %}
+                    </div>
                   </div>
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_order_detail' row.order.id %}">{% trans "Ouvrir" %}</a>
                 </td>
               </tr>
             {% endfor %}

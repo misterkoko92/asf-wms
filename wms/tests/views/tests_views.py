@@ -251,6 +251,15 @@ class ScanViewTests(TestCase):
     def _scan_internal_route_specs(self):
         shipment, carton = self._create_shipment_with_carton()
         document = Document.objects.create(shipment=shipment, doc_type="additional")
+        order = Order.objects.create(
+            shipper_name=self.shipper.name,
+            recipient_name=self.recipient.name,
+            correspondent_name=self.correspondent.name,
+            destination_address="1 rue test",
+            destination_city="Paris",
+            destination_country="France",
+            created_by=self.user,
+        )
         return [
             ("scan:scan_root", "get", {}, None),
             ("scan:scan_dashboard", "get", {}, None),
@@ -266,6 +275,7 @@ class ScanViewTests(TestCase):
             ("scan:scan_receive_association", "get", {}, None),
             ("scan:scan_stock_update", "get", {}, None),
             ("scan:scan_orders_view", "get", {}, None),
+            ("scan:scan_order_detail", "get", {"order_id": order.id}, None),
             ("scan:scan_order", "get", {}, None),
             ("scan:scan_prepare_kits", "get", {}, None),
             ("scan:scan_prepare_kits_picking", "get", {}, None),
