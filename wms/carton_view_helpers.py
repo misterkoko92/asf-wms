@@ -18,6 +18,22 @@ PREPARATION_STATUSES = {
     CartonStatus.PACKED,
 }
 
+VISIBLE_CARTON_FLOW = (
+    CartonStatus.DRAFT,
+    CartonStatus.PICKING,
+    CartonStatus.PACKED,
+    CartonStatus.ASSIGNED,
+    CartonStatus.LABELED,
+)
+
+VISIBLE_CARTON_STEP_LABELS = {
+    CartonStatus.DRAFT: CartonStatus.DRAFT.label,
+    CartonStatus.PICKING: CartonStatus.PICKING.label,
+    CartonStatus.PACKED: _("Disponible"),
+    CartonStatus.ASSIGNED: CartonStatus.ASSIGNED.label,
+    CartonStatus.LABELED: CartonStatus.LABELED.label,
+}
+
 MUTATION_BLOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.PLANNED,
     ShipmentStatus.SHIPPED,
@@ -82,6 +98,37 @@ def _resolve_preparation_status(carton):
     return ""
 
 
+def build_carton_visible_progress_steps(carton):
+    preparation_status = _resolve_preparation_status(carton)
+    achieved_steps = [CartonStatus.DRAFT]
+
+    if preparation_status in {CartonStatus.PICKING, CartonStatus.PACKED, CartonStatus.LABELED}:
+        achieved_steps.append(CartonStatus.PICKING)
+    if preparation_status in {CartonStatus.PACKED, CartonStatus.LABELED}:
+        achieved_steps.append(CartonStatus.PACKED)
+
+    assignment_achieved = bool(getattr(carton, "shipment_id", None)) or getattr(
+        carton, "status", ""
+    ) in {CartonStatus.ASSIGNED, CartonStatus.LABELED, CartonStatus.SHIPPED}
+    if assignment_achieved:
+        achieved_steps.append(CartonStatus.ASSIGNED)
+
+    if getattr(carton, "status", "") in {CartonStatus.LABELED, CartonStatus.SHIPPED}:
+        achieved_steps.append(CartonStatus.LABELED)
+
+    return achieved_steps
+
+
+def build_skipped_visible_status_labels(carton, *, target_status):
+    if target_status not in VISIBLE_CARTON_FLOW:
+        return []
+    current_steps = set(build_carton_visible_progress_steps(carton))
+    required_steps = VISIBLE_CARTON_FLOW[: VISIBLE_CARTON_FLOW.index(target_status)]
+    return [
+        VISIBLE_CARTON_STEP_LABELS[step] for step in required_steps if step not in current_steps
+    ]
+
+
 def _build_preparation_status_badge(carton):
     status_value = _resolve_preparation_status(carton)
     if status_value in PREPARATION_STATUSES:
@@ -137,6 +184,7 @@ def _carton_allows_mutation(carton):
 
 def build_carton_ready_row(carton, *, carton_capacity_cm3):
     product_totals = {}
+    product_display_totals = {}
     weight_total_g = 0
     volume_total_cm3 = 0
     missing_weight = False
@@ -151,6 +199,16 @@ def build_carton_ready_row(carton, *, carton_capacity_cm3):
                 "quantity": 0,
             }
         product_totals[key]["quantity"] += item.quantity
+        display_label = (getattr(product, "name", "") or "").strip() or build_product_label(
+            product,
+            lot_code,
+        )
+        if display_label not in product_display_totals:
+            product_display_totals[display_label] = {
+                "label": display_label,
+                "quantity": 0,
+            }
+        product_display_totals[display_label]["quantity"] += item.quantity
         if product.weight_g:
             weight_total_g += product.weight_g * item.quantity
         else:
@@ -160,6 +218,16 @@ def build_carton_ready_row(carton, *, carton_capacity_cm3):
         else:
             missing_volume = True
     packing_list = sorted(product_totals.values(), key=lambda row: row["label"])
+    product_rows = sorted(product_display_totals.values(), key=lambda row: row["label"])
+    product_rows = [
+        {
+            "label": item["label"],
+            "quantity": item["quantity"],
+            "display": _("%(label)s x %(quantity)s")
+            % {"label": item["label"], "quantity": item["quantity"]},
+        }
+        for item in product_rows
+    ]
     if weight_total_g == 0 and missing_weight:
         weight_kg = None
     else:
@@ -176,6 +244,7 @@ def build_carton_ready_row(carton, *, carton_capacity_cm3):
         and shipment_status in LOCKED_SHIPMENT_STATUSES
     )
     status_label = _build_status_label(carton.status)
+    preparation_status_value = _resolve_preparation_status(carton)
     if carton.shipment_id:
         packing_list_url = _html_delivery_url(
             reverse(
@@ -199,6 +268,10 @@ def build_carton_ready_row(carton, *, carton_capacity_cm3):
             _build_preparation_status_badge(carton),
             _build_assignment_status_badge(carton),
         ],
+        "preparation_status_value": preparation_status_value,
+        "is_assigned": is_assigned,
+        "shipment_id": carton.shipment_id,
+        "product_rows": product_rows,
         "can_toggle": (not is_assigned) and carton.status != CartonStatus.SHIPPED,
         "can_mark_labeled": is_assigned
         and not shipment_locked

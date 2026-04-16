@@ -52,12 +52,20 @@ class ScanShipmentsViewsTests(TestCase):
         response.context_data = context
         return response
 
-    def _create_shipment(self, *, status=ShipmentStatus.DRAFT, reference=None):
+    def _create_shipment(
+        self,
+        *,
+        status=ShipmentStatus.DRAFT,
+        reference=None,
+        destination=None,
+        shipper_name="Aviation Sans Frontieres",
+    ):
         return Shipment.objects.create(
             reference=reference,
             status=status,
-            shipper_name="Aviation Sans Frontieres",
+            shipper_name=shipper_name,
             recipient_name="Association Dest",
+            destination=destination,
             destination_address="1 Rue Test",
             destination_country="France",
             created_by=self.staff_user,
@@ -501,11 +509,15 @@ class ScanShipmentsViewsTests(TestCase):
                     ],
                     "detail_url": "/scan/carton/1/edit/",
                     "shipment_reference": "",
-                    "location": "",
-                    "summary_line_count": 3,
-                    "summary_total_quantity": 18,
+                    "product_rows": [
+                        {"label": "Compresses", "quantity": 50, "display": "Compresses x 50"},
+                        {"label": "Gants", "quantity": 2, "display": "Gants x 2"},
+                    ],
                     "has_packing_list": True,
                     "has_picking": True,
+                    "preparation_status_value": CartonStatus.PACKED,
+                    "is_assigned": False,
+                    "shipment_id": None,
                     "weight_kg": None,
                     "volume_percent": None,
                 },
@@ -522,11 +534,14 @@ class ScanShipmentsViewsTests(TestCase):
                     ],
                     "detail_url": "/scan/carton/2/edit/",
                     "shipment_reference": "S-001",
-                    "location": "",
-                    "summary_line_count": 1,
-                    "summary_total_quantity": 2,
+                    "product_rows": [
+                        {"label": "Mask (lot L1)", "quantity": 2, "display": "Mask (lot L1) x 2"},
+                    ],
                     "has_packing_list": True,
                     "has_picking": True,
+                    "preparation_status_value": CartonStatus.DRAFT,
+                    "is_assigned": True,
+                    "shipment_id": 1,
                     "weight_kg": None,
                     "volume_percent": None,
                 },
@@ -550,20 +565,22 @@ class ScanShipmentsViewsTests(TestCase):
             'name="bulk_document" value="picking" class="scan-scan-btn btn btn-outline-success"',
         )
         self.assertContains(response, "scan-carton-status-col")
-        self.assertContains(response, "scan-carton-fill-cell")
         self.assertContains(response, "scan-carton-select-checkbox")
+        self.assertContains(response, "Tout sélectionner")
+        self.assertContains(response, "Produits")
         self.assertContains(response, "Marquer en préparation")
         self.assertContains(response, "Marquer prêt / disponible")
         self.assertContains(response, "Marquer affecté")
-        self.assertContains(response, "scan-carton-content-lines")
-        self.assertContains(response, "3 lignes")
-        self.assertContains(response, "18 unités")
-        self.assertContains(response, "1 ligne")
-        self.assertContains(response, "2 unités")
+        self.assertContains(response, "Compresses x 50")
+        self.assertContains(response, "Gants x 2")
+        self.assertContains(response, "Mask (lot L1) x 2")
         self.assertContains(response, "Disponible")
         self.assertContains(response, "Créé")
         self.assertContains(response, 'href="/scan/carton/1/edit/"')
         self.assertContains(response, "Ouvrir")
+        self.assertContains(response, 'id="carton-status-skip-confirmation-overlay"')
+        self.assertContains(response, 'name="confirm_skipped_statuses"')
+        self.assertContains(response, "scan/modules/cartons-ready.js")
         self.assertContains(
             response,
             "scan-carton-status-pill--prep-packed",
@@ -574,6 +591,9 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, "scan-carton-status-select-wrap")
         self.assertNotContains(response, "Imprimer / télécharger")
         self.assertNotContains(response, 'class="scan-scan-btn btn btn-danger"')
+        self.assertNotContains(response, "Emplacement")
+        self.assertNotContains(response, "Remplissage")
+        self.assertNotContains(response, "Contenu")
 
     def test_scan_cartons_ready_filters_by_shipment_reference_querystring(self):
         matched_shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
@@ -638,6 +658,41 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertRedirects(response, reverse("scan:scan_cartons_ready"))
         carton.refresh_from_db()
         self.assertEqual(carton.status, CartonStatus.PACKED)
+
+    def test_scan_cartons_ready_formats_editable_shipment_labels_for_toolbar_and_modal(self):
+        correspondent_org = Contact.objects.create(
+            name="Destination Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name="Destination Person",
+            contact_type=ContactType.PERSON,
+            first_name="Destination",
+            last_name="Person",
+            organization=correspondent_org,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipment = self._create_shipment(
+            status=ShipmentStatus.DRAFT,
+            reference="260012",
+            destination=destination,
+            shipper_name="Expéditeur",
+        )
+        self._create_carton_with_item(code="C-LABEL-260012")
+
+        response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'value="{shipment.id}"')
+        self.assertContains(response, "260012 - NKC - Expéditeur")
 
     def test_scan_carton_edit_renders_carton_fiche_sections(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)

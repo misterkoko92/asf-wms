@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
+from .carton_view_helpers import build_skipped_visible_status_labels
 from .models import Carton, CartonStatus, Shipment, ShipmentStatus
 from .services import StockError, unpack_carton
 from .shipment_status import sync_shipment_ready_state
@@ -64,6 +65,28 @@ def _set_bulk_carton_status(carton, *, new_status, reason, user, update_fields=N
         user=user,
         update_fields=update_fields,
     )
+
+
+def _resolve_bulk_target_status(action):
+    return {
+        "bulk_update_cartons_picking": CartonStatus.PICKING,
+        "bulk_update_cartons_packed": CartonStatus.PACKED,
+        "bulk_mark_cartons_labeled": CartonStatus.LABELED,
+        "bulk_mark_cartons_assigned": CartonStatus.ASSIGNED,
+        "bulk_assign_cartons_shipment": CartonStatus.ASSIGNED,
+    }.get(action)
+
+
+def _request_confirms_skipped_statuses(request):
+    return (request.POST.get("confirm_skipped_statuses") or "").strip() == "1"
+
+
+def _assign_carton_to_shipment(carton, *, shipment):
+    if shipment is None or carton.shipment_id:
+        return False
+    carton.shipment = shipment
+    carton.preassigned_destination = None
+    return True
 
 
 def _bulk_status_feedback(request, *, action, updated_count, ignored_count):
@@ -159,18 +182,20 @@ def handle_carton_status_update(request):
         "bulk_mark_cartons_assigned",
         "bulk_assign_cartons_shipment",
     }:
+        confirms_skipped_statuses = _request_confirms_skipped_statuses(request)
         cartons = list(
             Carton.objects.filter(pk__in=request.POST.getlist("selected_carton_ids"))
             .select_related("shipment")
             .order_by("id")
         )
         target_shipment = None
-        if action == "bulk_assign_cartons_shipment":
+        if (request.POST.get("bulk_shipment_id") or "").strip():
             target_shipment = (
                 Shipment.objects.filter(pk=request.POST.get("bulk_shipment_id"))
                 .select_related("destination")
                 .first()
             )
+        if action == "bulk_assign_cartons_shipment":
             if not _shipment_can_receive_cartons(target_shipment):
                 _bulk_status_feedback(
                     request,
@@ -181,12 +206,21 @@ def handle_carton_status_update(request):
                 return redirect("scan:scan_cartons_ready")
         touched_shipments = set()
         updated_count = 0
+        target_status = _resolve_bulk_target_status(action)
         for selected_carton in cartons:
+            skipped_labels = build_skipped_visible_status_labels(
+                selected_carton,
+                target_status=target_status,
+            )
+            requires_skip_confirmation = bool(skipped_labels)
             if action == "bulk_assign_cartons_shipment":
-                if selected_carton.shipment_id or not _carton_can_be_mutated(selected_carton):
+                if (
+                    selected_carton.shipment_id
+                    or not _carton_can_be_mutated(selected_carton)
+                    or (requires_skip_confirmation and not confirms_skipped_statuses)
+                ):
                     continue
-                selected_carton.shipment = target_shipment
-                selected_carton.preassigned_destination = None
+                _assign_carton_to_shipment(selected_carton, shipment=target_shipment)
                 _set_bulk_carton_status(
                     selected_carton,
                     new_status=CartonStatus.ASSIGNED,
@@ -211,7 +245,11 @@ def handle_carton_status_update(request):
                 updated_count += 1
                 continue
             if action == "bulk_update_cartons_packed":
-                if selected_carton.shipment_id or not _carton_can_be_mutated(selected_carton):
+                if (
+                    selected_carton.shipment_id
+                    or not _carton_can_be_mutated(selected_carton)
+                    or (requires_skip_confirmation and not confirms_skipped_statuses)
+                ):
                     continue
                 if selected_carton.status == CartonStatus.PACKED:
                     continue
@@ -223,20 +261,44 @@ def handle_carton_status_update(request):
                 )
                 updated_count += 1
                 continue
-            if not selected_carton.shipment_id or _shipment_is_locked(selected_carton):
-                continue
-            if action == "bulk_mark_cartons_labeled" and selected_carton.status in {
-                CartonStatus.ASSIGNED,
-                CartonStatus.PACKED,
-            }:
+            if action == "bulk_mark_cartons_labeled":
+                if not _carton_can_be_mutated(selected_carton):
+                    continue
+                if requires_skip_confirmation and not confirms_skipped_statuses:
+                    continue
+                if requires_skip_confirmation and not _shipment_can_receive_cartons(
+                    target_shipment
+                ):
+                    continue
+                shipment_assigned = _assign_carton_to_shipment(
+                    selected_carton, shipment=target_shipment
+                )
+                shipment_locked = _shipment_is_locked(selected_carton)
+                if shipment_locked:
+                    continue
+                if selected_carton.status not in {
+                    CartonStatus.DRAFT,
+                    CartonStatus.PICKING,
+                    CartonStatus.PACKED,
+                    CartonStatus.ASSIGNED,
+                }:
+                    continue
+                update_fields = (
+                    ["shipment", "preassigned_destination"] if shipment_assigned else None
+                )
                 _set_bulk_carton_status(
                     selected_carton,
                     new_status=CartonStatus.LABELED,
                     reason="mark_labeled",
                     user=getattr(request, "user", None),
+                    update_fields=update_fields,
                 )
-                touched_shipments.add(selected_carton.shipment_id)
+                if selected_carton.shipment_id:
+                    touched_shipments.add(selected_carton.shipment_id)
                 updated_count += 1
+                continue
+            if not selected_carton.shipment_id or _shipment_is_locked(selected_carton):
+                continue
             if (
                 action == "bulk_mark_cartons_assigned"
                 and selected_carton.status == CartonStatus.LABELED

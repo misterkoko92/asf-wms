@@ -562,6 +562,13 @@
   text-align: center;
 }
 
+.scan-carton-select-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .scan-carton-code-col {
   width: 6.6rem;
 }
@@ -574,21 +581,13 @@
   width: 6.9rem;
 }
 
-.scan-carton-fill-col {
-  width: 6.6rem;
-}
-
 .scan-carton-actions-col {
   width: 5.75rem;
   text-align: center;
 }
 
-.scan-carton-location-col {
-  width: 6.8rem;
-}
-
-.scan-carton-content-col {
-  width: 7.1rem;
+.scan-carton-products-col {
+  width: 20rem;
 }
 
 .scan-table.scan-carton-table td.scan-carton-status-col,
@@ -604,7 +603,9 @@
 }
 
 .scan-table.scan-carton-table td.scan-carton-select-col,
-.scan-table.scan-carton-table th.scan-carton-select-col {
+.scan-table.scan-carton-table th.scan-carton-select-col,
+.scan-table.scan-carton-table td.scan-carton-products-col,
+.scan-table.scan-carton-table th.scan-carton-products-col {
   vertical-align: middle;
 }
 
@@ -613,14 +614,27 @@
   margin: 0 auto;
 }
 
-.scan-carton-content-lines {
+.scan-carton-product-lines {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
-.scan-carton-content-line-secondary {
-  color: var(--ink-soft);
+.scan-carton-product-line {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.scan-carton-confirm-shipment-field {
+  margin-top: 0.5rem;
+}
+
+.scan-carton-confirm-error {
+  margin: 0.4rem 0 0;
+  color: #7b3030;
 }
 
 .scan-table.scan-carton-table .scan-carton-status-pill--prep-draft {

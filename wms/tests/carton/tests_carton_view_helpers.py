@@ -209,6 +209,10 @@ class CartonViewHelpersTests(TestCase):
         )
         self.assertEqual(assigned_row["summary_line_count"], 1)
         self.assertEqual(assigned_row["summary_total_quantity"], 2)
+        self.assertEqual(
+            assigned_row["product_rows"],
+            [{"label": "Mask", "quantity": 2, "display": "Mask x 2"}],
+        )
         self.assertTrue(assigned_row["has_packing_list"])
         self.assertTrue(assigned_row["has_picking"])
         self.assertTrue(assigned_row["can_bulk_mark_labeled"])
@@ -252,6 +256,10 @@ class CartonViewHelpersTests(TestCase):
         )
         self.assertIsNone(unknown_row["volume_percent"])
         self.assertEqual(unknown_row["packing_list"][0]["quantity"], 1)
+        self.assertEqual(
+            unknown_row["product_rows"],
+            [{"label": "Kit", "quantity": 1, "display": "Kit x 1"}],
+        )
 
         preassigned_row = rows[3]
         self.assertEqual(preassigned_row["shipment_reference"], "(NKC)")
