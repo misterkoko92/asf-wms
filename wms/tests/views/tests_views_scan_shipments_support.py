@@ -44,6 +44,20 @@ class ScanShipmentsSupportHelpersTests(SimpleTestCase):
             f"{reverse('scan:scan_shipments_tracking')}?planned_week=2026-W05&closed=all",
         )
 
+    def test_build_shipments_tracking_redirect_url_keeps_search_and_extra_filters(self):
+        redirect_url = _build_shipments_tracking_redirect_url(
+            planned_week_value="2026-W05",
+            closed_filter=CLOSED_FILTER_ALL,
+            dispute_filter="open",
+            destination_value="12",
+            query="compresse",
+        )
+
+        self.assertEqual(
+            redirect_url,
+            f"{reverse('scan:scan_shipments_tracking')}?planned_week=2026-W05&closed=all&dispute=open&destination=12&q=compresse",
+        )
+
     def test_build_shipments_tracking_redirect_url_returns_base_without_filters(self):
         redirect_url = _build_shipments_tracking_redirect_url(
             planned_week_value="",

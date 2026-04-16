@@ -1,3 +1,4 @@
+from datetime import datetime
 from types import SimpleNamespace
 from unittest import mock
 
@@ -60,6 +61,27 @@ class ScanShipmentsViewsTests(TestCase):
             destination_address="1 Rue Test",
             destination_country="France",
             created_by=self.staff_user,
+        )
+
+    def _create_tracking_event(self, shipment, status, *, created_at=None):
+        event = ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=status,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="step",
+            created_by=self.staff_user,
+        )
+        if created_at is not None:
+            ShipmentTrackingEvent.objects.filter(pk=event.pk).update(created_at=created_at)
+            event.created_at = created_at
+        return event
+
+    def _mark_shipment_planned(self, shipment, *, created_at=None):
+        return self._create_tracking_event(
+            shipment,
+            ShipmentTrackingStatus.PLANNED,
+            created_at=created_at,
         )
 
     def _create_preparateur_user(self):
@@ -671,37 +693,58 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_shipments_tracking_renders_rows_context(self):
         with mock.patch(
-            "wms.views_scan_shipments.build_shipments_tracking_rows",
-            return_value=[
-                {
-                    "id": 1,
-                    "reference": "S-TRACK-001",
-                    "is_disputed": True,
-                    "can_close": False,
-                    "status_value": ShipmentStatus.PLANNED,
-                },
-                {
-                    "id": 2,
-                    "reference": "S-TRACK-002",
-                    "is_disputed": False,
-                    "can_close": True,
-                    "status_value": ShipmentStatus.DELIVERED,
-                },
-                {
-                    "id": 3,
-                    "reference": "S-TRACK-003",
-                    "is_disputed": False,
-                    "can_close": False,
-                    "status_value": ShipmentStatus.SHIPPED,
-                },
-                {
-                    "id": 4,
-                    "reference": "S-TRACK-004",
-                    "is_disputed": False,
-                    "can_close": False,
-                    "status_value": ShipmentStatus.RECEIVED_CORRESPONDENT,
-                },
-            ],
+            "wms.views_scan_shipments.build_shipments_tracking_list_context",
+            return_value={
+                "shipments": [
+                    {
+                        "id": 1,
+                        "reference": "S-TRACK-001",
+                        "is_disputed": True,
+                        "can_close": False,
+                        "status_value": ShipmentStatus.PLANNED,
+                    },
+                    {
+                        "id": 2,
+                        "reference": "S-TRACK-002",
+                        "is_disputed": False,
+                        "can_close": True,
+                        "status_value": ShipmentStatus.DELIVERED,
+                    },
+                    {
+                        "id": 3,
+                        "reference": "S-TRACK-003",
+                        "is_disputed": False,
+                        "can_close": False,
+                        "status_value": ShipmentStatus.SHIPPED,
+                    },
+                    {
+                        "id": 4,
+                        "reference": "S-TRACK-004",
+                        "is_disputed": False,
+                        "can_close": False,
+                        "status_value": ShipmentStatus.RECEIVED_CORRESPONDENT,
+                    },
+                ],
+                "summary_cards": [
+                    {"id": "open-disputes", "value": 1},
+                    {"id": "closable-cases", "value": 1},
+                    {"id": "waiting-stopover", "value": 1},
+                    {"id": "waiting-delivery", "value": 1},
+                ],
+                "planned_week_value": "",
+                "planned_week_invalid": False,
+                "closed_filter": "exclude",
+                "dispute_filter": "all",
+                "destination_filter_value": "",
+                "destination_filter_label": "",
+                "query": "",
+                "total_count": 4,
+                "page_size": 100,
+                "shipments_page": SimpleNamespace(has_other_pages=lambda: False),
+                "page_prev_url": None,
+                "page_next_url": None,
+                "reset_url": reverse("scan:scan_shipments_tracking"),
+            },
         ):
             with mock.patch(
                 "wms.views_scan_shipments.render",
@@ -757,6 +800,55 @@ class ScanShipmentsViewsTests(TestCase):
             [card["value"] for card in response.context_data["summary_cards"]],
             [1, 1, 1, 1],
         )
+
+    def test_scan_shipments_tracking_paginates_filtered_results(self):
+        for index in range(105):
+            shipment = self._create_shipment(
+                status=ShipmentStatus.PLANNED,
+                reference=f"EXP-{index:03d}",
+            )
+            self._mark_shipment_planned(shipment)
+
+        target = self._create_shipment(
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-COMPRESSE",
+        )
+        self._mark_shipment_planned(target)
+
+        response = self.client.get(
+            reverse("scan:scan_shipments_tracking"),
+            {"q": "COMPRESSE"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "EXP-COMPRESSE")
+        self.assertEqual(response.context["shipments_page"].number, 1)
+        self.assertEqual(len(response.context["shipments"]), 1)
+
+    def test_scan_shipments_tracking_page_urls_preserve_filters(self):
+        planned_at = timezone.make_aware(datetime(2026, 4, 13, 10, 0))
+        for index in range(105):
+            shipment = self._create_shipment(
+                status=ShipmentStatus.PLANNED,
+                reference=f"EXP-FILTER-{index:03d}",
+            )
+            shipment.is_disputed = True
+            shipment.save(update_fields=["is_disputed"])
+            self._mark_shipment_planned(shipment, created_at=planned_at)
+
+        response = self.client.get(
+            reverse("scan:scan_shipments_tracking"),
+            {
+                "planned_week": "2026-W16",
+                "closed": "all",
+                "dispute": "open",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("planned_week=2026-W16", response.context["page_next_url"])
+        self.assertIn("closed=all", response.context["page_next_url"])
+        self.assertIn("dispute=open", response.context["page_next_url"])
 
     def test_scan_shipments_tracking_filters_by_destination_query_param(self):
         correspondent_a = Contact.objects.create(

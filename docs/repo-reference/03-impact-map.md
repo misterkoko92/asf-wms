@@ -25,6 +25,8 @@ Ask yourself:
 
 - does the same rule exist in the UI API under `api/v1/ui/`?
 - if the HTML page and UI API mirror the same cockpit, should both adapters read the same `wms/application/*` payload instead of recomposing the data separately?
+- if this scan page is a cockpit list, did you keep the shared `q` / `sort` / `page` URL contract, short date helpers, and shared pagination include aligned?
+- if the list opens a dossier or cockpit, does the primary row action stay explicit instead of drifting back to inline mutations?
 - if this is a legacy scan asset change, do `templates/scan/base.html`, `templates/portal/base.html`, and `templates/planning/base.html` still agree on the stable shared scan CSS entrypoints and extension blocks?
 - if this is a JS/CSS extraction, did the behavior move behind `wms/static/scan/modules/` or `wms/static/scan/css/partials/` without breaking the stable entrypoint filenames consumed elsewhere?
 - if this is a carton-list change, does `scan_carton_edit` still carry the operational actions and lock states?
@@ -71,6 +73,10 @@ Ask yourself:
 - does document-first creation still create a final shipment reference with zero cartons allowed?
 - do carton state transitions still agree with shipment state transitions?
 - do tracking and close endpoints still expose the same availability rules?
+- if the shipment tracking list changes, did `wms/scan_list_urls.py`, `wms/templatetags/wms_dates.py`,
+  `templates/scan/includes/scan_list_pagination.html`, and `docs/repo-reference/04-shared-contracts.md`
+  move with it?
+- does the tracking list still preserve its current filters when paging or returning from a close action?
 - if recipient product-preference guidance changes, do `wms/recipient_product_preferences.py`,
   `wms/shipment_form_helpers.py`, `wms/views_scan_shipments.py`, and `wms/static/scan/scan.js`
   still expose the same blocking/metadata contract?

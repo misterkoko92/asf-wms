@@ -105,16 +105,15 @@ from .views_scan_shipments_support import (
     RETURN_TO_SHIPMENTS_TRACKING,
     _build_shipments_tracking_queryset,
     _build_shipments_tracking_redirect_url,
-    _normalize_closed_filter,
     _normalize_destination_filter,
-    _normalize_dispute_filter,
     _normalize_return_to,
-    _parse_planned_week,
     _return_to_url,
     _return_to_view_name,
     _shipment_can_be_closed,
     _stale_drafts_age_days,
     _stale_drafts_queryset,
+    build_shipments_tracking_filter_state,
+    build_shipments_tracking_list_context,
 )
 from .workflow_observability import log_shipment_case_closed
 
@@ -544,57 +543,6 @@ def _confirm_shipment_ready(request, shipment):
     messages.success(request, _("Expédition confirmée prête."))
 
 
-def _build_shipments_tracking_summary_cards(shipments):
-    return [
-        {
-            "id": "open-disputes",
-            "label": _("Litiges ouverts"),
-            "value": sum(
-                1
-                for shipment in shipments
-                if shipment.get("is_disputed") and not shipment.get("is_closed", False)
-            ),
-            "help": _("Dossiers en litige à traiter."),
-            "url": f"{reverse('scan:scan_shipments_tracking')}?dispute=open",
-            "tone": "danger",
-        },
-        {
-            "id": "closable-cases",
-            "label": _("Dossiers clôturables"),
-            "value": sum(1 for shipment in shipments if shipment.get("can_close")),
-            "help": _("Toutes étapes validées, clôture possible."),
-            "url": reverse("scan:scan_shipments_tracking"),
-            "tone": "success",
-        },
-        {
-            "id": "waiting-stopover",
-            "label": _("En attente escale"),
-            "value": sum(
-                1
-                for shipment in shipments
-                if shipment.get("status_value") == ShipmentStatus.SHIPPED
-                and not shipment.get("is_closed", False)
-            ),
-            "help": _("Expédiées sans confirmation reçu escale."),
-            "url": reverse("scan:scan_shipments_tracking"),
-            "tone": "warn",
-        },
-        {
-            "id": "waiting-delivery",
-            "label": _("En attente livraison"),
-            "value": sum(
-                1
-                for shipment in shipments
-                if shipment.get("status_value") == ShipmentStatus.RECEIVED_CORRESPONDENT
-                and not shipment.get("is_closed", False)
-            ),
-            "help": _("Reçu escale sans livraison confirmée."),
-            "url": reverse("scan:scan_shipments_tracking"),
-            "tone": "warn",
-        },
-    ]
-
-
 def _format_datetime_local_value(value):
     if not value:
         return ""
@@ -959,14 +907,9 @@ def scan_local_document_helper_installer(request):
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_shipments_tracking(request):
-    source = request.POST if request.method == "POST" else request.GET
-    planned_week_value, week_start, week_end = _parse_planned_week(source.get("planned_week"))
-    closed_filter = _normalize_closed_filter(source.get("closed"))
-    dispute_filter = _normalize_dispute_filter(source.get("dispute"))
-    destination_filter_value = _normalize_destination_filter(source.get("destination"))
-    selected_destination = None
-    if destination_filter_value:
-        selected_destination = Destination.objects.filter(pk=destination_filter_value).first()
+    filter_state = build_shipments_tracking_filter_state(
+        request.POST if request.method == "POST" else request.GET
+    )
 
     if request.method == "POST":
         if (request.POST.get("action") or "").strip() == CLOSE_SHIPMENT_ACTION:
@@ -978,58 +921,31 @@ def scan_shipments_tracking(request):
             _close_shipment_case(request, shipment)
         return redirect(
             _build_shipments_tracking_redirect_url(
-                planned_week_value=planned_week_value,
-                closed_filter=closed_filter,
-                dispute_filter=dispute_filter,
+                planned_week_value=filter_state["planned_week_value"],
+                closed_filter=filter_state["closed_filter"],
+                dispute_filter=filter_state["dispute_filter"],
                 destination_value=(
-                    str(selected_destination.id)
-                    if selected_destination
-                    else destination_filter_value
+                    str(filter_state["selected_destination"].id)
+                    if filter_state["selected_destination"]
+                    else filter_state["destination_filter_value"]
                 ),
+                query=filter_state["query"],
             )
         )
 
-    shipments_qs = _build_shipments_tracking_queryset()
-    if selected_destination:
-        shipments_qs = shipments_qs.filter(destination=selected_destination)
-    if closed_filter == CLOSED_FILTER_EXCLUDE:
-        shipments_qs = shipments_qs.filter(closed_at__isnull=True)
-    if dispute_filter == DISPUTE_FILTER_OPEN:
-        shipments_qs = shipments_qs.filter(is_disputed=True)
-    elif dispute_filter == DISPUTE_FILTER_OVERDUE:
-        shipments_qs = shipments_qs.filter(
-            is_disputed=True,
-            dispute_due_at__lt=timezone.now(),
-        )
-    elif dispute_filter == DISPUTE_FILTER_UNASSIGNED:
-        shipments_qs = shipments_qs.filter(is_disputed=True, dispute_owner="")
-    if planned_week_value and week_start and week_end:
-        shipments_qs = shipments_qs.filter(
-            planned_at__date__gte=week_start,
-            planned_at__date__lt=week_end,
-        )
-    elif planned_week_value and week_start is None:
+    list_context = build_shipments_tracking_list_context(request)
+    if list_context["planned_week_invalid"]:
         messages.warning(
             request,
             _("Format semaine invalide. Utilisez AAAA-Wss ou AAAA-ss."),
         )
 
-    shipments = build_shipments_tracking_rows(shipments_qs)
-    summary_cards = _build_shipments_tracking_summary_cards(shipments)
     return render(
         request,
         TEMPLATE_SHIPMENTS_TRACKING,
         {
             "active": ACTIVE_SHIPMENTS_TRACKING,
-            "shipments": shipments,
-            "summary_cards": summary_cards,
-            "planned_week_value": planned_week_value,
-            "closed_filter": closed_filter,
-            "dispute_filter": dispute_filter,
-            "destination_filter_value": str(selected_destination.id)
-            if selected_destination
-            else "",
-            "destination_filter_label": str(selected_destination) if selected_destination else "",
+            **list_context,
             "close_inactive_message": _("Il reste des étapes à valider, vérifier avant de clore"),
         },
     )

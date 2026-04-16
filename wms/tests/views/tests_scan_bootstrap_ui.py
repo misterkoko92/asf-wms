@@ -51,6 +51,8 @@ from wms.models import (
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentStatus,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
     ShipmentValidationStatus,
     Warehouse,
 )
@@ -869,7 +871,10 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-shipments-tracking-summary"')
+        self.assertContains(response, 'id="shipments-tracking-filter-form"')
+        self.assertContains(response, 'name="q"')
         self.assertContains(response, "<th>À faire</th>", html=True)
+        self.assertNotContains(response, 'data-table-tools="1"')
 
     def test_scan_orders_view_renders_summary_cards_and_action_column(self):
         Order.objects.create(
@@ -941,6 +946,48 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "btn btn-secondary scan-shipment-close-btn is-blocked")
         self.assertNotContains(response, "btn btn-danger scan-shipment-close-btn is-blocked")
+
+    def test_scan_cockpit_lists_render_shared_pagination_and_primary_actions(self):
+        for index in range(101):
+            Receipt.objects.create(
+                receipt_type=ReceiptType.ASSOCIATION,
+                warehouse=self.warehouse,
+            )
+            Order.objects.create(
+                shipper_name="ASF",
+                recipient_name=f"Association cockpit {index:03d}",
+                destination_address="3 rue de la Paix",
+                destination_country="France",
+                review_status=OrderReviewStatus.PENDING,
+            )
+            shipment = Shipment.objects.create(
+                reference=f"EXP-COCKPIT-{index:03d}",
+                shipper_name="Shipper Cockpit",
+                recipient_name="Recipient Cockpit",
+                destination_address="1 rue de la Paix",
+                destination_country="France",
+                status=ShipmentStatus.PLANNED,
+            )
+            ShipmentTrackingEvent.objects.create(
+                shipment=shipment,
+                status=ShipmentTrackingStatus.PLANNED,
+                actor_name="Ops",
+                actor_structure="ASF",
+                comments="step",
+                created_by=self.staff_user,
+            )
+
+        receipts_response = self.client.get(reverse("scan:scan_receipts_view"))
+        self.assertContains(receipts_response, "Page 1 / 2")
+        self.assertContains(receipts_response, ">Ouvrir<", html=False)
+
+        orders_response = self.client.get(reverse("scan:scan_orders_view"))
+        self.assertContains(orders_response, "Page 1 / 2")
+        self.assertContains(orders_response, ">Ouvrir<", html=False)
+
+        tracking_response = self.client.get(reverse("scan:scan_shipments_tracking"))
+        self.assertContains(tracking_response, "Page 1 / 2")
+        self.assertContains(tracking_response, "Suivi/MAJ")
 
     def test_scan_shipments_ready_uses_split_numero_expedition_header_copy(self):
         Shipment.objects.create(
