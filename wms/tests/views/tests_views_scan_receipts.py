@@ -121,6 +121,28 @@ class ScanReceiptsViewsTests(TestCase):
             sorted([ReceiptType.PALLET, ReceiptType.ASSOCIATION]),
         )
 
+    def test_scan_receipt_detail_renders_summary_lines_and_back_link(self):
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=self.warehouse,
+        )
+
+        response = self.client.get(reverse("scan:scan_receipt_detail", args=[receipt.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_receipts_view"))
+        self.assertContains(response, receipt.reference)
+
+    def test_scan_receipt_detail_exposes_legacy_edit_shortcuts(self):
+        receipt = self._create_receipt(ReceiptType.ASSOCIATION)
+
+        response = self.client.get(reverse("scan:scan_receipt_detail", args=[receipt.id]))
+
+        self.assertContains(
+            response,
+            f"{reverse('scan:scan_receive_association')}?receipt_id={receipt.id}",
+        )
+
     def test_scan_receive_get_renders_state_context(self):
         state = {
             "select_form": object(),

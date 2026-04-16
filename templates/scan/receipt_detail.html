@@ -1,0 +1,120 @@
+{% extends "scan/base.html" %}
+{% load i18n wms_dates %}
+
+{% block title %}{% trans "WMS Scan - Dossier réception" %} {{ detail.receipt.reference }}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <div>
+        <h2 class="h4 mb-1 ui-comp-title">{{ detail.receipt.reference }}</h2>
+        <p class="scan-help ui-comp-note mb-0">
+          {% if detail.receipt.received_on %}{{ detail.receipt.received_on|scan_date_short }}{% endif %}
+          {% if detail.receipt.source_contact %} · {{ detail.receipt.source_contact.name }}{% endif %}
+        </p>
+      </div>
+      <div class="ui-comp-actions">
+        <a class="btn btn-tertiary btn-sm" href="{{ detail.back_url }}">{% trans "Retour à la liste" %}</a>
+        <a class="btn btn-secondary btn-sm" href="{{ detail.edit_url }}">{% trans "Modifier la réception" %}</a>
+      </div>
+    </div>
+
+    <section class="scan-field ui-comp-panel mb-3">
+      <h3 class="ui-comp-title h5 mb-3">{% trans "Résumé" %}</h3>
+      <div class="scan-meta-grid">
+        <div class="scan-meta-item">
+          <strong>{% trans "Type" %}</strong>
+          <div>{{ detail.receipt.get_receipt_type_display }}</div>
+        </div>
+        <div class="scan-meta-item">
+          <strong>{% trans "Source" %}</strong>
+          <div>{% if detail.receipt.source_contact %}{{ detail.receipt.source_contact.name }}{% else %}-{% endif %}</div>
+        </div>
+        <div class="scan-meta-item">
+          <strong>{% trans "Transporteur" %}</strong>
+          <div>{% if detail.receipt.carrier_contact %}{{ detail.receipt.carrier_contact.name }}{% else %}-{% endif %}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scan-field ui-comp-panel mb-3">
+      <h3 class="ui-comp-title h5 mb-3">{% trans "Lignes réceptionnées" %}</h3>
+      {% if detail.receipt_lines %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Produit" %}</th>
+                <th>{% trans "Quantité" %}</th>
+                <th>{% trans "Emplacement" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in detail.receipt_lines %}
+                <tr>
+                  <td>{{ line.product.name }}</td>
+                  <td>{{ line.quantity }}</td>
+                  <td>{{ line.location|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help ui-comp-note mb-0">{% trans "Aucune ligne réceptionnée." %}</p>
+      {% endif %}
+    </section>
+
+    <section class="scan-field ui-comp-panel mb-3">
+      <h3 class="ui-comp-title h5 mb-3">{% trans "Hors format" %}</h3>
+      {% if detail.hors_format_items %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Ligne" %}</th>
+                <th>{% trans "Description" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in detail.hors_format_items %}
+                <tr>
+                  <td>{{ item.line_number }}</td>
+                  <td>{{ item.description }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help ui-comp-note mb-0">{% trans "Aucun hors format." %}</p>
+      {% endif %}
+    </section>
+
+    <section class="scan-field ui-comp-panel">
+      <h3 class="ui-comp-title h5 mb-3">{% trans "Allocations expédition" %}</h3>
+      {% if detail.shipment_allocations %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Expédition" %}</th>
+                <th>{% trans "Quantité allouée" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for allocation in detail.shipment_allocations %}
+                <tr>
+                  <td>{{ allocation.shipment.reference }}</td>
+                  <td>{{ allocation.allocated_received_units }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="scan-help ui-comp-note mb-0">{% trans "Aucune allocation expédition." %}</p>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

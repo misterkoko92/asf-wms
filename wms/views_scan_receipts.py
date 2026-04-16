@@ -24,6 +24,7 @@ from .models import (
     ReceiptType,
 )
 from .order_helpers import attach_order_documents_to_shipment
+from .receipt_detail_helpers import build_receipt_detail_payload
 from .receipt_handlers import (
     build_hors_format_lines,
     handle_receipt_action,
@@ -49,6 +50,7 @@ TEMPLATE_RECEIVE = "scan/receive.html"
 TEMPLATE_RECEIVE_PALLET = "scan/receive_pallet.html"
 TEMPLATE_RECEIVE_LISTING = "scan/receive_listing.html"
 TEMPLATE_RECEIVE_ASSOCIATION = "scan/receive_association.html"
+TEMPLATE_RECEIPT_DETAIL = "scan/receipt_detail.html"
 
 ACTIVE_RECEIPTS_VIEW = "receipts_view"
 ACTIVE_RECEIVE = "receive"
@@ -247,6 +249,30 @@ def scan_receipts_view(request):
             "active": ACTIVE_RECEIPTS_VIEW,
             "filter_value": filter_value,
             "receipts": receipts,
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_receipt_detail(request, receipt_id):
+    receipt = get_object_or_404(
+        Receipt.objects.select_related(
+            "source_contact", "carrier_contact", "warehouse"
+        ).prefetch_related(
+            "lines__product",
+            "lines__location",
+            "hors_format_items",
+            "shipment_allocations__shipment",
+        ),
+        id=receipt_id,
+    )
+    return render(
+        request,
+        TEMPLATE_RECEIPT_DETAIL,
+        {
+            "active": ACTIVE_RECEIPTS_VIEW,
+            "detail": build_receipt_detail_payload(receipt),
         },
     )
 

@@ -2354,6 +2354,17 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "scan-card card border-0")
 
+    def test_scan_receipt_detail_uses_bootstrap_card_shell(self):
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=self.warehouse,
+        )
+
+        response = self.client.get(reverse("scan:scan_receipt_detail", args=[receipt.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-card card border-0")
+
     def test_scan_receipts_and_tracking_use_bootstrap_form_controls(self):
         receipts_response = self.client.get(reverse("scan:scan_receipts_view"))
         self.assertEqual(receipts_response.status_code, 200)

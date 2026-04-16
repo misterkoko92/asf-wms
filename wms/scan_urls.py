@@ -56,6 +56,7 @@ urlpatterns = [
         name="scan_shipments_tracking",
     ),
     path("receipts/", views.scan_receipts_view, name="scan_receipts_view"),
+    path("receipts/<int:receipt_id>/", views.scan_receipt_detail, name="scan_receipt_detail"),
     path("receive/", views.scan_receive, name="scan_receive"),
     path("receive-pallet/", views.scan_receive_pallet, name="scan_receive_pallet"),
     path("receive-listing/", views.scan_receive_listing, name="scan_receive_listing"),

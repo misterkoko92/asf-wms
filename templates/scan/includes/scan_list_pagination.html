@@ -1,0 +1,14 @@
+{% load i18n %}
+{% if page_obj.has_other_pages %}
+  <div class="scan-filter-actions ui-comp-actions d-flex flex-wrap gap-2 align-items-center mt-3">
+    <span class="scan-help ui-comp-note">
+      {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}Page {{ current }} / {{ total }}{% endblocktrans %}
+    </span>
+    {% if page_prev_url %}
+      <a class="btn btn-tertiary btn-sm" href="{{ page_prev_url }}">{% trans "Page précédente" %}</a>
+    {% endif %}
+    {% if page_next_url %}
+      <a class="btn btn-tertiary btn-sm" href="{{ page_next_url }}">{% trans "Page suivante" %}</a>
+    {% endif %}
+  </div>
+{% endif %}
