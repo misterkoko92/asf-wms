@@ -564,7 +564,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
             if create_pack:
                 response = redirect(_build_pack_redirect_url(shipment_reference=shipment.reference))
             else:
-                response = redirect("scan:scan_shipment_create")
+                response = redirect("scan:scan_shipment_edit", shipment.id)
         except StockError as exc:
             form.add_error(None, str(exc))
         except IntegrityError:
