@@ -569,6 +569,13 @@
   gap: 0.4rem;
 }
 
+.scan-carton-select-all-checkbox {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+
 .scan-carton-code-col {
   width: 6.6rem;
 }

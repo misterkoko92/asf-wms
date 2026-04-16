@@ -68,13 +68,13 @@
                 <th class="scan-carton-table-head scan-carton-select-col text-center align-middle">
                   <div class="scan-carton-select-head">
                     <span class="scan-carton-table-head-label">{% trans "Sélection" %}</span>
-                    <button
-                      type="button"
-                      class="btn btn-tertiary btn-sm scan-carton-select-all-btn"
+                    <input
+                      id="carton-select-all"
+                      class="scan-carton-select-all-checkbox"
+                      type="checkbox"
                       data-carton-select-all="1"
+                      aria-label="{% trans "Tout sélectionner" %}"
                     >
-                      {% trans "Tout sélectionner" %}
-                    </button>
                   </div>
                 </th>
                 <th class="scan-carton-table-head scan-carton-code-col"><span class="scan-carton-table-head-label">{% trans "Numero colis" %}</span></th>

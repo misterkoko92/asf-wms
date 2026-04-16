@@ -7,7 +7,7 @@
   const bulkActionSelect = root.querySelector('[name="bulk_action"]');
   const toolbarShipmentSelect = root.querySelector('[data-carton-toolbar-shipment-select="1"]');
   const confirmInput = root.querySelector('[data-carton-confirm-skipped-input="1"]');
-  const selectAllButton = root.querySelector('[data-carton-select-all="1"]');
+  const selectAllCheckbox = root.querySelector('[data-carton-select-all="1"]');
   const overlay = root.querySelector('#carton-status-skip-confirmation-overlay');
   const message = root.querySelector('#carton-status-skip-confirmation-message');
   const acceptButton = root.querySelector('[data-carton-confirm-accept="1"]');
@@ -40,13 +40,15 @@
     return Array.from(root.querySelectorAll('.scan-carton-select-checkbox'));
   }
 
-  function updateSelectAllButtonState() {
-    if (!selectAllButton) {
+  function updateSelectAllCheckboxState() {
+    if (!selectAllCheckbox) {
       return;
     }
     const checkboxes = getAllCheckboxes();
-    const allSelected = checkboxes.length > 0 && checkboxes.every(checkbox => checkbox.checked);
-    selectAllButton.setAttribute('aria-pressed', allSelected ? 'true' : 'false');
+    const checkedCount = checkboxes.filter(checkbox => checkbox.checked).length;
+    selectAllCheckbox.disabled = checkboxes.length === 0;
+    selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
   }
 
   function resolveAction() {
@@ -209,24 +211,23 @@
     return true;
   }
 
-  if (selectAllButton) {
-    selectAllButton.addEventListener('click', () => {
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', () => {
       const checkboxes = getAllCheckboxes();
       if (!checkboxes.length) {
         return;
       }
-      const allSelected = checkboxes.every(checkbox => checkbox.checked);
       checkboxes.forEach(checkbox => {
-        checkbox.checked = !allSelected;
+        checkbox.checked = selectAllCheckbox.checked;
       });
-      updateSelectAllButtonState();
+      updateSelectAllCheckboxState();
     });
   }
 
   getAllCheckboxes().forEach(checkbox => {
-    checkbox.addEventListener('change', updateSelectAllButtonState);
+    checkbox.addEventListener('change', updateSelectAllCheckboxState);
   });
-  updateSelectAllButtonState();
+  updateSelectAllCheckboxState();
 
   root.addEventListener('submit', event => {
     const submitter = event.submitter;
