@@ -178,6 +178,7 @@ def build_orders_view_rows(orders_qs):
                 "order": order,
                 "association_name": association_name,
                 "creator": creator,
+                "created_at": order.created_at,
                 "documents": docs,
                 "reference_label": _order_reference_label(order),
                 "review_status_value": getattr(order, "review_status", "") or "",
@@ -190,6 +191,8 @@ def build_orders_view_rows(orders_qs):
                     "create_shipment_label",
                     "Créer l'expédition",
                 ),
+                "open_url": reverse("scan:scan_order_detail", args=[order.id]),
+                "open_label": "Ouvrir",
                 **inbound_summary,
             }
         )

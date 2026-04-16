@@ -884,9 +884,12 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-orders-view-summary"')
+        self.assertContains(response, 'id="orders-filter-form"')
+        self.assertContains(response, 'name="q"')
         self.assertContains(response, "<th>Prochaine étape</th>", html=True)
         self.assertContains(response, "<th>Actions</th>", html=True)
         self.assertContains(response, ">Ouvrir<", html=False)
+        self.assertNotContains(response, 'data-table-tools="1"')
         self.assertNotContains(response, 'name="review_status"')
         self.assertNotContains(response, "Modifier:")
         self.assertNotContains(response, "Refus:")

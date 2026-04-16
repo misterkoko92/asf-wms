@@ -1,11 +1,12 @@
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 
-from .models import Order, OrderReviewStatus
+from .models import OrderReviewStatus
+from .order_list_queries import build_orders_list_context, build_orders_queryset
 from .order_scan_handlers import handle_order_action
 from .order_scan_state import build_order_scan_state
 from .order_view_handlers import handle_order_detail_action, handle_orders_view_action
-from .order_view_helpers import build_order_detail_payload, build_orders_view_rows
+from .order_view_helpers import build_order_detail_payload
 from .scan_helpers import build_product_options
 from .view_permissions import scan_staff_required
 from .view_utils import sorted_choices
@@ -16,75 +17,6 @@ TEMPLATE_ORDER_DETAIL = "scan/order_detail.html"
 
 ACTIVE_ORDER = "order"
 ACTIVE_ORDERS_VIEW = "orders_view"
-
-
-def _build_orders_view_summary_cards(rows):
-    to_validate = 0
-    changes_requested = 0
-    approved_ready_for_shipments = 0
-    rejected = 0
-
-    for row in rows:
-        review_status = row.get("review_status_value")
-        can_create_shipment = bool(row.get("can_create_shipment"))
-        if review_status == OrderReviewStatus.PENDING:
-            to_validate += 1
-        elif review_status == OrderReviewStatus.CHANGES_REQUESTED:
-            changes_requested += 1
-        elif review_status == OrderReviewStatus.REJECTED:
-            rejected += 1
-
-        if review_status == OrderReviewStatus.APPROVED and can_create_shipment:
-            approved_ready_for_shipments += 1
-
-    return [
-        {
-            "id": "to-validate",
-            "label": "À valider",
-            "value": to_validate,
-            "help": "Commandes en attente de revue",
-            "tone": "warn",
-        },
-        {
-            "id": "changes-requested",
-            "label": "Modifications demandées",
-            "value": changes_requested,
-            "help": "Relance opérateur",
-            "tone": "warn",
-        },
-        {
-            "id": "approved-without-shipment",
-            "label": "Validées",
-            "value": approved_ready_for_shipments,
-            "help": "Commandes pouvant créer un dossier",
-            "tone": "success",
-        },
-        {
-            "id": "rejected-orders",
-            "label": "Refusées",
-            "value": rejected,
-            "help": "Décisions à expliciter si besoin",
-            "tone": "danger",
-        },
-    ]
-
-
-def _build_orders_queryset():
-    return (
-        Order.objects.select_related(
-            "association_contact",
-            "recipient_contact",
-            "created_by",
-            "shipment",
-            "inbound_delivery__receipt",
-        )
-        .prefetch_related(
-            "documents",
-            "shipment_links__shipment",
-            "inbound_delivery__receipt__shipper_cartons",
-        )
-        .order_by("-created_at")
-    )
 
 
 def _render_scan_order(request, *, product_options, order_state):
@@ -104,16 +36,13 @@ def _render_scan_order(request, *, product_options, order_state):
     )
 
 
-def _render_orders_view(request, *, rows):
-    summary_cards = _build_orders_view_summary_cards(rows)
+def _render_orders_view(request, *, list_context):
     return render(
         request,
         TEMPLATE_ORDERS_VIEW,
         {
             "active": ACTIVE_ORDERS_VIEW,
-            "orders": rows,
-            "summary_cards": summary_cards,
-            "review_status_choices": sorted_choices(OrderReviewStatus.choices),
+            **list_context,
             "approved_status": OrderReviewStatus.APPROVED,
             "rejected_status": OrderReviewStatus.REJECTED,
             "changes_status": OrderReviewStatus.CHANGES_REQUESTED,
@@ -165,21 +94,23 @@ def scan_order(request):
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_orders_view(request):
-    orders_qs = _build_orders_queryset()
+    orders_qs = build_orders_queryset()
 
     if request.method == "POST":
         response = handle_orders_view_action(request, orders_qs=orders_qs)
         if response:
             return response
 
-    rows = build_orders_view_rows(orders_qs)
-    return _render_orders_view(request, rows=rows)
+    return _render_orders_view(
+        request,
+        list_context=build_orders_list_context(request),
+    )
 
 
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_order_detail(request, order_id):
-    order = get_object_or_404(_build_orders_queryset(), id=order_id)
+    order = get_object_or_404(build_orders_queryset(), id=order_id)
     if request.method == "POST":
         response = handle_order_detail_action(request, order=order)
         if response:
