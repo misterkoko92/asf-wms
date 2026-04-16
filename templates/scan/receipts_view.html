@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n wms_dates %}
 
 {% block title %}{% trans "WMS Scan - Vue réception" %}{% endblock %}
 
@@ -7,23 +7,53 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
       <span>{% trans "Vue réception" %}</span>
-      <span class="badge text-bg-light ui-comp-count-badge">{{ receipts|length }}</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ total_count }}</span>
     </h2>
 
-    <div class="scan-field ui-comp-panel">
-      <label class="form-label" for="receipt-filter">{% trans "Filtre" %}</label>
-      <form method="get" id="receipt-filter-form" class="d-flex flex-wrap gap-2 align-items-center ui-comp-form">
-        <select id="receipt-filter" name="type" class="form-select ui-select--md" onchange="this.form.submit()">
-          <option value="all" {% if filter_value == 'all' %}selected{% endif %}>{% trans "Tout" %}</option>
-          <option value="association" {% if filter_value == 'association' %}selected{% endif %}>{% trans "Association" %}</option>
-          <option value="pallet" {% if filter_value == 'pallet' %}selected{% endif %}>{% trans "Palette" %}</option>
-        </select>
+    <div class="scan-field ui-comp-panel mb-3">
+      <form method="get" id="receipt-filter-form" class="ui-comp-form row g-3 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="id_q">{% trans "Recherche" %}</label>
+          <input
+            id="id_q"
+            name="q"
+            type="search"
+            value="{{ query }}"
+            class="form-control"
+            placeholder='{% trans "Référence, source, transporteur" %}'
+          >
+        </div>
+        <div class="col-12 col-md-4 col-lg-3">
+          <label class="form-label" for="receipt-filter">{% trans "Type" %}</label>
+          <select id="receipt-filter" name="type" class="form-select">
+            <option value="all" {% if filter_value == 'all' %}selected{% endif %}>{% trans "Tout" %}</option>
+            <option value="association" {% if filter_value == 'association' %}selected{% endif %}>{% trans "Association" %}</option>
+            <option value="pallet" {% if filter_value == 'pallet' %}selected{% endif %}>{% trans "Palette" %}</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-4 col-lg-3">
+          <label class="form-label" for="id_sort">{% trans "Tri" %}</label>
+          <select id="id_sort" name="sort" class="form-select">
+            {% for value, label in sort_choices %}
+              <option value="{{ value }}" {% if sort_value == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-lg-2">
+          <div class="scan-filter-actions ui-comp-actions d-flex gap-2">
+            <button type="submit" class="btn btn-primary">{% trans "Filtrer" %}</button>
+            <a class="btn btn-tertiary" href="{{ reset_url }}">{% trans "Réinitialiser" %}</a>
+          </div>
+        </div>
       </form>
     </div>
 
     {% if receipts %}
+      <div class="scan-help ui-comp-note mb-2">
+        {% blocktrans with count=total_count per_page=page_size %}{{ count }} résultat(s), {{ per_page }} par page maximum.{% endblocktrans %}
+      </div>
       <div class="scan-table-wrap table-responsive">
-        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+        <table class="scan-table table table-sm table-hover">
           <thead>
             <tr>
               <th>{% trans "Date de réception" %}</th>
@@ -31,21 +61,26 @@
               <th>{% trans "Quantité" %}</th>
               <th>{% trans "Quantité Hors Format" %}</th>
               <th>{% trans "Transporteur" %}</th>
+              <th>{% trans "Actions" %}</th>
             </tr>
           </thead>
           <tbody>
             {% for receipt in receipts %}
               <tr>
-                <td>{{ receipt.received_on|date:"d/m/Y" }}</td>
+                <td>{{ receipt.received_on|scan_date_short }}</td>
                 <td>{{ receipt.name }}</td>
                 <td>{{ receipt.quantity }}</td>
                 <td>{{ receipt.hors_format }}</td>
                 <td>{{ receipt.carrier }}</td>
+                <td>
+                  <a class="btn btn-tertiary btn-sm" href="{{ receipt.open_url }}">{{ receipt.open_label }}</a>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% include "scan/includes/scan_list_pagination.html" with page_obj=receipts_page page_prev_url=page_prev_url page_next_url=page_next_url %}
     {% else %}
       <p class="scan-help ui-comp-note">{% trans "Aucune réception." %}</p>
     {% endif %}
