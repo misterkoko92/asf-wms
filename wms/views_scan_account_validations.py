@@ -80,6 +80,26 @@ def _recipient_validation_list_queryset():
     )
 
 
+def _resolve_recipient_validation_runtime(*, destination_id, saved_contact, fallback_runtime_id):
+    runtime_contact = (
+        saved_contact.organization
+        if getattr(saved_contact, "organization_id", None)
+        else saved_contact
+    )
+    if runtime_contact is not None:
+        resolved_runtime = (
+            ShipmentRecipientOrganization.objects.filter(
+                organization=runtime_contact,
+                destination_id=destination_id,
+            )
+            .order_by("id")
+            .first()
+        )
+        if resolved_runtime is not None:
+            return resolved_runtime
+    return ShipmentRecipientOrganization.objects.filter(pk=fallback_runtime_id).first()
+
+
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_contact_validations_hub(request):
@@ -197,11 +217,19 @@ def scan_recipient_validation_detail(request, recipient_organization_id):
             )
             if outcome.should_redirect:
                 selected_business_type = (request.POST.get("business_type") or "").strip()
+                resolved_runtime = _resolve_recipient_validation_runtime(
+                    destination_id=recipient_organization.destination_id,
+                    saved_contact=outcome.saved_contact,
+                    fallback_runtime_id=recipient_organization.id,
+                )
                 if selected_business_type == "recipient":
-                    recipient_organization.validation_status = ShipmentValidationStatus.VALIDATED
+                    if resolved_runtime is not None:
+                        resolved_runtime.validation_status = ShipmentValidationStatus.VALIDATED
                 elif selected_business_type == "shipper":
-                    recipient_organization.validation_status = ShipmentValidationStatus.REJECTED
-                recipient_organization.save(update_fields=["validation_status"])
+                    if resolved_runtime is not None:
+                        resolved_runtime.validation_status = ShipmentValidationStatus.REJECTED
+                if resolved_runtime is not None:
+                    resolved_runtime.save(update_fields=["validation_status"])
                 getattr(messages, outcome.message_level or "success")(
                     request, outcome.message or ""
                 )

@@ -28,23 +28,29 @@ class RecipientOrganizationMergeResult:
     migrated_shipper_link_count: int
 
 
-def _merge_scalar_fields(source: Contact, target: Contact):
+def _merge_scalar_fields(
+    source: Contact,
+    target: Contact,
+    *,
+    scalar_mode: str = "fill_empty",
+):
     updated_fields = []
-    for field_name in ("title", "email", "email2", "phone", "phone2", "role", "notes"):
-        if not getattr(target, field_name) and getattr(source, field_name):
-            setattr(target, field_name, getattr(source, field_name))
-            updated_fields.append(field_name)
-    if source.contact_type == ContactType.ORGANIZATION:
-        if not target.legal_form and source.legal_form:
-            target.legal_form = source.legal_form
-            updated_fields.append("legal_form")
-        if target.beneficiary_count is None and source.beneficiary_count is not None:
-            target.beneficiary_count = source.beneficiary_count
-            updated_fields.append("beneficiary_count")
-    if source.contact_type == ContactType.PERSON and not target.use_organization_address:
-        if source.use_organization_address:
-            target.use_organization_address = True
-            updated_fields.append("use_organization_address")
+    if scalar_mode == "fill_empty":
+        for field_name in ("title", "email", "email2", "phone", "phone2", "role", "notes"):
+            if not getattr(target, field_name) and getattr(source, field_name):
+                setattr(target, field_name, getattr(source, field_name))
+                updated_fields.append(field_name)
+        if source.contact_type == ContactType.ORGANIZATION:
+            if not target.legal_form and source.legal_form:
+                target.legal_form = source.legal_form
+                updated_fields.append("legal_form")
+            if target.beneficiary_count is None and source.beneficiary_count is not None:
+                target.beneficiary_count = source.beneficiary_count
+                updated_fields.append("beneficiary_count")
+        if source.contact_type == ContactType.PERSON and not target.use_organization_address:
+            if source.use_organization_address:
+                target.use_organization_address = True
+                updated_fields.append("use_organization_address")
     if not target.is_active and source.is_active:
         target.is_active = True
         updated_fields.append("is_active")
@@ -153,8 +159,20 @@ def _merge_shipper_links(
             recipient_contact=authorization.recipient_contact,
         ).first()
         if existing is None:
+            update_fields = ["link"]
+            target_link_has_default = (
+                ShipmentAuthorizedRecipientContact.objects.filter(
+                    link=target_link,
+                    is_default=True,
+                )
+                .exclude(pk=authorization.pk)
+                .exists()
+            )
+            if authorization.is_default and target_link_has_default:
+                authorization.is_default = False
+                update_fields.append("is_default")
             authorization.link = target_link
-            authorization.save(update_fields=["link"])
+            authorization.save(update_fields=update_fields)
             if authorization.is_default:
                 ShipmentAuthorizedRecipientContact.objects.filter(
                     link=target_link,
@@ -312,14 +330,19 @@ def _merge_person_references(source: Contact, target: Contact):
         recipient_contact.delete()
 
 
-def merge_contacts(*, source_contact: Contact, target_contact: Contact):
+def merge_contacts(
+    *,
+    source_contact: Contact,
+    target_contact: Contact,
+    scalar_mode: str = "fill_empty",
+):
     if source_contact.pk == target_contact.pk:
         return target_contact
     if source_contact.contact_type != target_contact.contact_type:
         raise ValidationError("Les fiches à fusionner doivent être du même type.")
 
     with transaction.atomic():
-        _merge_scalar_fields(source_contact, target_contact)
+        _merge_scalar_fields(source_contact, target_contact, scalar_mode=scalar_mode)
         _merge_capabilities(source_contact, target_contact)
         _merge_addresses(source_contact, target_contact)
 

@@ -52,8 +52,10 @@ from wms.models import (
     RecurringPreparationNeed,
     Shipment,
     ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
@@ -138,6 +140,53 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
                 is_active=True,
             ).count(),
             3,
+        )
+
+    def test_command_seeds_pending_recipient_validation_duplicate_cases(self):
+        call_command("seed_local_exhaustive_data", "--scenario=validations")
+
+        pending_runtimes = ShipmentRecipientOrganization.objects.filter(
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+            organization__name__in=[
+                "[LOCAL validations] Validation Merge",
+                "[LOCAL validations] Validation Duplicate",
+            ],
+        ).select_related("organization", "destination")
+
+        self.assertEqual(pending_runtimes.count(), 2)
+        self.assertEqual(
+            ShipmentRecipientOrganization.objects.filter(
+                validation_status=ShipmentValidationStatus.VALIDATED,
+                is_active=True,
+                organization__name__in=[
+                    "[LOCAL validations] Validation Merge",
+                    "[LOCAL validations] Validation Duplicate",
+                ],
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            ShipmentRecipientContact.objects.filter(
+                recipient_organization__in=pending_runtimes,
+                is_active=True,
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            ShipmentShipperRecipientLink.objects.filter(
+                recipient_organization__in=pending_runtimes,
+                is_active=True,
+            ).count(),
+            2,
+        )
+        self.assertEqual(
+            ShipmentAuthorizedRecipientContact.objects.filter(
+                link__recipient_organization__in=pending_runtimes,
+                is_active=True,
+                is_default=True,
+            ).count(),
+            2,
         )
 
     def test_command_creates_actionable_shipments_cartons_and_alert_rows(self):

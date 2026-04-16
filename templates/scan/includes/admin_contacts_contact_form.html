@@ -1,5 +1,8 @@
 {% load i18n wms_status wms_ui %}
-<form method="post" class="row g-3 ui-comp-form" data-admin-contact-form="1">
+<form method="post"
+      class="row g-3 ui-comp-form"
+      data-admin-contact-form="1"
+      id="{% if editing_contact_requires_recipient_validation %}scan-contact-validation-form{% else %}scan-admin-contact-form{% endif %}">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_contact">
     <input type="hidden" name="q" value="{{ query }}">
@@ -9,13 +12,15 @@
     <input type="hidden" name="editing_contact_id" value="{{ editing_contact.id|default:'' }}">
     {{ contact_form.duplicate_candidates_count }}
     {% if contact_form.non_field_errors %}
-        <div class="col-12">
-            <div class="alert alert-danger mb-0">
-                {% for error in contact_form.non_field_errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
+        {% if not editing_contact_requires_recipient_validation or not contact_duplicate_candidates %}
+            <div class="col-12">
+                <div class="alert alert-danger mb-0">
+                    {% for error in contact_form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
+        {% endif %}
     {% endif %}
     <div class="col-12">
         <div class="row g-3">
@@ -344,7 +349,7 @@
             </div>
         </div>
     {% endif %}
-    {% if contact_duplicate_candidates %}
+    {% if contact_duplicate_candidates and not editing_contact_requires_recipient_validation %}
         <div class="col-12" data-contact-stage="details">
             <div class="ui-comp-panel border rounded-3 p-3">
                 <h4 class="h6 mb-2">{% trans "Doublons probables" %}</h4>
@@ -412,20 +417,22 @@
             </div>
         </div>
     {% endif %}
-    <div class="col-12 d-flex flex-wrap gap-2" data-contact-stage="details">
-        <button type="submit" class="btn btn-primary">
-            {% if contact_form_mode == "edit" %}
-                {% if editing_contact_requires_recipient_validation %}
-                    {% trans "Valider le destinataire" %}
+    {% if not editing_contact_requires_recipient_validation or not contact_duplicate_candidates %}
+        <div class="col-12 d-flex flex-wrap gap-2" data-contact-stage="details">
+            <button type="submit" class="btn btn-primary">
+                {% if contact_form_mode == "edit" %}
+                    {% if editing_contact_requires_recipient_validation %}
+                        {% trans "Valider le destinataire" %}
+                    {% else %}
+                        {% trans "Mettre à jour le contact" %}
+                    {% endif %}
                 {% else %}
-                    {% trans "Mettre à jour le contact" %}
+                    {% trans "Enregistrer le contact" %}
                 {% endif %}
-            {% else %}
-                {% trans "Enregistrer le contact" %}
+            </button>
+            {% if contact_form_mode == "edit" %}
+                <a class="btn btn-tertiary" href="{{ contacts_current_url }}">{% trans "Annuler" %}</a>
             {% endif %}
-        </button>
-        {% if contact_form_mode == "edit" %}
-            <a class="btn btn-tertiary" href="{{ contacts_current_url }}">{% trans "Annuler" %}</a>
-        {% endif %}
-    </div>
+        </div>
+    {% endif %}
 </form>

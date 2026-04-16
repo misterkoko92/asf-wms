@@ -96,6 +96,49 @@ class ContactCrudFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("duplicate_target_id", form.errors)
 
+    def test_duplicate_review_requires_keep_and_delete_choices_for_merge(self):
+        form = ContactCrudForm(
+            data={
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan",
+                "legal_form": "association",
+                "beneficiary_count": "120",
+                "first_name": "Alice",
+                "last_name": "Martin",
+                "destination_id": str(self.destination.id),
+                "allowed_shipper_ids": [str(self.shipper_organization.id)],
+                "duplicate_candidates_count": "1",
+                "duplicate_action": "merge",
+                "duplicate_target_id": "12",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("duplicate_keep_choice", form.errors)
+        self.assertIn("duplicate_delete_choice", form.errors)
+
+    def test_duplicate_review_rejects_same_keep_and_delete_choice(self):
+        form = ContactCrudForm(
+            data={
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan",
+                "legal_form": "association",
+                "beneficiary_count": "120",
+                "first_name": "Alice",
+                "last_name": "Martin",
+                "destination_id": str(self.destination.id),
+                "allowed_shipper_ids": [str(self.shipper_organization.id)],
+                "duplicate_candidates_count": "1",
+                "duplicate_action": "replace",
+                "duplicate_target_id": "12",
+                "duplicate_keep_choice": "existing",
+                "duplicate_delete_choice": "existing",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("duplicate_delete_choice", form.errors)
+
     def test_accepts_minimal_recipient_payload(self):
         form = ContactCrudForm(
             data={

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import MultipleObjectsReturned, ValidationError
+from django.db import IntegrityError
 from django.utils.translation import gettext as _
 
 from contacts.capabilities import ContactCapabilityType
@@ -38,6 +39,7 @@ class AdminContactsCrudOutcome:
     should_redirect: bool = True
     message_level: str | None = None
     message: str | None = None
+    saved_contact: Contact | None = None
     destination_form: DestinationCrudForm | None = None
     contact_form: ContactCrudForm | None = None
     destination_duplicate_candidates: list[Destination] = field(default_factory=list)
@@ -238,6 +240,19 @@ def _attach_validation_error(form, error: ValidationError):
         form.add_error(None, message)
 
 
+def _attach_persistence_error(form, *, duplicate_action: str):
+    if duplicate_action:
+        form.add_error(
+            None,
+            _("Un conflit de données empêche cette résolution de doublon."),
+        )
+        return
+    form.add_error(
+        None,
+        _("Un conflit de données empêche l'enregistrement de ce contact."),
+    )
+
+
 def handle_destination_submission(post_data) -> AdminContactsCrudOutcome:
     form = DestinationCrudForm(post_data)
     if not form.is_valid():
@@ -306,12 +321,11 @@ def handle_contact_submission(
 
     cleaned_data = form.cleaned_data
     duplicate_action = (cleaned_data.get("duplicate_action") or "").strip()
-    candidates = []
+    candidates = build_contact_duplicate_candidates(
+        cleaned_data,
+        exclude_contact_id=getattr(editing_contact, "id", None),
+    )
     if not duplicate_action:
-        candidates = build_contact_duplicate_candidates(
-            cleaned_data,
-            exclude_contact_id=getattr(editing_contact, "id", None),
-        )
         if candidates:
             return AdminContactsCrudOutcome(
                 should_redirect=False,
@@ -327,9 +341,18 @@ def handle_contact_submission(
             )
 
     try:
-        save_contact_from_form(cleaned_data, editing_contact=editing_contact)
+        saved_contact = save_contact_from_form(cleaned_data, editing_contact=editing_contact)
     except ValidationError as error:
         _attach_validation_error(form, error)
+        return AdminContactsCrudOutcome(
+            should_redirect=False,
+            contact_form=form,
+            contact_duplicate_candidates=candidates,
+            contact_form_mode="edit" if editing_contact is not None else "create",
+            editing_contact=editing_contact,
+        )
+    except (IntegrityError, MultipleObjectsReturned):
+        _attach_persistence_error(form, duplicate_action=duplicate_action)
         return AdminContactsCrudOutcome(
             should_redirect=False,
             contact_form=form,
@@ -342,6 +365,7 @@ def handle_contact_submission(
         should_redirect=True,
         message_level="success",
         message=_("Contact enregistré."),
+        saved_contact=saved_contact,
     )
 
 

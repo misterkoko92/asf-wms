@@ -7,13 +7,13 @@ from contacts.capabilities import ensure_contact_capability
 from contacts.models import Contact, ContactAddress, ContactType
 
 from .admin_contacts_duplicate_detection import find_similar_contacts
+from .admin_contacts_merge_service import merge_contacts
 from .application.parties.use_cases import update_runtime_recipient_shared_profile
 from .models import (
     Destination,
     ShipmentShipper,
     ShipmentValidationStatus,
 )
-from .shipment_party_setup import ensure_shipment_shipper
 
 
 def _primary_entity_type(cleaned_data) -> str:
@@ -27,6 +27,8 @@ def _primary_entity_type(cleaned_data) -> str:
 
 
 def build_contact_duplicate_candidates(cleaned_data, *, exclude_contact_id=None):
+    destination = cleaned_data.get("destination_id")
+    destination_id = destination.id if isinstance(destination, Destination) else destination
     return find_similar_contacts(
         business_type=cleaned_data.get("business_type", ""),
         entity_type=_primary_entity_type(cleaned_data),
@@ -36,6 +38,7 @@ def build_contact_duplicate_candidates(cleaned_data, *, exclude_contact_id=None)
         email=cleaned_data.get("email", ""),
         phone=cleaned_data.get("phone", ""),
         asf_id=cleaned_data.get("asf_id", ""),
+        destination_id=destination_id,
         exclude_contact_id=exclude_contact_id,
     )
 
@@ -238,100 +241,222 @@ def _ensure_capability(contact, business_type: str):
         ensure_contact_capability(contact, capability)
 
 
+def _build_unique_duplicate_name(*, base_name: str, exclude_contact_id=None) -> str:
+    normalized_base_name = (base_name or "").strip()
+    if not normalized_base_name:
+        return normalized_base_name
+    suffix = " - doublon"
+    index = 1
+    while True:
+        candidate_name = (
+            f"{normalized_base_name}{suffix}"
+            if index == 1
+            else f"{normalized_base_name}{suffix} {index}"
+        )
+        existing = Contact.objects.filter(name__iexact=candidate_name, is_active=True)
+        if exclude_contact_id is not None:
+            existing = existing.exclude(pk=exclude_contact_id)
+        if not existing.exists():
+            return candidate_name
+        index += 1
+
+
+def _rename_for_duplicate_resolution(cleaned_data, *, editing_contact=None):
+    adjusted_data = dict(cleaned_data)
+    business_type = (adjusted_data.get("business_type") or "").strip()
+    if business_type not in {"shipper", "recipient", "correspondent"}:
+        return adjusted_data
+    adjusted_data["organization_name"] = _build_unique_duplicate_name(
+        base_name=adjusted_data.get("organization_name", ""),
+        exclude_contact_id=getattr(editing_contact, "id", None),
+    )
+    return adjusted_data
+
+
+def _save_contact_core(cleaned_data, *, target_contact=None, overwrite: bool):
+    business_type = (cleaned_data.get("business_type") or "").strip()
+    if business_type in {"shipper", "recipient", "correspondent"}:
+        organization = _ensure_organization(
+            cleaned_data,
+            target=target_contact
+            if getattr(target_contact, "contact_type", None) == ContactType.ORGANIZATION
+            else getattr(target_contact, "organization", None),
+            overwrite=overwrite,
+        )
+        referent = _ensure_person(
+            cleaned_data=cleaned_data,
+            organization=organization,
+            overwrite=overwrite,
+            target=target_contact
+            if getattr(target_contact, "contact_type", None) == ContactType.PERSON
+            else None,
+        )
+        if business_type == "shipper":
+            _ensure_shipper_runtime(
+                organization=organization,
+                referent=referent,
+                cleaned_data=cleaned_data,
+            )
+        else:
+            _ensure_recipient_runtime(
+                organization=organization,
+                referent=referent,
+                cleaned_data=cleaned_data,
+                is_correspondent=business_type == "correspondent",
+            )
+        return organization
+
+    entity_type = _primary_entity_type(cleaned_data)
+    if entity_type == ContactType.ORGANIZATION:
+        primary_contact = _ensure_organization(
+            cleaned_data,
+            target=target_contact
+            if getattr(target_contact, "contact_type", None) == ContactType.ORGANIZATION
+            else None,
+            overwrite=overwrite,
+        )
+    else:
+        organization = None
+        organization_name = (cleaned_data.get("organization_name") or "").strip()
+        if organization_name:
+            organization = (
+                Contact.objects.filter(
+                    contact_type=ContactType.ORGANIZATION,
+                    name=organization_name,
+                )
+                .order_by("id")
+                .first()
+            )
+            if organization is None:
+                organization = Contact.objects.create(
+                    contact_type=ContactType.ORGANIZATION,
+                    name=organization_name,
+                    is_active=True,
+                )
+        primary_contact = (
+            target_contact
+            if getattr(target_contact, "contact_type", None) == ContactType.PERSON
+            else None
+        )
+        if primary_contact is None:
+            primary_contact = Contact(
+                contact_type=ContactType.PERSON, organization=organization, is_active=True
+            )
+        elif (
+            organization is not None
+            and overwrite
+            and primary_contact.organization_id != organization.id
+        ):
+            primary_contact.organization = organization
+            primary_contact.save(update_fields=["organization"])
+        primary_contact = _apply_contact_fields(
+            primary_contact, data=cleaned_data, overwrite=overwrite
+        )
+
+    _ensure_capability(primary_contact, business_type)
+    return primary_contact
+
+
+def _save_shipment_party_contact_from_form(cleaned_data, *, editing_contact=None):
+    duplicate_action = (cleaned_data.get("duplicate_action") or "").strip()
+    if not duplicate_action:
+        return _save_contact_core(
+            cleaned_data,
+            target_contact=editing_contact,
+            overwrite=editing_contact is not None,
+        )
+
+    if duplicate_action == "duplicate":
+        return _save_contact_core(
+            _rename_for_duplicate_resolution(cleaned_data, editing_contact=editing_contact),
+            target_contact=editing_contact,
+            overwrite=editing_contact is not None,
+        )
+
+    duplicate_target_id = cleaned_data.get("duplicate_target_id")
+    target_contact = Contact.objects.filter(pk=duplicate_target_id).first()
+    if target_contact is None:
+        raise ValidationError("La fiche cible est introuvable.")
+
+    keep_choice = (cleaned_data.get("duplicate_keep_choice") or "").strip() or "existing"
+    scalar_mode = "none" if duplicate_action == "replace" else "fill_empty"
+
+    if editing_contact is None:
+        if keep_choice == "existing":
+            if duplicate_action == "merge":
+                return _save_contact_core(
+                    cleaned_data,
+                    target_contact=target_contact,
+                    overwrite=False,
+                )
+            return target_contact
+
+        source_contact = _save_contact_core(
+            cleaned_data,
+            target_contact=None,
+            overwrite=False,
+        )
+        return merge_contacts(
+            source_contact=target_contact,
+            target_contact=source_contact,
+            scalar_mode=scalar_mode,
+        )
+
+    if keep_choice == "existing":
+        if duplicate_action == "merge":
+            source_contact = _save_contact_core(
+                cleaned_data,
+                target_contact=editing_contact,
+                overwrite=True,
+            )
+            return merge_contacts(
+                source_contact=source_contact,
+                target_contact=target_contact,
+                scalar_mode=scalar_mode,
+            )
+        return merge_contacts(
+            source_contact=editing_contact,
+            target_contact=target_contact,
+            scalar_mode=scalar_mode,
+        )
+
+    source_contact = _save_contact_core(
+        cleaned_data,
+        target_contact=editing_contact,
+        overwrite=True,
+    )
+    return merge_contacts(
+        source_contact=target_contact,
+        target_contact=source_contact,
+        scalar_mode=scalar_mode,
+    )
+
+
 def save_contact_from_form(cleaned_data, *, editing_contact=None):
     business_type = (cleaned_data.get("business_type") or "").strip()
     duplicate_action = (cleaned_data.get("duplicate_action") or "").strip()
     duplicate_target_id = cleaned_data.get("duplicate_target_id")
 
-    target_contact = editing_contact
-    overwrite = editing_contact is not None
-    if duplicate_action in {"replace", "merge"}:
-        target_contact = Contact.objects.filter(pk=duplicate_target_id).first()
-        if target_contact is None:
-            raise ValidationError("La fiche cible est introuvable.")
-        overwrite = duplicate_action == "replace"
-
     with transaction.atomic():
         if business_type in {"shipper", "recipient", "correspondent"}:
-            organization = _ensure_organization(
+            return _save_shipment_party_contact_from_form(
                 cleaned_data,
-                target=target_contact
-                if getattr(target_contact, "contact_type", None) == ContactType.ORGANIZATION
-                else getattr(target_contact, "organization", None),
-                overwrite=overwrite,
-            )
-            referent = _ensure_person(
-                cleaned_data=cleaned_data,
-                organization=organization,
-                overwrite=overwrite,
-                target=target_contact
-                if getattr(target_contact, "contact_type", None) == ContactType.PERSON
-                else None,
-            )
-            if business_type == "shipper":
-                _ensure_shipper_runtime(
-                    organization=organization,
-                    referent=referent,
-                    cleaned_data=cleaned_data,
-                )
-            else:
-                _ensure_recipient_runtime(
-                    organization=organization,
-                    referent=referent,
-                    cleaned_data=cleaned_data,
-                    is_correspondent=business_type == "correspondent",
-                )
-            return organization
-
-        entity_type = _primary_entity_type(cleaned_data)
-        if entity_type == ContactType.ORGANIZATION:
-            primary_contact = _ensure_organization(
-                cleaned_data,
-                target=target_contact
-                if getattr(target_contact, "contact_type", None) == ContactType.ORGANIZATION
-                else None,
-                overwrite=overwrite,
-            )
-        else:
-            organization = None
-            organization_name = (cleaned_data.get("organization_name") or "").strip()
-            if organization_name:
-                organization = (
-                    Contact.objects.filter(
-                        contact_type=ContactType.ORGANIZATION,
-                        name=organization_name,
-                    )
-                    .order_by("id")
-                    .first()
-                )
-                if organization is None:
-                    organization = Contact.objects.create(
-                        contact_type=ContactType.ORGANIZATION,
-                        name=organization_name,
-                        is_active=True,
-                    )
-            primary_contact = (
-                target_contact
-                if getattr(target_contact, "contact_type", None) == ContactType.PERSON
-                else None
-            )
-            if primary_contact is None:
-                primary_contact = Contact(
-                    contact_type=ContactType.PERSON, organization=organization, is_active=True
-                )
-            elif (
-                organization is not None
-                and overwrite
-                and primary_contact.organization_id != organization.id
-            ):
-                primary_contact.organization = organization
-                primary_contact.save(update_fields=["organization"])
-            primary_contact = _apply_contact_fields(
-                primary_contact, data=cleaned_data, overwrite=overwrite
+                editing_contact=editing_contact,
             )
 
-        _ensure_capability(primary_contact, business_type)
-        return primary_contact
+        target_contact = editing_contact
+        overwrite = editing_contact is not None
+        if duplicate_action in {"replace", "merge"}:
+            target_contact = Contact.objects.filter(pk=duplicate_target_id).first()
+            if target_contact is None:
+                raise ValidationError("La fiche cible est introuvable.")
+            overwrite = duplicate_action == "replace"
+
+        return _save_contact_core(
+            cleaned_data,
+            target_contact=target_contact,
+            overwrite=overwrite,
+        )
 
 
 def deactivate_contact(contact):

@@ -41,6 +41,12 @@ ENTITY_TYPE_CHOICES = (
     (ContactType.PERSON, _("Personne")),
 )
 
+DUPLICATE_ROLE_CHOICES = (
+    ("", _("Choisir...")),
+    ("existing", _("Déjà présent")),
+    ("new", _("Nouvel ajout")),
+)
+
 
 class ContactCrudForm(forms.Form):
     business_type = forms.ChoiceField(choices=build_business_type_choices(), label=_("Type métier"))
@@ -115,6 +121,16 @@ class ContactCrudForm(forms.Form):
         label=_("Décision doublon"),
     )
     duplicate_target_id = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    duplicate_keep_choice = forms.ChoiceField(
+        required=False,
+        choices=DUPLICATE_ROLE_CHOICES,
+        label=_("Contact à conserver"),
+    )
+    duplicate_delete_choice = forms.ChoiceField(
+        required=False,
+        choices=DUPLICATE_ROLE_CHOICES,
+        label=_("Contact à supprimer"),
+    )
 
     def __init__(self, *args, allowed_business_types=None, **kwargs):
         self.allowed_business_types = tuple(allowed_business_types or ())
@@ -179,6 +195,8 @@ class ContactCrudForm(forms.Form):
         duplicate_candidates_count = cleaned_data.get("duplicate_candidates_count") or 0
         duplicate_action = (cleaned_data.get("duplicate_action") or "").strip()
         duplicate_target_id = cleaned_data.get("duplicate_target_id")
+        duplicate_keep_choice = (cleaned_data.get("duplicate_keep_choice") or "").strip()
+        duplicate_delete_choice = (cleaned_data.get("duplicate_delete_choice") or "").strip()
 
         if not business_type:
             self.add_error("business_type", _("Choisissez un type de contact."))
@@ -214,5 +232,25 @@ class ContactCrudForm(forms.Form):
             self.add_error(
                 "duplicate_target_id",
                 _("Choisissez une fiche cible pour la résolution du doublon."),
+            )
+        if duplicate_action in {"replace", "merge"} and not duplicate_keep_choice:
+            self.add_error(
+                "duplicate_keep_choice",
+                _("Choisissez le contact à conserver."),
+            )
+        if duplicate_action in {"replace", "merge"} and not duplicate_delete_choice:
+            self.add_error(
+                "duplicate_delete_choice",
+                _("Choisissez le contact à supprimer."),
+            )
+        if (
+            duplicate_action in {"replace", "merge"}
+            and duplicate_keep_choice
+            and duplicate_delete_choice
+            and duplicate_keep_choice == duplicate_delete_choice
+        ):
+            self.add_error(
+                "duplicate_delete_choice",
+                _("Le contact supprimé doit être différent du contact conservé."),
             )
         return cleaned_data

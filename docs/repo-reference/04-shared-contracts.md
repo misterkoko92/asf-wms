@@ -194,8 +194,19 @@ Current contract:
 - access is limited to superusers via `scan_staff_required` plus `_require_superuser()`
 - `/scan/contacts/validations/recipients/<id>/` acts as a validation dossier and reuses the shared
   admin contact form instead of exposing recipient validation inline on the contacts directory
+- when a duplicate is detected after `Valider`, the duplicate-review card must move to the top of
+  the dossier above `Contexte` and `Décision ASF`, stay full width, and surface an explicit warning
+  before the operator can choose a resolution
+- duplicate candidates on the recipient validation dossier must stay scoped by shipment-party type
+  first; a shipper-only contact with the same display name is not a duplicate for a recipient
+- recipient duplicate candidates must also stay destination-aware when the runtime is scoped by
+  `(organization, destination)` instead of organization name alone
 - recipient validation must keep using the same `ACTION_SAVE_CONTACT` submission path and runtime
   recipient shared-profile update semantics as scan/admin contact edits
+- explicit duplicate actions must keep their distinct semantics on the shared write path:
+  `fusionner` fills missing fields on the kept fiche before deleting the other, `remplacer` keeps
+  the chosen fiche without scalar overwrite from the deleted one, and `dupliquer` preserves the
+  original fiche while renaming the new one with the shared duplicate suffix rule
 - structure compliance fields, uploaded recipient documents, and allowed shipper context shown on
   the validation dossier must stay aligned with the shared recipient data model and write path
 
@@ -719,6 +730,13 @@ Current V3.3 contract:
 - `wms/admin_contacts_merge_service.py` remains a compatibility adapter and should not grow graph mutation logic again
 - `wms/scan_admin_contacts_cockpit.py` keeps forms and user-facing validation/messages, but delegates merge mutations to `wms/parties/merge.py`
 - scan/admin editing of an existing recipient/correspondent contact is an explicit overwrite of the current shared fields; merge-style “fill only missing fields” remains reserved for explicit duplicate-resolution actions
+- duplicate detection for shipment-party contacts must filter candidates by compatible business type
+  before comparing names and, for recipient runtimes, keep destination-aware scope when the same
+  organization can exist on multiple stops
+- duplicate-resolution actions on shipment-party contacts must preserve distinct semantics across
+  both scan/admin and recipient-validation surfaces: `merge` fills empty fields on the kept fiche,
+  `replace` keeps the selected fiche without scalar overwrite from the deleted one, and `duplicate`
+  creates a renamed second fiche using the shared duplicate suffix rule
 
 Maintenance rule:
 
