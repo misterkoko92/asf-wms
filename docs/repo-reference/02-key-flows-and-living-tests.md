@@ -364,11 +364,16 @@ Current local-phase contract additions:
   pointer for older surfaces
 - `scan/receive-association/` can attach a receipt to the order inbound delivery and materialize the
   declared shipper cartons as real `Carton` rows with `source_kind=shipper_received`
-- the legacy scan flow stays split across `Vue Commande`, `Réception association`, and
-  `Dossier expédition`, but these screens must now guide the operator explicitly:
-  `Vue Commande` links to the inbound receipt screen, `Réception association` can create a linked
-  shipment directly once the order is approved, and `Dossier expédition` shows the linked order plus
-  remaining shipper cartons still available for assignment
+- the legacy scan order flow is now split across three dedicated surfaces:
+  - `/scan/orders-view/` as the queue with one `Ouvrir` action per row
+  - `/scan/orders/<id>/` as the operator dossier for review, visible contacts/destination, and
+    workflow actions
+  - `/scan/orders/` as the create / select / line-maintenance screen
+- `Réception association` and `Dossier expédition` remain the downstream operational surfaces:
+  the order dossier links to the inbound receipt screen, `Réception association` can create a linked
+  shipment directly once the order is approved, the order dossier can also trigger the combined
+  "create cartons and shipment" preparation path, and `Dossier expédition` shows the linked order
+  plus remaining shipper cartons still available for assignment
 
 ## 4. Emailing And Notification Routing
 

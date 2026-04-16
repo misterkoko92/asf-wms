@@ -25,7 +25,7 @@ from .views_scan_billing import (
 from .views_scan_dashboard import scan_dashboard, scan_root
 from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
-from .views_scan_orders import scan_order, scan_orders_view
+from .views_scan_orders import scan_order, scan_order_detail, scan_orders_view
 from .views_scan_pilotage import scan_pilotage
 from .views_scan_preparation import (
     scan_preparation_parameter_set_config,
@@ -96,6 +96,7 @@ SCAN_FLOW_EXPORTS = (
     "scan_recipient_validation_list",
     "scan_recipient_validation_detail",
     "scan_order",
+    "scan_order_detail",
     "scan_orders_view",
     "scan_prepare_kits",
     "scan_prepare_kits_picking",

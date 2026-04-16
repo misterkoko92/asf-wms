@@ -15,6 +15,7 @@ from wms.models import (
     OrderInboundDelivery,
     OrderReviewStatus,
     OrderShipmentLink,
+    OrderStatus,
     Receipt,
     ReceiptType,
     Shipment,
@@ -222,6 +223,83 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/orders_view.html")
         self.assertEqual(response.context_data["orders"], [{"id": 2, "reference": "ORD-2"}])
+
+    def test_scan_orders_view_uses_open_links_instead_of_inline_review_form(self):
+        order = Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association Action",
+            destination_address="3 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+        )
+
+        response = self.client.get(reverse("scan:scan_orders_view"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_order_detail", args=[order.id]))
+        self.assertContains(response, ">Ouvrir<", html=False)
+        self.assertNotContains(response, 'name="review_status"')
+
+    def test_scan_order_detail_get_renders_context(self):
+        shipper_contact = Contact.objects.create(
+            name="Expediteur Detail",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_contact = Contact.objects.create(
+            name="Destinataire Detail",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        order = Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association Detail",
+            destination_address="4 rue de la Paix",
+            destination_city="Paris",
+            destination_country="France",
+            shipper_contact=shipper_contact,
+            recipient_contact=recipient_contact,
+            review_status=OrderReviewStatus.APPROVED,
+            status=OrderStatus.RESERVED,
+        )
+
+        response = self.client.get(reverse("scan:scan_order_detail", args=[order.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Contacts & Destination")
+        self.assertContains(response, "Expediteur Detail")
+        self.assertContains(response, "Destinataire Detail")
+        self.assertContains(response, "4 rue de la Paix")
+        self.assertContains(response, "Revue de commande")
+        self.assertContains(response, "Actions métier")
+        self.assertContains(response, "Créer les colis et l&#x27;expédition")
+        self.assertContains(response, "Lignes de commande")
+
+    def test_scan_order_detail_returns_404_for_unknown_order(self):
+        response = self.client.get(reverse("scan:scan_order_detail", args=[999999]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_scan_order_detail_post_returns_handler_response_when_available(self):
+        order = Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association Detail",
+            destination_address="4 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.PENDING,
+        )
+
+        with mock.patch(
+            "wms.views_scan_orders.handle_order_detail_action",
+            return_value=HttpResponse("detail-handled"),
+        ):
+            response = self.client.post(
+                reverse("scan:scan_order_detail", args=[order.id]),
+                {"action": "update_status", "review_status": OrderReviewStatus.APPROVED},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "detail-handled")
 
     def test_build_orders_view_rows_allows_creating_additional_shipments_for_approved_order(self):
         shipment = Shipment.objects.create(

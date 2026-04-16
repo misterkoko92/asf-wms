@@ -81,6 +81,11 @@ Practical rule:
 - Main runtime modules: `wms/views_scan_stock.py`, `wms/views_scan_shipments.py`, `wms/views_scan_shipments_support.py`, `wms/views_scan_receipts.py`, `wms/views_scan_orders.py`, `wms/views_scan_admin.py`, `wms/views_scan_dashboard.py`, `wms/views_scan_billing.py`, `wms/views_scan_misc.py`, `wms/views_scan_preparation.py`
 - Templates: `templates/scan/`
 - Static assets: `wms/static/scan/`
+- Order-specific scan surfaces are now intentionally split:
+  - `/scan/orders-view/` for the queue
+  - `/scan/orders/<id>/` for the operator dossier, including visible contacts/destination and
+    shipment-preparation actions
+  - `/scan/orders/` for create / select / line maintenance
 - Stable scan asset facade: `templates/scan/base.html` keeps `scan.js` and `scan/modules/core.js`
   as the shared script entrypoints, while page-local scripts now attach through the
   `extra_scripts` block and the first modular slices live in `wms/static/scan/modules/`

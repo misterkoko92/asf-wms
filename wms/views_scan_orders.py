@@ -1,17 +1,18 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 
 from .models import Order, OrderReviewStatus
 from .order_scan_handlers import handle_order_action
 from .order_scan_state import build_order_scan_state
-from .order_view_handlers import handle_orders_view_action
-from .order_view_helpers import build_orders_view_rows
+from .order_view_handlers import handle_order_detail_action, handle_orders_view_action
+from .order_view_helpers import build_order_detail_payload, build_orders_view_rows
 from .scan_helpers import build_product_options
 from .view_permissions import scan_staff_required
 from .view_utils import sorted_choices
 
 TEMPLATE_SCAN_ORDER = "scan/order.html"
 TEMPLATE_ORDERS_VIEW = "scan/orders_view.html"
+TEMPLATE_ORDER_DETAIL = "scan/order_detail.html"
 
 ACTIVE_ORDER = "order"
 ACTIVE_ORDERS_VIEW = "orders_view"
@@ -120,6 +121,18 @@ def _render_orders_view(request, *, rows):
     )
 
 
+def _render_order_detail(request, *, detail):
+    return render(
+        request,
+        TEMPLATE_ORDER_DETAIL,
+        {
+            "active": ACTIVE_ORDERS_VIEW,
+            "detail": detail,
+            "review_status_choices": sorted_choices(OrderReviewStatus.choices),
+        },
+    )
+
+
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_order(request):
@@ -161,3 +174,15 @@ def scan_orders_view(request):
 
     rows = build_orders_view_rows(orders_qs)
     return _render_orders_view(request, rows=rows)
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_order_detail(request, order_id):
+    order = get_object_or_404(_build_orders_queryset(), id=order_id)
+    if request.method == "POST":
+        response = handle_order_detail_action(request, order=order)
+        if response:
+            return response
+    detail = build_order_detail_payload(order)
+    return _render_order_detail(request, detail=detail)

@@ -5,7 +5,51 @@ from django.utils import timezone
 from .models import OrderReviewStatus
 from .order_helpers import attach_order_documents_to_shipment
 from .scan_helpers import parse_int
-from .services import create_shipment_for_order
+from .services import StockError, create_shipment_for_order, prepare_order
+
+
+def _update_review_status(request, *, order):
+    status = (request.POST.get("review_status") or "").strip()
+    valid = {choice[0] for choice in OrderReviewStatus.choices}
+    if status not in valid:
+        messages.error(request, "Statut invalide.")
+        return
+
+    order.review_status = status
+    if status == OrderReviewStatus.PENDING:
+        order.reviewed_at = None
+    else:
+        order.reviewed_at = timezone.now()
+    order.save(update_fields=["review_status", "reviewed_at"])
+    messages.success(request, "Statut de validation mis à jour.")
+
+
+def _create_shipment(request, *, order):
+    if order.review_status != OrderReviewStatus.APPROVED:
+        messages.error(request, "Commande non validée.")
+        return redirect("scan:scan_order_detail", order_id=order.id)
+    shipment = create_shipment_for_order(order=order, force_new=True)
+    attach_order_documents_to_shipment(order, shipment)
+    return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+
+def _prepare_shipment_and_cartons(request, *, order):
+    if order.review_status != OrderReviewStatus.APPROVED:
+        messages.error(request, "Commande non validée.")
+        return redirect("scan:scan_order_detail", order_id=order.id)
+    try:
+        prepare_order(user=request.user, order=order)
+    except StockError as exc:
+        messages.error(request, str(exc))
+        return redirect("scan:scan_order_detail", order_id=order.id)
+    order.refresh_from_db()
+    shipment = getattr(order, "shipment", None)
+    if shipment is not None:
+        attach_order_documents_to_shipment(order, shipment)
+        messages.success(request, "Préparation lancée: colis créés et rattachés à l'expédition.")
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+    messages.success(request, "Préparation lancée.")
+    return redirect("scan:scan_order_detail", order_id=order.id)
 
 
 def handle_orders_view_action(request, *, orders_qs):
@@ -17,18 +61,7 @@ def handle_orders_view_action(request, *, orders_qs):
         return redirect("scan:scan_orders_view")
 
     if action == "update_status":
-        status = (request.POST.get("review_status") or "").strip()
-        valid = {choice[0] for choice in OrderReviewStatus.choices}
-        if status not in valid:
-            messages.error(request, "Statut invalide.")
-        else:
-            order.review_status = status
-            if status == OrderReviewStatus.PENDING:
-                order.reviewed_at = None
-            else:
-                order.reviewed_at = timezone.now()
-            order.save(update_fields=["review_status", "reviewed_at"])
-            messages.success(request, "Statut de validation mis à jour.")
+        _update_review_status(request, order=order)
         return redirect("scan:scan_orders_view")
 
     if action == "create_shipment":
@@ -38,5 +71,21 @@ def handle_orders_view_action(request, *, orders_qs):
         shipment = create_shipment_for_order(order=order, force_new=True)
         attach_order_documents_to_shipment(order, shipment)
         return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+    return None
+
+
+def handle_order_detail_action(request, *, order):
+    action = (request.POST.get("action") or "").strip()
+
+    if action == "update_status":
+        _update_review_status(request, order=order)
+        return redirect("scan:scan_order_detail", order_id=order.id)
+
+    if action == "create_shipment":
+        return _create_shipment(request, order=order)
+
+    if action == "create_shipment_and_cartons":
+        return _prepare_shipment_and_cartons(request, order=order)
 
     return None

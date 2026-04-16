@@ -1,10 +1,11 @@
 from django.urls import reverse
 
-from .models import OrderDocumentType, OrderReviewStatus
+from .models import OrderDocumentType, OrderReviewStatus, OrderStatus
 from .order_helpers import build_order_creator_info
 from .status_presenters import (
     present_order_review_status,
     present_order_shipment_status,
+    present_order_status,
     present_shipment_status,
 )
 
@@ -17,6 +18,37 @@ def _order_reference_label(order):
     if order_id:
         return f"CMD-{order_id}"
     return "Commande"
+
+
+def _build_contact_summary(contact, fallback_name):
+    contact_name = (getattr(contact, "name", "") or "").strip()
+    fallback = (fallback_name or "").strip()
+    primary = contact_name or fallback or "-"
+    secondary = ""
+    if contact_name and fallback and fallback.casefold() != contact_name.casefold():
+        secondary = fallback
+    return {
+        "primary": primary,
+        "secondary": secondary,
+    }
+
+
+def _build_destination_summary(order):
+    address = (getattr(order, "destination_address", "") or "").strip()
+    city = (getattr(order, "destination_city", "") or "").strip()
+    country = (getattr(order, "destination_country", "") or "").strip()
+    primary = address or "-"
+    secondary = " · ".join(part for part in [city, country] if part)
+    return {
+        "primary": primary,
+        "secondary": secondary,
+    }
+
+
+def _can_prepare_shipment_and_cartons(order):
+    return getattr(order, "review_status", "") == OrderReviewStatus.APPROVED and getattr(
+        order, "status", ""
+    ) in {OrderStatus.RESERVED, OrderStatus.PREPARING}
 
 
 def _order_next_action_payload(order):
@@ -162,3 +194,26 @@ def build_orders_view_rows(orders_qs):
             }
         )
     return rows
+
+
+def build_order_detail_payload(order):
+    row = build_orders_view_rows([order])[0]
+    order_lines = list(order.lines.select_related("product").all())
+    remaining_total = sum(line.remaining_quantity for line in order_lines)
+    return {
+        **row,
+        "order_status_display": present_order_status(order),
+        "shipper_summary": _build_contact_summary(
+            getattr(order, "shipper_contact", None),
+            getattr(order, "shipper_name", ""),
+        ),
+        "recipient_summary": _build_contact_summary(
+            getattr(order, "recipient_contact", None),
+            getattr(order, "recipient_name", ""),
+        ),
+        "destination_summary": _build_destination_summary(order),
+        "can_prepare_shipment_and_cartons": _can_prepare_shipment_and_cartons(order),
+        "prepare_shipment_and_cartons_label": "Créer les colis et l'expédition",
+        "order_lines": order_lines,
+        "remaining_total": remaining_total,
+    }
