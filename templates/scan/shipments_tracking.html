@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n wms_status %}
+{% load i18n wms_dates wms_status %}
 
 {% block title %}{% if LANGUAGE_CODE|slice:":2" == "en" %}WMS Scan - Shipment tracking{% else %}{% trans "WMS Scan - Suivi des expéditions" %}{% endif %}{% endblock %}
 
@@ -7,14 +7,25 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
       <span>{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipment tracking{% else %}{% trans "Suivi des expéditions" %}{% endif %}</span>
-      <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ total_count }}</span>
     </h2>
 
-    <form method="get" class="scan-filters row g-3 ui-comp-form">
+    <form method="get" id="shipments-tracking-filter-form" class="scan-filters row g-3 ui-comp-form">
       {% if destination_filter_value %}
         <input type="hidden" name="destination" value="{{ destination_filter_value }}">
       {% endif %}
-      <div class="scan-field col-12 col-md-6">
+      <div class="scan-field col-12 col-lg-4">
+        <label class="form-label" for="id_q">{% trans "Recherche" %}</label>
+        <input
+          type="search"
+          id="id_q"
+          name="q"
+          class="form-control"
+          value="{{ query }}"
+          placeholder='{% trans "Référence, expéditeur, destinataire" %}'
+        >
+      </div>
+      <div class="scan-field col-12 col-md-6 col-lg-4">
         <label class="form-label" for="id_planned_week">{% if LANGUAGE_CODE|slice:":2" == "en" %}Planned week{% else %}{% trans "Semaine planifiée" %}{% endif %}</label>
         <input
           type="week"
@@ -25,14 +36,14 @@
         >
         <small class="scan-help">{% trans "Filtre par date de statut Planifié." %}</small>
       </div>
-      <div class="scan-field col-12 col-md-6">
+      <div class="scan-field col-12 col-md-6 col-lg-4">
         <label class="form-label" for="id_closed">{% trans "Dossiers clos" %}</label>
         <select id="id_closed" name="closed" class="form-select ui-select--md">
           <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>{% trans "Exclure clos" %}</option>
           <option value="all" {% if closed_filter == "all" %}selected{% endif %}>{% trans "Inclure clos" %}</option>
         </select>
       </div>
-      <div class="scan-field col-12 col-md-6">
+      <div class="scan-field col-12 col-md-6 col-lg-4">
         <label class="form-label" for="id_dispute">{% trans "Litiges" %}</label>
         <select id="id_dispute" name="dispute" class="form-select ui-select--md">
           <option value="all" {% if dispute_filter == "all" %}selected{% endif %}>{% trans "Tous" %}</option>
@@ -43,7 +54,7 @@
       </div>
       <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center">
         <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Filtrer" %}</button>
-        <a class="btn btn-tertiary" href="{% url 'scan:scan_shipments_tracking' %}">{% trans "Réinitialiser" %}</a>
+        <a class="btn btn-tertiary" href="{{ reset_url }}">{% trans "Réinitialiser" %}</a>
       </div>
       {% if destination_filter_label %}
         <p class="scan-help col-12 mb-0">{% blocktrans with destination_label=destination_filter_label %}Filtre destination actif : {{ destination_label }}{% endblocktrans %}</p>
@@ -61,7 +72,7 @@
     </div>
 
     <div class="scan-table-wrap table-responsive">
-      <table class="scan-table table table-sm table-hover" data-table-tools="1">
+      <table class="scan-table table table-sm table-hover">
         <thead>
           <tr>
             <th>{% trans "Dossier" %}</th>
@@ -96,7 +107,7 @@
                       </div>
                       <div class="scan-help">
                         {% if shipment.dispute_status_display %}{{ shipment.dispute_status_display }}{% endif %}
-                        {% if shipment.dispute_due_at %} · {% trans "Échéance" %} {{ shipment.dispute_due_at|date:"d/m/y H\\hi" }}{% endif %}
+                        {% if shipment.dispute_due_at %} · {% trans "Échéance" %} {{ shipment.dispute_due_at|scan_datetime_short }}{% endif %}
                       </div>
                     {% endif %}
                   </div>
@@ -114,7 +125,7 @@
                   </div>
                   <div class="scan-help">
                     {% if shipment.last_step_at %}
-                      {{ shipment.last_step_label }} · {{ shipment.last_step_at|date:"d/m/y H\\hi" }}
+                      {{ shipment.last_step_label }} · {{ shipment.last_step_at|scan_datetime_short }}
                     {% else %}
                       {{ shipment.last_step_label }}
                     {% endif %}
@@ -143,6 +154,7 @@
                         <input type="hidden" name="closed" value="{{ closed_filter }}">
                         <input type="hidden" name="dispute" value="{{ dispute_filter }}">
                         <input type="hidden" name="destination" value="{{ destination_filter_value }}">
+                        <input type="hidden" name="q" value="{{ query }}">
                         <button
                           type="submit"
                           class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"
@@ -163,9 +175,9 @@
                   {% if shipment.closed_at %}
                     <small>
                       {% if shipment.closed_by %}
-                        {% blocktrans with closed_at=shipment.closed_at|date:"d/m/y H\\hi" closed_by=shipment.closed_by.username %}Clôturé le {{ closed_at }} par {{ closed_by }}{% endblocktrans %}
+                        {% blocktrans with closed_at=shipment.closed_at|scan_datetime_short closed_by=shipment.closed_by.username %}Clôturé le {{ closed_at }} par {{ closed_by }}{% endblocktrans %}
                       {% else %}
-                        {% blocktrans with closed_at=shipment.closed_at|date:"d/m/y H\\hi" %}Clôturé le {{ closed_at }}{% endblocktrans %}
+                        {% blocktrans with closed_at=shipment.closed_at|scan_datetime_short %}Clôturé le {{ closed_at }}{% endblocktrans %}
                       {% endif %}
                     </small>
                   {% endif %}
@@ -180,5 +192,6 @@
         </tbody>
       </table>
     </div>
+    {% include "scan/includes/scan_list_pagination.html" with page_obj=shipments_page page_prev_url=page_prev_url page_next_url=page_next_url %}
   </div>
 {% endblock %}

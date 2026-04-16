@@ -348,6 +348,8 @@ class OrderViewHelpersTests(TestCase):
             rows[0]["next_action_label"],
             "Valider ou demander des modifications",
         )
+        self.assertIsNone(rows[0]["created_at"])
+        self.assertEqual(rows[0]["open_url"], "")
         self.assertFalse(rows[0]["can_create_shipment"])
         self.assertEqual(rows[0]["shipment_status_display"]["label"], "-")
 

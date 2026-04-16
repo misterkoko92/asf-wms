@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n wms_status %}
+{% load i18n wms_dates wms_status %}
 
 {% block title %}WMS Scan - {% trans "Vue Commande" %}{% endblock %}
 
@@ -7,9 +7,39 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
       <span>{% trans "Vue Commande" %}</span>
-      <span class="badge text-bg-light ui-comp-count-badge">{{ orders|length }}</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ total_count }}</span>
     </h2>
     <p class="scan-help ui-comp-note">{% trans "Pilotage des validations, relances et créations d'expédition." %}</p>
+
+    <div class="scan-field ui-comp-panel mb-4">
+      <form method="get" id="orders-filter-form" class="ui-comp-form row g-3 align-items-end">
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="id_q">{% trans "Recherche" %}</label>
+          <input
+            id="id_q"
+            name="q"
+            type="search"
+            value="{{ query }}"
+            class="form-control"
+            placeholder='{% trans "Référence, association, destinataire, créateur" %}'
+          >
+        </div>
+        <div class="col-12 col-md-4 col-lg-3">
+          <label class="form-label" for="id_sort">{% trans "Tri" %}</label>
+          <select id="id_sort" name="sort" class="form-select">
+            {% for value, label in sort_choices %}
+              <option value="{{ value }}" {% if sort_value == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-8 col-lg-3">
+          <div class="scan-filter-actions ui-comp-actions d-flex gap-2">
+            <button type="submit" class="btn btn-primary">{% trans "Filtrer" %}</button>
+            <a class="btn btn-tertiary" href="{{ reset_url }}">{% trans "Réinitialiser" %}</a>
+          </div>
+        </div>
+      </form>
+    </div>
 
     <div id="scan-orders-view-summary" class="scan-kpi-grid scan-orders-view-summary mt-4 mb-4">
       {% for card in summary_cards %}
@@ -22,8 +52,11 @@
     </div>
 
     {% if orders %}
+      <div class="scan-help ui-comp-note mb-2">
+        {% blocktrans with count=total_count per_page=page_size %}{{ count }} résultat(s), {{ per_page }} par page maximum.{% endblocktrans %}
+      </div>
       <div class="scan-table-wrap table-responsive">
-        <table class="scan-table scan-orders-view-table table table-sm table-hover" data-table-tools="1">
+        <table class="scan-table scan-orders-view-table table table-sm table-hover">
           <thead>
             <tr>
               <th>{% trans "Commande" %}</th>
@@ -41,7 +74,7 @@
                   <div class="scan-orders-view-primary">
                     <div class="scan-orders-view-reference">{{ row.reference_label }}</div>
                     <div>{{ row.association_name }}</div>
-                    <div class="scan-help">{{ row.order.created_at|date:"d/m/y H\\hi" }}</div>
+                    <div class="scan-help">{{ row.created_at|scan_datetime_short }}</div>
                   </div>
                 </td>
                 <td>
@@ -100,13 +133,14 @@
                   </div>
                 </td>
                 <td class="text-end">
-                  <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_order_detail' row.order.id %}">{% trans "Ouvrir" %}</a>
+                  <a class="btn btn-tertiary btn-sm" href="{{ row.open_url }}">{{ row.open_label }}</a>
                 </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% include "scan/includes/scan_list_pagination.html" with page_obj=orders_page page_prev_url=page_prev_url page_next_url=page_next_url %}
     {% else %}
       <p class="scan-help ui-comp-note">{% trans "Aucune commande pour le moment." %}</p>
     {% endif %}

@@ -1,6 +1,10 @@
+from django.urls import reverse
+
+
 def build_receipts_view_rows(receipts_qs):
     receipts = []
     for receipt in receipts_qs:
+        receipt_id = getattr(receipt, "id", None)
         name = receipt.source_contact.name if receipt.source_contact else "-"
         quantity = "-"
         if receipt.pallet_count:
@@ -25,11 +29,16 @@ def build_receipts_view_rows(receipts_qs):
 
         receipts.append(
             {
+                "reference": getattr(receipt, "reference", ""),
                 "received_on": receipt.received_on,
                 "name": name,
                 "quantity": quantity,
                 "hors_format": hors_format,
                 "carrier": carrier,
+                "open_url": (
+                    reverse("scan:scan_receipt_detail", args=[receipt_id]) if receipt_id else ""
+                ),
+                "open_label": "Ouvrir",
             }
         )
     return receipts

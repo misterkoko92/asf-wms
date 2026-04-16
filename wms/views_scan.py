@@ -34,6 +34,7 @@ from .views_scan_preparation import (
     scan_preparation_run_list,
 )
 from .views_scan_receipts import (
+    scan_receipt_detail,
     scan_receipts_view,
     scan_receive,
     scan_receive_association,
@@ -81,6 +82,7 @@ SCAN_FLOW_EXPORTS = (
     "scan_preparation_run_detail",
     "scan_shipments_tracking",
     "scan_receipts_view",
+    "scan_receipt_detail",
     "scan_stock_update",
     "scan_receive",
     "scan_receive_pallet",

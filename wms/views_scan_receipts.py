@@ -24,11 +24,13 @@ from .models import (
     ReceiptType,
 )
 from .order_helpers import attach_order_documents_to_shipment
+from .receipt_detail_helpers import build_receipt_detail_payload
 from .receipt_handlers import (
     build_hors_format_lines,
     handle_receipt_action,
     handle_receipt_association_post,
 )
+from .receipt_list_queries import build_receipts_list_context
 from .receipt_listing_state import (
     build_receive_listing_context,
     build_receive_listing_state,
@@ -38,7 +40,6 @@ from .receipt_pallet_state import (
     build_receive_pallet_state,
 )
 from .receipt_scan_state import build_receipt_scan_state
-from .receipt_view_helpers import build_receipts_view_rows
 from .scan_helpers import build_product_options
 from .services import create_shipment_for_order
 from .status_presenters import present_shipment_status
@@ -49,34 +50,11 @@ TEMPLATE_RECEIVE = "scan/receive.html"
 TEMPLATE_RECEIVE_PALLET = "scan/receive_pallet.html"
 TEMPLATE_RECEIVE_LISTING = "scan/receive_listing.html"
 TEMPLATE_RECEIVE_ASSOCIATION = "scan/receive_association.html"
+TEMPLATE_RECEIPT_DETAIL = "scan/receipt_detail.html"
 
 ACTIVE_RECEIPTS_VIEW = "receipts_view"
 ACTIVE_RECEIVE = "receive"
 ACTIVE_RECEIVE_ASSOCIATION = "receive_association"
-
-RECEIPT_FILTER_MAP = {
-    "pallet": ReceiptType.PALLET,
-    "association": ReceiptType.ASSOCIATION,
-}
-
-
-def _resolve_receipts_filter(raw_filter_value):
-    filter_value = (raw_filter_value or "all").strip().lower()
-    if filter_value in RECEIPT_FILTER_MAP:
-        return filter_value
-    return "all"
-
-
-def _build_receipts_queryset(filter_value):
-    receipts_qs = (
-        Receipt.objects.select_related("source_contact", "carrier_contact")
-        .prefetch_related("hors_format_items")
-        .order_by("-received_on", "-created_at")
-    )
-    receipt_type = RECEIPT_FILTER_MAP.get(filter_value)
-    if receipt_type:
-        receipts_qs = receipts_qs.filter(receipt_type=receipt_type)
-    return receipts_qs
 
 
 def _safe_next_url(request, *, default):
@@ -236,17 +214,36 @@ def _build_receive_association_workflow_context(*, request, selected_receipt):
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_receipts_view(request):
-    filter_value = _resolve_receipts_filter(request.GET.get("type"))
-    receipts_qs = _build_receipts_queryset(filter_value)
-    receipts = build_receipts_view_rows(receipts_qs)
-
     return render(
         request,
         TEMPLATE_RECEIPTS_VIEW,
         {
             "active": ACTIVE_RECEIPTS_VIEW,
-            "filter_value": filter_value,
-            "receipts": receipts,
+            **build_receipts_list_context(request),
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_receipt_detail(request, receipt_id):
+    receipt = get_object_or_404(
+        Receipt.objects.select_related(
+            "source_contact", "carrier_contact", "warehouse"
+        ).prefetch_related(
+            "lines__product",
+            "lines__location",
+            "hors_format_items",
+            "shipment_allocations__shipment",
+        ),
+        id=receipt_id,
+    )
+    return render(
+        request,
+        TEMPLATE_RECEIPT_DETAIL,
+        {
+            "active": ACTIVE_RECEIPTS_VIEW,
+            "detail": build_receipt_detail_payload(receipt),
         },
     )
 

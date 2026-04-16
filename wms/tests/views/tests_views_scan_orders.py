@@ -39,6 +39,31 @@ class ScanOrdersViewsTests(TestCase):
         response.context_data = context
         return response
 
+    def _create_order(
+        self,
+        *,
+        association_name="",
+        recipient_name="Recipient",
+        review_status=OrderReviewStatus.PENDING,
+        created_by=None,
+    ):
+        association_contact = None
+        if association_name:
+            association_contact = Contact.objects.create(
+                name=association_name,
+                contact_type=ContactType.ORGANIZATION,
+                is_active=True,
+            )
+        return Order.objects.create(
+            association_contact=association_contact,
+            shipper_name="ASF",
+            recipient_name=recipient_name,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            review_status=review_status,
+            created_by=created_by,
+        )
+
     def test_scan_order_get_renders_context(self):
         order_state = {
             "select_form": object(),
@@ -132,47 +157,32 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.context_data["remaining_total"], 8)
 
     def test_scan_orders_view_get_renders_rows_context(self):
-        rows = [
-            {
-                "id": 1,
-                "reference": "ORD-1",
-                "review_status_value": OrderReviewStatus.PENDING,
-                "can_create_shipment": False,
-            },
-            {
-                "id": 2,
-                "reference": "ORD-2",
-                "review_status_value": OrderReviewStatus.CHANGES_REQUESTED,
-                "can_create_shipment": False,
-            },
-            {
-                "id": 3,
-                "reference": "ORD-3",
-                "review_status_value": OrderReviewStatus.APPROVED,
-                "can_create_shipment": True,
-            },
-            {
-                "id": 4,
-                "reference": "ORD-4",
-                "review_status_value": OrderReviewStatus.REJECTED,
-                "can_create_shipment": False,
-            },
-        ]
-        with mock.patch(
-            "wms.views_scan_orders.build_orders_view_rows",
-            return_value=rows,
-        ):
-            with mock.patch(
-                "wms.views_scan_orders.render",
-                side_effect=self._render_stub,
-            ):
-                response = self.client.get(reverse("scan:scan_orders_view"))
+        self._create_order(
+            association_name="Association Pending",
+            review_status=OrderReviewStatus.PENDING,
+        )
+        self._create_order(
+            association_name="Association Changes",
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+        )
+        self._create_order(
+            association_name="Association Approved",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order(
+            association_name="Association Rejected",
+            review_status=OrderReviewStatus.REJECTED,
+        )
+
+        response = self.client.get(reverse("scan:scan_orders_view"))
+
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "scan/orders_view.html")
-        self.assertEqual(response.context_data["active"], "orders_view")
-        self.assertEqual(response.context_data["orders"], rows)
+        self.assertEqual(response.context["active"], "orders_view")
+        self.assertEqual(response.context["total_count"], 4)
+        self.assertEqual(response.context["orders_page"].number, 1)
+        self.assertEqual(len(response.context["orders"]), 4)
         self.assertEqual(
-            [card["id"] for card in response.context_data["summary_cards"]],
+            [card["id"] for card in response.context["summary_cards"]],
             [
                 "to-validate",
                 "changes-requested",
@@ -181,13 +191,13 @@ class ScanOrdersViewsTests(TestCase):
             ],
         )
         self.assertEqual(
-            [card["value"] for card in response.context_data["summary_cards"]],
+            [card["value"] for card in response.context["summary_cards"]],
             [1, 1, 1, 1],
         )
-        self.assertEqual(response.context_data["approved_status"], OrderReviewStatus.APPROVED)
-        self.assertEqual(response.context_data["rejected_status"], OrderReviewStatus.REJECTED)
+        self.assertEqual(response.context["approved_status"], OrderReviewStatus.APPROVED)
+        self.assertEqual(response.context["rejected_status"], OrderReviewStatus.REJECTED)
         self.assertEqual(
-            response.context_data["changes_status"],
+            response.context["changes_status"],
             OrderReviewStatus.CHANGES_REQUESTED,
         )
 
@@ -204,25 +214,54 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "orders-handled")
 
     def test_scan_orders_view_post_renders_when_handler_returns_none(self):
+        self._create_order(association_name="Association visible")
+
         with mock.patch(
             "wms.views_scan_orders.handle_orders_view_action",
             return_value=None,
         ):
-            with mock.patch(
-                "wms.views_scan_orders.build_orders_view_rows",
-                return_value=[{"id": 2, "reference": "ORD-2"}],
-            ):
-                with mock.patch(
-                    "wms.views_scan_orders.render",
-                    side_effect=self._render_stub,
-                ):
-                    response = self.client.post(
-                        reverse("scan:scan_orders_view"),
-                        {"action": "noop"},
-                    )
+            response = self.client.post(
+                reverse("scan:scan_orders_view"),
+                {"action": "noop"},
+            )
+
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "scan/orders_view.html")
-        self.assertEqual(response.context_data["orders"], [{"id": 2, "reference": "ORD-2"}])
+        self.assertEqual(len(response.context["orders"]), 1)
+        self.assertEqual(response.context["orders"][0]["association_name"], "Association visible")
+
+    def test_scan_orders_view_searches_all_rows_then_resets_to_page_one(self):
+        for index in range(105):
+            self._create_order(association_name=f"Association orders {index:03d}")
+        self._create_order(association_name="Association compresse orders")
+
+        response = self.client.get(reverse("scan:scan_orders_view"), {"q": "compresse"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Association compresse orders")
+        self.assertEqual(response.context["orders_page"].number, 1)
+        self.assertEqual(len(response.context["orders"]), 1)
+
+    def test_scan_orders_view_paginates_after_one_hundred_rows(self):
+        for index in range(105):
+            self._create_order(association_name=f"Association pagination {index:03d}")
+
+        response = self.client.get(reverse("scan:scan_orders_view"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["orders"]), 100)
+        self.assertTrue(response.context["orders_page"].has_next())
+
+    def test_scan_orders_view_supports_contact_sort(self):
+        self._create_order(association_name="Zulu Orders")
+        self._create_order(association_name="Alpha Orders")
+
+        response = self.client.get(reverse("scan:scan_orders_view"), {"sort": "contact_desc"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [row["association_name"] for row in response.context["orders"]],
+            ["Zulu Orders", "Alpha Orders"],
+        )
 
     def test_scan_orders_view_uses_open_links_instead_of_inline_review_form(self):
         order = Order.objects.create(

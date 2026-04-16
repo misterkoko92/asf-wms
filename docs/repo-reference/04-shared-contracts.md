@@ -81,6 +81,57 @@ Reference tests:
 - `wms/tests/views/tests_views_volunteer.py`
 - `wms/tests/views/tests_views_imports.py`
 
+### Scan Cockpit List Contract
+
+Primary runtime sources:
+
+- `wms/templatetags/wms_dates.py`
+- `wms/scan_list_urls.py`
+- `templates/scan/includes/scan_list_pagination.html`
+- `wms/receipt_list_queries.py`
+- `wms/order_list_queries.py`
+- `wms/views_scan_shipments_support.py`
+- `templates/scan/receipts_view.html`
+- `templates/scan/orders_view.html`
+- `templates/scan/shipments_tracking.html`
+
+Current contract:
+
+- dense scan cockpit lists use server-side filtering, sorting, and pagination
+- the shared query parameters are `q`, `sort`, and `page`
+- domain-specific filters may extend the contract, for example `type`, `planned_week`, `closed`,
+  `dispute`, or `destination`
+- filtering and sorting apply before pagination; matching rows must still appear even if they lived
+  outside the former page window
+- the shared pagination include is `templates/scan/includes/scan_list_pagination.html`
+- dense dates use named helpers instead of inline format strings:
+  - `scan_date_short` -> `JJ/MM/AA`
+  - `scan_datetime_short` -> `JJ/MM/AA HHhMM`
+  - `scan_date_weekday_short` -> `Jour JJ/MM/AA`
+- the list is a triage surface; the row exposes an explicit primary cockpit action:
+  - `Ouvrir` for receipt and order dossiers
+  - `Suivi/MAJ` for shipment tracking, with `Clore le dossier` kept as the documented secondary
+    exception
+- the count badge reflects the filtered dataset, not only the current page
+- migrated cockpit lists no longer rely on the local client-side `data-table-tools="1"` behavior
+
+Maintenance rule:
+
+- if a scan cockpit list changes, keep the query builder, row presenter, template, pagination
+  include, short date helpers, regression tests, and this shared-contract section aligned in the
+  same work
+- do not promote `Table` to `Core stable`; the cockpit-list pattern remains a strengthened
+  `En convergence` contract composed from smaller shared mechanisms
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_list_urls.py`
+- `wms/tests/templatetags/tests_wms_dates.py`
+- `wms/tests/views/tests_views_scan_receipts.py`
+- `wms/tests/views/tests_views_scan_orders.py`
+- `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+
 ### Scan Sidebar Navigation Contract
 
 Primary runtime sources:

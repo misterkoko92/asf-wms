@@ -92,6 +92,7 @@
         <ul class="ui-lab-governance-list">
           <li><code>Toolbar</code></li>
           <li><code>Table</code></li>
+          <li><code>CockpitList</code></li>
           <li><code>EmptyState</code></li>
           <li><code>ConfirmModal</code></li>
           <li><code>PageHeader</code></li>
@@ -191,6 +192,16 @@
             <button type="button" class="btn btn-tertiary btn-sm ui-comp-sort-btn">{% trans "Filtrer" %}</button>
           </div>
         </form>
+      </article>
+      <article id="ui-lab-contract-cockpit-list" class="ui-lab-surface">
+        <h4>{% trans "Cockpit list" %}</h4>
+        <p class="scan-help">{% trans "Pattern en convergence pour les listes scan pilotées côté serveur." %}</p>
+        <ul class="ui-lab-governance-list">
+          <li><code>q</code>, <code>sort</code>, <code>page</code></li>
+          <li>{% trans "Dates denses via helpers nommés" %}: <code>scan_date_short</code>, <code>scan_datetime_short</code></li>
+          <li>{% trans "Action primaire explicite vers le cockpit" %}: <code>Ouvrir</code> / <code>Suivi/MAJ</code></li>
+          <li>{% trans "Pagination partagée" %}: <code>scan/includes/scan_list_pagination.html</code></li>
+        </ul>
       </article>
       <article id="ui-lab-contract-number-input" class="ui-lab-surface">
         <h4>Number input</h4>

@@ -36,10 +36,18 @@ class ScanReceiptsViewsTests(TestCase):
         response.context_data = context
         return response
 
-    def _create_receipt(self, receipt_type):
+    def _create_receipt(self, receipt_type, *, source_name=""):
+        source_contact = None
+        if source_name:
+            source_contact = Contact.objects.create(
+                name=source_name,
+                contact_type=ContactType.ORGANIZATION,
+                is_active=True,
+            )
         return Receipt.objects.create(
             receipt_type=receipt_type,
             warehouse=self.warehouse,
+            source_contact=source_contact,
         )
 
     def _create_inbound_order(self, *, review_status=OrderReviewStatus.PENDING):
@@ -64,61 +72,103 @@ class ScanReceiptsViewsTests(TestCase):
         return order
 
     def test_scan_receipts_view_filters_pallet_receipts(self):
-        self._create_receipt(ReceiptType.PALLET)
-        self._create_receipt(ReceiptType.ASSOCIATION)
+        self._create_receipt(ReceiptType.PALLET, source_name="Palette cible")
+        self._create_receipt(ReceiptType.ASSOCIATION, source_name="Association hors filtre")
 
-        with mock.patch(
-            "wms.views_scan_receipts.build_receipts_view_rows",
-            side_effect=lambda qs: [item.receipt_type for item in qs],
-        ):
-            with mock.patch(
-                "wms.views_scan_receipts.render",
-                side_effect=self._render_stub,
-            ):
-                response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=pallet")
+        response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=pallet")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "scan/receipts_view.html")
-        self.assertEqual(response.context_data["filter_value"], "pallet")
-        self.assertEqual(response.context_data["receipts"], [ReceiptType.PALLET])
+        self.assertEqual(response.context["filter_value"], "pallet")
+        self.assertEqual(len(response.context["receipts"]), 1)
+        self.assertEqual(response.context["receipts"][0]["name"], "Palette cible")
 
     def test_scan_receipts_view_filters_association_receipts(self):
-        self._create_receipt(ReceiptType.PALLET)
-        self._create_receipt(ReceiptType.ASSOCIATION)
+        self._create_receipt(ReceiptType.PALLET, source_name="Palette hors filtre")
+        self._create_receipt(ReceiptType.ASSOCIATION, source_name="Association cible")
 
-        with mock.patch(
-            "wms.views_scan_receipts.build_receipts_view_rows",
-            side_effect=lambda qs: [item.receipt_type for item in qs],
-        ):
-            with mock.patch(
-                "wms.views_scan_receipts.render",
-                side_effect=self._render_stub,
-            ):
-                response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=association")
+        response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=association")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context_data["filter_value"], "association")
-        self.assertEqual(response.context_data["receipts"], [ReceiptType.ASSOCIATION])
+        self.assertEqual(response.context["filter_value"], "association")
+        self.assertEqual(len(response.context["receipts"]), 1)
+        self.assertEqual(response.context["receipts"][0]["name"], "Association cible")
 
     def test_scan_receipts_view_defaults_to_all_for_unknown_filter(self):
-        self._create_receipt(ReceiptType.PALLET)
-        self._create_receipt(ReceiptType.ASSOCIATION)
+        self._create_receipt(ReceiptType.PALLET, source_name="Palette visible")
+        self._create_receipt(ReceiptType.ASSOCIATION, source_name="Association visible")
 
-        with mock.patch(
-            "wms.views_scan_receipts.build_receipts_view_rows",
-            side_effect=lambda qs: [item.receipt_type for item in qs],
-        ):
-            with mock.patch(
-                "wms.views_scan_receipts.render",
-                side_effect=self._render_stub,
-            ):
-                response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=unknown")
+        response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=unknown")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context_data["filter_value"], "all")
+        self.assertEqual(response.context["filter_value"], "all")
         self.assertEqual(
-            sorted(response.context_data["receipts"]),
-            sorted([ReceiptType.PALLET, ReceiptType.ASSOCIATION]),
+            sorted(row["name"] for row in response.context["receipts"]),
+            ["Association visible", "Palette visible"],
+        )
+
+    def test_scan_receipts_view_searches_across_full_dataset_not_current_page_only(self):
+        for index in range(105):
+            self._create_receipt(
+                ReceiptType.ASSOCIATION,
+                source_name=f"Association pagination {index:03d}",
+            )
+        self._create_receipt(
+            ReceiptType.ASSOCIATION,
+            source_name="Association compresse cible",
+        )
+
+        response = self.client.get(reverse("scan:scan_receipts_view"), {"q": "compresse"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Association compresse cible")
+        self.assertEqual(response.context["receipts_page"].number, 1)
+        self.assertEqual(len(response.context["receipts"]), 1)
+
+    def test_scan_receipts_view_paginates_at_one_hundred_rows(self):
+        for index in range(105):
+            self._create_receipt(
+                ReceiptType.PALLET,
+                source_name=f"Palette pagination {index:03d}",
+            )
+
+        response = self.client.get(reverse("scan:scan_receipts_view"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["receipts"]), 100)
+        self.assertEqual(response.context["receipts_page"].number, 1)
+        self.assertTrue(response.context["receipts_page"].has_next())
+
+    def test_scan_receipts_view_exposes_open_action_link_to_receipt_detail(self):
+        receipt = self._create_receipt(
+            ReceiptType.ASSOCIATION,
+            source_name="Association ouvrable",
+        )
+
+        response = self.client.get(reverse("scan:scan_receipts_view"))
+
+        self.assertContains(response, reverse("scan:scan_receipt_detail", args=[receipt.id]))
+        self.assertContains(response, "Ouvrir")
+
+    def test_scan_receipt_detail_renders_summary_lines_and_back_link(self):
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=self.warehouse,
+        )
+
+        response = self.client.get(reverse("scan:scan_receipt_detail", args=[receipt.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_receipts_view"))
+        self.assertContains(response, receipt.reference)
+
+    def test_scan_receipt_detail_exposes_legacy_edit_shortcuts(self):
+        receipt = self._create_receipt(ReceiptType.ASSOCIATION)
+
+        response = self.client.get(reverse("scan:scan_receipt_detail", args=[receipt.id]))
+
+        self.assertContains(
+            response,
+            f"{reverse('scan:scan_receive_association')}?receipt_id={receipt.id}",
         )
 
     def test_scan_receive_get_renders_state_context(self):
