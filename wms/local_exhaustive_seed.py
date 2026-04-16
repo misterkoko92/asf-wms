@@ -103,6 +103,7 @@ from wms.models import (
     RecurringPreparationNeed,
     RecurringPreparationPeriodUnit,
     Shipment,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentStatus,
@@ -124,7 +125,11 @@ from wms.preparation.generation import generate_preparation_run
 from wms.preparation.review import apply_preparation_review_action
 from wms.reset_operational_data import reset_operational_data
 from wms.scan_permissions import PREPARATEUR_GROUP_NAME
-from wms.shipment_party_setup import ensure_shipment_shipper
+from wms.shipment_party_setup import (
+    ensure_authorized_recipient_contact,
+    ensure_shipment_recipient_link,
+    ensure_shipment_shipper,
+)
 
 DEFAULT_LOCAL_PASSWORD = "pass1234"  # pragma: allowlist secret  # nosec B105
 
@@ -246,6 +251,7 @@ def render_local_exhaustive_seed_summary(summary: LocalExhaustiveSeedSummary) ->
         "- shipments tracking: /scan/shipments-tracking/",
         "- orders: /scan/orders/",
         "- billing: /scan/billing/",
+        "- recipient validations: /scan/contacts/validations/recipients/",
         "- portal: /portal/",
         "- portal scope select: /portal/scope-select/",
         "- planning runs: /planning/",
@@ -420,6 +426,12 @@ def _seed_shared_references(
         association_profiles=[association_a, association_b],
         recipients=[recipient_a, recipient_b],
     )
+    if namespace.slug == "validations":
+        _seed_pending_recipient_validation_cases(
+            namespace,
+            association_profiles=[association_a, association_b],
+            destinations=[destination_a, destination_b],
+        )
     if with_e2e_baseline:
         _seed_e2e_baseline(
             namespace,
@@ -1015,6 +1027,145 @@ def _validate_recipient_runtime(recipient_organization: ShipmentRecipientOrganiz
         updates.append("validation_status")
     if updates:
         recipient_organization.save(update_fields=updates)
+
+
+def _validation_seed_asf_id(
+    namespace: LocalExhaustiveSeedNamespace, *, case_key: str, role_key: str
+) -> str:
+    token = namespace.upper_slug.replace("-", "")[:6]
+    return f"LS{token}{case_key.upper()}{role_key.upper()}"
+
+
+def _upsert_validation_structure(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    case_key: str,
+    case_slug: str,
+    structure_name: str,
+    destination: Destination,
+    shipper: ShipmentShipper,
+    validation_status: str,
+) -> ShipmentRecipientOrganization:
+    organization, _created = Contact.objects.update_or_create(
+        asf_id=_validation_seed_asf_id(namespace, case_key=case_key, role_key="org"),
+        defaults={
+            "contact_type": ContactType.ORGANIZATION,
+            "name": structure_name,
+            "email": _scenario_email(f"validation-{case_slug}-org", namespace),
+            "phone": f"+33015550{case_slug[-2:]}",
+            "legal_form": "association",
+            "beneficiary_count": 120
+            if validation_status == ShipmentValidationStatus.PENDING
+            else 80,
+            "notes": f"{namespace.label} recipient validation seed {case_slug}",
+            "is_active": True,
+        },
+    )
+    ContactAddress.objects.update_or_create(
+        contact=organization,
+        label="Siege",
+        defaults={
+            "address_line1": f"{structure_name} - siege local",
+            "postal_code": "00000",
+            "city": destination.city,
+            "country": destination.country,
+            "is_default": True,
+        },
+    )
+    referent, _created = Contact.objects.update_or_create(
+        asf_id=_validation_seed_asf_id(namespace, case_key=case_key, role_key="ref"),
+        defaults={
+            "contact_type": ContactType.PERSON,
+            "organization": organization,
+            "name": f"Referent {structure_name}",
+            "first_name": "Aicha"
+            if validation_status == ShipmentValidationStatus.PENDING
+            else "Rita",
+            "last_name": case_slug.upper(),
+            "email": _scenario_email(f"validation-{case_slug}-referent", namespace),
+            "phone": f"+3360000{case_slug[-2:]}",
+            "use_organization_address": True,
+            "is_active": True,
+        },
+    )
+    recipient_organization, _created = ShipmentRecipientOrganization.objects.update_or_create(
+        organization=organization,
+        destination=destination,
+        defaults={
+            "validation_status": validation_status,
+            "is_correspondent": False,
+            "is_active": True,
+        },
+    )
+    recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+        recipient_organization=recipient_organization,
+        contact=referent,
+        defaults={"is_active": True},
+    )
+    if not recipient_contact.is_active:
+        recipient_contact.is_active = True
+        recipient_contact.save(update_fields=["is_active"])
+    link = ensure_shipment_recipient_link(
+        shipper=shipper,
+        recipient_organization=recipient_organization,
+    )
+    ensure_authorized_recipient_contact(
+        link=link,
+        recipient_contact=recipient_contact,
+        is_active=True,
+        set_as_default=True,
+    )
+    return recipient_organization
+
+
+def _seed_pending_recipient_validation_cases(
+    namespace: LocalExhaustiveSeedNamespace,
+    *,
+    association_profiles: list[AssociationProfile],
+    destinations: list[Destination],
+) -> None:
+    if len(association_profiles) < 2 or len(destinations) < 2:
+        return
+
+    shipper_merge = ensure_shipment_shipper(association_profiles[0].contact)
+    shipper_duplicate = ensure_shipment_shipper(association_profiles[1].contact)
+
+    _upsert_validation_structure(
+        namespace,
+        case_key="mgt",
+        case_slug="merge-target",
+        structure_name=f"{namespace.label} Validation Merge",
+        destination=destinations[0],
+        shipper=shipper_merge,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+    )
+    _upsert_validation_structure(
+        namespace,
+        case_key="mgp",
+        case_slug="merge-pending",
+        structure_name=f"{namespace.label} Validation Merge",
+        destination=destinations[0],
+        shipper=shipper_merge,
+        validation_status=ShipmentValidationStatus.PENDING,
+    )
+    _upsert_validation_structure(
+        namespace,
+        case_key="dgt",
+        case_slug="duplicate-target",
+        structure_name=f"{namespace.label} Validation Duplicate",
+        destination=destinations[1],
+        shipper=shipper_duplicate,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+    )
+    _upsert_validation_structure(
+        namespace,
+        case_key="dgp",
+        case_slug="duplicate-pending",
+        structure_name=f"{namespace.label} Validation Duplicate",
+        destination=destinations[1],
+        shipper=shipper_duplicate,
+        validation_status=ShipmentValidationStatus.PENDING,
+    )
 
 
 def _ensure_preparation_seed(

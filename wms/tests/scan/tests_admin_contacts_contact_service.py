@@ -15,6 +15,7 @@ from wms.models import (
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
 )
 
 
@@ -33,6 +34,44 @@ class AdminContactsContactServiceTests(TestCase):
             country="COTE D'IVOIRE",
             correspondent_contact=self.correspondent,
             is_active=True,
+        )
+
+    def _create_shipper(self, *, organization_name="ASF", first_name="Jean", last_name="Dupont"):
+        return save_contact_from_form(
+            {
+                "business_type": "shipper",
+                "organization_name": organization_name,
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": f"{organization_name.lower().replace(' ', '-')}@example.org",
+                "is_active": True,
+            }
+        )
+
+    def _create_recipient(
+        self,
+        *,
+        shipper_org,
+        organization_name,
+        first_name,
+        last_name,
+        email="",
+        phone="",
+    ):
+        return save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": organization_name,
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "phone": phone,
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "is_active": True,
+            }
         )
 
     def test_create_donor_adds_capability(self):
@@ -345,3 +384,243 @@ class AdminContactsContactServiceTests(TestCase):
         )
 
         self.assertEqual(candidates, [organization])
+
+    def test_merge_duplicate_recipient_can_keep_existing_contact(self):
+        shipper_org = self._create_shipper()
+        existing = self._create_recipient(
+            shipper_org=shipper_org,
+            organization_name="Hopital Abidjan",
+            first_name="Alice",
+            last_name="Existing",
+            email="existing@example.org",
+        )
+        source = self._create_recipient(
+            shipper_org=shipper_org,
+            organization_name="Hopital Abidjan",
+            first_name="Aicha",
+            last_name="Source",
+            phone="+33102030405",
+        )
+        ShipmentRecipientOrganization.objects.filter(organization=source).update(
+            validation_status=ShipmentValidationStatus.PENDING
+        )
+
+        resolved = save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan",
+                "first_name": "Aicha",
+                "last_name": "Source",
+                "phone": "+33102030405",
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "duplicate_action": "merge",
+                "duplicate_target_id": existing.id,
+                "duplicate_keep_choice": "existing",
+                "duplicate_delete_choice": "new",
+                "is_active": True,
+            },
+            editing_contact=source,
+        )
+
+        existing.refresh_from_db()
+        source.refresh_from_db()
+        self.assertEqual(resolved.id, existing.id)
+        self.assertEqual(existing.email, "existing@example.org")
+        self.assertEqual(existing.phone, "+33102030405")
+        self.assertFalse(source.is_active)
+        self.assertFalse(
+            ShipmentRecipientOrganization.objects.filter(
+                organization=source,
+                destination=self.destination,
+            ).exists()
+        )
+        self.assertTrue(
+            ShipmentRecipientOrganization.objects.filter(
+                organization=existing,
+                destination=self.destination,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_replace_duplicate_recipient_keeps_existing_without_overwriting_fields(self):
+        shipper_org = self._create_shipper()
+        existing = self._create_recipient(
+            shipper_org=shipper_org,
+            organization_name="Hopital Abidjan",
+            first_name="Alice",
+            last_name="Existing",
+            email="existing@example.org",
+        )
+        source = self._create_recipient(
+            shipper_org=shipper_org,
+            organization_name="Hopital Abidjan",
+            first_name="Aicha",
+            last_name="Source",
+            email="source@example.org",
+        )
+
+        resolved = save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan",
+                "first_name": "Aicha",
+                "last_name": "Source",
+                "email": "changed@example.org",
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "duplicate_action": "replace",
+                "duplicate_target_id": existing.id,
+                "duplicate_keep_choice": "existing",
+                "duplicate_delete_choice": "new",
+                "is_active": True,
+            },
+            editing_contact=source,
+        )
+
+        existing.refresh_from_db()
+        source.refresh_from_db()
+        self.assertEqual(resolved.id, existing.id)
+        self.assertEqual(existing.email, "existing@example.org")
+        self.assertFalse(source.is_active)
+
+    def test_duplicate_recipient_renames_new_contact_before_validation(self):
+        shipper_org = self._create_shipper()
+        self._create_recipient(
+            shipper_org=shipper_org,
+            organization_name="Hopital Abidjan",
+            first_name="Alice",
+            last_name="Existing",
+        )
+        source = self._create_recipient(
+            shipper_org=shipper_org,
+            organization_name="Hopital Abidjan",
+            first_name="Aicha",
+            last_name="Source",
+        )
+
+        resolved = save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan",
+                "first_name": "Aicha",
+                "last_name": "Source",
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "duplicate_action": "duplicate",
+                "is_active": True,
+            },
+            editing_contact=source,
+        )
+
+        source.refresh_from_db()
+        self.assertEqual(resolved.id, source.id)
+        self.assertTrue(source.is_active)
+        self.assertEqual(source.name, "Hopital Abidjan - doublon")
+
+    def test_merge_duplicate_shipper_can_keep_existing_contact(self):
+        existing = self._create_shipper(
+            organization_name="ASF Doublon",
+            first_name="Alice",
+            last_name="Existing",
+        )
+        existing.email = "existing@example.org"
+        existing.save(update_fields=["email"])
+        source = self._create_shipper(
+            organization_name="ASF Doublon",
+            first_name="Aicha",
+            last_name="Source",
+        )
+
+        resolved = save_contact_from_form(
+            {
+                "business_type": "shipper",
+                "organization_name": "ASF Doublon",
+                "first_name": "Aicha",
+                "last_name": "Source",
+                "phone": "+33102030405",
+                "duplicate_action": "merge",
+                "duplicate_target_id": existing.id,
+                "duplicate_keep_choice": "existing",
+                "duplicate_delete_choice": "new",
+                "is_active": True,
+            },
+            editing_contact=source,
+        )
+
+        existing.refresh_from_db()
+        source.refresh_from_db()
+        self.assertEqual(resolved.id, existing.id)
+        self.assertEqual(existing.email, "existing@example.org")
+        self.assertEqual(existing.phone, "+33102030405")
+        self.assertFalse(source.is_active)
+
+    def test_replace_duplicate_shipper_keeps_existing_without_overwriting_fields(self):
+        existing = self._create_shipper(
+            organization_name="ASF Doublon",
+            first_name="Alice",
+            last_name="Existing",
+        )
+        existing.email = "existing@example.org"
+        existing.save(update_fields=["email"])
+        source = self._create_shipper(
+            organization_name="ASF Doublon",
+            first_name="Aicha",
+            last_name="Source",
+        )
+
+        resolved = save_contact_from_form(
+            {
+                "business_type": "shipper",
+                "organization_name": "ASF Doublon",
+                "first_name": "Aicha",
+                "last_name": "Source",
+                "email": "changed@example.org",
+                "duplicate_action": "replace",
+                "duplicate_target_id": existing.id,
+                "duplicate_keep_choice": "existing",
+                "duplicate_delete_choice": "new",
+                "is_active": True,
+            },
+            editing_contact=source,
+        )
+
+        existing.refresh_from_db()
+        source.refresh_from_db()
+        self.assertEqual(resolved.id, existing.id)
+        self.assertEqual(existing.email, "existing@example.org")
+        self.assertFalse(source.is_active)
+
+    def test_duplicate_shipper_renames_new_contact(self):
+        self._create_shipper(
+            organization_name="ASF Doublon",
+            first_name="Alice",
+            last_name="Existing",
+        )
+        source = self._create_shipper(
+            organization_name="ASF Doublon",
+            first_name="Aicha",
+            last_name="Source",
+        )
+
+        resolved = save_contact_from_form(
+            {
+                "business_type": "shipper",
+                "organization_name": "ASF Doublon",
+                "first_name": "Aicha",
+                "last_name": "Source",
+                "duplicate_action": "duplicate",
+                "is_active": True,
+            },
+            editing_contact=source,
+        )
+
+        source.refresh_from_db()
+        self.assertEqual(resolved.id, source.id)
+        self.assertEqual(source.name, "ASF Doublon - doublon")

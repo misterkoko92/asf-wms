@@ -16,6 +16,140 @@
     </div>
   </section>
 
+  {% if contact_duplicate_candidates %}
+    {% with new_label=contact_form.organization_name.value|default:editing_structure_contact.name %}
+      <section class="scan-card card border-0 ui-comp-card mt-3">
+        <div class="ui-comp-panel"
+             data-duplicate-review-root="1"
+             data-duplicate-always-show-target="1"
+             data-duplicate-new-label="{{ new_label }}"
+             data-duplicate-new-duplicate-name="{{ new_label }} - doublon">
+          <div class="alert alert-warning mb-3">
+            <strong>Doublon détecté</strong>
+            <div>Une fiche déjà présente semble correspondre à ce nouvel ajout. Finalisez explicitement la décision de doublon avant d’accepter le dossier.</div>
+          </div>
+          {% if contact_form.non_field_errors %}
+            <div class="alert alert-danger mb-3">
+              {% for error in contact_form.non_field_errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <h2 class="ui-comp-title h5 mb-3">Revue du doublon</h2>
+          <div class="scan-table-wrap table-responsive mb-3">
+            <table class="scan-table table table-sm table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Fiche</th>
+                  <th>Nature</th>
+                  <th>Email</th>
+                  <th>Téléphone</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for candidate in contact_duplicate_candidates %}
+                  <tr>
+                    <td>Déjà dans la base</td>
+                    <td>{{ candidate.name }}</td>
+                    <td>{{ candidate.get_contact_type_display }}</td>
+                    <td>{{ candidate.email|default:"-" }}</td>
+                    <td>{{ candidate.phone|default:"-" }}</td>
+                  </tr>
+                {% endfor %}
+                <tr>
+                  <td>Nouvel ajout</td>
+                  <td>{{ new_label }}</td>
+                  <td>Structure</td>
+                  <td>{{ contact_form.email.value|default:"-" }}</td>
+                  <td>{{ contact_form.phone.value|default:"-" }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="row g-3 align-items-start">
+            <div class="scan-field col-12 col-xl-4" data-duplicate-target-group="1">
+              <label class="form-label" for="scan-recipient-validation-duplicate-target">
+                Fiche déjà présente
+              </label>
+              <select id="scan-recipient-validation-duplicate-target"
+                      name="duplicate_target_id"
+                      form="scan-contact-validation-form"
+                      class="form-select ui-select--lg"
+                      data-duplicate-target-select="1">
+                <option value="">Choisir...</option>
+                {% for candidate in contact_duplicate_candidates %}
+                  <option value="{{ candidate.id }}"
+                          data-duplicate-label="{{ candidate.name }}"
+                          {% if contact_form.duplicate_target_id.value|stringformat:"s" == candidate.id|stringformat:"s" or not contact_form.duplicate_target_id.value and forloop.first %}selected{% endif %}>
+                    {{ candidate.name }}
+                  </option>
+                {% endfor %}
+              </select>
+              {{ contact_form.duplicate_target_id.errors }}
+            </div>
+            <div class="scan-field col-12 col-xl-4">
+              <label class="form-label" for="scan-recipient-validation-duplicate-action">
+                {{ contact_form.duplicate_action.label }} *
+              </label>
+              <select id="scan-recipient-validation-duplicate-action"
+                      name="duplicate_action"
+                      form="scan-contact-validation-form"
+                      class="form-select ui-select--md"
+                      data-duplicate-action="1">
+                {% for value, label in contact_form.fields.duplicate_action.choices %}
+                  <option value="{{ value }}"
+                          {% if contact_form.duplicate_action.value == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              {{ contact_form.duplicate_action.errors }}
+            </div>
+            <div class="scan-field col-12 col-md-6 col-xl-2" data-duplicate-keep-delete-group="1">
+              <label class="form-label" for="scan-recipient-validation-duplicate-keep">
+                Contact à conserver
+              </label>
+              <select id="scan-recipient-validation-duplicate-keep"
+                      name="duplicate_keep_choice"
+                      form="scan-contact-validation-form"
+                      class="form-select ui-select--md"
+                      data-duplicate-keep-choice="1">
+                {% for value, label in contact_form.fields.duplicate_keep_choice.choices %}
+                  <option value="{{ value }}"
+                          {% if contact_form.duplicate_keep_choice.value == value or not contact_form.duplicate_keep_choice.value and value == "existing" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              {{ contact_form.duplicate_keep_choice.errors }}
+            </div>
+            <div class="scan-field col-12 col-md-6 col-xl-2" data-duplicate-keep-delete-group="1">
+              <label class="form-label" for="scan-recipient-validation-duplicate-delete">
+                Contact à supprimer
+              </label>
+              <select id="scan-recipient-validation-duplicate-delete"
+                      name="duplicate_delete_choice"
+                      form="scan-contact-validation-form"
+                      class="form-select ui-select--md"
+                      data-duplicate-delete-choice="1">
+                {% for value, label in contact_form.fields.duplicate_delete_choice.choices %}
+                  <option value="{{ value }}"
+                          {% if contact_form.duplicate_delete_choice.value == value or not contact_form.duplicate_delete_choice.value and value == "new" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              {{ contact_form.duplicate_delete_choice.errors }}
+            </div>
+          </div>
+          <p class="scan-help mt-3 mb-3" data-duplicate-explanation="1">
+            Choisissez une action pour afficher son explication détaillée.
+          </p>
+          <button type="submit"
+                  form="scan-contact-validation-form"
+                  class="btn btn-primary">
+            Valider le doublon et accepter
+          </button>
+        </div>
+      </section>
+    {% endwith %}
+  {% endif %}
+
   <div class="row g-3 mt-1">
     <div class="col-12 col-xl-5">
       <section class="scan-card card border-0 ui-comp-card">

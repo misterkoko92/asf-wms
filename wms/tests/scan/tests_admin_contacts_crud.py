@@ -1,3 +1,7 @@
+from unittest import mock
+
+from django.core.exceptions import MultipleObjectsReturned
+from django.db import IntegrityError
 from django.test import TestCase
 
 from contacts.capabilities import ContactCapabilityType, ensure_contact_capability
@@ -216,6 +220,48 @@ class AdminContactsCrudTests(TestCase):
         self.assertEqual(outcome.editing_contact, source)
         self.assertEqual(outcome.contact_duplicate_candidates, [donor])
 
+    def test_handle_contact_submission_keeps_duplicate_review_on_persistence_conflict(self):
+        donor = Contact.objects.create(
+            name="Donateur Lumiere",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        source = Contact.objects.create(
+            name="Donateur Edit",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+        payload = {
+            "editing_contact_id": str(source.id),
+            "business_type": "donor",
+            "entity_type": ContactType.ORGANIZATION,
+            "organization_name": donor.name,
+            "duplicate_candidates_count": "1",
+            "duplicate_action": "merge",
+            "duplicate_target_id": str(donor.id),
+            "duplicate_keep_choice": "existing",
+            "duplicate_delete_choice": "new",
+            "is_active": "on",
+        }
+
+        for error in (IntegrityError("duplicate"), MultipleObjectsReturned()):
+            with self.subTest(error=error.__class__.__name__):
+                with mock.patch(
+                    "wms.admin_contacts_crud.save_contact_from_form",
+                    side_effect=error,
+                ):
+                    outcome = handle_contact_submission(payload)
+
+                self.assertFalse(outcome.should_redirect)
+                self.assertEqual(outcome.contact_form_mode, "edit")
+                self.assertEqual(outcome.editing_contact, source)
+                self.assertEqual(outcome.contact_duplicate_candidates, [donor])
+                self.assertIn(
+                    "Un conflit de données empêche cette résolution de doublon.",
+                    outcome.contact_form.non_field_errors(),
+                )
+
     def test_handle_contact_submission_validation_error_is_attached_to_form(self):
         outcome = handle_contact_submission(
             {
@@ -224,6 +270,8 @@ class AdminContactsCrudTests(TestCase):
                 "organization_name": "Donateur Lumiere",
                 "duplicate_action": "replace",
                 "duplicate_target_id": "9999",
+                "duplicate_keep_choice": "existing",
+                "duplicate_delete_choice": "new",
                 "is_active": "on",
             }
         )

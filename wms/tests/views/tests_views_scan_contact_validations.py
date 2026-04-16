@@ -1,5 +1,8 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import IntegrityError
 from django.test import TestCase, override_settings
 
 from contacts.models import Contact, ContactType
@@ -8,8 +11,11 @@ from wms.models import (
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
 )
 
@@ -66,6 +72,107 @@ class ScanContactValidationsViewTests(TestCase):
         self.recipient_detail_url = (
             f"/scan/contacts/validations/recipients/{self.pending_recipient.id}/"
         )
+
+    def _create_validated_shipper(self):
+        shipper_organization = Contact.objects.create(
+            name="ASF Validation Contacts",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_referent = Contact.objects.create(
+            name="Jean Validation Contacts",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="Validation",
+            organization=shipper_organization,
+            is_active=True,
+        )
+        ShipmentShipper.objects.create(
+            organization=shipper_organization,
+            default_contact=shipper_referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        return shipper_organization
+
+    def _recipient_validation_payload(
+        self,
+        *,
+        shipper_organization,
+        duplicate_action="",
+        duplicate_target_id="",
+        duplicate_keep_choice="",
+        duplicate_delete_choice="",
+    ):
+        payload = {
+            "action": "save_contact",
+            "editing_contact_id": str(self.pending_recipient_contact.id),
+            "business_type": "recipient",
+            "organization_name": self.pending_recipient_contact.name,
+            "legal_form": "association",
+            "beneficiary_count": "120",
+            "first_name": "Aicha",
+            "last_name": "Traore",
+            "email": "recipient-validation@example.org",
+            "phone": "+22370000001",
+            "address_line1": "1 Rue Validation",
+            "city": "Abidjan",
+            "country": "COTE D'IVOIRE",
+            "destination_id": str(self.destination.id),
+            "allowed_shipper_ids": [str(shipper_organization.id)],
+            "is_active": "on",
+        }
+        if duplicate_action:
+            payload["duplicate_candidates_count"] = "1"
+            payload["duplicate_action"] = duplicate_action
+        if duplicate_target_id:
+            payload["duplicate_target_id"] = str(duplicate_target_id)
+        if duplicate_keep_choice:
+            payload["duplicate_keep_choice"] = duplicate_keep_choice
+        if duplicate_delete_choice:
+            payload["duplicate_delete_choice"] = duplicate_delete_choice
+        return payload
+
+    def _create_validated_recipient_candidate(self, *, shipper_organization, name=None):
+        organization = Contact.objects.create(
+            name=name or self.pending_recipient_contact.name,
+            contact_type=ContactType.ORGANIZATION,
+            legal_form="association",
+            beneficiary_count=80,
+            is_active=True,
+        )
+        referent = Contact.objects.create(
+            name="Alice Existing",
+            contact_type=ContactType.PERSON,
+            first_name="Alice",
+            last_name="Existing",
+            organization=organization,
+            is_active=True,
+        )
+        recipient_runtime = ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_runtime,
+            contact=referent,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.get(organization=shipper_organization)
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_runtime,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=recipient_contact,
+            is_active=True,
+            is_default=True,
+        )
+        return organization
 
     def test_scan_contact_validations_hub_requires_validation_access(self):
         self.client.force_login(self.staff_user)
@@ -158,6 +265,26 @@ class ScanContactValidationsViewTests(TestCase):
             ["", "recipient", "shipper"],
         )
 
+    def test_scan_recipient_validation_detail_places_duplicate_review_above_context(self):
+        shipper_organization = self._create_validated_shipper()
+        self._create_validated_recipient_candidate(shipper_organization=shipper_organization)
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self.recipient_detail_url,
+            self._recipient_validation_payload(shipper_organization=shipper_organization),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Doublon détecté")
+        self.assertContains(response, "Valider le doublon et accepter")
+        self.assertContains(response, "Contact à conserver")
+        self.assertContains(response, "Contact à supprimer")
+        self.assertContains(response, "Déjà dans la base")
+        self.assertContains(response, "Nouvel ajout")
+        content = response.content.decode()
+        self.assertLess(content.index("Doublon détecté"), content.index("Contexte"))
+
     def test_scan_recipient_validation_detail_can_requalify_pending_recipient_as_shipper(self):
         self.client.force_login(self.superuser)
 
@@ -187,3 +314,161 @@ class ScanContactValidationsViewTests(TestCase):
         )
         shipper = ShipmentShipper.objects.get(organization=self.pending_recipient_contact)
         self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
+
+    def test_scan_recipient_validation_detail_can_merge_duplicate_into_existing_contact(self):
+        shipper_organization = self._create_validated_shipper()
+        duplicate_target = self._create_validated_recipient_candidate(
+            shipper_organization=shipper_organization
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self.recipient_detail_url,
+            self._recipient_validation_payload(
+                shipper_organization=shipper_organization,
+                duplicate_action="merge",
+                duplicate_target_id=duplicate_target.id,
+                duplicate_keep_choice="existing",
+                duplicate_delete_choice="new",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipient_list_url)
+        duplicate_target.refresh_from_db()
+        self.pending_recipient_contact.refresh_from_db()
+        self.assertFalse(self.pending_recipient_contact.is_active)
+        self.assertEqual(
+            ShipmentRecipientOrganization.objects.get(
+                organization=duplicate_target,
+                destination=self.destination,
+            ).validation_status,
+            ShipmentValidationStatus.VALIDATED,
+        )
+        self.assertFalse(
+            ShipmentRecipientOrganization.objects.filter(
+                organization=self.pending_recipient_contact,
+                destination=self.destination,
+            ).exists()
+        )
+
+    def test_scan_recipient_validation_detail_can_replace_duplicate_with_existing_contact(self):
+        shipper_organization = self._create_validated_shipper()
+        duplicate_target = self._create_validated_recipient_candidate(
+            shipper_organization=shipper_organization
+        )
+        duplicate_target.email = "existing@example.org"
+        duplicate_target.save(update_fields=["email"])
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self.recipient_detail_url,
+            self._recipient_validation_payload(
+                shipper_organization=shipper_organization,
+                duplicate_action="replace",
+                duplicate_target_id=duplicate_target.id,
+                duplicate_keep_choice="existing",
+                duplicate_delete_choice="new",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipient_list_url)
+        duplicate_target.refresh_from_db()
+        self.pending_recipient_contact.refresh_from_db()
+        self.assertEqual(duplicate_target.email, "existing@example.org")
+        self.assertFalse(self.pending_recipient_contact.is_active)
+
+    def test_scan_recipient_validation_detail_can_duplicate_pending_contact_with_suffix(self):
+        shipper_organization = self._create_validated_shipper()
+        self._create_validated_recipient_candidate(shipper_organization=shipper_organization)
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self.recipient_detail_url,
+            self._recipient_validation_payload(
+                shipper_organization=shipper_organization,
+                duplicate_action="duplicate",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipient_list_url)
+        self.pending_recipient_contact.refresh_from_db()
+        self.pending_recipient.refresh_from_db()
+        self.assertEqual(self.pending_recipient_contact.name, "Hopital Validation - doublon")
+        self.assertEqual(
+            self.pending_recipient.validation_status,
+            ShipmentValidationStatus.VALIDATED,
+        )
+
+    @mock.patch(
+        "wms.admin_contacts_crud.save_contact_from_form",
+        side_effect=IntegrityError("duplicate runtime conflict"),
+    )
+    def test_scan_recipient_validation_detail_surfaces_merge_conflict_without_500(self, _save_mock):
+        shipper_organization = self._create_validated_shipper()
+        duplicate_target = Contact.objects.create(
+            name=self.pending_recipient_contact.name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self.recipient_detail_url,
+            self._recipient_validation_payload(
+                shipper_organization=shipper_organization,
+                duplicate_action="merge",
+                duplicate_target_id=duplicate_target.id,
+                duplicate_keep_choice="existing",
+                duplicate_delete_choice="new",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Un conflit de données empêche cette résolution de doublon.",
+        )
+        self.assertContains(response, "Doublon détecté")
+        self.pending_recipient.refresh_from_db()
+        self.assertEqual(
+            self.pending_recipient.validation_status,
+            ShipmentValidationStatus.PENDING,
+        )
+
+    @mock.patch(
+        "wms.admin_contacts_crud.save_contact_from_form",
+        side_effect=IntegrityError("duplicate runtime conflict"),
+    )
+    def test_scan_recipient_validation_detail_surfaces_duplicate_conflict_without_500(
+        self, _save_mock
+    ):
+        shipper_organization = self._create_validated_shipper()
+        Contact.objects.create(
+            name=self.pending_recipient_contact.name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            self.recipient_detail_url,
+            self._recipient_validation_payload(
+                shipper_organization=shipper_organization,
+                duplicate_action="duplicate",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Un conflit de données empêche cette résolution de doublon.",
+        )
+        self.assertContains(response, "Doublon détecté")
+        self.pending_recipient.refresh_from_db()
+        self.assertEqual(
+            self.pending_recipient.validation_status,
+            ShipmentValidationStatus.PENDING,
+        )

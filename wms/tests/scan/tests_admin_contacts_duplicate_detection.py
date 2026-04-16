@@ -5,7 +5,7 @@ from wms.admin_contacts_duplicate_detection import (
     find_similar_contacts,
     find_similar_destinations,
 )
-from wms.models import Destination
+from wms.models import Destination, ShipmentRecipientOrganization, ShipmentShipper
 
 
 class AdminContactsDuplicateDetectionTests(TestCase):
@@ -17,17 +17,31 @@ class AdminContactsDuplicateDetectionTests(TestCase):
             last_name="Duplicate",
             is_active=True,
         )
-
-    def test_finds_destination_duplicate_by_exact_iata(self):
-        destination = Destination.objects.create(
+        self.destination_abj = Destination.objects.create(
             city="Abidjan",
             iata_code="ABJ",
             country="Cote d'Ivoire",
             correspondent_contact=self.correspondent,
             is_active=True,
         )
+        self.destination_dkr = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="Senegal",
+            correspondent_contact=self.correspondent,
+            is_active=True,
+        )
 
-        matches = find_similar_destinations(city="Autre", iata_code="ABJ", country="France")
+    def test_finds_destination_duplicate_by_exact_iata(self):
+        destination = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="Mali",
+            correspondent_contact=self.correspondent,
+            is_active=True,
+        )
+
+        matches = find_similar_destinations(city="Autre", iata_code="BKO", country="France")
 
         self.assertEqual(matches, [destination])
 
@@ -92,6 +106,80 @@ class AdminContactsDuplicateDetectionTests(TestCase):
         )
 
         self.assertEqual(matches, [organization])
+
+    def test_ignores_shipper_duplicate_when_requested_type_is_recipient(self):
+        shipper_organization = Contact.objects.create(
+            name="Asso A",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_referent = Contact.objects.create(
+            name="Jean Asso A",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="AssoA",
+            organization=shipper_organization,
+            is_active=True,
+        )
+        ShipmentShipper.objects.create(
+            organization=shipper_organization,
+            default_contact=shipper_referent,
+            validation_status="validated",
+            is_active=True,
+        )
+
+        matches = find_similar_contacts(
+            business_type="recipient",
+            entity_type=ContactType.ORGANIZATION,
+            organization_name="Asso A",
+            destination_id=self.destination_abj.id,
+        )
+
+        self.assertEqual(matches, [])
+
+    def test_recipient_duplicate_requires_same_destination_scope(self):
+        recipient_organization = Contact.objects.create(
+            name="Hopital Local",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=recipient_organization,
+            destination=self.destination_dkr,
+            validation_status="validated",
+            is_active=True,
+        )
+
+        matches = find_similar_contacts(
+            business_type="recipient",
+            entity_type=ContactType.ORGANIZATION,
+            organization_name="Hopital Local",
+            destination_id=self.destination_abj.id,
+        )
+
+        self.assertEqual(matches, [])
+
+    def test_recipient_duplicate_keeps_same_business_type_and_destination(self):
+        recipient_organization = Contact.objects.create(
+            name="Hopital Local",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=recipient_organization,
+            destination=self.destination_abj,
+            validation_status="validated",
+            is_active=True,
+        )
+
+        matches = find_similar_contacts(
+            business_type="recipient",
+            entity_type=ContactType.ORGANIZATION,
+            organization_name="Hopital Local",
+            destination_id=self.destination_abj.id,
+        )
+
+        self.assertEqual(matches, [recipient_organization])
 
     def test_finds_person_duplicate_by_identity_and_organization(self):
         organization = Contact.objects.create(

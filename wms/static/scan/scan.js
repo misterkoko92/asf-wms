@@ -3589,17 +3589,81 @@
         .map(item => item.trim())
         .filter(Boolean);
 
-    const toggleDuplicateTargetGroups = form => {
-      const actionSelect = form.querySelector('[data-duplicate-action="1"]');
+    const oppositeDuplicateChoice = value => {
+      if (value === 'existing') {
+        return 'new';
+      }
+      if (value === 'new') {
+        return 'existing';
+      }
+      return '';
+    };
+
+    const buildDuplicateExplanation = ({
+      actionValue,
+      keepValue,
+      existingLabel,
+      newLabel,
+      duplicateName
+    }) => {
+      const keepLabel = keepValue === 'new' ? newLabel : existingLabel;
+      const deleteLabel = keepValue === 'new' ? existingLabel : newLabel;
+      if (actionValue === 'merge') {
+        return `Les données vides de la fiche ${keepLabel} seront complétées par celles de la fiche ${deleteLabel} lorsqu'elles sont disponibles. La fiche ${deleteLabel} sera ensuite supprimée.`;
+      }
+      if (actionValue === 'replace') {
+        return `La fiche ${keepLabel} sera conservée et la fiche ${deleteLabel} sera supprimée.`;
+      }
+      if (actionValue === 'duplicate') {
+        return `La fiche ${existingLabel} sera conservée. Une nouvelle fiche ${newLabel} sera créée avec un suffixe " - doublon", par exemple "${duplicateName}".`;
+      }
+      return 'Choisissez une action pour afficher son explication détaillée.';
+    };
+
+    const syncDuplicateReviewState = container => {
+      const actionSelect = container.querySelector('[data-duplicate-action="1"]');
       if (!actionSelect) {
         return;
       }
-      const targetGroup = form.querySelector('[data-duplicate-target-group="1"]');
-      if (!targetGroup) {
-        return;
-      }
+      const targetGroups = container.querySelectorAll('[data-duplicate-target-group="1"]');
+      const keepDeleteGroups = container.querySelectorAll('[data-duplicate-keep-delete-group="1"]');
+      const keepSelect = container.querySelector('[data-duplicate-keep-choice="1"]');
+      const deleteSelect = container.querySelector('[data-duplicate-delete-choice="1"]');
+      const explanation = container.querySelector('[data-duplicate-explanation="1"]');
+      const targetSelect = container.querySelector('[data-duplicate-target-select="1"]');
+      const alwaysShowTarget = container.dataset.duplicateAlwaysShowTarget === '1';
       const needsTarget = ['replace', 'merge'].includes(actionSelect.value);
-      targetGroup.hidden = !needsTarget;
+      targetGroups.forEach(group => {
+        group.hidden = !(alwaysShowTarget || needsTarget);
+      });
+      keepDeleteGroups.forEach(group => {
+        group.hidden = !needsTarget;
+      });
+      if (keepSelect && deleteSelect) {
+        if (!keepSelect.value && deleteSelect.value) {
+          keepSelect.value = oppositeDuplicateChoice(deleteSelect.value);
+        }
+        if (!deleteSelect.value && keepSelect.value) {
+          deleteSelect.value = oppositeDuplicateChoice(keepSelect.value);
+        }
+      }
+      if (explanation) {
+        const selectedOption = targetSelect?.selectedOptions?.[0];
+        const existingLabel =
+          selectedOption?.dataset?.duplicateLabel ||
+          selectedOption?.textContent?.trim() ||
+          'la fiche déjà présente';
+        const newLabel = container.dataset.duplicateNewLabel || 'le nouvel ajout';
+        const duplicateName =
+          container.dataset.duplicateNewDuplicateName || `${newLabel} - doublon`;
+        explanation.textContent = buildDuplicateExplanation({
+          actionValue: actionSelect.value,
+          keepValue: keepSelect?.value || 'existing',
+          existingLabel,
+          newLabel,
+          duplicateName
+        });
+      }
     };
 
     const managedRequiredFieldNames = [
@@ -3658,7 +3722,7 @@
         contactForm.querySelectorAll('[data-required-marker]').forEach(marker => {
           marker.hidden = marker.dataset.requiredMarker !== 'entity_type';
         });
-        toggleDuplicateTargetGroups(contactForm);
+        syncDuplicateReviewState(contactForm);
         return;
       }
 
@@ -3686,7 +3750,7 @@
         marker.hidden = !requiredFields.has(marker.dataset.requiredMarker);
       });
 
-      toggleDuplicateTargetGroups(contactForm);
+      syncDuplicateReviewState(contactForm);
     };
 
     if (contactForm && businessField) {
@@ -3697,15 +3761,38 @@
       applyContactFieldVisibility();
     }
 
-    root.querySelectorAll('form').forEach(form => {
-      const duplicateActionSelect = form.querySelector('[data-duplicate-action="1"]');
+    root
+      .querySelectorAll('form, [data-duplicate-review-root="1"]')
+      .forEach(container => {
+      const duplicateActionSelect = container.querySelector('[data-duplicate-action="1"]');
       if (!duplicateActionSelect) {
         return;
       }
       duplicateActionSelect.addEventListener('change', () => {
-        toggleDuplicateTargetGroups(form);
+        syncDuplicateReviewState(container);
       });
-      toggleDuplicateTargetGroups(form);
+      container.querySelector('[data-duplicate-target-select="1"]')?.addEventListener('change', () => {
+        syncDuplicateReviewState(container);
+      });
+      const keepSelect = container.querySelector('[data-duplicate-keep-choice="1"]');
+      const deleteSelect = container.querySelector('[data-duplicate-delete-choice="1"]');
+      if (keepSelect && deleteSelect) {
+        keepSelect.addEventListener('change', () => {
+          const opposite = oppositeDuplicateChoice(keepSelect.value);
+          if (opposite && deleteSelect.value !== opposite) {
+            deleteSelect.value = opposite;
+          }
+          syncDuplicateReviewState(container);
+        });
+        deleteSelect.addEventListener('change', () => {
+          const opposite = oppositeDuplicateChoice(deleteSelect.value);
+          if (opposite && keepSelect.value !== opposite) {
+            keepSelect.value = opposite;
+          }
+          syncDuplicateReviewState(container);
+        });
+      }
+      syncDuplicateReviewState(container);
     });
 
     const actionPanel = document.getElementById('scan-admin-contact-action-panel');

@@ -6,7 +6,7 @@ from difflib import SequenceMatcher
 
 from contacts.models import Contact, ContactType
 
-from .models import Destination
+from .models import Destination, ShipmentRecipientOrganization, ShipmentShipper
 
 
 def normalize_match_value(value: str) -> str:
@@ -36,6 +36,49 @@ def _append_unique(matches, item, *, limit: int):
     matches.append(item)
     if len(matches) > limit:
         del matches[limit:]
+
+
+def _runtime_contact(contact: Contact) -> Contact:
+    if contact.contact_type == ContactType.PERSON and contact.organization_id:
+        return contact.organization
+    return contact
+
+
+def _shipment_party_flags(*, contact: Contact, destination_id: int | None):
+    runtime_contact = _runtime_contact(contact)
+    shipper_qs = ShipmentShipper.objects.filter(organization=runtime_contact, is_active=True)
+    recipient_qs = ShipmentRecipientOrganization.objects.filter(
+        organization=runtime_contact,
+        is_active=True,
+    )
+    if destination_id is not None:
+        recipient_qs = recipient_qs.filter(destination_id=destination_id)
+    correspondent_qs = recipient_qs.filter(is_correspondent=True)
+    any_recipient_qs = ShipmentRecipientOrganization.objects.filter(
+        organization=runtime_contact,
+        is_active=True,
+    )
+    return {
+        "shipper": shipper_qs.exists(),
+        "recipient": recipient_qs.exists(),
+        "correspondent": correspondent_qs.exists(),
+        "has_any_shipment_party": shipper_qs.exists() or any_recipient_qs.exists(),
+    }
+
+
+def _contact_matches_business_scope(
+    *,
+    contact: Contact,
+    business_type: str,
+    destination_id: int | None,
+) -> bool:
+    if business_type not in {"shipper", "recipient", "correspondent"}:
+        return True
+
+    flags = _shipment_party_flags(contact=contact, destination_id=destination_id)
+    if flags[business_type]:
+        return True
+    return not flags["has_any_shipment_party"]
 
 
 def find_similar_destinations(
@@ -84,10 +127,10 @@ def find_similar_contacts(
     email: str = "",
     phone: str = "",
     asf_id: str = "",
+    destination_id: int | None = None,
     exclude_contact_id: int | None = None,
     limit: int = 5,
 ):
-    del business_type
     normalized_asf_id = (asf_id or "").strip()
     normalized_org = normalize_match_value(organization_name)
     normalized_first = normalize_match_value(first_name)
@@ -114,6 +157,12 @@ def find_similar_contacts(
     if desired_entity_type == ContactType.ORGANIZATION:
         queryset = queryset.filter(contact_type=ContactType.ORGANIZATION)
         for contact in queryset.order_by("name", "id"):
+            if not _contact_matches_business_scope(
+                contact=contact,
+                business_type=business_type,
+                destination_id=destination_id,
+            ):
+                continue
             candidate_org = normalize_match_value(contact.name)
             if normalized_org and is_fuzzy_match(source=normalized_org, candidate=candidate_org):
                 _append_unique(matches, contact, limit=limit)
@@ -127,6 +176,12 @@ def find_similar_contacts(
 
     queryset = queryset.filter(contact_type=ContactType.PERSON)
     for contact in queryset.order_by("name", "id"):
+        if not _contact_matches_business_scope(
+            contact=contact,
+            business_type=business_type,
+            destination_id=destination_id,
+        ):
+            continue
         candidate_person = normalize_match_value(
             " ".join(part for part in (contact.first_name, contact.last_name) if part)
             or contact.name
