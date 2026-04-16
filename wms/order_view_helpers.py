@@ -149,6 +149,7 @@ def build_orders_view_rows(orders_qs):
     }
     rows = []
     for order in orders_qs:
+        order_id = getattr(order, "id", None)
         association_contact = order.association_contact or order.recipient_contact
         association_name = (
             association_contact.name if association_contact else order.recipient_name or "-"
@@ -178,7 +179,7 @@ def build_orders_view_rows(orders_qs):
                 "order": order,
                 "association_name": association_name,
                 "creator": creator,
-                "created_at": order.created_at,
+                "created_at": getattr(order, "created_at", None),
                 "documents": docs,
                 "reference_label": _order_reference_label(order),
                 "review_status_value": getattr(order, "review_status", "") or "",
@@ -191,7 +192,9 @@ def build_orders_view_rows(orders_qs):
                     "create_shipment_label",
                     "Créer l'expédition",
                 ),
-                "open_url": reverse("scan:scan_order_detail", args=[order.id]),
+                "open_url": (
+                    reverse("scan:scan_order_detail", args=[order_id]) if order_id else ""
+                ),
                 "open_label": "Ouvrir",
                 **inbound_summary,
             }

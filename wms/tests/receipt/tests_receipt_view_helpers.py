@@ -61,6 +61,8 @@ class ReceiptViewHelpersTests(SimpleTestCase):
         )
 
         self.assertEqual(rows[0]["name"], "Donor A")
+        self.assertEqual(rows[0]["reference"], "")
+        self.assertEqual(rows[0]["open_url"], "")
         self.assertEqual(rows[0]["quantity"], "3 palettes")
         self.assertEqual(rows[0]["hors_format"], "2 : Tube medical")
         self.assertEqual(rows[0]["carrier"], "Carrier A")
