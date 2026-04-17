@@ -407,11 +407,17 @@ class PrintDocsViewsTests(TestCase):
         )
         self.assertLess(
             content.index('id="shipment-paper-section-customs"'),
-            content.index('id="shipment-paper-section-packing_list"'),
+            content.index('id="shipment-paper-section-packing_list_copy_1"'),
+        )
+        self.assertLess(
+            content.index('id="shipment-paper-section-packing_list_copy_1"'),
+            content.index('id="shipment-paper-section-packing_list_copy_2"'),
         )
         self.assertContains(response, 'id="shipment-note-sheet"')
         self.assertContains(response, 'id="customs-note-sheet"')
-        self.assertContains(response, 'id="packing-list-shipment-sheet"')
+        self.assertContains(response, 'id="packing-list-shipment-sheet-copy-1"')
+        self.assertContains(response, 'id="packing-list-shipment-sheet-copy-2"')
+        self.assertContains(response, 'class="paper-bundle-section"', count=4)
 
     def test_scan_shipment_view_bundle_routes_carton_lists_to_html_bundle_page(self):
         shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
@@ -468,30 +474,34 @@ class PrintDocsViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="shipment-standard-labels-print-document"')
-        self.assertNotContains(response, 'id="shipment-standard-labels-bundle"')
+        self.assertContains(response, 'id="shipment-carton-documents-print-document"')
+        self.assertNotContains(response, 'id="shipment-carton-documents-bundle"')
         self.assertNotContains(response, 'class="scan-scan-btn btn btn-tertiary"')
         content = response.content.decode()
-        self.assertContains(response, 'data-print-doc-type="contact_label"', count=2)
-        self.assertContains(response, 'data-print-doc-type="shipment_label"', count=2)
+        self.assertContains(response, 'class="carton-documents-page"', count=2)
         self.assertContains(response, 'data-print-doc-type="donation_certificate"', count=2)
+        self.assertContains(response, 'data-print-doc-type="shipment_label"', count=2)
+        self.assertContains(response, 'data-print-doc-type="contact_label"', count=2)
+        self.assertContains(response, 'data-print-doc-type="packing_list_carton"', count=2)
         self.assertLess(
-            content.index(f'id="shipment-standard-labels-item-contact_label-{cartons[1].id}"'),
-            content.index(f'id="shipment-standard-labels-item-contact_label-{cartons[0].id}"'),
-        )
-        self.assertLess(
-            content.index(f'id="shipment-standard-labels-item-contact_label-{cartons[0].id}"'),
-            content.index(f'id="shipment-standard-labels-item-shipment_label-{cartons[1].id}"'),
-        )
-        self.assertLess(
-            content.index(f'id="shipment-standard-labels-item-shipment_label-{cartons[0].id}"'),
-            content.index(
-                f'id="shipment-standard-labels-item-donation_certificate-{cartons[1].id}"'
-            ),
+            content.index(f'id="shipment-carton-documents-page-{cartons[1].id}"'),
+            content.index(f'id="shipment-carton-documents-page-{cartons[0].id}"'),
         )
         self.assertContains(response, 'id="contact-label"')
         self.assertContains(response, 'id="shipment-label-')
         self.assertContains(response, 'id="donation-certificate-sheet"')
+        self.assertContains(response, 'id="packing-list-carton-table-')
+        self.assertContains(response, "Téléphone")
+        self.assertNotContains(response, "TELEPHONE")
+        self.assertContains(response, "font-size: 23pt;")
+        self.assertContains(response, "font-size: 34pt;")
+        self.assertContains(response, "font-size: 20pt;")
+        self.assertContains(response, "flex: 0 0 33%;")
+        self.assertContains(response, "max-width: 33%;")
+        self.assertNotContains(response, "flex: 0 0 25%;")
+        self.assertContains(response, "grid-template-columns: 1fr;")
+        self.assertContains(response, "width: 22mm;")
+        self.assertContains(response, "width: 33%;")
         self.assertContains(response, '<span class="label-box-text">N° 1 / 2</span>')
         self.assertContains(response, '<span class="label-box-text">N° 2 / 2</span>')
         self.assertNotContains(response, "Colis /")
@@ -586,7 +596,7 @@ class PrintDocsViewsTests(TestCase):
         self.assertContains(response, "Lot papier A4")
         self.assertContains(response, "Lot rouleau continu")
         self.assertContains(response, "Lot A4 4 par page")
-        self.assertContains(response, "Lot étiquettes standard")
+        self.assertContains(response, "Lot étiquettes cartons")
 
     def test_scan_shipment_donation_certificate_renders_locked_template(self):
         shipment = self._create_shipment()
@@ -735,6 +745,8 @@ class PrintDocsViewsTests(TestCase):
             [
                 "C-shipment_note-shipment.xlsx",
                 "C-customs_note-shipment.xlsx",
+                "B-packing_list_shipment-shipment.xlsx",
+                "B-packing_list_shipment-shipment.xlsx",
             ],
         )
 

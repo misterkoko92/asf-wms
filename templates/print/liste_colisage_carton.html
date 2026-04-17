@@ -12,14 +12,18 @@
   }
   .packing-sheet-header {
     display: grid;
-    grid-template-columns: 18mm 1fr 18mm;
+    grid-template-columns: 18mm minmax(0, 1fr);
     gap: 4mm;
     align-items: center;
+  }
+  .packing-sheet-header [aria-hidden="true"] {
+    display: none;
   }
   .packing-sheet-logo {
     width: 18mm;
     max-height: 18mm;
     object-fit: contain;
+    justify-self: center;
   }
   .packing-sheet-heading {
     display: grid;
@@ -38,11 +42,14 @@
     font-size: 10pt;
     white-space: pre-line;
   }
-  .packing-ref-row {
-    display: flex;
-    gap: 4mm;
-    align-items: baseline;
+  .packing-sheet-ref {
+    display: block;
+    text-align: center;
     font-size: 10pt;
+    line-height: 1.15;
+  }
+  .packing-ref-row {
+    display: block;
   }
   .packing-ref-label {
     font-weight: 700;

@@ -277,6 +277,9 @@ class PrintLabelsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="shipment-label-')
         self.assertContains(response, '<span class="label-box-text">N° 1 / 2</span>')
+        self.assertContains(response, "flex: 0 0 33%;")
+        self.assertContains(response, "max-width: 33%;")
+        self.assertNotContains(response, "flex: 0 0 25%;")
         self.assertNotContains(response, "Colis /")
         self.assertNotContains(response, "Parcel")
 
@@ -303,8 +306,10 @@ class PrintLabelsViewsTests(TestCase):
         self.assertContains(response, "Consignee")
         self.assertContains(response, "CORRESPONDANT /")
         self.assertContains(response, "Local Agent")
-        self.assertContains(response, "TELEPHONE /")
+        self.assertContains(response, "Téléphone /")
         self.assertContains(response, "Phone")
+        self.assertContains(response, "width: 33%;")
+        self.assertNotContains(response, "width: 35%;")
         self.assertContains(response, carton.code)
 
     def test_scan_shipment_contact_label_returns_404_when_carton_missing(self):

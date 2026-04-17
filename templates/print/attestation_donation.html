@@ -14,19 +14,24 @@
   }
   .certificate-header {
     display: grid;
-    grid-template-columns: 18mm 1fr 18mm;
+    grid-template-columns: 42mm minmax(0, 1fr);
     gap: 4mm;
     align-items: center;
   }
+  .certificate-header [aria-hidden="true"] {
+    display: none;
+  }
   .certificate-logo {
-    width: 18mm;
-    max-height: 18mm;
+    width: 20mm;
+    max-height: 20mm;
     object-fit: contain;
+    justify-self: center;
   }
   .certificate-heading {
     display: grid;
     gap: 0.5mm;
     text-align: center;
+    font-weight: 700;
   }
   .certificate-title {
     font-size: 16pt;
@@ -49,17 +54,20 @@
     border: 0;
     padding: 1.2mm 0;
     font-size: 9pt;
-    vertical-align: top;
+    vertical-align: middle;
   }
   .certificate-table th {
-    width: 34mm;
+    width: 42mm;
     background: transparent;
-    text-align: left;
+    text-align: right;
     font-weight: 700;
+    padding-right: 2mm;
+    white-space: nowrap;
   }
   .certificate-value {
     border-bottom: 1px solid #000;
     min-height: 5mm;
+    padding-left: 2mm;
   }
   .certificate-value--single-line {
     white-space: normal;
@@ -67,10 +75,16 @@
   .certificate-line {
     white-space: pre-line;
     font-size: 9pt;
-    line-height: 1;
+    line-height: 1.1;
   }
   .certificate-body-intro {
     white-space: normal;
+  }
+  .certificate-table,
+  .certificate-body-intro,
+  .certificate-notes,
+  .certificate-signoff {
+    margin: 1.5mm 0;
   }
   .certificate-notes {
     display: grid;
@@ -79,11 +93,13 @@
   .certificate-emphasis {
     font-weight: 700;
   }
+  #donation-certificate-customs-value {
+    margin: 1.5mm 0;
+  }
   .certificate-signoff {
     display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 6mm;
+    grid-template-columns: 1fr;
+    gap: 2.5mm;
   }
   .certificate-signoff-lines {
     display: grid;
@@ -91,6 +107,7 @@
   }
   .certificate-stamp {
     height: 18mm;
+    justify-self: start;
   }
 {% endblock %}
 

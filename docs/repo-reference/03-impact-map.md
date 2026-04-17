@@ -187,6 +187,11 @@ Ask yourself:
 - is the same document reachable from scan, admin, and API?
 - does the print-template editor still expose the current contract?
 - do bundle/view/export routes all need the same adjustment?
+- does the shipment `paper` bundle still keep the expected order
+  `shipment_note -> customs -> packing_list_shipment x2`, and do the portrait HTML templates still
+  match that operator contract?
+- does shipment `standard_labels` still mean one `A4` page per carton with the four blocks
+  donation, shipment label, contact label, and carton packing list?
 - does this change distinguish between the continuous-roll `carton_lists` action page and the direct printable `carton_lists_a4` A4 surface?
 
 Run or inspect first:

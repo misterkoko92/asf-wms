@@ -3,7 +3,7 @@
 {% block title %}{{ bundle_title }}{% endblock %}
 
 {% block extra_style %}
-  @page { size: A4 landscape; margin: 8mm; }
+  @page { size: A4 portrait; margin: 8mm; }
   .print-header { display: none; }
   .print-body { padding-bottom: 0; }
   .paper-bundle {
@@ -22,29 +22,32 @@
     --sheet-label-width: 25%;
     --sheet-value-width: 25%;
     display: grid;
-    gap: 4mm;
-    font-size: 9.5pt;
-    line-height: 1.25;
+    gap: 3mm;
+    font-size: 8pt;
+    line-height: 1.15;
   }
   .sheet-header {
     display: grid;
-    grid-template-columns: 22mm 1fr;
-    gap: 5mm;
+    grid-template-columns: 16mm 1fr;
+    gap: 3mm;
     align-items: center;
   }
   .sheet-logo {
-    width: 22mm;
-    max-height: 22mm;
+    width: 16mm;
+    max-height: 16mm;
     object-fit: contain;
   }
   .sheet-org {
     border: 0px solid #000;
-    padding: 2mm 4mm;
+    padding: 1.2mm 2.2mm;
     display: grid;
-    gap: 0.8mm;
-    font-size: 8.75pt;
-    line-height: 1.2;
+    gap: 0.45mm;
+    font-size: 6.7pt;
+    line-height: 1.1;
     text-align: center;
+  }
+  .sheet-org-contact-line {
+    white-space: nowrap;
   }
   .sheet-table {
     width: 100%;
@@ -56,15 +59,18 @@
     border-right: 1px solid #000;
     border-top: 0;
     border-bottom: 0;
-    padding: 2.2mm 2.5mm;
+    padding: 1.3mm 1.5mm;
     vertical-align: top;
-    font-size: 9pt;
+    font-size: 10pt;
+    line-height: 1.1;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .sheet-table th {
     background: #fff;
     text-align: left;
     font-weight: 700;
-    white-space: nowrap;
   }
   .sheet-col-label {
     width: var(--sheet-label-width);
@@ -99,7 +105,7 @@
   }
   .sheet-emphasis-row th,
   .sheet-emphasis-row td {
-    font-size: 14pt;
+    font-size: 10pt;
     font-weight: 700;
     line-height: 1;
   }
@@ -109,16 +115,20 @@
   .sheet-emphasis-row td {
     color: #c20000;
   }
+  .sheet-routing-table td:nth-child(2),
+  .sheet-routing-table td:nth-child(4) {
+    text-transform: uppercase;
+  }
   .sheet-signatures {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8mm;
-    margin-top: 3mm;
+    gap: 5mm;
+    margin-top: 2mm;
   }
   .sheet-party-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 3mm;
+    grid-template-columns: 1fr;
+    gap: 2mm;
     align-items: start;
   }
   .sheet-party-table {
@@ -127,46 +137,47 @@
   }
   .sheet-party-table th,
   .sheet-party-table td {
-    padding: 1.5mm 1.8mm;
-    font-size: 7.8pt;
-    line-height: 1.15;
+    padding: 1.3mm 1.5mm;
+    font-size: 10pt;
+    line-height: 1.1;
   }
   .sheet-party-table th {
     white-space: normal;
   }
   .sheet-party-table .sheet-col-label {
-    width: 40%;
+    width: var(--sheet-label-width);
   }
   .sheet-party-table .sheet-section-title {
-    font-size: 8pt;
-    white-space: nowrap;
+    font-size: 10pt;
   }
   .sheet-signature-title {
     font-weight: 700;
-    margin-bottom: 8mm;
+    margin-bottom: 4mm;
+    font-size: 7pt;
   }
   .sheet-signature-line {
     border-bottom: 1px solid #000;
-    height: 8mm;
+    height: 5mm;
   }
   .customs-note {
     border: 1px solid #000;
-    padding: 4mm;
-    font-size: 9pt;
+    padding: 2.4mm;
+    font-size: 7pt;
+    line-height: 1.15;
   }
   .packing-sheet {
     display: grid;
-    gap: 4mm;
+    gap: 3mm;
   }
   .packing-sheet-header {
     display: grid;
-    grid-template-columns: 18mm 1fr 18mm;
-    gap: 4mm;
+    grid-template-columns: 14mm 1fr 14mm;
+    gap: 3mm;
     align-items: center;
   }
   .packing-sheet-logo {
-    width: 18mm;
-    max-height: 18mm;
+    width: 14mm;
+    max-height: 14mm;
     object-fit: contain;
   }
   .packing-sheet-heading {
@@ -176,14 +187,15 @@
   }
   .packing-sheet-title {
     font-family: Arial, sans-serif;
-    font-size: 16pt;
+    font-size: 12pt;
     font-weight: 700;
     text-align: center;
     margin: 0;
   }
   .packing-sheet-subtitle {
     text-align: center;
-    font-size: 10pt;
+    font-size: 7pt;
+    line-height: 1.1;
   }
   .packing-meta-table {
     margin-top: 0;
@@ -191,28 +203,31 @@
   .packing-meta-table th,
   .packing-meta-table td {
     border: 1px solid #000;
-    padding: 2.2mm 2.5mm;
-    font-size: 9pt;
+    padding: 1.4mm 1.6mm;
+    font-size: 7pt;
   }
   .packing-meta-table th {
     background: #fff;
     text-align: left;
     font-weight: 700;
   }
+  .packing-destination-value {
+    font-weight: 700;
+  }
   .packing-items-table {
     table-layout: fixed;
   }
   .packing-col-carton {
-    width: 25mm;
+    width: 20mm;
   }
   .packing-col-product {
     width: auto;
   }
   .packing-col-quantity {
-    width: 35mm;
+    width: 24mm;
   }
   .packing-col-expiry {
-    width: 35mm;
+    width: 24mm;
   }
   .packing-items-table th:nth-child(1),
   .packing-items-table th:nth-child(3),

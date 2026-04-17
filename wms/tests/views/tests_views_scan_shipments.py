@@ -1661,7 +1661,7 @@ class ScanShipmentsViewsTests(TestCase):
             response, "Imprimer toutes les listes colisage carton (rouleau continu)"
         )
         self.assertContains(response, "Imprimer toutes les listes par carton")
-        self.assertContains(response, "Imprimer toutes les étiquettes standard")
+        self.assertContains(response, "Imprimer étiquettes cartons")
         self.assertContains(response, "Étiquette contact")
         self.assertContains(response, "Voir les colis")
         self.assertContains(response, "Dernière MAJ :")

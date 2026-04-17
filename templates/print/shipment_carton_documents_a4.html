@@ -1,0 +1,464 @@
+{% extends "print/base_document.html" %}
+
+{% block title %}{{ bundle_title }}{% endblock %}
+
+{% block extra_style %}
+  @page { size: A4 portrait; margin: 8mm; }
+  .print-header { display: none; }
+  .print-body { padding-bottom: 0; }
+
+  .carton-documents-pages {
+    display: grid;
+    gap: 0;
+  }
+  .carton-documents-page {
+    min-height: calc(297mm - 16mm);
+    page-break-after: always;
+    break-after: page;
+  }
+  .carton-documents-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .carton-documents-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4mm;
+    min-height: 100%;
+  }
+  .carton-documents-block {
+    border: 1px solid #000;
+    padding: 2.4mm;
+    overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .carton-documents-block--donation .certificate,
+  .carton-documents-block--contact .contact-label,
+  .carton-documents-block--packing .packing-sheet {
+    display: grid;
+  }
+  .carton-documents-block--donation .certificate-header,
+  .carton-documents-block--packing .packing-sheet-header {
+    display: grid;
+  }
+  .carton-documents-block--donation .certificate-heading,
+  .carton-documents-block--packing .packing-sheet-heading {
+    display: grid;
+    text-align: center;
+  }
+  .carton-documents-block--donation .certificate-table {
+    margin-top: 0;
+  }
+  .carton-documents-block--donation .certificate-table th,
+  .carton-documents-block--donation .certificate-table td {
+    border: 0;
+  }
+  .carton-documents-block--donation .certificate-table th {
+    background: transparent;
+    font-weight: 700;
+  }
+  .carton-documents-block--donation .certificate-value {
+    border-bottom: 1px solid #000;
+  }
+  .carton-documents-block--donation .certificate-line {
+    white-space: pre-line;
+  }
+  .carton-documents-block--donation .certificate-body-intro {
+    white-space: normal;
+  }
+  .carton-documents-block--donation .certificate-notes,
+  .carton-documents-block--donation .certificate-signoff-lines {
+    display: grid;
+  }
+  .carton-documents-block--donation .certificate-signoff {
+    display: grid;
+    align-items: center;
+  }
+  .carton-documents-block--donation .certificate-emphasis {
+    font-weight: 700;
+  }
+  .carton-documents-block--donation .certificate-accent {
+    color: #c20000;
+  }
+
+  .carton-documents-block--label .label-city {
+    border: 3px solid #333;
+    text-align: center;
+    font-weight: 800;
+  }
+  .carton-documents-block--label .label-iata-row {
+    display: grid;
+  }
+  .carton-documents-block--label .label-iata-wrap,
+  .carton-documents-block--label .label-qr-wrap {
+    display: flex;
+    align-items: center;
+  }
+  .carton-documents-block--label .label-iata {
+    border: 4px solid #d11;
+    color: #d11;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+  }
+  .carton-documents-block--label .label-qr {
+    object-fit: contain;
+  }
+  .carton-documents-block--label .label-footer {
+    display: flex;
+  }
+  .carton-documents-block--label .label-box {
+    border: 1px solid #333;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    text-transform: uppercase;
+    font-weight: 800;
+  }
+  .carton-documents-block--label .label-box-text {
+    display: inline-flex;
+    gap: 0.25em;
+    align-items: baseline;
+    font-weight: 800;
+  }
+
+  .carton-documents-block--contact .sheet-table {
+    width: 100%;
+    margin-top: 0;
+    border-collapse: collapse;
+  }
+  .carton-documents-block--contact .sheet-table th,
+  .carton-documents-block--contact .sheet-table td {
+    border-left: 1px solid #000;
+    border-right: 1px solid #000;
+    border-top: 0;
+    border-bottom: 0;
+    text-align: left;
+  }
+  .carton-documents-block--contact .sheet-table th {
+    background: #fff;
+    font-weight: 700;
+    white-space: normal;
+  }
+  .carton-documents-block--contact .sheet-table tr:first-child > * {
+    border-top: 1px solid #000;
+  }
+  .carton-documents-block--contact .sheet-table tr:last-child > * {
+    border-bottom: 1px solid #000;
+  }
+  .carton-documents-block--contact .sheet-table .sheet-section-row > th,
+  .carton-documents-block--contact .sheet-table .sheet-section-row > td {
+    border-bottom: 1px solid #000;
+  }
+  .carton-documents-block--contact .sheet-section-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .carton-documents-block--contact .sheet-en {
+    font-style: italic;
+    font-weight: 400;
+  }
+  .carton-documents-block--contact .sheet-party-grid {
+    display: grid;
+    align-items: start;
+  }
+  .carton-documents-block--contact .sheet-party-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+  .carton-documents-block--contact .sheet-party-table tr > * + * {
+    border-left: 1px solid #000;
+  }
+  .carton-documents-block--contact .contact-value {
+    white-space: pre-line;
+  }
+
+  .carton-documents-block--packing .packing-sheet-logo {
+    object-fit: contain;
+  }
+  .carton-documents-block--packing .packing-sheet-title {
+    font-weight: 700;
+    text-align: center;
+    margin: 0;
+  }
+  .carton-documents-block--packing .packing-sheet-subtitle,
+  .carton-documents-block--packing .packing-sheet-ref {
+    white-space: pre-line;
+  }
+  .carton-documents-block--packing .packing-ref-label {
+    font-weight: 700;
+  }
+
+  .carton-documents-block--donation .certificate,
+  .carton-documents-block--contact .contact-label,
+  .carton-documents-block--packing .packing-sheet {
+    gap: 1.6mm;
+  }
+
+  .carton-documents-block--donation .certificate {
+    font-size: 6.1pt;
+  }
+  .carton-documents-block--donation .certificate-header {
+    grid-template-columns: 22mm minmax(0, 1fr);
+    gap: 2mm;
+    align-items: center;
+  }
+  .carton-documents-block--donation .certificate-header [aria-hidden="true"] {
+    display: none;
+  }
+  .carton-documents-block--donation .certificate-logo {
+    width: 12mm;
+    max-height: 12mm;
+    justify-self: center;
+  }
+  .carton-documents-block--donation .certificate-heading {
+    font-weight: 700;
+  }
+  .carton-documents-block--donation .certificate-title,
+  .carton-documents-block--donation .certificate-city {
+    font-size: 8.8pt;
+    line-height: 1.1;
+  }
+  .carton-documents-block--donation .certificate-table {
+    margin: 1mm 0;
+    table-layout: fixed;
+  }
+  .carton-documents-block--donation .certificate-table th,
+  .carton-documents-block--donation .certificate-table td {
+    padding: 0.55mm 0;
+    font-size: 5.9pt;
+    line-height: 1.1;
+    vertical-align: middle;
+  }
+  .carton-documents-block--donation .certificate-table th {
+    width: 22mm;
+    text-align: right;
+    padding-right: 1.2mm;
+    white-space: nowrap;
+  }
+  .carton-documents-block--donation .certificate-value {
+    min-height: 2.5mm;
+    padding-left: 1.2mm;
+  }
+  .carton-documents-block--donation .certificate-line {
+    font-size: 5.7pt;
+    line-height: 1.1;
+  }
+  .carton-documents-block--donation .certificate-body-intro,
+  .carton-documents-block--donation .certificate-notes,
+  .carton-documents-block--donation .certificate-signoff {
+    margin: 1mm 0;
+  }
+  .carton-documents-block--donation .certificate-signoff {
+    grid-template-columns: 1fr;
+    gap: 1mm;
+  }
+  .carton-documents-block--donation #donation-certificate-customs-value {
+    margin: 1mm 0;
+  }
+  .carton-documents-block--donation .certificate-stamp {
+    height: 10mm;
+    justify-self: start;
+  }
+
+  .carton-documents-block--label {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+  .carton-documents-block--label .label-city {
+    border-width: 3px;
+    padding: 0 2mm;
+    margin-top: 1mm;
+    min-height: 3em;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 23pt;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .carton-documents-block--label .label-iata-row {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 2.6mm;
+    align-self: center;
+  }
+  .carton-documents-block--label .label-iata-wrap {
+    grid-column: auto;
+    justify-content: center;
+    width: 100%;
+  }
+  .carton-documents-block--label .label-iata {
+    border-width: 4px;
+    padding: 0 6mm;
+    min-height: 3em;
+    box-sizing: border-box;
+    font-size: 34pt;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .carton-documents-block--label .label-qr-wrap {
+    grid-column: auto;
+    justify-content: center;
+  }
+  .carton-documents-block--label .label-qr {
+    border: 0;
+    height: 16mm;
+    width: 16mm;
+  }
+  .carton-documents-block--label .label-footer {
+    gap: 2.5mm;
+    margin-top: 2mm;
+    justify-content: space-between;
+    align-self: end;
+  }
+  .carton-documents-block--label .label-box {
+    border-width: 1px;
+    padding: 1.8mm 2.3mm;
+    font-size: 20pt;
+    justify-content: center;
+    text-align: center;
+    flex: 0 0 33%;
+    max-width: 33%;
+  }
+  .carton-documents-block--label .label-box.small {
+    flex: 0 0 33%;
+    max-width: 33%;
+  }
+  .carton-documents-block--label .label-box-text {
+    display: block;
+    white-space: normal;
+    line-height: 1.05;
+  }
+
+  .carton-documents-block--contact .contact-label {
+    font-size: 5.8pt;
+    line-height: 1.05;
+  }
+  .carton-documents-block--contact .contact-label-meta {
+    display: grid;
+    gap: 0.7mm;
+    font-size: 5.6pt;
+    font-weight: 700;
+  }
+  .carton-documents-block--contact .sheet-party-grid {
+    grid-template-columns: 1fr;
+    gap: 1.6mm;
+  }
+  .carton-documents-block--contact .sheet-col-label {
+    width: 33%;
+  }
+  .carton-documents-block--contact .sheet-table th,
+  .carton-documents-block--contact .sheet-table td {
+    padding: 0.7mm 0.9mm;
+    font-size: 5.4pt;
+    line-height: 1.05;
+    vertical-align: middle;
+  }
+  .carton-documents-block--contact .sheet-table th {
+    text-align: right;
+    padding-right: 1.2mm;
+    white-space: nowrap;
+  }
+  .carton-documents-block--contact .sheet-section-row > th,
+  .carton-documents-block--contact .sheet-section-title {
+    text-align: left;
+  }
+  .carton-documents-block--contact .contact-value {
+    padding-left: 1.2mm;
+  }
+  .carton-documents-block--contact .sheet-section-title {
+    font-size: 5.7pt;
+  }
+
+  .carton-documents-block--packing .packing-sheet-header {
+    grid-template-columns: 12mm minmax(0, 1fr);
+    gap: 2mm;
+    align-items: center;
+  }
+  .carton-documents-block--packing .packing-sheet-header [aria-hidden="true"] {
+    display: none;
+  }
+  .carton-documents-block--packing .packing-sheet-logo {
+    width: 12mm;
+    max-height: 12mm;
+    justify-self: center;
+  }
+  .carton-documents-block--packing .packing-sheet-title {
+    font-size: 8.8pt;
+    line-height: 1.05;
+  }
+  .carton-documents-block--packing .packing-sheet-subtitle,
+  .carton-documents-block--packing .packing-sheet-ref {
+    font-size: 5.8pt;
+    line-height: 1.05;
+    text-align: center;
+  }
+  .carton-documents-block--packing .packing-ref-row {
+    display: block;
+  }
+  .carton-documents-block--packing .packing-table {
+    margin-top: 1mm;
+    table-layout: fixed;
+  }
+  .carton-documents-block--packing .packing-col-quantity,
+  .carton-documents-block--packing .packing-col-expiry {
+    width: 20mm;
+  }
+  .carton-documents-block--packing .packing-table th,
+  .carton-documents-block--packing .packing-table td {
+    padding: 0.7mm 0.9mm;
+    font-size: 5.4pt;
+    line-height: 1.05;
+  }
+  .carton-documents-block--packing .packing-table th:nth-child(2),
+  .carton-documents-block--packing .packing-table th:nth-child(3) {
+    white-space: nowrap;
+  }
+{% endblock %}
+
+{% block body %}
+  <div id="shipment-carton-documents-print-document" class="carton-documents-pages">
+    {% for page in carton_pages %}
+      <section id="{{ page.page_id }}" class="carton-documents-page">
+        <div class="carton-documents-grid">
+          <article
+            id="shipment-carton-documents-donation-{{ page.carton.id }}"
+            class="carton-documents-block carton-documents-block--donation"
+            data-print-doc-type="donation_certificate"
+          >
+            {{ page.donation_html|safe }}
+          </article>
+          <article
+            id="shipment-carton-documents-label-{{ page.carton.id }}"
+            class="carton-documents-block carton-documents-block--label"
+            data-print-doc-type="shipment_label"
+          >
+            {{ page.shipment_label_html|safe }}
+          </article>
+          <article
+            id="shipment-carton-documents-contact-{{ page.carton.id }}"
+            class="carton-documents-block carton-documents-block--contact"
+            data-print-doc-type="contact_label"
+          >
+            {{ page.contact_html|safe }}
+          </article>
+          <article
+            id="shipment-carton-documents-packing-{{ page.carton.id }}"
+            class="carton-documents-block carton-documents-block--packing"
+            data-print-doc-type="packing_list_carton"
+          >
+            {{ page.packing_html|safe }}
+          </article>
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% endblock %}

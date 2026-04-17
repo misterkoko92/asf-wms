@@ -189,7 +189,7 @@ class ShipmentViewHelpersTests(TestCase):
                 "Imprimer dossier papier",
                 "Imprimer toutes les listes colisage carton (rouleau continu)",
                 "Imprimer toutes les listes par carton",
-                "Imprimer toutes les étiquettes standard",
+                "Imprimer étiquettes cartons",
             ],
         )
         self.assertEqual(

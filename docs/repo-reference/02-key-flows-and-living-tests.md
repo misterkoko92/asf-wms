@@ -143,6 +143,10 @@ Use it when you need to answer:
 - carton status progression
 - grouped carton assignment and print/document entrypoints
 - direct HTML print bundles for shipment `paper`, `standard_labels`, and `carton_lists_a4`
+- shipment `paper` now prints, in order, `Bon d'expédition`, `Document douane`, then
+  `Liste colisage générale` twice; those three shipment-paper surfaces now use `A4 portrait`
+- shipment `standard_labels` now means one `A4 portrait` page per carton with four compact
+  quadrants: donation certificate, shipment label, contact label, and carton packing list
 - shipment `carton_lists` kept as a per-carton action page for continuous-roll printing
 - carton bundle page exposes global print actions for continuous-roll and A4 four-up outputs
 - tracking events
