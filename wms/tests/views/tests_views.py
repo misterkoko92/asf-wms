@@ -1628,6 +1628,35 @@ class ScanViewTests(TestCase):
             ),
         )
 
+    def test_scan_carton_edit_marks_helper_generated_document_links_only(self):
+        shipment, carton = self._create_shipment_with_carton()
+
+        response = self.client.get(reverse("scan:scan_carton_edit", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-local-document-helper-root="1"')
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id])}?delivery=html" '
+                'target="_blank" rel="noopener"'
+            ),
+        )
+        self.assertNotContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id])}?delivery=html" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_carton_picking", args=[carton.id])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+
     def test_scan_shipment_edit_with_missing_additional_document_file_does_not_500(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.DRAFT,
