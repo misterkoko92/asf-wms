@@ -115,6 +115,7 @@ DELETE_BATCHES = (
             "wms.Document",
             "wms.ShipmentTrackingEvent",
             "wms.CartonStatusEvent",
+            "wms.CartonVolunteerActivity",
             "wms.CartonItem",
             "wms.StockMovement",
             "wms.ProductLot",

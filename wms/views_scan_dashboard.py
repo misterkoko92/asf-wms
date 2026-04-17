@@ -38,7 +38,7 @@ DASHBOARD_QUERY_ONLY_KEYS = {
 @require_http_methods(["GET"])
 def scan_root(request):
     if user_is_preparateur(request.user):
-        return redirect("scan:scan_pack")
+        return redirect("scan:scan_preparateur_home")
     return redirect("scan:scan_dashboard")
 
 

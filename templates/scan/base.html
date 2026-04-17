@@ -37,7 +37,7 @@
           >
             Menu
           </button>
-          <a href="{% url 'scan:scan_dashboard' %}" class="scan-brand-link" aria-label="Aviation Sans Frontières France">
+          <a href="{% url 'scan:scan_root' %}" class="scan-brand-link" aria-label="Aviation Sans Frontières France">
             <img
               id="scan-brand-desktop"
               src="{% static 'scan/logo.jpg' %}"
@@ -52,6 +52,11 @@
             >
             <span class="scan-brand-title">Messagerie Médicale</span>
           </a>
+          {% if request.scan_is_preparateur and request.scan_active_volunteer_greeting_name %}
+            <div class="scan-help ui-comp-note mb-0">
+              {% blocktrans with name=request.scan_active_volunteer_greeting_name %}Bonjour {{ name }}{% endblocktrans %}
+            </div>
+          {% endif %}
         </div>
         <div class="scan-header-tools">
           {% include "includes/language_switch.html" %}

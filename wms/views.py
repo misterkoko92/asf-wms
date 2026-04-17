@@ -72,6 +72,7 @@ from .views_scan import (
     scan_out,
     scan_pack,
     scan_pilotage,
+    scan_preparateur_home,
     scan_preparation_parameter_set_config,
     scan_preparation_run_create,
     scan_preparation_run_detail,
@@ -174,6 +175,7 @@ PUBLIC_EXPORTS = (
 
 SCAN_FLOW_EXPORTS = (
     "scan_root",
+    "scan_preparateur_home",
     "scan_dashboard",
     "scan_pilotage",
     "scan_stock",

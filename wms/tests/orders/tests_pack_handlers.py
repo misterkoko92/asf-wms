@@ -10,15 +10,20 @@ from wms.models import (
     Carton,
     CartonStatus,
     CartonStatusEvent,
+    CartonVolunteerActivity,
+    CartonVolunteerActivityAction,
     Location,
     Product,
     ProductCategory,
     ProductLot,
     ProductLotStatus,
+    VolunteerProfile,
     Warehouse,
 )
 from wms.pack_handlers import build_pack_defaults, handle_pack_post
 from wms.services import StockError
+
+TEST_PASSWORD = "pass1234"  # pragma: allowlist secret
 
 
 class _FakeForm:
@@ -40,7 +45,7 @@ class PackHandlersTests(TestCase):
         self.user = SimpleNamespace(id=31, username="packer")
         self.staff_user = get_user_model().objects.create_user(
             username="pack-staff",
-            password="pass1234",  # pragma: allowlist secret
+            password=TEST_PASSWORD,
             is_staff=True,
         )
 
@@ -50,7 +55,16 @@ class PackHandlersTests(TestCase):
         request.session = {}
         return request
 
-    def _db_request(self, data=None, *, preparateur=False):
+    def _create_active_volunteer(self, *, username="pack-volunteer", first_name="Martin"):
+        volunteer_user = get_user_model().objects.create_user(
+            username=username,
+            password=TEST_PASSWORD,
+            first_name=first_name,
+            last_name="Dupond",
+        )
+        return VolunteerProfile.objects.create(user=volunteer_user, is_active=True)
+
+    def _db_request(self, data=None, *, preparateur=False, active_volunteer=None):
         request = self.factory.post("/scan/pack/", data or {})
         user = self.staff_user
         if preparateur:
@@ -58,6 +72,11 @@ class PackHandlersTests(TestCase):
             user.groups.add(group)
         request.user = user
         request.session = {}
+        request.scan_active_volunteer = (
+            active_volunteer
+            if active_volunteer is not None
+            else (self._create_active_volunteer() if preparateur else None)
+        )
         return request
 
     def _form(
@@ -750,3 +769,127 @@ class PackHandlersTests(TestCase):
         self.assertEqual(carton.status, CartonStatus.PACKED)
         self.assertEqual(carton.current_location, ready_mm)
         self.assertTrue(carton.code.startswith("MM-"))
+
+    def test_handle_pack_post_preparateur_uses_active_volunteer_as_prepared_by(self):
+        category_mm = ProductCategory.objects.create(name="MM")
+        product_mm = self._create_stock_product(
+            sku="SKU-MM-VOL",
+            name="Produit MM Volunteer",
+            category=category_mm,
+        )
+        volunteer = self._create_active_volunteer(username="pack-volunteer-prepared")
+        request = self._db_request(
+            {
+                "line_count": "1",
+                "line_1_product_code": product_mm.sku,
+                "line_1_quantity": "2",
+            },
+            preparateur=True,
+            active_volunteer=volunteer,
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            with mock.patch("wms.pack_handlers.messages.warning"):
+                with mock.patch("wms.pack_handlers.messages.success"):
+                    response, _state = handle_pack_post(
+                        request,
+                        form=form,
+                        default_format=None,
+                    )
+
+        self.assertEqual(response.status_code, 302)
+        carton = Carton.objects.get()
+        self.assertEqual(carton.prepared_by, volunteer.user)
+        self.assertTrue(
+            CartonVolunteerActivity.objects.filter(
+                carton=carton,
+                volunteer=volunteer,
+                action=CartonVolunteerActivityAction.PREPARED,
+                actor=self.staff_user,
+            ).exists()
+        )
+
+    def test_handle_pack_post_preparateur_carton_edit_logs_edited_activity(self):
+        category_mm = ProductCategory.objects.create(name="MM")
+        product_mm = self._create_stock_product(
+            sku="SKU-MM-EDIT",
+            name="Produit MM Edit",
+            category=category_mm,
+        )
+        original_volunteer = self._create_active_volunteer(
+            username="pack-volunteer-original",
+            first_name="Claire",
+        )
+        editing_volunteer = self._create_active_volunteer(
+            username="pack-volunteer-editor",
+            first_name="Martin",
+        )
+        carton = Carton.objects.create(
+            code="MM-20260417-01",
+            status=CartonStatus.PACKED,
+            prepared_by=original_volunteer.user,
+            current_location=product_mm.default_location,
+        )
+        source_lot = ProductLot.objects.filter(product=product_mm).get()
+        source_lot.quantity_on_hand = 18
+        source_lot.save(update_fields=["quantity_on_hand"])
+        ProductLot.objects.create(
+            product=product_mm,
+            lot_code="LOT-SKU-MM-EDIT-OLD",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=0,
+            location=product_mm.default_location,
+        )
+        carton.cartonitem_set.create(
+            product_lot=source_lot,
+            quantity=2,
+        )
+        request = self._db_request(
+            {
+                "carton_format_id": "custom",
+                "carton_length_cm": "40",
+                "carton_width_cm": "30",
+                "carton_height_cm": "30",
+                "carton_max_weight_g": "8000",
+                "current_location": str(product_mm.default_location_id),
+                "line_count": "1",
+                "line_1_product_code": product_mm.sku,
+                "line_1_quantity": "3",
+            },
+            preparateur=True,
+            active_volunteer=editing_volunteer,
+        )
+        form = self._form(
+            valid=True,
+            shipment_reference="",
+            current_location=product_mm.default_location,
+        )
+
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            with mock.patch("wms.pack_handlers.messages.warning"):
+                with mock.patch("wms.pack_handlers.messages.success"):
+                    response, _state = handle_pack_post(
+                        request,
+                        form=form,
+                        default_format=None,
+                        editing_carton=carton,
+                    )
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.prepared_by, original_volunteer.user)
+        self.assertTrue(
+            CartonVolunteerActivity.objects.filter(
+                carton=carton,
+                volunteer=editing_volunteer,
+                action=CartonVolunteerActivityAction.EDITED,
+                actor=self.staff_user,
+            ).exists()
+        )

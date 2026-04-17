@@ -8,9 +8,16 @@ from django.shortcuts import redirect
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
+from .carton_activity import record_carton_volunteer_activity
 from .carton_status_events import set_carton_status
 from .domain.stock import ensure_carton_code
-from .models import CartonFormat, CartonStatus, Location, Shipment
+from .models import (
+    CartonFormat,
+    CartonStatus,
+    CartonVolunteerActivityAction,
+    Location,
+    Shipment,
+)
 from .scan_helpers import (
     build_pack_line_values,
     build_packing_bins,
@@ -101,6 +108,10 @@ def _resolve_pack_action(request):
     if action == PACK_ACTION_PREPARE_AVAILABLE:
         return PACK_ACTION_PREPARE_AVAILABLE
     return PACK_ACTION_PREPARE_WITHOUT_CONDITIONING
+
+
+def _get_active_preparateur_volunteer(request):
+    return getattr(request, "scan_active_volunteer", None)
 
 
 def _resolve_ready_location_for_available_pack(line_items):
@@ -256,6 +267,21 @@ def _handle_preparateur_pack(
     missing_defaults,
     confirm_defaults,
 ):
+    active_volunteer = _get_active_preparateur_volunteer(request)
+    if active_volunteer is None:
+        form.add_error(None, _("Choisissez un bénévole depuis l'accueil préparateur."))
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
     grouped_line_items = defaultdict(list)
     for item in line_items:
         family = _resolve_preparateur_pack_family(
@@ -363,6 +389,9 @@ def _handle_preparateur_pack(
                         display_expires_on=entry.get("expires_on"),
                         current_location=plan["current_location"],
                         carton_size=carton_size,
+                        prepared_by_user=active_volunteer.user,
+                        volunteer_profile=active_volunteer,
+                        actor_user=request.user,
                     )
                 if carton:
                     _finalize_preparateur_carton(
@@ -472,6 +501,24 @@ def _handle_carton_edit_pack(
     if target_location is None and user_is_preparateur(request.user):
         target_location = editing_carton.current_location
 
+    active_volunteer = (
+        _get_active_preparateur_volunteer(request) if user_is_preparateur(request.user) else None
+    )
+    if user_is_preparateur(request.user) and active_volunteer is None:
+        form.add_error(None, _("Choisissez un bénévole depuis l'accueil préparateur."))
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+
     try:
         with transaction.atomic():
             if editing_carton.cartonitem_set.exists():
@@ -489,6 +536,18 @@ def _handle_carton_edit_pack(
                     display_expires_on=entry.get("expires_on"),
                     current_location=target_location,
                     carton_size=carton_size,
+                    prepared_by_user=active_volunteer.user
+                    if active_volunteer is not None
+                    else None,
+                    volunteer_profile=active_volunteer,
+                    actor_user=request.user,
+                )
+            if active_volunteer is not None:
+                record_carton_volunteer_activity(
+                    carton=editing_carton,
+                    volunteer=active_volunteer,
+                    action=CartonVolunteerActivityAction.EDITED,
+                    actor=request.user,
                 )
         for warning in pack_warnings:
             messages.warning(request, warning)

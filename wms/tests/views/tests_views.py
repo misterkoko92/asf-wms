@@ -432,14 +432,14 @@ class ScanViewTests(TestCase):
                 finally:
                     response.close()
 
-    def test_scan_root_redirects_preparateur_to_pack(self):
+    def test_scan_root_redirects_preparateur_to_home(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
 
         response = self.client.get(reverse("scan:scan_root"))
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], reverse("scan:scan_pack"))
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_home"))
 
     def test_scan_root_redirects_regular_staff_to_dashboard(self):
         response = self.client.get(reverse("scan:scan_root"))
@@ -453,6 +453,7 @@ class ScanViewTests(TestCase):
 
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         shipments_response = self.client.get(reverse("scan:scan_shipments_ready"))
+        home_response = self.client.get(reverse("scan:scan_preparateur_home"))
         pack_response = self.client.get(reverse("scan:scan_pack"))
         preparation_runs_response = self.client.get(reverse("scan:scan_preparation_run_list"))
         preparation_config_response = self.client.get(
@@ -462,6 +463,7 @@ class ScanViewTests(TestCase):
 
         self.assertEqual(dashboard_response.status_code, 403)
         self.assertEqual(shipments_response.status_code, 403)
+        self.assertEqual(home_response.status_code, 200)
         self.assertEqual(pack_response.status_code, 200)
         self.assertEqual(preparation_runs_response.status_code, 200)
         self.assertEqual(preparation_config_response.status_code, 200)

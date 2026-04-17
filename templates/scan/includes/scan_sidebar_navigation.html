@@ -2,11 +2,18 @@
 <nav id="scan-sidebar-nav" class="scan-sidebar-nav" aria-label="{% trans "Navigation Scan" %}">
   {% if request.scan_is_preparateur %}
     <a
+      id="scan-sidebar-preparateur-home"
+      href="{% url 'scan:scan_preparateur_home' %}"
+      class="scan-sidebar-link{% if active == 'preparateur_home' %} active{% endif %}"
+    >
+      Accueil
+    </a>
+    <a
       id="scan-sidebar-preparation"
       href="{% url 'scan:scan_pack' %}"
       class="scan-sidebar-link{% if active == 'pack' %} active{% endif %}"
     >
-      Préparation
+      Préparer des colis
     </a>
     <a
       id="scan-sidebar-preparation-runs"

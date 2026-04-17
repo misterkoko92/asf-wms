@@ -4126,8 +4126,52 @@
     startOcrScan(input);
   });
 
+  function closePackSuccessModal() {
+    const modal = document.getElementById('pack-success-modal');
+    const backdrop = document.getElementById('pack-success-backdrop');
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    if (backdrop && backdrop.parentNode) {
+      backdrop.parentNode.removeChild(backdrop);
+    }
+  }
+
+  function readPackSuccessPrintUrls() {
+    const payload = document.getElementById('pack-success-print-urls');
+    if (!payload) {
+      return [];
+    }
+    try {
+      const data = JSON.parse(payload.textContent || '[]');
+      return Array.isArray(data) ? data.filter(Boolean) : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function setupPackSuccessModal() {
+    document.querySelectorAll('[data-pack-success-close="1"]').forEach(button => {
+      button.addEventListener('click', () => {
+        closePackSuccessModal();
+      });
+    });
+
+    document.querySelectorAll('[data-pack-success-print="1"]').forEach(button => {
+      button.addEventListener('click', () => {
+        readPackSuccessPrintUrls().forEach(url => {
+          window.open(url, '_blank', 'noopener');
+        });
+        closePackSuccessModal();
+      });
+    });
+  }
+
   setupProductDatalist();
   setupPackLines();
+  setupPackSuccessModal();
   setupShipmentBuilder();
   setupShipmentContactFilters();
   setupAdminContactsCrud();

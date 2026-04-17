@@ -2,7 +2,12 @@ PREPARATEUR_GROUP_NAME = "Preparateur"
 PREPARATEUR_ALLOWED_SCAN_VIEWS = frozenset(
     {
         "scan_root",
+        "scan_preparateur_home",
         "scan_pack",
+        "scan_carton_edit",
+        "scan_carton_document",
+        "scan_carton_picking",
+        "scan_shipment_carton_document",
         "scan_preparation_parameter_set_config",
         "scan_preparation_run_list",
         "scan_preparation_run_create",

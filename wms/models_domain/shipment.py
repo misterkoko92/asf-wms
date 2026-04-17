@@ -383,6 +383,39 @@ class CartonStatusEvent(models.Model):
         return f"{self.carton.code}: {self.previous_status} -> {self.new_status}"
 
 
+class CartonVolunteerActivityAction(models.TextChoices):
+    PREPARED = "prepared", "Préparé"
+    EDITED = "edited", "Modifié"
+
+
+class CartonVolunteerActivity(models.Model):
+    carton = models.ForeignKey(
+        Carton,
+        on_delete=models.CASCADE,
+        related_name="volunteer_activities",
+    )
+    volunteer = models.ForeignKey(
+        "VolunteerProfile",
+        on_delete=models.CASCADE,
+        related_name="carton_activities",
+    )
+    action = models.CharField(max_length=20, choices=CartonVolunteerActivityAction.choices)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="carton_volunteer_activities",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.carton.code}: {self.action} ({self.volunteer_id})"
+
+
 class CartonItem(models.Model):
     carton = models.ForeignKey(Carton, on_delete=models.CASCADE)
     product_lot = models.ForeignKey(ProductLot, on_delete=models.PROTECT)
