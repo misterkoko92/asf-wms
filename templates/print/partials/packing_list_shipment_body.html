@@ -19,7 +19,7 @@
       <th>DESTINATAIRE</th>
     </tr>
     <tr>
-      <td>{{ shipment_ref }}</td>
+      <td class="packing-shipment-ref-value">{{ shipment_ref }}</td>
       <td>{{ carton_count }}</td>
       <td class="packing-destination-value">{{ destination_city|default:destination_label|default:destination_address|default:"-"|upper }}</td>
       <td>{% firstof recipient_info.company recipient_info.person "-" %}</td>
