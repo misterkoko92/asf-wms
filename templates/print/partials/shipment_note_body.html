@@ -5,8 +5,7 @@
     <img class="sheet-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
     <div class="sheet-org">
       <div>Bat. 7200, Rue de la remise - 95700 Roissy En France</div>
-      <div>messmed@aviation-sans-frontieres-fr.org</div>
-      <div>+33 6 50 03 72 36</div>
+      <div class="sheet-org-contact-line">messmed@aviation-sans-frontieres-fr.org // +33 6 50 03 72 36</div>
       <div>Association reconnue d'utilité publique depuis 1993</div>
     </div>
   </div>
@@ -88,7 +87,7 @@
       <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td>{{ shipper_info.company|default:"-" }}</td></tr>
       <tr><th>Adresse / <span class="sheet-en">Address</span></th><td>{{ shipper_info.address|default:"-" }}</td></tr>
       <tr><th>Contact</th><td>{{ shipper_info.email|default:"-" }}</td></tr>
-      <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td>{{ shipper_info.phone|default:"-" }}</td></tr>
+      <tr><th>Téléphone / <span class="sheet-en">Phone</span></th><td>{{ shipper_info.phone|default:"-" }}</td></tr>
     </table>
 
     <table class="sheet-table sheet-party-table">
@@ -101,7 +100,7 @@
       <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td>{{ recipient_info.company|default:"-" }}</td></tr>
       <tr><th>Adresse / <span class="sheet-en">Address</span></th><td>{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
       <tr><th>Contact</th><td>{{ recipient_info.email|default:"-" }}</td></tr>
-      <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td>{{ recipient_info.phone|default:"-" }}</td></tr>
+      <tr><th>Téléphone / <span class="sheet-en">Phone</span></th><td>{{ recipient_info.phone|default:"-" }}</td></tr>
     </table>
 
     <table class="sheet-table sheet-party-table">
@@ -114,7 +113,7 @@
       <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td>{{ correspondent_info.company|default:"-" }}</td></tr>
       <tr><th>Adresse / <span class="sheet-en">Address</span></th><td>{{ correspondent_info.address|default:"-" }}</td></tr>
       <tr><th>Contact</th><td>{{ correspondent_info.email|default:"-" }}</td></tr>
-      <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td>{{ correspondent_info.phone|default:"-" }}</td></tr>
+      <tr><th>Téléphone / <span class="sheet-en">Phone</span></th><td>{{ correspondent_info.phone|default:"-" }}</td></tr>
     </table>
   </div>
 

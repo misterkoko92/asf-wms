@@ -3,22 +3,22 @@
 {% block title %}Liste colisage lot{% endblock %}
 
 {% block extra_style %}
-  @page { size: A5 landscape; margin: 8mm; }
+  @page { size: A4 portrait; margin: 10mm; }
   .print-header { display: none; }
   .print-body { padding-bottom: 0; }
   .packing-sheet {
     display: grid;
-    gap: 4mm;
+    gap: 3mm;
   }
   .packing-sheet-header {
     display: grid;
-    grid-template-columns: 18mm 1fr 18mm;
-    gap: 4mm;
+    grid-template-columns: 16mm 1fr 16mm;
+    gap: 3mm;
     align-items: center;
   }
   .packing-sheet-logo {
-    width: 18mm;
-    max-height: 18mm;
+    width: 16mm;
+    max-height: 16mm;
     object-fit: contain;
   }
   .packing-sheet-heading {
@@ -28,14 +28,15 @@
   }
   .packing-sheet-title {
     font-family: Arial, sans-serif;
-    font-size: 16pt;
+    font-size: 14pt;
     font-weight: 700;
     text-align: center;
     margin: 0;
   }
   .packing-sheet-subtitle {
     text-align: center;
-    font-size: 10pt;
+    font-size: 8pt;
+    line-height: 1.15;
   }
   .packing-meta-table {
     margin-top: 0;
@@ -43,28 +44,31 @@
   .packing-meta-table th,
   .packing-meta-table td {
     border: 1px solid #000;
-    padding: 2.2mm 2.5mm;
-    font-size: 9pt;
+    padding: 1.8mm 2mm;
+    font-size: 8pt;
   }
   .packing-meta-table th {
     background: #fff;
     text-align: left;
     font-weight: 700;
   }
+  .packing-destination-value {
+    font-weight: 700;
+  }
   .packing-items-table {
     table-layout: fixed;
   }
   .packing-col-carton {
-    width: 25mm;
+    width: 22mm;
   }
   .packing-col-product {
     width: auto;
   }
   .packing-col-quantity {
-    width: 35mm;
+    width: 28mm;
   }
   .packing-col-expiry {
-    width: 35mm;
+    width: 28mm;
   }
   .packing-items-table th:nth-child(1),
   .packing-items-table th:nth-child(3),

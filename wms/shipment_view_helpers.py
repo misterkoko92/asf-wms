@@ -187,7 +187,7 @@ def build_shipment_dossier_print_actions(shipment):
             "url": _build_future_shipment_bundle_url(shipment, "carton_lists_a4"),
         },
         {
-            "label": _("Imprimer toutes les étiquettes standard"),
+            "label": _("Imprimer étiquettes cartons"),
             "url": _build_future_shipment_bundle_url(shipment, "standard_labels"),
         },
     ]

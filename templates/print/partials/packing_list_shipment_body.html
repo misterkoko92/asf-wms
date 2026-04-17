@@ -1,7 +1,7 @@
 {% load static %}
 
-<div id="packing-list-shipment-sheet" class="packing-sheet">
-  <div id="packing-list-shipment-header" class="packing-sheet-header">
+<div id="{{ sheet_id|default:'packing-list-shipment-sheet' }}" class="packing-sheet">
+  <div id="{{ header_id|default:'packing-list-shipment-header' }}" class="packing-sheet-header">
     <img class="packing-sheet-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
     <div class="packing-sheet-heading">
       <div class="packing-sheet-title">LISTE DE COLISAGE</div>
@@ -21,12 +21,12 @@
     <tr>
       <td>{{ shipment_ref }}</td>
       <td>{{ carton_count }}</td>
-      <td>{{ destination_city|default:destination_label|default:destination_address|default:"-" }}</td>
+      <td class="packing-destination-value">{{ destination_city|default:destination_label|default:destination_address|default:"-"|upper }}</td>
       <td>{% firstof recipient_info.company recipient_info.person "-" %}</td>
     </tr>
   </table>
 
-  <table id="packing-list-shipment-table" class="packing-items-table">
+  <table id="{{ table_id|default:'packing-list-shipment-table' }}" class="packing-items-table">
     <colgroup>
       <col class="packing-col-carton">
       <col class="packing-col-product">

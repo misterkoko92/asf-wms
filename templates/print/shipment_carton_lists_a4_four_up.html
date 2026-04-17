@@ -36,12 +36,16 @@
     gap: 1.5mm;
   }
   .packing-four-up-item .packing-sheet-header {
-    grid-template-columns: 12mm 1fr 12mm;
+    grid-template-columns: 12mm minmax(0, 1fr);
     gap: 2mm;
+  }
+  .packing-four-up-item .packing-sheet-header [aria-hidden="true"] {
+    display: none;
   }
   .packing-four-up-item .packing-sheet-logo {
     width: 12mm;
     max-height: 12mm;
+    justify-self: center;
   }
   .packing-four-up-item .packing-sheet-title {
     font-size: 11pt;
@@ -51,9 +55,13 @@
     font-size: 6.8pt;
     line-height: 1.05;
   }
-  .packing-four-up-item .packing-ref-row {
-    gap: 2mm;
+  .packing-four-up-item .packing-sheet-ref {
     font-size: 7.2pt;
+    line-height: 1.05;
+    text-align: center;
+  }
+  .packing-four-up-item .packing-ref-row {
+    display: block;
   }
   .packing-four-up-item .packing-table {
     margin-top: 0;

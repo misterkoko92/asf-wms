@@ -6,12 +6,12 @@
       <div class="packing-sheet-title">LISTE DE COLISAGE</div>
       <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus</div>
       <div class="packing-sheet-subtitle">Produits non dangereux</div>
+      <div class="packing-sheet-ref packing-ref-row">
+        <span class="packing-ref-label">Référence du colis :</span>
+        <span class="packing-ref-value">{{ carton_code }}</span>
+      </div>
     </div>
     <div aria-hidden="true"></div>
-  </div>
-  <div class="packing-ref-row">
-    <span class="packing-ref-label">Référence du colis :</span>
-    <span>{{ carton_code }}</span>
   </div>
 
   <table{% if table_id %} id="{{ table_id }}"{% endif %} class="packing-table">

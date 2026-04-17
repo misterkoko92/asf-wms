@@ -57,6 +57,7 @@ TEMPLATE_CARTON_PRINT_BUNDLE_LOT = "scan/carton_print_bundle_lot.html"
 TEMPLATE_SHIPMENT_BUNDLE_A4 = "print/shipment_bundle_a4.html"
 TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP = "print/shipment_bundle_a5_two_up.html"
 TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP = "print/shipment_carton_lists_a4_four_up.html"
+TEMPLATE_SHIPMENT_CARTON_DOCUMENTS_A4 = "print/shipment_carton_documents_a4.html"
 TEMPLATE_CARTON_PACKING_LISTS_CONTINUOUS = "print/carton_packing_lists_bundle.html"
 
 SHIPMENT_VIEW_DOCUMENT_CONFIG = {
@@ -307,6 +308,24 @@ def _build_shipment_view_bundle_a4_xlsx_documents(shipment):
             cartons=None,
         )
     )
+    documents.extend(
+        render_pack_document_xlsx_documents(
+            pack_code="B",
+            doc_type="packing_list_shipment",
+            variant="shipment",
+            shipment=shipment,
+            cartons=None,
+        )
+    )
+    documents.extend(
+        render_pack_document_xlsx_documents(
+            pack_code="B",
+            doc_type="packing_list_shipment",
+            variant="shipment",
+            shipment=shipment,
+            cartons=None,
+        )
+    )
     return documents
 
 
@@ -395,10 +414,27 @@ def _build_shipment_paper_bundle_sections(shipment):
             ),
         },
         {
-            "id": "shipment-paper-section-packing_list",
+            "id": "shipment-paper-section-packing_list_copy_1",
             "html": _render_print_partial(
                 "print/partials/packing_list_shipment_body.html",
-                build_shipment_document_context(shipment, "packing_list_shipment"),
+                {
+                    **build_shipment_document_context(shipment, "packing_list_shipment"),
+                    "sheet_id": "packing-list-shipment-sheet-copy-1",
+                    "header_id": "packing-list-shipment-header-copy-1",
+                    "table_id": "packing-list-shipment-table-copy-1",
+                },
+            ),
+        },
+        {
+            "id": "shipment-paper-section-packing_list_copy_2",
+            "html": _render_print_partial(
+                "print/partials/packing_list_shipment_body.html",
+                {
+                    **build_shipment_document_context(shipment, "packing_list_shipment"),
+                    "sheet_id": "packing-list-shipment-sheet-copy-2",
+                    "header_id": "packing-list-shipment-header-copy-2",
+                    "table_id": "packing-list-shipment-table-copy-2",
+                },
             ),
         },
     ]
@@ -417,20 +453,22 @@ def _build_shipment_label_payload(shipment, carton, *, position, total):
     }
 
 
-def _build_shipment_standard_label_bundle_items(request, shipment):
+def _build_shipment_carton_document_pages(request, shipment):
     shipment.ensure_qr_code(request=request)
     cartons = _ordered_shipment_cartons(shipment)
     total = len(cartons)
-    items = []
-    for doc_type in ("contact_label", "shipment_label", "donation_certificate"):
-        for position, carton in enumerate(cartons, start=1):
-            if doc_type == "contact_label":
-                html = _render_print_partial(
-                    "print/partials/contact_label_body.html",
-                    build_carton_contact_label_context(shipment, carton),
-                )
-            elif doc_type == "shipment_label":
-                html = _render_print_partial(
+    donation_context = build_shipment_document_context(shipment, "donation_certificate")
+    pages = []
+    for position, carton in enumerate(cartons, start=1):
+        pages.append(
+            {
+                "page_id": f"shipment-carton-documents-page-{carton.id}",
+                "carton": carton,
+                "donation_html": _render_print_partial(
+                    "print/partials/donation_certificate_body.html",
+                    donation_context,
+                ),
+                "shipment_label_html": _render_print_partial(
                     "print/partials/shipment_label_body.html",
                     {
                         "label": _build_shipment_label_payload(
@@ -440,20 +478,23 @@ def _build_shipment_standard_label_bundle_items(request, shipment):
                             total=total,
                         )
                     },
-                )
-            else:
-                html = _render_print_partial(
-                    "print/partials/donation_certificate_body.html",
-                    build_shipment_document_context(shipment, "donation_certificate"),
-                )
-            items.append(
-                {
-                    "wrapper_id": f"shipment-standard-labels-item-{doc_type}-{carton.id}",
-                    "doc_type": doc_type,
-                    "html": html,
-                }
-            )
-    return items
+                ),
+                "contact_html": _render_print_partial(
+                    "print/partials/contact_label_body.html",
+                    build_carton_contact_label_context(shipment, carton),
+                ),
+                "packing_html": _render_print_partial(
+                    "print/partials/packing_list_carton_body.html",
+                    {
+                        **build_carton_document_context(shipment, carton),
+                        "sheet_id": f"packing-list-carton-sheet-{carton.id}",
+                        "header_id": f"packing-list-carton-header-{carton.id}",
+                        "table_id": f"packing-list-carton-table-{carton.id}",
+                    },
+                ),
+            }
+        )
+    return pages
 
 
 def _shipment_view_bundle_context(request, shipment, bundle_key):
@@ -480,7 +521,7 @@ def _shipment_view_bundle_context(request, shipment, bundle_key):
                         f"/scan/shipment/{shipment.id}/print-bundle/carton_lists_a4/",
                     ),
                     _shipment_bundle_action(
-                        _("Lot étiquettes standard"),
+                        _("Lot étiquettes cartons"),
                         f"/scan/shipment/{shipment.id}/print-bundle/standard_labels/",
                     ),
                 ],
@@ -535,11 +576,12 @@ def _shipment_view_bundle_context(request, shipment, bundle_key):
         }
     if bundle_key == "standard_labels":
         return {
-            "template_name": TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP,
+            "template_name": TEMPLATE_SHIPMENT_CARTON_DOCUMENTS_A4,
             "context": {
                 "shipment": shipment,
-                "bundle_title": _("Lot étiquettes standard"),
-                "bundle_items": _build_shipment_standard_label_bundle_items(request, shipment),
+                "bundle_title": _("Lot étiquettes cartons"),
+                "carton_pages": _build_shipment_carton_document_pages(request, shipment),
+                "hide_footer": True,
             },
         }
     raise Http404("Bundle type not found")

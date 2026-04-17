@@ -11,9 +11,8 @@
     line-height: 1.25;
   }
   .contact-label-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3mm 8mm;
+    display: grid;
+    gap: 1mm;
     font-size: 10pt;
     font-weight: 700;
   }
@@ -29,7 +28,7 @@
     border-top: 0;
     border-bottom: 0;
     padding: 1.5mm 1.8mm;
-    vertical-align: top;
+    vertical-align: middle;
     font-size: 7.8pt;
     line-height: 1.15;
     text-align: left;
@@ -37,7 +36,12 @@
   .sheet-table th {
     background: #fff;
     font-weight: 700;
-    white-space: normal;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .sheet-section-row > th,
+  .sheet-section-title {
+    text-align: left;
   }
   .sheet-table tr:first-child > * {
     border-top: 1px solid #000;
@@ -73,10 +77,11 @@
     border-left: 1px solid #000;
   }
   .sheet-col-label {
-    width: 40%;
+    width: 33%;
   }
   .contact-value {
     white-space: pre-line;
+    padding-left: 1.8mm;
   }
 {% endblock %}
 
