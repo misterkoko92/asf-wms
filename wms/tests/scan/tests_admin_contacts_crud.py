@@ -111,6 +111,7 @@ class AdminContactsCrudTests(TestCase):
         self.assertEqual(context["contact_form"].initial["business_type"], "recipient")
         self.assertEqual(context["contact_form"].initial["organization_name"], recipient_org.name)
         self.assertEqual(context["contact_form"].initial["destination_id"], self.destination.id)
+        self.assertEqual(context["contact_form"].initial["asf_id"], recipient_org.asf_id)
 
     def test_build_admin_contacts_forms_prefills_partner_capability_context(self):
         partner = Contact.objects.create(

@@ -93,7 +93,8 @@ def _set_address(contact, cleaned_data, *, overwrite: bool):
     address.save()
 
 
-def _apply_contact_fields(contact, *, data, overwrite: bool):
+def _apply_contact_fields(contact, *, data, overwrite: bool, excluded_fields=None):
+    excluded_fields = set(excluded_fields or ())
     updated_fields = []
     scalar_fields = {
         "name": (data.get("organization_name") or "").strip()
@@ -120,6 +121,8 @@ def _apply_contact_fields(contact, *, data, overwrite: bool):
         "legal_registration_number": (data.get("legal_registration_number") or "").strip(),
         "notes": (data.get("notes") or "").strip(),
     }
+    for field_name in excluded_fields:
+        scalar_fields.pop(field_name, None)
     if contact.contact_type == ContactType.PERSON:
         scalar_fields["use_organization_address"] = bool(data.get("use_organization_address"))
     for field_name, incoming in scalar_fields.items():
@@ -176,7 +179,14 @@ def _ensure_organization(cleaned_data, *, target=None, overwrite: bool):
     return _apply_contact_fields(organization, data=cleaned_data, overwrite=overwrite)
 
 
-def _ensure_person(*, cleaned_data, organization=None, overwrite: bool, target=None):
+def _ensure_person(
+    *,
+    cleaned_data,
+    organization=None,
+    overwrite: bool,
+    target=None,
+    excluded_fields=None,
+):
     first_name = (cleaned_data.get("first_name") or "").strip()
     last_name = (cleaned_data.get("last_name") or "").strip()
     person = target
@@ -196,7 +206,12 @@ def _ensure_person(*, cleaned_data, organization=None, overwrite: bool, target=N
     elif organization is not None and person.organization_id != organization.id and overwrite:
         person.organization = organization
         person.save(update_fields=["organization"])
-    return _apply_contact_fields(person, data=cleaned_data, overwrite=overwrite)
+    return _apply_contact_fields(
+        person,
+        data=cleaned_data,
+        overwrite=overwrite,
+        excluded_fields=excluded_fields,
+    )
 
 
 def _ensure_shipper_runtime(*, organization, referent, cleaned_data):
@@ -290,6 +305,7 @@ def _save_contact_core(cleaned_data, *, target_contact=None, overwrite: bool):
             target=target_contact
             if getattr(target_contact, "contact_type", None) == ContactType.PERSON
             else None,
+            excluded_fields={"asf_id"},
         )
         if business_type == "shipper":
             _ensure_shipper_runtime(

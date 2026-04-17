@@ -94,6 +94,10 @@ def _contact_initial_from_instance(contact: Contact) -> dict[str, object]:
     destination = None
     allowed_shipper_ids: list[int] = []
     can_send_to_all = False
+    asf_id_owner = contact
+
+    if business_type in {"shipper", "recipient", "correspondent"} and organization is not None:
+        asf_id_owner = organization
 
     shipper = ShipmentShipper.objects.filter(organization=organization, is_active=True).first()
     if shipper is not None:
@@ -145,7 +149,7 @@ def _contact_initial_from_instance(contact: Contact) -> dict[str, object]:
         "last_name": contact.last_name
         if contact.contact_type == ContactType.PERSON
         else getattr(referent, "last_name", ""),
-        "asf_id": contact.asf_id or "",
+        "asf_id": asf_id_owner.asf_id or "",
         "email": contact.email
         if contact.contact_type == ContactType.PERSON
         else getattr(referent, "email", contact.email),

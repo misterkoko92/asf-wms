@@ -94,6 +94,8 @@ Use it when you need to answer:
 - superuser recipient review under `/scan/contacts/validations/recipients/` and
   `/scan/contacts/validations/recipients/<id>/`, reusing the shared admin contact write path from
   a dedicated validation dossier instead of the overloaded contacts directory
+- on that shared recipient write path, the single `ASF ID` field belongs to the organization and
+  must never be propagated onto the referent person during save
 - the dedicated listing flow under `/scan/receive-listing/` now starts with an intake gate:
   operators must choose the file type (`CSV`, `Excel`, `PDF`) and must link the import to an
   existing pallet receipt before any upload card appears

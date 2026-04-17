@@ -285,6 +285,49 @@ class AdminContactsContactServiceTests(TestCase):
         self.assertEqual(legacy_projection.contact_first_name, "Aicha")
         self.assertEqual(legacy_projection.contact_last_name, "Traore")
 
+    def test_edit_existing_recipient_keeps_distinct_person_asf_id(self):
+        shipper_org = self._create_shipper()
+        organization = self._create_recipient(
+            shipper_org=shipper_org,
+            organization_name="Hopital Abidjan",
+            first_name="Alice",
+            last_name="Martin",
+            email="alice@example.org",
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.get(organization=organization)
+        recipient_person = ShipmentRecipientContact.objects.get(
+            recipient_organization=recipient_org
+        ).contact
+        original_person_asf_id = recipient_person.asf_id
+
+        updated = save_contact_from_form(
+            {
+                "business_type": "recipient",
+                "organization_name": "Hopital Abidjan Renove",
+                "first_name": "Aicha",
+                "last_name": "Traore",
+                "email": "aicha.traore@example.com",
+                "phone": "+33111111111",
+                "asf_id": organization.asf_id,
+                "destination_id": self.destination.id,
+                "allowed_shipper_ids": [shipper_org.id],
+                "legal_form": "public_sector",
+                "beneficiary_count": 250,
+                "address_line1": "20 Avenue Renovee",
+                "city": "Abidjan",
+                "country": "COTE D'IVOIRE",
+                "is_active": True,
+            },
+            editing_contact=organization,
+        )
+
+        organization.refresh_from_db()
+        recipient_person.refresh_from_db()
+        self.assertEqual(updated.id, organization.id)
+        self.assertEqual(organization.asf_id, updated.asf_id)
+        self.assertEqual(recipient_person.asf_id, original_person_asf_id)
+        self.assertNotEqual(recipient_person.asf_id, organization.asf_id)
+
     def test_create_correspondent_marks_stopover_and_destination_contact(self):
         organization = save_contact_from_form(
             {
