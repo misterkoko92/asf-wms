@@ -12,6 +12,7 @@
   }
 
   const MAX_RESULTS = 8;
+  const MAX_EMPTY_RESULTS = 24;
   const field = id => document.getElementById(id);
 
   const normalize = value =>
@@ -22,6 +23,28 @@
       .trim();
 
   const joinParts = parts => parts.filter(Boolean).join(" | ");
+  const compareValues = (left, right) =>
+    String(left || "").localeCompare(String(right || ""), "fr", {
+      sensitivity: "base",
+      numeric: true,
+    });
+
+  const uniqueValues = values => {
+    const seen = new Set();
+    const deduped = [];
+    values.forEach(value => {
+      if (!value) {
+        return;
+      }
+      const key = normalize(value);
+      if (!key || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      deduped.push(String(value));
+    });
+    return deduped.sort(compareValues);
+  };
 
   const setFieldValue = (id, value) => {
     const element = field(id);
@@ -59,6 +82,7 @@
       return null;
     }
     host.classList.add("scan-import-selector-host");
+    input.classList.add("scan-import-selector-input");
     let list = host.querySelector(".scan-import-selector-list");
     if (!list) {
       list = document.createElement("div");
@@ -72,12 +96,22 @@
   const filterRecords = (records, searchKeys, query) => {
     const normalizedQuery = normalize(query);
     if (!normalizedQuery) {
-      return [];
+      return records.slice(0, MAX_EMPTY_RESULTS);
     }
     return records
       .filter(record =>
         searchKeys.some(key => normalize(record[key]).includes(normalizedQuery))
       )
+      .slice(0, MAX_RESULTS);
+  };
+
+  const filterValues = (values, query) => {
+    const normalizedQuery = normalize(query);
+    if (!normalizedQuery) {
+      return values.slice(0, MAX_EMPTY_RESULTS);
+    }
+    return values
+      .filter(value => normalize(value).includes(normalizedQuery))
       .slice(0, MAX_RESULTS);
   };
 
@@ -103,8 +137,15 @@
 
   const attachRecordAutocomplete = config => {
     const input = field(config.inputId);
-    const records = Array.isArray(datasets[config.datasetName]) ? datasets[config.datasetName] : [];
-    if (!input || !records.length) {
+    const staticRecords = Array.isArray(datasets[config.datasetName]) ? datasets[config.datasetName] : [];
+    const resolveRecords = () => {
+      if (typeof config.getRecords === "function") {
+        const dynamicRecords = config.getRecords(staticRecords, datasets);
+        return Array.isArray(dynamicRecords) ? dynamicRecords : [];
+      }
+      return staticRecords;
+    };
+    if (!input || (!staticRecords.length && typeof config.getRecords !== "function")) {
       return;
     }
 
@@ -128,6 +169,9 @@
     const applySelection = record => {
       setFieldValue(config.inputId, record[config.valueKey] || "");
       config.fill(record);
+      if (typeof config.onApply === "function") {
+        config.onApply(record);
+      }
       closeList();
     };
 
@@ -140,6 +184,11 @@
     };
 
     const renderMatches = query => {
+      const records = resolveRecords();
+      if (!records.length) {
+        renderNoMatch(list, query);
+        return;
+      }
       matches = filterRecords(records, config.searchKeys, query);
       if (!matches.length) {
         renderNoMatch(list, query);
@@ -168,9 +217,7 @@
       if (closeTimer) {
         window.clearTimeout(closeTimer);
       }
-      if (input.value.trim()) {
-        renderMatches(input.value);
-      }
+      renderMatches(input.value);
     });
 
     input.addEventListener("keydown", event => {
@@ -205,9 +252,250 @@
     });
   };
 
+  const attachValueAutocomplete = config => {
+    const input = field(config.inputId);
+    const staticValues = Array.isArray(datasets[config.datasetName]) ? datasets[config.datasetName] : [];
+    const resolveValues = () => {
+      if (typeof config.getValues === "function") {
+        const dynamicValues = config.getValues(staticValues, datasets);
+        return Array.isArray(dynamicValues) ? uniqueValues(dynamicValues) : [];
+      }
+      return uniqueValues(staticValues);
+    };
+    if (!input || (!staticValues.length && typeof config.getValues !== "function")) {
+      return;
+    }
+
+    input.autocomplete = "off";
+    const hostData = createHost(input);
+    if (!hostData) {
+      return;
+    }
+    const { host, list } = hostData;
+    let matches = [];
+    let activeIndex = -1;
+    let closeTimer = null;
+
+    const closeList = () => {
+      matches = [];
+      activeIndex = -1;
+      list.innerHTML = "";
+      list.classList.remove("is-open");
+    };
+
+    const updateActive = nextIndex => {
+      const items = list.querySelectorAll(".scan-import-selector-item");
+      items.forEach((item, index) => {
+        item.classList.toggle("is-active", index === nextIndex);
+      });
+      activeIndex = nextIndex;
+    };
+
+    const applySelection = value => {
+      input.value = value;
+      if (typeof config.onApply === "function") {
+        config.onApply(value);
+      }
+      closeList();
+    };
+
+    const renderMatches = query => {
+      if (input.readOnly) {
+        closeList();
+        return;
+      }
+      const values = resolveValues();
+      if (!values.length) {
+        renderNoMatch(list, query);
+        return;
+      }
+      matches = filterValues(values, query);
+      if (!matches.length) {
+        renderNoMatch(list, query);
+        return;
+      }
+      list.innerHTML = "";
+      matches.forEach((value, index) => {
+        const item = buildItem({ primary: value, secondary: config.secondaryText || "" });
+        item.addEventListener("mouseenter", () => updateActive(index));
+        item.addEventListener("mousedown", event => {
+          event.preventDefault();
+          applySelection(value);
+        });
+        list.appendChild(item);
+      });
+      updateActive(0);
+      list.classList.add("is-open");
+    };
+
+    input.addEventListener("input", () => renderMatches(input.value));
+
+    input.addEventListener("focus", () => {
+      if (closeTimer) {
+        window.clearTimeout(closeTimer);
+      }
+      renderMatches(input.value);
+    });
+
+    input.addEventListener("keydown", event => {
+      if (!list.classList.contains("is-open")) {
+        return;
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        updateActive(Math.min(activeIndex + 1, matches.length - 1));
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        updateActive(Math.max(activeIndex - 1, 0));
+      } else if (event.key === "Enter") {
+        if (activeIndex < 0 || !matches[activeIndex]) {
+          return;
+        }
+        event.preventDefault();
+        applySelection(matches[activeIndex]);
+      } else if (event.key === "Escape") {
+        closeList();
+      }
+    });
+
+    input.addEventListener("blur", () => {
+      closeTimer = window.setTimeout(closeList, 120);
+    });
+
+    document.addEventListener("click", event => {
+      if (!host.contains(event.target)) {
+        closeList();
+      }
+    });
+  };
+
+  const categoryRecords = Array.isArray(datasets.categories) ? datasets.categories : [];
+  const locationRecords = Array.isArray(datasets.locations) ? datasets.locations : [];
+  const rackColorRecords = Array.isArray(datasets.rack_colors) ? datasets.rack_colors : [];
+  const rackColorByWarehouseAndZone = new Map();
+  rackColorRecords.forEach(record => {
+    const key = `${normalize(record.warehouse)}|${normalize(record.zone)}`;
+    if (key && record.color && !rackColorByWarehouseAndZone.has(key)) {
+      rackColorByWarehouseAndZone.set(key, record.color);
+    }
+  });
+  const rackColorsByWarehouse = new Map();
+  rackColorRecords.forEach(record => {
+    const warehouseKey = normalize(record.warehouse);
+    if (!warehouseKey || !record.color) {
+      return;
+    }
+    if (!rackColorsByWarehouse.has(warehouseKey)) {
+      rackColorsByWarehouse.set(warehouseKey, new Set());
+    }
+    rackColorsByWarehouse.get(warehouseKey).add(normalize(record.color));
+  });
+  const allRackColors = uniqueValues(rackColorRecords.map(record => record.color));
+
+  const getRackColorFor = (warehouse, zone) =>
+    rackColorByWarehouseAndZone.get(`${normalize(warehouse)}|${normalize(zone)}`) || "";
+
+  const syncRackColorField = ({ warehouseId, zoneId, colorId }) => {
+    const warehouseInput = field(warehouseId);
+    const zoneInput = field(zoneId);
+    const colorInput = field(colorId);
+    if (!warehouseInput || !zoneInput || !colorInput) {
+      return;
+    }
+    const knownRackColor = getRackColorFor(warehouseInput.value, zoneInput.value);
+    if (knownRackColor) {
+      colorInput.value = knownRackColor;
+      colorInput.readOnly = true;
+      colorInput.dataset.lockedByKnownRack = "1";
+      return;
+    }
+    if (colorInput.dataset.lockedByKnownRack === "1") {
+      colorInput.value = "";
+    }
+    colorInput.readOnly = false;
+    colorInput.dataset.lockedByKnownRack = "0";
+  };
+
+  const bindRackColorSync = config => {
+    const warehouseInput = field(config.warehouseId);
+    const zoneInput = field(config.zoneId);
+    [warehouseInput, zoneInput].forEach(input => {
+      if (!input) {
+        return;
+      }
+      ["input", "change", "blur"].forEach(eventName => {
+        input.addEventListener(eventName, () => syncRackColorField(config));
+      });
+    });
+    syncRackColorField(config);
+  };
+
+  const buildCategoryLevelValueResolver = level => () => {
+    const levelValues = [
+      field("category_l1")?.value || "",
+      field("category_l2")?.value || "",
+      field("category_l3")?.value || "",
+      field("category_l4")?.value || "",
+    ];
+    const targetKey = `level_${level + 1}`;
+    const values = categoryRecords
+      .filter(record => {
+        for (let index = 0; index < level; index += 1) {
+          const currentValue = levelValues[index];
+          if (!currentValue) {
+            continue;
+          }
+          if (normalize(record[`level_${index + 1}`]) !== normalize(currentValue)) {
+            return false;
+          }
+        }
+        return Boolean(record[targetKey]);
+      })
+      .map(record => record[targetKey]);
+    return uniqueValues(values);
+  };
+
+  const filterLocationRecords = ({ warehouseId, zoneId, aisleId, level }) => {
+    const warehouseValue = field(warehouseId)?.value || "";
+    const zoneValue = field(zoneId)?.value || "";
+    const aisleValue = field(aisleId)?.value || "";
+    return locationRecords.filter(record => {
+      if (warehouseValue && normalize(record.warehouse) !== normalize(warehouseValue)) {
+        return false;
+      }
+      if (level !== "zone" && zoneValue && normalize(record.zone) !== normalize(zoneValue)) {
+        return false;
+      }
+      if (level === "shelf" && aisleValue && normalize(record.aisle) !== normalize(aisleValue)) {
+        return false;
+      }
+      return true;
+    });
+  };
+
+  const buildLocationValueResolver = config => key => () =>
+    uniqueValues(filterLocationRecords(config).map(record => record[key]));
+
+  const buildRackColorValueResolver = ({ warehouseId, zoneId }) => () => {
+    const warehouseValue = field(warehouseId)?.value || "";
+    const zoneValue = field(zoneId)?.value || "";
+    const knownRackColor = getRackColorFor(warehouseValue, zoneValue);
+    if (knownRackColor) {
+      return [knownRackColor];
+    }
+    const warehouseKey = normalize(warehouseValue);
+    if (!warehouseKey || !rackColorsByWarehouse.has(warehouseKey)) {
+      return allRackColors;
+    }
+    const warehouseColors = rackColorsByWarehouse.get(warehouseKey);
+    return allRackColors.filter(color => !warehouseColors.has(normalize(color)));
+  };
+
   const attachTokenAutocomplete = config => {
     const input = field(config.inputId);
-    const values = Array.isArray(datasets[config.datasetName]) ? datasets[config.datasetName] : [];
+    const values = uniqueValues(
+      Array.isArray(datasets[config.datasetName]) ? datasets[config.datasetName] : []
+    );
     if (!input || !values.length) {
       return;
     }
@@ -256,14 +544,16 @@
 
     const renderMatches = () => {
       const query = currentToken();
-      const normalizedQuery = normalize(query);
-      if (!normalizedQuery) {
-        closeList();
-        return;
-      }
-      matches = values
-        .filter(value => normalize(value).includes(normalizedQuery))
-        .slice(0, MAX_RESULTS);
+      const committedTokens = input.value
+        .split("|")
+        .slice(0, -1)
+        .map(part => part.trim())
+        .filter(Boolean)
+        .map(normalize);
+      const availableValues = values.filter(
+        value => !committedTokens.includes(normalize(value))
+      );
+      matches = filterValues(availableValues, query);
       if (!matches.length) {
         renderNoMatch(list, query);
         return;
@@ -342,31 +632,20 @@
     setFieldValue("product_aisle", record.aisle);
     setFieldValue("product_shelf", record.shelf);
     setFieldValue("product_rack_color", record.rack_color);
+    setFieldValue("product_weight_g", record.weight_g);
+    setFieldValue("product_length_cm", record.length_cm);
+    setFieldValue("product_width_cm", record.width_cm);
+    setFieldValue("product_height_cm", record.height_cm);
+    setFieldValue("product_volume_cm3", record.volume_cm3);
+    setFieldValue("product_storage_conditions", record.storage_conditions);
+    setFieldValue("product_perishable", String(record.perishable));
+    setFieldValue("product_quarantine_default", String(record.quarantine_default));
     setFieldValue("product_notes", record.notes);
-  };
-
-  const fillProductCategories = record => {
-    setFieldValue("category_l1", record.level_1);
-    setFieldValue("category_l2", record.level_2);
-    setFieldValue("category_l3", record.level_3);
-    setFieldValue("category_l4", record.level_4);
-  };
-
-  const fillProductLocation = record => {
-    setFieldValue("product_warehouse", record.warehouse);
-    setFieldValue("product_zone", record.zone);
-    setFieldValue("product_aisle", record.aisle);
-    setFieldValue("product_shelf", record.shelf);
-    setFieldValue("product_rack_color", record.rack_color);
-  };
-
-  const fillLocation = record => {
-    setFieldValue("loc_warehouse", record.warehouse);
-    setFieldValue("loc_zone", record.zone);
-    setFieldValue("loc_aisle", record.aisle);
-    setFieldValue("loc_shelf", record.shelf);
-    setFieldValue("loc_color", record.rack_color);
-    setFieldValue("loc_notes", record.notes);
+    syncRackColorField({
+      warehouseId: "product_warehouse",
+      zoneId: "product_zone",
+      colorId: "product_rack_color",
+    });
   };
 
   const fillCategory = record => {
@@ -400,9 +679,6 @@
       joinParts([record.category_l1, record.category_l2, record.category_l3, record.category_l4]),
     ]);
 
-  const locationSecondary = record =>
-    joinParts([record.warehouse, [record.zone, record.aisle, record.shelf].filter(Boolean).join("-"), record.rack_color]);
-
   const categorySecondary = record => joinParts([record.parent, record.path]);
   const contactSecondary = record => joinParts([record.email, record.phone, record.scope, record.city]);
   const userSecondary = record => joinParts([record.email, record.first_name, record.last_name]);
@@ -412,8 +688,6 @@
     { inputId: "product_sku", valueKey: "sku" },
     { inputId: "product_barcode", valueKey: "barcode" },
     { inputId: "product_ean", valueKey: "ean" },
-    { inputId: "product_brand", valueKey: "brand" },
-    { inputId: "product_color", valueKey: "color" },
   ].forEach(config => {
     attachRecordAutocomplete({
       inputId: config.inputId,
@@ -440,22 +714,35 @@
     });
   });
 
+  attachValueAutocomplete({
+    inputId: "product_brand",
+    datasetName: "brands",
+    secondaryText: "Marque existante",
+  });
+
+  attachValueAutocomplete({
+    inputId: "product_color",
+    datasetName: "product_colors",
+    secondaryText: "Couleur existante",
+  });
+
+  attachValueAutocomplete({
+    inputId: "product_storage_conditions",
+    datasetName: "storage_conditions",
+    secondaryText: "Condition existante",
+  });
+
   [
-    { inputId: "category_l1", valueKey: "level_1" },
-    { inputId: "category_l2", valueKey: "level_2" },
-    { inputId: "category_l3", valueKey: "level_3" },
-    { inputId: "category_l4", valueKey: "level_4" },
+    { inputId: "category_l1", level: 0, secondaryText: "Catégorie L1" },
+    { inputId: "category_l2", level: 1, secondaryText: "Catégorie L2" },
+    { inputId: "category_l3", level: 2, secondaryText: "Catégorie L3" },
+    { inputId: "category_l4", level: 3, secondaryText: "Catégorie L4" },
   ].forEach(config => {
-    attachRecordAutocomplete({
+    attachValueAutocomplete({
       inputId: config.inputId,
       datasetName: "categories",
-      valueKey: config.valueKey,
-      searchKeys: ["name", "parent", "path", "level_1", "level_2", "level_3", "level_4"],
-      fill: fillProductCategories,
-      render: record => ({
-        primary: record[config.valueKey] || record.name,
-        secondary: categorySecondary(record),
-      }),
+      getValues: buildCategoryLevelValueResolver(config.level),
+      secondaryText: config.secondaryText,
     });
   });
 
@@ -464,30 +751,56 @@
     datasetName: "warehouses",
     valueKey: "name",
     searchKeys: ["name", "code"],
-    fill: record => setFieldValue("product_warehouse", record.name),
+    fill: record => {
+      setFieldValue("product_warehouse", record.name);
+      syncRackColorField({
+        warehouseId: "product_warehouse",
+        zoneId: "product_zone",
+        colorId: "product_rack_color",
+      });
+    },
     render: record => ({
       primary: record.name,
       secondary: record.code || "",
     }),
   });
 
+  const productLocationConfig = {
+    warehouseId: "product_warehouse",
+    zoneId: "product_zone",
+    aisleId: "product_aisle",
+  };
+
   [
-    { inputId: "product_zone", valueKey: "zone" },
-    { inputId: "product_aisle", valueKey: "aisle" },
-    { inputId: "product_shelf", valueKey: "shelf" },
-    { inputId: "product_rack_color", valueKey: "rack_color" },
+    { inputId: "product_zone", key: "zone" },
+    { inputId: "product_aisle", key: "aisle" },
+    { inputId: "product_shelf", key: "shelf" },
   ].forEach(config => {
-    attachRecordAutocomplete({
+    attachValueAutocomplete({
       inputId: config.inputId,
       datasetName: "locations",
-      valueKey: config.valueKey,
-      searchKeys: ["warehouse", "zone", "aisle", "shelf", "rack_color", "notes", "label"],
-      fill: fillProductLocation,
-      render: record => ({
-        primary: record[config.valueKey] || record.label,
-        secondary: locationSecondary(record),
-      }),
+      getValues: buildLocationValueResolver(productLocationConfig)(config.key),
+      secondaryText: "Emplacement existant",
+      onApply:
+        config.key === "zone"
+          ? () =>
+              syncRackColorField({
+                warehouseId: "product_warehouse",
+                zoneId: "product_zone",
+                colorId: "product_rack_color",
+              })
+          : null,
     });
+  });
+
+  attachValueAutocomplete({
+    inputId: "product_rack_color",
+    datasetName: "rack_colors",
+    getValues: buildRackColorValueResolver({
+      warehouseId: "product_warehouse",
+      zoneId: "product_zone",
+    }),
+    secondaryText: "Couleur rack existante",
   });
 
   attachTokenAutocomplete({
@@ -500,31 +813,57 @@
     datasetName: "warehouses",
     valueKey: "name",
     searchKeys: ["name", "code"],
-    fill: record => setFieldValue("loc_warehouse", record.name),
+    fill: record => {
+      setFieldValue("loc_warehouse", record.name);
+      syncRackColorField({
+        warehouseId: "loc_warehouse",
+        zoneId: "loc_zone",
+        colorId: "loc_color",
+      });
+    },
     render: record => ({
       primary: record.name,
       secondary: record.code || "",
     }),
   });
 
+  const locationFormConfig = {
+    warehouseId: "loc_warehouse",
+    zoneId: "loc_zone",
+    aisleId: "loc_aisle",
+  };
+
   [
-    { inputId: "loc_zone", valueKey: "zone" },
-    { inputId: "loc_aisle", valueKey: "aisle" },
-    { inputId: "loc_shelf", valueKey: "shelf" },
-    { inputId: "loc_color", valueKey: "rack_color" },
-    { inputId: "loc_notes", valueKey: "notes" },
+    { inputId: "loc_zone", key: "zone" },
+    { inputId: "loc_aisle", key: "aisle" },
+    { inputId: "loc_shelf", key: "shelf" },
+    { inputId: "loc_notes", key: "notes" },
   ].forEach(config => {
-    attachRecordAutocomplete({
+    attachValueAutocomplete({
       inputId: config.inputId,
       datasetName: "locations",
-      valueKey: config.valueKey,
-      searchKeys: ["warehouse", "zone", "aisle", "shelf", "rack_color", "notes", "label"],
-      fill: fillLocation,
-      render: record => ({
-        primary: record[config.valueKey] || record.label,
-        secondary: locationSecondary(record),
-      }),
+      getValues: buildLocationValueResolver(locationFormConfig)(config.key),
+      secondaryText: config.key === "notes" ? "Note existante" : "Emplacement existant",
+      onApply:
+        config.key === "zone"
+          ? () =>
+              syncRackColorField({
+                warehouseId: "loc_warehouse",
+                zoneId: "loc_zone",
+                colorId: "loc_color",
+              })
+          : null,
     });
+  });
+
+  attachValueAutocomplete({
+    inputId: "loc_color",
+    datasetName: "rack_colors",
+    getValues: buildRackColorValueResolver({
+      warehouseId: "loc_warehouse",
+      zoneId: "loc_zone",
+    }),
+    secondaryText: "Couleur rack existante",
   });
 
   attachRecordAutocomplete({
@@ -608,5 +947,17 @@
         secondary: userSecondary(record),
       }),
     });
+  });
+
+  bindRackColorSync({
+    warehouseId: "product_warehouse",
+    zoneId: "product_zone",
+    colorId: "product_rack_color",
+  });
+
+  bindRackColorSync({
+    warehouseId: "loc_warehouse",
+    zoneId: "loc_zone",
+    colorId: "loc_color",
   });
 })();

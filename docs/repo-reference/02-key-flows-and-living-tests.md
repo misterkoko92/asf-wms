@@ -133,6 +133,14 @@ Use it when you need to answer:
   intermediate visible carton steps, requires an editable shipment selection when operators jump
   directly to `Étiqueté`, exposes a `Tout sélectionner` control, and shows a multiline `Produits`
   column (`Nom x quantité`) instead of the former emplacement/remplissage/contenu trio
+- `/scan/pack/` and `/scan/carton/<id>/edit/` now expose the same guarded escape hatch for unknown
+  products: when an operator enters a product missing from the catalog, the UI proposes leaving the
+  current packing flow and opening `/scan/import/`; accepting this redirect intentionally drops the
+  in-progress carton draft instead of attempting a partial save
+- the product card on `/scan/import/` now doubles as the manual catalog-completion entrypoint for
+  pack flows: warehouse/rack/aisle/shelf/category/brand inputs keep free-text creation while
+  autocompleting existing values, SKU auto-generates when left blank, and rack colors stay unique
+  per warehouse while auto-filling and locking when the `(warehouse, rack)` pair is already known
 - warehouse `run magasin` generation/review under `/scan/preparation-runs/`, including proposal scoring, checkbox review actions, and conversion of accepted proposals into real shipments/cartons
 - warehouse `run magasin` flight acquisition first tries the planning API, then falls back to the latest imported exploitable flight batch; when that fallback batch is from a previous period, preparation capacity is computed from that batch period instead of crashing the operator flow
 - shipment creation/edit, including document-first creation without cartons

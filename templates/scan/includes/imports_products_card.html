@@ -3,6 +3,9 @@
 <section id="scan-imports-products" class="scan-card card border-0 ui-comp-card">
   <h2 class="ui-comp-title">{% trans "Import produits" %}</h2>
   <p class="scan-help">{% trans "Ajout rapide d'un produit ou import massif." %}</p>
+  <p class="scan-help">
+    {% trans "Cliquez dans les champs de sélection pour choisir une valeur existante ou saisir un nouveau texte." %}
+  </p>
   <form method="post" class="scan-filters ui-comp-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="product_single">
@@ -14,6 +17,7 @@
       <div class="scan-field">
         <label class="form-label" for="product_sku">SKU</label>
         <input type="text" id="product_sku" name="sku">
+        <p class="scan-help mb-0">{% trans "Laisser vide pour auto-génération." %}</p>
       </div>
       <div class="scan-field">
         <label class="form-label" for="product_barcode">Barcode</label>
@@ -47,6 +51,58 @@
     <div class="scan-field">
       <label class="form-label" for="product_tags">{% trans "Tags (séparés par |)" %}</label>
       <input type="text" id="product_tags" name="tags" placeholder="sterile|disposable">
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_weight_g">{% trans "Poids (g)" %}</label>
+        <input type="number" id="product_weight_g" name="weight_g" min="1" step="1">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_storage_conditions">{% trans "Conditions de stockage" %}</label>
+        <input type="text" id="product_storage_conditions" name="storage_conditions" placeholder="{% trans "ex: sec / frais" %}">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_length_cm">{% trans "Longueur (cm)" %}</label>
+        <input type="text" id="product_length_cm" name="length_cm" placeholder="{% trans "ex: 10.5" %}">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_width_cm">{% trans "Largeur (cm)" %}</label>
+        <input type="text" id="product_width_cm" name="width_cm" placeholder="{% trans "ex: 2.0" %}">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_height_cm">{% trans "Hauteur (cm)" %}</label>
+        <input type="text" id="product_height_cm" name="height_cm" placeholder="{% trans "ex: 3.0" %}">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_volume_cm3">{% trans "Volume (cm3)" %}</label>
+        <input type="number" id="product_volume_cm3" name="volume_cm3" min="1" step="1">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_perishable">{% trans "Périssable" %}</label>
+        <select id="product_perishable" name="perishable" class="form-select ui-select--md">
+          <option value="">--</option>
+          <option value="true">{% trans "Oui" %}</option>
+          <option value="false">{% trans "Non" %}</option>
+        </select>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_quarantine_default">{% trans "Quarantaine par défaut" %}</label>
+        <select
+          id="product_quarantine_default"
+          name="quarantine_default"
+          class="form-select ui-select--md"
+        >
+          <option value="">--</option>
+          <option value="true">{% trans "Oui" %}</option>
+          <option value="false">{% trans "Non" %}</option>
+        </select>
+      </div>
     </div>
     <div class="scan-inline scan-inline-equal">
       <div class="scan-field">

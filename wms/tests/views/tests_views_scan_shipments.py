@@ -724,6 +724,12 @@ class ScanShipmentsViewsTests(TestCase):
             response,
             reverse("scan:scan_carton_picking", args=[carton.id]),
         )
+        self.assertContains(response, "Créer un nouveau produit")
+        self.assertContains(response, 'id="pack-unknown-product-overlay"')
+        self.assertContains(
+            response,
+            'data-import-product-url="/scan/import/"',
+        )
 
     def test_scan_carton_edit_renders_read_only_fiche_when_shipment_is_planned(self):
         shipment = self._create_shipment(status=ShipmentStatus.PLANNED)

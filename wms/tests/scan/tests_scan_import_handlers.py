@@ -123,9 +123,26 @@ class ScanImportHandlersTests(TestCase):
             category=child_category,
             default_location=location,
             notes="Produit de test",
+            weight_g=150,
+            length_cm=Decimal("10.5"),
+            width_cm=Decimal("2"),
+            height_cm=Decimal("3"),
+            volume_cm3=63,
+            storage_conditions="Sec",
+            perishable=True,
+            quarantine_default=True,
             qr_code_image="qr_codes/test.png",
         )
         product.tags.add(product_tag)
+
+        Product.objects.create(
+            sku="SKU-BRAND-ONLY",
+            name="Deuxieme Produit",
+            brand="Alpha",
+            color="Rouge",
+            storage_conditions="Frais",
+            qr_code_image="qr_codes/test2.png",
+        )
 
         correspondent = Contact.objects.create(
             contact_type=ContactType.ORGANIZATION,
@@ -204,7 +221,26 @@ class ScanImportHandlersTests(TestCase):
                 "shelf": "BAC-1",
                 "rack_color": "#123456",
                 "notes": "Produit de test",
+                "weight_g": 150,
+                "length_cm": "10.5",
+                "width_cm": "2",
+                "height_cm": "3",
+                "volume_cm3": 63,
+                "storage_conditions": "Sec",
+                "perishable": True,
+                "quarantine_default": True,
                 "label": "SKU-ONDE - Monde Sonde",
+            },
+        )
+        self.assertEqual(data["brands"], ["ALPHA", "ONDE"])
+        self.assertEqual(data["product_colors"], ["Bleu", "Rouge"])
+        self.assertEqual(data["storage_conditions"], ["Frais", "Sec"])
+        self._assert_contains_subset(
+            data["rack_colors"],
+            {
+                "color": "#123456",
+                "warehouse": "Monde Depot",
+                "zone": "ZONE-1",
             },
         )
         self._assert_contains_subset(

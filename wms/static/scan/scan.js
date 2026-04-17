@@ -1000,7 +1000,10 @@
     const packPage = document.getElementById('pack-page');
     const preparateurMode =
       !!packPage && packPage.dataset.preparateurPackMode === '1';
+    const importProductUrl =
+      packPage && packPage.dataset.importProductUrl ? packPage.dataset.importProductUrl : '';
     const addButton = document.getElementById('pack-add-line');
+    const createProductLink = document.getElementById('pack-create-product-link');
     const lineCountInput = document.getElementById('pack_line_count');
     const formatSelect = document.getElementById('id_carton_format');
     const customFields = document.getElementById('custom-carton-fields');
@@ -1013,11 +1016,15 @@
     const formatDataEl = document.getElementById('carton-format-data');
     const lineDataEl = document.getElementById('pack-lines-data');
     const lineErrorsEl = document.getElementById('pack-lines-errors');
+    const unknownProductOverlay = document.getElementById('pack-unknown-product-overlay');
+    const unknownProductAccept = document.getElementById('pack-unknown-product-accept');
+    const unknownProductReject = document.getElementById('pack-unknown-product-reject');
 
     let products = [];
     let formats = [];
     let lineValues = [];
     let lineErrors = {};
+    let activeUnknownProductTarget = null;
 
     try {
       products = JSON.parse(productDataEl ? productDataEl.textContent || '[]' : '[]');
@@ -1088,6 +1095,93 @@
     const productMatcher = createProductMatcher(productEntries);
     const findProduct = value => productMatcher(value);
     packProductResolver = value => productMatcher(value);
+
+    const closeUnknownProductOverlay = () => {
+      if (!unknownProductOverlay) {
+        return;
+      }
+      unknownProductOverlay.hidden = true;
+      unknownProductOverlay.classList.remove('active');
+      unknownProductOverlay.setAttribute('aria-hidden', 'true');
+    };
+
+    const openUnknownProductOverlay = target => {
+      if (!unknownProductOverlay || !importProductUrl || !target || !target.input) {
+        return;
+      }
+      activeUnknownProductTarget = target;
+      unknownProductOverlay.hidden = false;
+      unknownProductOverlay.classList.add('active');
+      unknownProductOverlay.setAttribute('aria-hidden', 'false');
+    };
+
+    const rejectUnknownProduct = () => {
+      const target = activeUnknownProductTarget;
+      closeUnknownProductOverlay();
+      activeUnknownProductTarget = null;
+      if (!target || !target.input) {
+        return;
+      }
+      if (target.filterInput) {
+        target.filterInput.value = '';
+      }
+      target.input.value = '';
+      dispatchValueEvent(target.input);
+      window.requestAnimationFrame(() => {
+        try {
+          target.input.focus();
+        } catch (err) {
+          // Ignore focus errors on detached inputs.
+        }
+      });
+    };
+
+    const maybePromptUnknownProduct = target => {
+      if (!target || !target.input) {
+        return;
+      }
+      const value = (target.input.value || '').toString().trim();
+      if (!value) {
+        return;
+      }
+      if (findProduct(value)) {
+        return;
+      }
+      openUnknownProductOverlay(target);
+    };
+
+    if (unknownProductReject) {
+      unknownProductReject.addEventListener('click', rejectUnknownProduct);
+    }
+
+    if (unknownProductAccept) {
+      unknownProductAccept.addEventListener('click', () => {
+        if (!importProductUrl) {
+          closeUnknownProductOverlay();
+          activeUnknownProductTarget = null;
+          return;
+        }
+        window.location.assign(importProductUrl);
+      });
+    }
+
+    if (unknownProductOverlay) {
+      unknownProductOverlay.addEventListener('click', event => {
+        if (event.target === unknownProductOverlay) {
+          rejectUnknownProduct();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && unknownProductOverlay && !unknownProductOverlay.hidden) {
+        rejectUnknownProduct();
+      }
+    });
+
+    if (createProductLink && importProductUrl) {
+      createProductLink.setAttribute('href', importProductUrl);
+    }
 
     const getProductVolume = product => {
       if (!product) {
@@ -1459,9 +1553,14 @@
           const match = findProduct(event.target.value);
           if (match) {
             filterInput.value = optionLabel(match);
+          } else {
+            filterInput.value = event.target.value;
           }
+        } else {
+          filterInput.value = '';
         }
         updateFamilyControls();
+        maybePromptUnknownProduct({ input: productInput, filterInput });
       });
       quantityInput.addEventListener('input', updateAllLineMetrics);
       productInput.addEventListener('change', updateAllLineMetrics);
