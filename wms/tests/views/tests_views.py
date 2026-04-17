@@ -1326,7 +1326,10 @@ class ScanViewTests(TestCase):
         self.assertFalse(shipment.reference.startswith("EXP-TEMP-"))
         self.assertEqual(shipment.status, ShipmentStatus.DRAFT)
         self.assertEqual(shipment.destination_id, self.destination.id)
-        self.assertEqual(response.url, reverse("scan:scan_shipment_create"))
+        self.assertEqual(
+            response.url,
+            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id}),
+        )
         self.assertEqual(shipment.carton_set.count(), 0)
 
     def test_scan_shipment_create_multi_product_redirect_uses_definitive_reference(self):
