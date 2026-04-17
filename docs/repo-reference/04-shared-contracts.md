@@ -254,6 +254,9 @@ Current contract:
   `(organization, destination)` instead of organization name alone
 - recipient validation must keep using the same `ACTION_SAVE_CONTACT` submission path and runtime
   recipient shared-profile update semantics as scan/admin contact edits
+- on the shared shipment-party form, `asf_id` is organization-owned for
+  `shipper`/`recipient`/`correspondent` edits, even when the dossier is opened from a referent
+  person context, and save logic must not copy that value onto the referent person
 - explicit duplicate actions must keep their distinct semantics on the shared write path:
   `fusionner` fills missing fields on the kept fiche before deleting the other, `remplacer` keeps
   the chosen fiche without scalar overwrite from the deleted one, and `dupliquer` preserves the
