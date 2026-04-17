@@ -389,7 +389,7 @@ class ScanShipmentHandlersTests(TestCase):
     def test_handle_shipment_create_post_success(self):
         request = self._request({"carton_count": "2"})
         form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=2))
-        shipment = SimpleNamespace(reference="S-001")
+        shipment = SimpleNamespace(reference="S-001", id=123)
         carton = SimpleNamespace(shipment=None, save=mock.Mock())
         carton_query = mock.MagicMock()
         carton_query.select_related.return_value = carton_query
@@ -448,7 +448,7 @@ class ScanShipmentHandlersTests(TestCase):
         )
         pack_mock.assert_called_once()
         sync_mock.assert_called_once_with(shipment)
-        redirect_mock.assert_called_once_with("scan:scan_shipment_create")
+        redirect_mock.assert_called_once_with("scan:scan_shipment_edit", shipment.id)
 
     def test_handle_shipment_create_post_adds_form_error_on_unavailable_carton(self):
         request = self._request({"carton_count": "1"})

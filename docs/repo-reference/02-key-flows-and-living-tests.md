@@ -127,6 +127,10 @@ Use it when you need to answer:
 - listing import quantities stay additive: confirmed rows create receipt lines and stock entries;
   they do not overwrite existing stock quantities already present for the matched product
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
+- `/scan/cartons/` keeps checkbox-based bulk actions, now confirms any status jump that skips
+  intermediate visible carton steps, requires an editable shipment selection when operators jump
+  directly to `Étiqueté`, exposes a `Tout sélectionner` control, and shows a multiline `Produits`
+  column (`Nom x quantité`) instead of the former emplacement/remplissage/contenu trio
 - warehouse `run magasin` generation/review under `/scan/preparation-runs/`, including proposal scoring, checkbox review actions, and conversion of accepted proposals into real shipments/cartons
 - warehouse `run magasin` flight acquisition first tries the planning API, then falls back to the latest imported exploitable flight batch; when that fallback batch is from a previous period, preparation capacity is computed from that batch period instead of crashing the operator flow
 - shipment creation/edit, including document-first creation without cartons

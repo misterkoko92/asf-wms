@@ -336,6 +336,26 @@ class CartonHandlersTests(TestCase):
         self.assertEqual(eligible_carton.status, CartonStatus.PACKED)
         self.assertEqual(ignored_carton.status, CartonStatus.ASSIGNED)
 
+    def test_bulk_update_cartons_packed_ignores_unconfirmed_skipped_transition(self):
+        carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-SKIP-PACKED",
+            status=CartonStatus.DRAFT,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_update_cartons_packed",
+                "selected_carton_ids": [str(carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.status, CartonStatus.DRAFT)
+
     def test_bulk_update_cartons_picking_updates_only_eligible_unassigned_rows(self):
         eligible_carton = Carton.objects.create(
             code="CT-HANDLER-BULK-PICKING",
@@ -361,6 +381,37 @@ class CartonHandlersTests(TestCase):
         ignored_carton.refresh_from_db()
         self.assertEqual(eligible_carton.status, CartonStatus.PICKING)
         self.assertEqual(ignored_carton.status, CartonStatus.SHIPPED)
+
+    def test_bulk_assign_cartons_shipment_ignores_unconfirmed_skipped_transition(self):
+        destination = self._create_destination("NKC")
+        target_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination=destination,
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-SKIP-ASSIGN",
+            status=CartonStatus.DRAFT,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_assign_cartons_shipment",
+                "bulk_shipment_id": str(target_shipment.id),
+                "selected_carton_ids": [str(carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertIsNone(carton.shipment_id)
+        self.assertEqual(carton.status, CartonStatus.DRAFT)
 
     def test_bulk_assign_cartons_shipment_updates_only_eligible_unassigned_rows(self):
         destination = self._create_destination("BAS")
@@ -399,6 +450,70 @@ class CartonHandlersTests(TestCase):
         self.assertEqual(eligible_carton.status, CartonStatus.ASSIGNED)
         self.assertIsNone(ignored_carton.shipment_id)
         self.assertEqual(ignored_carton.status, CartonStatus.SHIPPED)
+
+    def test_bulk_assign_cartons_shipment_applies_confirmed_skipped_transition(self):
+        destination = self._create_destination("NKC")
+        target_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination=destination,
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-CONFIRM-ASSIGN",
+            status=CartonStatus.DRAFT,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_assign_cartons_shipment",
+                "bulk_shipment_id": str(target_shipment.id),
+                "selected_carton_ids": [str(carton.id)],
+                "confirm_skipped_statuses": "1",
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.shipment_id, target_shipment.id)
+        self.assertEqual(carton.status, CartonStatus.ASSIGNED)
+
+    def test_bulk_mark_cartons_labeled_applies_confirmed_skipped_transition_with_assignment(self):
+        destination = self._create_destination("NKC")
+        target_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Expéditeur",
+            recipient_name="Recipient",
+            destination=destination,
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-CONFIRM-LABELED",
+            status=CartonStatus.PACKED,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_mark_cartons_labeled",
+                "selected_carton_ids": [str(carton.id)],
+                "bulk_shipment_id": str(target_shipment.id),
+                "confirm_skipped_statuses": "1",
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.shipment_id, target_shipment.id)
+        self.assertEqual(carton.status, CartonStatus.LABELED)
 
     def test_mark_carton_labeled_ignored_when_shipment_status_is_locked(self):
         shipment = Shipment.objects.create(

@@ -268,12 +268,17 @@ def _build_carton_assignment_shipment_options():
     options = []
     for shipment in shipments:
         destination = getattr(shipment, "destination", None)
-        destination_label = str(destination) if destination is not None else ""
+        destination_label = getattr(destination, "iata_code", "") if destination is not None else ""
+        if not destination_label and destination is not None:
+            destination_label = str(destination)
         if not destination_label:
             destination_label = shipment.destination_country or ""
+        shipper_label = (shipment.shipper_name or "").strip()
         label = shipment.reference
         if destination_label:
             label = f"{label} - {destination_label}"
+        if shipper_label:
+            label = f"{label} - {shipper_label}"
         options.append({"id": shipment.id, "label": label, "reference": shipment.reference})
     return options
 
