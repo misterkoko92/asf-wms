@@ -492,6 +492,12 @@ class ScanOrdersViewsTests(TestCase):
         self.assertContains(response, "Association Validée")
         self.assertNotContains(response, "Association En Attente")
 
+    def test_scan_preparateur_order_select_redirects_non_preparateur_to_orders_view(self):
+        response = self.client.get(reverse("scan:scan_preparateur_order_select"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_orders_view"))
+
     def test_scan_preparateur_order_select_stores_selection_and_prefills_pack_shipment(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
@@ -520,5 +526,23 @@ class ScanOrdersViewsTests(TestCase):
             response["Location"],
             f"{reverse('scan:scan_pack')}?shipment_reference={shipment.reference}",
         )
+        session = self.client.session
+        self.assertEqual(session["preparateur_selected_order_id"], order.id)
+
+    def test_scan_preparateur_order_select_redirects_to_pack_without_shipment_query(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        order = self._create_order(
+            association_name="Association Sans Expedition",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_select"),
+            {"order_id": str(order.id)},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_pack"))
         session = self.client.session
         self.assertEqual(session["preparateur_selected_order_id"], order.id)

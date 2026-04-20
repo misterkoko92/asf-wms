@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from types import SimpleNamespace
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -23,15 +24,18 @@ from wms.models import (
     VolunteerProfile,
     Warehouse,
 )
+from wms.preparateur_orders import get_preparateur_selected_order
 from wms.preparateur_session import (
     build_preparateur_volunteer_label,
     clear_active_preparateur_volunteer,
     get_active_preparateur_volunteer,
     get_preparateur_greeting_name,
 )
+from wms.scan_permissions import is_scan_view_allowed_for_user
 from wms.services import StockError
 
 PREPARATEUR_HOME_PATH = "/scan/preparateur/"
+PREPARATEUR_ORDER_SELECT_PATH = "/scan/preparateur/orders/"
 ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY = "scan_active_preparateur_volunteer_id"
 TEST_PASSWORD = "pass1234"  # pragma: allowlist secret
 
@@ -127,14 +131,14 @@ class ScanPreparateurViewTests(TestCase):
             order.refresh_from_db()
         return order
 
-    def test_scan_root_redirects_preparateur_to_preparateur_home(self):
+    def test_scan_root_redirects_preparateur_to_order_select(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
 
         response = self.client.get(reverse("scan:scan_root"))
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], PREPARATEUR_HOME_PATH)
+        self.assertEqual(response["Location"], PREPARATEUR_ORDER_SELECT_PATH)
 
     def test_scan_preparateur_home_renders_disabled_actions_without_active_volunteer(self):
         preparateur = self._create_preparateur()
@@ -205,6 +209,31 @@ class ScanPreparateurViewTests(TestCase):
         self.assertEqual(followup.status_code, 200)
         self.assertContains(followup, "Bonjour Martin")
         self.assertContains(followup, reverse("scan:scan_preparateur_home"))
+
+    def test_get_preparateur_selected_order_clears_session_for_non_approved_order(self):
+        request = SimpleNamespace(session=_Session())
+        product = self._create_stocked_product(
+            sku="SKU-PREP-INVALID",
+            name="Produit non approuve",
+            quantity_on_hand=5,
+        )
+        order = self._create_order(
+            shipper_name="Association en attente",
+            product=product,
+            quantity=1,
+            review_status=OrderReviewStatus.PENDING,
+        )
+        request.session["preparateur_selected_order_id"] = order.id
+
+        selected_order = get_preparateur_selected_order(request)
+
+        self.assertIsNone(selected_order)
+        self.assertNotIn("preparateur_selected_order_id", request.session)
+
+    def test_is_scan_view_allowed_for_preparateur_requires_resolver_match(self):
+        request = SimpleNamespace(user=self._create_preparateur())
+
+        self.assertFalse(is_scan_view_allowed_for_user(request))
 
     def test_scan_preparateur_home_renders_grouped_recommended_orders(self):
         preparateur = self._create_preparateur()

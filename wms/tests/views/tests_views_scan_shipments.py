@@ -36,6 +36,7 @@ from wms.models import (
     Warehouse,
 )
 from wms.shipment_view_helpers import build_shipments_tracking_rows
+from wms.views_scan_shipments import _annotate_carton_selection_compatibility
 
 
 class ScanShipmentsViewsTests(TestCase):
@@ -247,6 +248,40 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'value="bulk_assign_cartons_shipment"')
         self.assertContains(response, 'name="bulk_shipment_id"')
         self.assertContains(response, shipment.reference)
+
+    def test_annotate_carton_selection_compatibility_skips_invalid_rows_and_ids(self):
+        cartons_json = [
+            "invalid-row",
+            {},
+            {"id": "invalid-id"},
+            {"id": 999999},
+        ]
+        recipient_contacts_json = [
+            {
+                "recipient_organization_ids_by_destination_id": {
+                    "1": "invalid",
+                    "2": None,
+                }
+            }
+        ]
+
+        _annotate_carton_selection_compatibility(
+            cartons_json=cartons_json,
+            recipient_contacts_json=recipient_contacts_json,
+        )
+
+        self.assertEqual(
+            cartons_json[1]["compatibility_by_recipient_organization_id"],
+            {},
+        )
+        self.assertEqual(
+            cartons_json[2]["compatibility_by_recipient_organization_id"],
+            {},
+        )
+        self.assertEqual(
+            cartons_json[3]["compatibility_by_recipient_organization_id"],
+            {},
+        )
 
     def test_scan_cartons_ready_uses_fixed_width_select_classes_and_descending_shipment_order(self):
         older = self._create_shipment(status=ShipmentStatus.DRAFT, reference="250999")
