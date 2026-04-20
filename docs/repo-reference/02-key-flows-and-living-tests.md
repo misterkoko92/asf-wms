@@ -129,6 +129,13 @@ Use it when you need to answer:
 - listing import quantities stay additive: confirmed rows create receipt lines and stock entries;
   they do not overwrite existing stock quantities already present for the matched product
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
+- preparateur-only login entry under `/scan/preparateur/`, including active bénévole selection,
+  persistent `Bonjour <prenom>` shell greeting, default recommendation of the most critical
+  realizable order, grouped order choices, and the `Voir dernier carton` shortcut
+- preparateur carton traceability that stores the selected bénévole on initial carton creation,
+  preserves `Carton.prepared_by`, and appends `prepared` / `edited` activity rows for later audit
+- preparateur pack success modal with a top-right close button plus footer print action:
+  `Imprimer` for one carton and `Imprimer tout` when several packing lists are shown
 - `/scan/cartons/` keeps checkbox-based bulk actions, now confirms any status jump that skips
   intermediate visible carton steps, requires an editable shipment selection when operators jump
   directly to `Étiqueté`, exposes a `Tout sélectionner` control, and shows a multiline `Produits`
@@ -165,6 +172,10 @@ Use it when you need to answer:
 - `api/tests/tests_ui_e2e_workflows.py::UiApiE2EWorkflowsTests::test_e2e_scan_workflow_stock_to_close_with_docs_labels_templates`
 - `wms/tests/core/tests_flow.py::FlowTests::test_import_to_order_prepare_flow`
 - `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/views/tests_views_scan_preparateur.py`
+- `wms/tests/shipment/tests_carton_volunteer_activity.py`
+- `wms/tests/orders/tests_pack_handlers.py`
+- `wms/tests/domain/tests_domain_orders_extra.py`
 - `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_stock.py`

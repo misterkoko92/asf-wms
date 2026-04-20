@@ -1,5 +1,6 @@
 {% load i18n %}
 
+{{ packing_result.print_urls|json_script:"pack-success-print-urls" }}
 <div
   id="pack-success-modal"
   class="modal fade show"
@@ -18,6 +19,12 @@
             {% trans "Colis créés avec succès" %}
           {% endif %}
         </h2>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="{% trans "Fermer" %}"
+          data-pack-success-close="1"
+        ></button>
       </div>
       <div class="modal-body">
         {% for carton in packing_result.cartons %}
@@ -34,9 +41,14 @@
         <button
           type="button"
           class="btn btn-primary"
-          onclick="var modal=document.getElementById('pack-success-modal');if(modal){modal.style.display='none';modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}var backdrop=document.getElementById('pack-success-backdrop');if(backdrop&&backdrop.parentNode){backdrop.parentNode.removeChild(backdrop);}"
+          data-pack-success-print="1"
+          data-pack-print-all="{% if packing_result.cartons|length > 1 %}1{% else %}0{% endif %}"
         >
-          {% trans "Fermer" %}
+          {% if packing_result.cartons|length == 1 %}
+            {% trans "Imprimer" %}
+          {% else %}
+            {% trans "Imprimer tout" %}
+          {% endif %}
         </button>
       </div>
     </div>

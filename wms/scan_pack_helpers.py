@@ -249,6 +249,11 @@ def build_packing_result(carton_ids):
     aggregate_rows = sorted(aggregate.values(), key=lambda row: row["label"])
     return {
         "cartons": carton_rows,
+        "print_urls": [
+            carton_row["packing_list_url"]
+            for carton_row in carton_rows
+            if carton_row.get("packing_list_url")
+        ],
         "aggregate": aggregate_rows,
         "show_success_modal": bool(carton_rows),
     }

@@ -27,6 +27,7 @@ from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
 from .views_scan_orders import scan_order, scan_order_detail, scan_orders_view
 from .views_scan_pilotage import scan_pilotage
+from .views_scan_preparateur import scan_preparateur_home
 from .views_scan_preparation import (
     scan_preparation_parameter_set_config,
     scan_preparation_run_create,
@@ -68,6 +69,7 @@ from .views_scan_stock import (
 
 SCAN_FLOW_EXPORTS = (
     "scan_root",
+    "scan_preparateur_home",
     "scan_dashboard",
     "scan_pilotage",
     "scan_stock",

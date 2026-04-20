@@ -151,6 +151,8 @@ from .models_domain.shipment import (
     CartonSourceKind,
     CartonStatus,
     CartonStatusEvent,
+    CartonVolunteerActivity,
+    CartonVolunteerActivityAction,
     Document,
     DocumentType,
     GeneratedPrintArtifact,
