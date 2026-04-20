@@ -2,65 +2,69 @@ from django.db.models.functions import Lower
 
 from .models import VolunteerProfile
 
-ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY = "scan_active_preparateur_volunteer_id"
+PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY = "preparateur_active_volunteer_id"
+LEGACY_PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY = "scan_active_preparateur_volunteer_id"
 
 
-def _active_volunteer_queryset():
+def build_preparateur_volunteer_queryset():
     return (
-        VolunteerProfile.objects.filter(
-            is_active=True,
-            user__is_active=True,
-        )
+        VolunteerProfile.objects.filter(is_active=True, user__is_active=True)
         .select_related("user")
-        .order_by(
-            Lower("user__last_name"),
-            Lower("user__first_name"),
-            "id",
-        )
+        .order_by(Lower("user__last_name"), Lower("user__first_name"), "id")
     )
 
 
-def list_active_preparateur_volunteers():
-    return list(_active_volunteer_queryset())
+def clear_active_preparateur_volunteer(request):
+    if PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY in request.session:
+        request.session.pop(PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY, None)
+    if LEGACY_PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY in request.session:
+        request.session.pop(LEGACY_PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY, None)
+
+
+def set_active_preparateur_volunteer(request, volunteer):
+    request.session[PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY] = volunteer.id
+    request.session.pop(LEGACY_PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY, None)
 
 
 def get_active_preparateur_volunteer(request):
-    volunteer_id = request.session.get(ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY)
+    volunteer_id = request.session.get(PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY)
+    if not volunteer_id:
+        volunteer_id = request.session.get(LEGACY_PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY)
     if not volunteer_id:
         return None
-    volunteer = _active_volunteer_queryset().filter(id=volunteer_id).first()
+    volunteer = build_preparateur_volunteer_queryset().filter(pk=volunteer_id).first()
     if volunteer is None:
-        request.session.pop(ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY, None)
-        request.session.modified = True
+        clear_active_preparateur_volunteer(request)
     return volunteer
 
 
-def set_active_preparateur_volunteer(request, *, volunteer):
-    request.session[ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY] = volunteer.id
-    request.session.modified = True
-
-
-def clear_active_preparateur_volunteer(request):
-    request.session.pop(ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY, None)
-    request.session.modified = True
-
-
 def build_preparateur_volunteer_label(volunteer):
-    first_name = (getattr(volunteer.user, "first_name", "") or "").strip()
-    last_name = (getattr(volunteer.user, "last_name", "") or "").strip().upper()
-    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
-    if full_name:
-        return full_name
-    fallback = (volunteer.user.get_full_name() or "").strip()
-    return fallback or volunteer.user.username
+    user = getattr(volunteer, "user", None)
+    if user is None:
+        return ""
+    first_name = (user.first_name or "").strip()
+    last_name = (user.last_name or "").strip()
+    if first_name and last_name:
+        return f"{first_name} {last_name.upper()}"
+    if first_name:
+        return first_name
+    if last_name:
+        return last_name.upper()
+    return user.username
+
+
+def list_active_preparateur_volunteers():
+    return list(build_preparateur_volunteer_queryset())
 
 
 def get_preparateur_greeting_name(volunteer):
-    first_name = (getattr(volunteer.user, "first_name", "") or "").strip()
+    user = getattr(volunteer, "user", None)
+    if user is None:
+        return ""
+    first_name = (user.first_name or "").strip()
     if first_name:
         return first_name
-    short_name = (getattr(volunteer, "short_name", "") or "").strip()
-    if short_name:
-        return short_name
-    last_name = (getattr(volunteer.user, "last_name", "") or "").strip()
-    return last_name or volunteer.user.username
+    last_name = (user.last_name or "").strip()
+    if last_name:
+        return last_name.upper()
+    return user.username

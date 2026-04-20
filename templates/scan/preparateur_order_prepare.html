@@ -1,0 +1,156 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - {% trans "Préparer une commande" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card d-flex flex-column gap-4">
+    <div class="d-flex flex-column gap-2">
+      <h2 class="ui-comp-title mb-0">{% trans "Préparer une commande" %}</h2>
+      {% if order_summary %}
+        <p class="scan-help ui-comp-note mb-0">
+          {{ order_summary.reference_label }}
+          {% if order_summary.recipient_name %}• {{ order_summary.recipient_name }}{% endif %}
+          {% if order_summary.destination_label %}• {{ order_summary.destination_label }}{% endif %}
+        </p>
+      {% endif %}
+    </div>
+
+    {% if plan.warnings %}
+      <div class="ui-comp-panel">
+        <h3 class="ui-comp-subtitle mb-2">{% trans "Avertissements de calcul" %}</h3>
+        <ul class="mb-0">
+          {% for warning in plan.warnings %}
+            <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <section class="ui-comp-panel d-flex flex-column gap-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+          <h3 class="ui-comp-subtitle mb-1">{% trans "Liste des colis à préparer" %}</h3>
+          <p class="scan-help ui-comp-note mb-0">
+            {% blocktrans with format_label=plan.carton_format_label %}Format standard utilisé: {{ format_label }}.{% endblocktrans %}
+          </p>
+        </div>
+        {% if plan.cartons %}
+          <a class="btn btn-tertiary" href="{{ picking_url }}" target="_blank" rel="noopener">
+            {% trans "Télécharger le picking" %}
+          </a>
+        {% endif %}
+      </div>
+
+      {% if pending_cartons %}
+        <div class="d-flex flex-column gap-3">
+          {% for carton in pending_cartons %}
+            <div class="ui-comp-panel border d-flex flex-column gap-3">
+              <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                <div>
+                  <div class="ui-comp-subtitle">{{ carton.label }}</div>
+                  <div class="scan-help ui-comp-note">
+                    {% if carton.zone_label %}{{ carton.zone_label }}{% else %}{% trans "Zone non configurée" %}{% endif %}
+                  </div>
+                </div>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="mark_carton_ready">
+                  <input type="hidden" name="carton_index" value="{{ carton.index }}">
+                  <button type="submit" class="btn btn-primary">{% trans "Marquer prêt" %}</button>
+                </form>
+              </div>
+
+              <div class="scan-table-wrap table-responsive">
+                <table class="scan-table table table-sm table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>{% trans "Produit" %}</th>
+                      <th>{% trans "Quantité" %}</th>
+                      <th>{% trans "Emplacement" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for item in carton.items %}
+                      <tr>
+                        <td>{{ item.product_name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.location_label }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="scan-help ui-comp-note mb-0">
+          {% trans "Aucun colis restant à préparer pour cette commande." %}
+        </p>
+      {% endif %}
+    </section>
+
+    {% if plan.unavailable_rows %}
+      <section class="ui-comp-panel d-flex flex-column gap-3">
+        <div>
+          <h3 class="ui-comp-subtitle mb-1">{% trans "Produits encore indisponibles" %}</h3>
+          <p class="scan-help ui-comp-note mb-0">
+            {% trans "Ces quantités ne peuvent pas être préparées immédiatement." %}
+          </p>
+        </div>
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover mb-0">
+            <thead>
+              <tr>
+                <th>{% trans "Produit" %}</th>
+                <th>{% trans "Disponible" %}</th>
+                <th>{% trans "Manquant" %}</th>
+                <th>{% trans "Emplacement" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in plan.unavailable_rows %}
+                <tr>
+                  <td>{{ row.product_name }}</td>
+                  <td>{{ row.available_quantity }}</td>
+                  <td>{{ row.missing_quantity }}</td>
+                  <td>{{ row.location_label }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if ready_cartons %}
+      <section class="ui-comp-panel d-flex flex-column gap-3">
+        <div>
+          <h3 class="ui-comp-subtitle mb-1">{% trans "Colis prêts" %}</h3>
+          <p class="scan-help ui-comp-note mb-0">
+            {% trans "Les colis déjà finalisés pour cette commande." %}
+          </p>
+        </div>
+        <div class="d-flex flex-column gap-3">
+          {% for carton in ready_cartons %}
+            <div class="ui-comp-panel border d-flex flex-column gap-2">
+              <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                <div>
+                  <div class="ui-comp-subtitle mb-0">{{ carton.code }}</div>
+                  <div class="scan-help ui-comp-note">{{ carton.status_label }}</div>
+                </div>
+                <a class="btn btn-tertiary" href="{{ carton.edit_url }}">{% trans "Ouvrir le colis" %}</a>
+              </div>
+              <ul class="mb-0">
+                {% for item in carton.items %}
+                  <li>{{ item.label }} × {{ item.quantity }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  </div>
+{% endblock %}

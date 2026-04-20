@@ -11,12 +11,17 @@ from wms.models import (
     Carton,
     CartonSourceKind,
     CartonStatus,
+    Location,
     Order,
     OrderInboundArrivalMode,
     OrderInboundDelivery,
+    OrderLine,
     OrderReviewStatus,
     OrderShipmentLink,
     OrderStatus,
+    Product,
+    ProductLot,
+    ProductLotStatus,
     Receipt,
     ReceiptType,
     Shipment,
@@ -24,6 +29,13 @@ from wms.models import (
     Warehouse,
 )
 from wms.order_view_helpers import build_orders_view_rows
+from wms.preparateur_orders import (
+    build_preparateur_order_picking_context,
+    build_preparateur_selected_order_summary,
+    get_preparateur_order_plan,
+    get_preparateur_selected_order,
+    mark_preparateur_plan_carton_ready,
+)
 
 
 class ScanOrdersViewsTests(TestCase):
@@ -73,6 +85,57 @@ class ScanOrdersViewsTests(TestCase):
         )
         Group.objects.get_or_create(name="Preparateur")[0].user_set.add(user)
         return user
+
+    def _create_stock_product(
+        self,
+        *,
+        sku,
+        name,
+        quantity_on_hand,
+        quantity_reserved=0,
+        weight_g=250,
+        volume_cm3=125,
+    ):
+        warehouse = Warehouse.objects.create(name=f"WH-{sku}", code=sku[:4].upper())
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            sku=sku,
+            name=name,
+            default_location=location,
+            weight_g=weight_g,
+            volume_cm3=volume_cm3,
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code=f"LOT-{sku}",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=quantity_on_hand,
+            quantity_reserved=quantity_reserved,
+            location=location,
+        )
+        return product
+
+    def _create_order_line(
+        self,
+        *,
+        order,
+        product,
+        quantity,
+        reserved_quantity=0,
+        prepared_quantity=0,
+    ):
+        return OrderLine.objects.create(
+            order=order,
+            product=product,
+            quantity=quantity,
+            reserved_quantity=reserved_quantity,
+            prepared_quantity=prepared_quantity,
+        )
 
     def test_scan_order_get_renders_context(self):
         order_state = {
@@ -475,14 +538,21 @@ class ScanOrdersViewsTests(TestCase):
     def test_scan_preparateur_order_select_lists_only_approved_orders(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
-        self._create_order(
+        selectable_product = self._create_stock_product(
+            sku="PREP-LIST",
+            name="Produit Sélectionnable",
+            quantity_on_hand=10,
+        )
+        pending = self._create_order(
             association_name="Association En Attente",
             review_status=OrderReviewStatus.PENDING,
         )
+        self._create_order_line(order=pending, product=selectable_product, quantity=2)
         approved = self._create_order(
             association_name="Association Validée",
             review_status=OrderReviewStatus.APPROVED,
         )
+        self._create_order_line(order=approved, product=selectable_product, quantity=3)
 
         response = self.client.get(reverse("scan:scan_preparateur_order_select"))
 
@@ -492,13 +562,101 @@ class ScanOrdersViewsTests(TestCase):
         self.assertContains(response, "Association Validée")
         self.assertNotContains(response, "Association En Attente")
 
-    def test_scan_preparateur_order_select_redirects_non_preparateur_to_orders_view(self):
+    def test_scan_preparateur_order_select_groups_orders_by_feasibility(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        full_product = self._create_stock_product(
+            sku="PREP-FULL",
+            name="Produit Full",
+            quantity_on_hand=8,
+            quantity_reserved=0,
+        )
+        partial_product = self._create_stock_product(
+            sku="PREP-PART",
+            name="Produit Partiel",
+            quantity_on_hand=2,
+            quantity_reserved=1,
+        )
+        unavailable_product = self._create_stock_product(
+            sku="PREP-NO",
+            name="Produit Rupture",
+            quantity_on_hand=3,
+            quantity_reserved=3,
+        )
+
+        older_full = self._create_order(
+            association_name="Association Full Ancienne",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=older_full, product=full_product, quantity=4)
+
+        newer_full = self._create_order(
+            association_name="Association Full Recente",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=newer_full, product=full_product, quantity=3)
+
+        partial_order = self._create_order(
+            association_name="Association Partielle",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(
+            order=partial_order,
+            product=partial_product,
+            quantity=5,
+            reserved_quantity=1,
+        )
+
+        unavailable_order = self._create_order(
+            association_name="Association Rupture",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=unavailable_order, product=unavailable_product, quantity=4)
+
+        no_lines_order = self._create_order(
+            association_name="Association Sans Lignes",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        prepared_order = self._create_order(
+            association_name="Association Déjà Préparée",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(
+            order=prepared_order,
+            product=full_product,
+            quantity=2,
+            prepared_quantity=2,
+        )
+        pending_order = self._create_order(
+            association_name="Association Pending Préparateur",
+            review_status=OrderReviewStatus.PENDING,
+        )
+        self._create_order_line(order=pending_order, product=full_product, quantity=2)
+
         response = self.client.get(reverse("scan:scan_preparateur_order_select"))
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], reverse("scan:scan_orders_view"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Réalisables à 100%")
+        self.assertContains(response, "Réalisables partiellement")
+        self.assertContains(response, "Non réalisables pour le moment")
+        self.assertEqual(
+            [row["order"].id for row in response.context["order_groups"]["100_percent"]],
+            [newer_full.id, older_full.id],
+        )
+        self.assertEqual(
+            [row["order"].id for row in response.context["order_groups"]["partial"]],
+            [partial_order.id],
+        )
+        self.assertEqual(
+            [row["order"].id for row in response.context["order_groups"]["unavailable"]],
+            [unavailable_order.id],
+        )
+        self.assertNotContains(response, no_lines_order.association_contact.name)
+        self.assertNotContains(response, prepared_order.association_contact.name)
+        self.assertNotContains(response, pending_order.association_contact.name)
 
-    def test_scan_preparateur_order_select_stores_selection_and_prefills_pack_shipment(self):
+    def test_scan_preparateur_order_select_stores_selection_and_redirects_to_prepare_page(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
         shipment = Shipment.objects.create(
@@ -522,27 +680,202 @@ class ScanOrdersViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            response["Location"],
-            f"{reverse('scan:scan_pack')}?shipment_reference={shipment.reference}",
-        )
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_order_prepare"))
         session = self.client.session
         self.assertEqual(session["preparateur_selected_order_id"], order.id)
 
-    def test_scan_preparateur_order_select_redirects_to_pack_without_shipment_query(self):
+    def test_scan_preparateur_order_select_redirects_non_preparateur_to_orders_view(self):
+        response = self.client.get(reverse("scan:scan_preparateur_order_select"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_orders_view"))
+
+    def test_scan_preparateur_order_prepare_renders_generated_cartons_and_picking_actions(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
+        product = self._create_stock_product(
+            sku="PREP-PLAN",
+            name="Produit Plan",
+            quantity_on_hand=10,
+            weight_g=100,
+            volume_cm3=100,
+        )
         order = self._create_order(
-            association_name="Association Sans Expedition",
+            association_name="Association Plan",
             review_status=OrderReviewStatus.APPROVED,
         )
+        self._create_order_line(order=order, product=product, quantity=3)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Liste des colis à préparer")
+        self.assertContains(response, "Télécharger le picking")
+        self.assertContains(response, "Colis 1")
+        self.assertContains(response, "Produit Plan")
+        self.assertContains(response, "Marquer prêt")
+
+    def test_scan_preparateur_order_prepare_marks_plan_carton_ready_and_updates_order(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        product = self._create_stock_product(
+            sku="PREP-READY",
+            name="Produit Pret",
+            quantity_on_hand=10,
+            weight_g=100,
+            volume_cm3=100,
+        )
+        order = self._create_order(
+            association_name="Association Prête",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        line = self._create_order_line(order=order, product=product, quantity=2)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        warmup = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+        self.assertEqual(warmup.status_code, 200)
 
         response = self.client.post(
-            reverse("scan:scan_preparateur_order_select"),
-            {"order_id": str(order.id)},
+            reverse("scan:scan_preparateur_order_prepare"),
+            {
+                "action": "mark_carton_ready",
+                "carton_index": "1",
+            },
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], reverse("scan:scan_pack"))
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_order_prepare"))
+
+        order.refresh_from_db()
+        line.refresh_from_db()
+        self.assertEqual(line.prepared_quantity, 2)
+        self.assertEqual(order.status, OrderStatus.READY)
+        self.assertIsNotNone(order.shipment_id)
+
+        carton = Carton.objects.get(shipment=order.shipment)
+        self.assertEqual(carton.status, CartonStatus.PACKED)
+
+        follow_up = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+        self.assertEqual(follow_up.status_code, 200)
+        self.assertContains(follow_up, carton.code)
+        self.assertContains(follow_up, reverse("scan:scan_carton_edit", args=[carton.id]))
+
+    def test_scan_preparateur_order_prepare_redirects_non_preparateur_to_orders_view(self):
+        response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_orders_view"))
+
+    def test_scan_preparateur_order_prepare_redirects_without_selected_order(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_order_select"))
+
+    def test_scan_preparateur_order_prepare_handles_mark_ready_error(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        product = self._create_stock_product(
+            sku="PREP-ERR",
+            name="Produit Erreur",
+            quantity_on_hand=10,
+        )
+        order = self._create_order(
+            association_name="Association Error",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=order, product=product, quantity=1)
         session = self.client.session
-        self.assertEqual(session["preparateur_selected_order_id"], order.id)
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_prepare"),
+            {"action": "mark_carton_ready", "carton_index": "invalid"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "invalid literal for int()")
+
+    def test_scan_preparateur_order_prepare_picking_redirects_non_preparateur_or_without_order(
+        self,
+    ):
+        non_preparateur_response = self.client.get(
+            reverse("scan:scan_preparateur_order_prepare_picking")
+        )
+        self.assertEqual(non_preparateur_response.status_code, 302)
+        self.assertEqual(
+            non_preparateur_response["Location"],
+            reverse("scan:scan_orders_view"),
+        )
+
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        no_order_response = self.client.get(reverse("scan:scan_preparateur_order_prepare_picking"))
+        self.assertEqual(no_order_response.status_code, 302)
+        self.assertEqual(
+            no_order_response["Location"],
+            reverse("scan:scan_preparateur_order_select"),
+        )
+
+    def test_preparateur_order_helpers_cover_session_and_early_return_branches(self):
+        product = self._create_stock_product(
+            sku="PREP-HELPER",
+            name="Produit Helper",
+            quantity_on_hand=2,
+        )
+        pending_order = self._create_order(
+            association_name="Association Pending Helper",
+            review_status=OrderReviewStatus.PENDING,
+        )
+        self._create_order_line(order=pending_order, product=product, quantity=1)
+
+        request = mock.Mock()
+        request.session = {
+            "preparateur_selected_order_id": pending_order.id,
+            "preparateur_order_plan": {"cartons": "invalid"},
+        }
+
+        self.assertIsNone(get_preparateur_order_plan(request))
+        self.assertIsNone(get_preparateur_selected_order(request))
+        self.assertNotIn("preparateur_selected_order_id", request.session)
+        self.assertIsNone(build_preparateur_selected_order_summary(None))
+        self.assertEqual(
+            build_preparateur_order_picking_context(
+                {"cartons": [{"items": []}, {"label": "Colis 2", "items": []}]}
+            ),
+            {
+                "carton_blocks": [
+                    {"carton_code": "-", "item_rows": []},
+                    {"carton_code": "Colis 2", "item_rows": []},
+                ],
+                "picking_title": "Liste picking - commande",
+            },
+        )
+        self.assertEqual(
+            mark_preparateur_plan_carton_ready(
+                user=self.staff_user,
+                order=pending_order,
+                plan={
+                    "cartons": [
+                        {
+                            "index": 1,
+                            "status": "ready",
+                            "carton_id": 777,
+                            "items": [],
+                        }
+                    ]
+                },
+                carton_index=1,
+            ),
+            777,
+        )
