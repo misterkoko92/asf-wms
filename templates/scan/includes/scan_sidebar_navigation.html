@@ -2,25 +2,32 @@
 <nav id="scan-sidebar-nav" class="scan-sidebar-nav" aria-label="{% trans "Navigation Scan" %}">
   {% if request.scan_is_preparateur %}
     <a
-      id="scan-sidebar-preparateur-home"
-      href="{% url 'scan:scan_preparateur_home' %}"
-      class="scan-sidebar-link{% if active == 'preparateur_home' %} active{% endif %}"
+      id="scan-sidebar-preparateur-order-select"
+      href="{% url 'scan:scan_preparateur_order_select' %}"
+      class="scan-sidebar-link{% if active == 'pack' or active == 'preparateur_order_select' %} active{% endif %}"
     >
-      Accueil
+      Choisir une commande
     </a>
     <a
-      id="scan-sidebar-preparation"
-      href="{% url 'scan:scan_pack' %}"
-      class="scan-sidebar-link{% if active == 'pack' %} active{% endif %}"
+      id="scan-sidebar-preparateur-last-carton"
+      href="{% url 'scan:scan_preparateur_last_carton' %}"
+      class="scan-sidebar-link"
     >
-      Préparer des colis
+      Voir dernier colis
     </a>
     <a
-      id="scan-sidebar-preparation-runs"
-      href="{% url 'scan:scan_preparation_run_list' %}"
-      class="scan-sidebar-link{% if active == 'preparation_runs' %} active{% endif %}"
+      id="scan-sidebar-preparateur-change-account"
+      href="/admin/logout/?next=/admin/login/?next=/scan/"
+      class="scan-sidebar-link"
     >
-      Runs magasin
+      Changer de compte
+    </a>
+    <a
+      id="scan-sidebar-preparateur-logout"
+      href="/admin/logout/?next=/"
+      class="scan-sidebar-link"
+    >
+      Déconnexion
     </a>
   {% else %}
     <a

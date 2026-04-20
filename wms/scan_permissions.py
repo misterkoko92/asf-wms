@@ -3,6 +3,8 @@ PREPARATEUR_ALLOWED_SCAN_VIEWS = frozenset(
     {
         "scan_root",
         "scan_preparateur_home",
+        "scan_preparateur_order_select",
+        "scan_preparateur_last_carton",
         "scan_pack",
         "scan_carton_edit",
         "scan_carton_document",

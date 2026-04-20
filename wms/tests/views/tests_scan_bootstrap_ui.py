@@ -118,6 +118,15 @@ class ScanBootstrapUiTests(TestCase):
     def setUp(self):
         self.client.force_login(self.staff_user)
 
+    def _create_preparateur_user(self):
+        user = get_user_model().objects.create_user(
+            username="scan-bootstrap-preparateur",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(name="Preparateur")[0].user_set.add(user)
+        return user
+
     def _scan_sidebar_html(self, response):
         content = response.content.decode()
         nav_start = content.index('id="scan-sidebar-nav"')
@@ -184,6 +193,31 @@ class ScanBootstrapUiTests(TestCase):
                 "Runs magasin",
             ],
         )
+
+    def test_scan_pack_preparateur_uses_reduced_two_row_shell_and_menu(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-preparateur-header-primary"')
+        self.assertContains(response, 'id="scan-preparateur-header-secondary"')
+        self.assertContains(response, 'id="scan-preparateur-greeting"')
+        self.assertContains(response, f"Bonjour {preparateur.username}")
+        self.assertContains(response, 'id="scan-history-back"')
+        self.assertContains(response, 'id="scan-history-forward"')
+        self.assertContains(response, 'id="scan-sidebar-toggle"')
+        self.assertNotContains(response, 'id="scan-faq-link"')
+        self.assertNotContains(response, 'id="scan-masthead-account-toggle"')
+        nav_html = self._scan_sidebar_html(response)
+        self.assertIn(reverse("scan:scan_preparateur_order_select"), nav_html)
+        self.assertIn(reverse("scan:scan_preparateur_last_carton"), nav_html)
+        self.assertIn("Choisir une commande", nav_html)
+        self.assertIn("Voir dernier colis", nav_html)
+        self.assertIn("Changer de compte", nav_html)
+        self.assertIn("Déconnexion", nav_html)
+        self.assertNotIn("Runs magasin", nav_html)
 
     def test_scan_sidebar_exposes_listing_link_in_reception_group(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
@@ -2395,17 +2429,16 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Créer un nouveau produit")
-        self.assertContains(response, 'id="pack-unknown-product-overlay"')
-        self.assertContains(response, 'id="pack-unknown-product-accept"')
-        self.assertContains(response, 'id="pack-unknown-product-reject"')
         self.assertContains(
             response,
-            'data-import-product-url="/scan/import/"',
+            'id="pack-create-product-link"',
         )
         self.assertContains(
             response,
-            "Le colis en cours ne sera pas sauvegardé",
+            'href="/scan/import/"',
         )
+        self.assertNotContains(response, 'id="pack-unknown-product-overlay"')
+        self.assertNotContains(response, 'data-import-product-url="/scan/import/"')
 
     def test_scan_state_pages_use_bootstrap_card_shell(self):
         for route_name in [

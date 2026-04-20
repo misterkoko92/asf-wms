@@ -104,6 +104,16 @@ urlpatterns = [
     path("orders-view/", views.scan_orders_view, name="scan_orders_view"),
     path("orders/<int:order_id>/", views.scan_order_detail, name="scan_order_detail"),
     path("orders/", views.scan_order, name="scan_order"),
+    path(
+        "preparateur/orders/",
+        views.scan_preparateur_order_select,
+        name="scan_preparateur_order_select",
+    ),
+    path(
+        "preparateur/last-carton/",
+        views.scan_preparateur_last_carton,
+        name="scan_preparateur_last_carton",
+    ),
     path("pack/", views.scan_pack, name="scan_pack"),
     path("carton/<int:carton_id>/edit/", views.scan_carton_edit, name="scan_carton_edit"),
     path("shipment/", views.scan_shipment_create, name="scan_shipment_create"),

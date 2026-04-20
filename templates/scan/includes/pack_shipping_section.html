@@ -4,6 +4,13 @@
   <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
     <label class="form-label" for="id_preassigned_destination">{% trans "Destination pre-affectee" %}</label>
     {{ form.preassigned_destination }}
+    {% if request.scan_is_preparateur and form.shipment_reference.value|default:selected_order_summary.shipment_reference %}
+      <input
+        type="hidden"
+        name="{{ form.shipment_reference.html_name }}"
+        value="{{ form.shipment_reference.value|default:selected_order_summary.shipment_reference }}"
+      >
+    {% endif %}
     {% for error in form.preassigned_destination.errors %}
       <div class="scan-message error">{{ error }}</div>
     {% endfor %}

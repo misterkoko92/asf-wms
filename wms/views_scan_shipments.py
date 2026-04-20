@@ -18,6 +18,7 @@ from .carton_view_helpers import (
 )
 from .forms import (
     ScanPackForm,
+    ScanPackUnknownProductForm,
     ScanPrepareKitsForm,
     ScanShipmentForm,
     ShipmentTrackingForm,
@@ -39,7 +40,15 @@ from .models import (
     ShipmentStatus,
 )
 from .order_helpers import resolve_linked_order_for_shipment
-from .pack_handlers import build_pack_defaults, handle_pack_post
+from .pack_handlers import (
+    build_pack_defaults,
+    create_preparateur_unknown_product_from_pack,
+    handle_pack_post,
+)
+from .preparateur_orders import (
+    build_preparateur_selected_order_summary,
+    get_preparateur_selected_order,
+)
 from .prepare_kits_helpers import (
     _parse_carton_ids,
     build_prepare_kits_page_context,
@@ -50,10 +59,14 @@ from .recipient_product_preferences import score_recipient_carton_compatibility
 from .runtime_settings import is_shipment_track_legacy_enabled
 from .scan_helpers import (
     build_carton_formats,
+    build_location_data,
+    build_pack_line_values,
     build_packing_result,
     build_product_options,
     build_shipment_line_values,
+    parse_int,
 )
+from .scan_permissions import user_is_preparateur
 from .scan_shipment_handlers import (
     handle_shipment_create_post,
     handle_shipment_edit_post,
@@ -321,6 +334,43 @@ def _render_pack_page(
         TEMPLATE_PACK,
         context,
     )
+
+
+def _build_pack_state_from_post(post_data):
+    line_count = parse_int(post_data.get("line_count")) or 1
+    line_count = max(1, line_count)
+    carton_format_id = (post_data.get("carton_format_id") or "").strip() or "custom"
+    return {
+        "carton_format_id": carton_format_id,
+        "carton_custom": {
+            "length_cm": post_data.get("carton_length_cm", ""),
+            "width_cm": post_data.get("carton_width_cm", ""),
+            "height_cm": post_data.get("carton_height_cm", ""),
+            "max_weight_g": post_data.get("carton_max_weight_g", ""),
+        },
+        "line_count": line_count,
+        "line_values": build_pack_line_values(line_count, post_data),
+        "line_errors": {},
+        "missing_defaults": [],
+        "confirm_defaults": bool(post_data.get("confirm_defaults")),
+    }
+
+
+def _build_preparateur_pack_extra_context(
+    request,
+    *,
+    unknown_product_form=None,
+    unknown_product_modal_open=False,
+):
+    if not user_is_preparateur(request.user):
+        return {}
+    selected_order = get_preparateur_selected_order(request)
+    return {
+        "selected_order_summary": build_preparateur_selected_order_summary(selected_order),
+        "location_data": build_location_data(),
+        "unknown_product_form": unknown_product_form or ScanPackUnknownProductForm(),
+        "unknown_product_modal_open": unknown_product_modal_open,
+    }
 
 
 def _carton_is_editable(carton):
@@ -960,8 +1010,19 @@ def scan_shipments_tracking(request):
 @require_http_methods(["GET", "POST"])
 def scan_pack(request):
     form_initial = {}
+    selected_order = (
+        get_preparateur_selected_order(request) if user_is_preparateur(request.user) else None
+    )
     if request.method == "GET":
         shipment_reference = (request.GET.get("shipment_reference") or "").strip()
+        if (
+            not shipment_reference
+            and selected_order is not None
+            and selected_order.shipment_id
+            and selected_order.shipment
+            and selected_order.shipment.reference
+        ):
+            shipment_reference = selected_order.shipment.reference
         if shipment_reference:
             form_initial["shipment_reference"] = shipment_reference
     form = ScanPackForm(request.POST or None, initial=form_initial)
@@ -975,6 +1036,46 @@ def scan_pack(request):
         packing_result = build_packing_result(packed_carton_ids)
 
     if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if user_is_preparateur(request.user) and action == "create_unknown_product":
+            unknown_product_form = ScanPackUnknownProductForm(request.POST)
+            pack_state = _build_pack_state_from_post(request.POST)
+            if unknown_product_form.is_valid():
+                product = create_preparateur_unknown_product_from_pack(
+                    request=request,
+                    form=unknown_product_form,
+                )
+                line_index = int(unknown_product_form.cleaned_data["line_index"] or 0)
+                if 1 <= line_index <= len(pack_state["line_values"]):
+                    pack_state["line_values"][line_index - 1]["product_code"] = product.sku
+                product_options = build_product_options(include_kits=True)
+                unknown_product_form = ScanPackUnknownProductForm()
+                messages.success(
+                    request,
+                    _("Produit %(sku)s créé et stock initial ajouté.") % {"sku": product.sku},
+                )
+                unknown_product_modal_open = False
+            else:
+                unknown_product_modal_open = True
+            return _render_pack_page(
+                request,
+                form=form,
+                product_options=product_options,
+                carton_formats=carton_formats,
+                carton_format_id=pack_state["carton_format_id"],
+                carton_custom=pack_state["carton_custom"],
+                line_count=pack_state["line_count"],
+                line_values=pack_state["line_values"],
+                line_errors=pack_state["line_errors"],
+                packing_result=packing_result,
+                missing_defaults=pack_state["missing_defaults"],
+                confirm_defaults=pack_state["confirm_defaults"],
+                extra_context=_build_preparateur_pack_extra_context(
+                    request,
+                    unknown_product_form=unknown_product_form,
+                    unknown_product_modal_open=unknown_product_modal_open,
+                ),
+            )
         response, pack_state = handle_pack_post(request, form=form, default_format=default_format)
         carton_format_id = pack_state["carton_format_id"]
         carton_custom = pack_state["carton_custom"]
@@ -1007,7 +1108,20 @@ def scan_pack(request):
         packing_result=packing_result,
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
+        extra_context=_build_preparateur_pack_extra_context(request),
     )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_preparateur_last_carton(request):
+    if not user_is_preparateur(request.user):
+        return redirect("scan:scan_cartons_ready")
+    carton = Carton.objects.filter(prepared_by=request.user).order_by("-created_at", "-id").first()
+    if carton is None:
+        messages.info(request, _("Aucun colis préparé récemment."))
+        return redirect("scan:scan_pack")
+    return redirect("scan:scan_carton_edit", carton_id=carton.id)
 
 
 @scan_staff_required

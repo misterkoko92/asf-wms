@@ -394,6 +394,96 @@ body.scan-bootstrap-enabled {
   border-radius: 999px;
 }
 
+.scan-bootstrap-enabled .scan-header-preparateur {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-greeting {
+  color: var(--ink);
+  font-family: var(--ds-font-heading-h3);
+  font-size: clamp(1rem, 1.4vw, 1.2rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.scan-bootstrap-enabled .scan-utility-nav-preparateur {
+  justify-content: flex-end;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-toggle-preparateur {
+  justify-self: start;
+}
+
+.scan-bootstrap-enabled .scan-brand-link-preparateur {
+  justify-self: end;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-order-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-order-card {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-order-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-order-card-meta,
+.scan-bootstrap-enabled .scan-preparateur-selected-order-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-order-ref,
+.scan-bootstrap-enabled .scan-preparateur-selected-order-ref {
+  color: var(--ink);
+  font-family: var(--ds-font-heading-h3);
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-order-party {
+  color: var(--ink-soft);
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-selected-order-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.scan-bootstrap-enabled .scan-preparateur-selected-order-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+}
+
 .scan-bootstrap-enabled .scan-workspace {
   display: block;
   min-height: 0;
@@ -2203,6 +2293,21 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
   .scan-bootstrap-enabled .scan-inline {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+  }
+
+  .scan-bootstrap-enabled .scan-preparateur-header-row,
+  .scan-bootstrap-enabled .scan-preparateur-order-card-top,
+  .scan-bootstrap-enabled .scan-preparateur-selected-order-top {
+    grid-template-columns: minmax(0, 1fr);
+    display: grid;
+  }
+
+  .scan-bootstrap-enabled .scan-brand-link-preparateur {
+    justify-self: start;
+  }
+
+  .scan-bootstrap-enabled .scan-utility-nav-preparateur {
+    justify-content: flex-start;
   }
 
   .scan-bootstrap-enabled .scan-inline-actions {

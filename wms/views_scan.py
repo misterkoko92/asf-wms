@@ -25,7 +25,12 @@ from .views_scan_billing import (
 from .views_scan_dashboard import scan_dashboard, scan_root
 from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
-from .views_scan_orders import scan_order, scan_order_detail, scan_orders_view
+from .views_scan_orders import (
+    scan_order,
+    scan_order_detail,
+    scan_orders_view,
+    scan_preparateur_order_select,
+)
 from .views_scan_pilotage import scan_pilotage
 from .views_scan_preparateur import scan_preparateur_home
 from .views_scan_preparation import (
@@ -50,6 +55,7 @@ from .views_scan_shipments import (
     scan_kits_view,
     scan_local_document_helper_installer,
     scan_pack,
+    scan_preparateur_last_carton,
     scan_prepare_kits,
     scan_prepare_kits_picking,
     scan_shipment_create,
@@ -102,9 +108,11 @@ SCAN_FLOW_EXPORTS = (
     "scan_order",
     "scan_order_detail",
     "scan_orders_view",
+    "scan_preparateur_order_select",
     "scan_prepare_kits",
     "scan_prepare_kits_picking",
     "scan_pack",
+    "scan_preparateur_last_carton",
     "scan_carton_edit",
     "scan_shipment_create",
     "scan_shipment_edit",

@@ -142,24 +142,16 @@ Primary runtime sources:
 
 Current contract:
 
-- `/scan/` redirects preparateur-only users to the dedicated home `/scan/preparateur/` instead of
-  opening `/scan/pack/` directly
-- the preparateur home is the only supported place to bind the active bénévole in session before
-  preparation work starts
-- once a bénévole is selected, the shared scan shell keeps `Bonjour <prenom>` visible on allowed
-  preparateur pages until logout or session reset
+- preparateur-only scan users now use a dedicated two-row masthead in `templates/scan/base.html`:
+  - row 1 keeps `Bonjour <username>` on the left and only the shared history navigation on the right
+  - row 2 keeps the `Menu` toggle on the left and the `Messagerie Médicale` brand block on the right
 - preparateur-only scan users keep a reduced sidebar with direct links to:
-  - `Accueil`
-  - `Préparer des colis`
-  - `Runs magasin`
-- the preparateur home exposes exactly three operator actions:
-  - `Préparer une commande`, with a grouped selector using `Les 3 commandes les plus critiques`
-    and `Toutes les commandes`
-  - `Préparer des colis non affectés`, which reuses `/scan/pack/`
-  - `Voir dernier carton`, which reopens the latest carton linked to the active bénévole and
-    prefers a non-shipped carton when available
-- carton preparation and carton edit flows must preserve the initial `Carton.prepared_by` value
-  while appending bénévole activity rows in `CartonVolunteerActivity`
+  - `Choisir une commande`
+  - `Voir dernier colis`
+  - `Changer de compte`
+  - `Déconnexion`
+- `/scan/preparateur/orders/` is the preparateur landing page and lists only approved orders
+- `/scan/preparateur/last-carton/` redirects to the latest carton prepared by the current preparateur via `scan_carton_edit`
 - the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`,
   `Préparation`, `Expéditions`, `Contacts`, `Gestion`
 - the shared `Contacts` group currently exposes, in order:
@@ -210,6 +202,45 @@ Reference tests:
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/views/tests_views_scan_preparateur.py`
+
+### Scan Preparateur Pack Contract
+
+Primary runtime sources:
+
+- `wms/preparateur_orders.py`
+- `wms/views_scan_orders.py`
+- `wms/views_scan_shipments.py`
+- `wms/forms.py`
+- `wms/pack_handlers.py`
+- `templates/scan/pack.html`
+- `templates/scan/includes/pack_shipping_section.html`
+- `templates/scan/includes/pack_unknown_product_modal.html`
+- `wms/static/scan/scan.js`
+
+Current contract:
+
+- the preparateur flow starts on approved-order selection, then keeps the selected order in session key `preparateur_selected_order_id`
+- `/scan/pack/` shows a selected-order summary for preparateurs and preserves the linked shipment reference through the hidden shipment field when one exists
+- when a preparateur scans or selects an unknown product on the pack page, the UI opens a modal instead of only returning a line error
+- the minimal creation payload is:
+  - product name
+  - at least one scannable identifier (`sku`, `barcode`, or `ean`; scanned source code can prefill the barcode)
+  - MM/CN family
+  - initial quantity
+  - structured location selectors `warehouse -> zone -> aisle -> shelf`
+- free-text location entry is not part of the preparateur pack flow
+- preparateur-created products are saved as `is_incomplete=True`, receive immediate initial stock, and trigger reviewer notification to superusers plus the configured account-validation staff group
+
+Maintenance rule:
+
+- if the preparateur pack flow changes, keep the session helper, approved-order selection view, pack template, unknown-product modal JS, pack handlers, reviewer notification path, regression tests, and this repo-reference section aligned in the same work
+
+Reference tests:
+
+- `wms/tests/views/tests_views.py`
+- `wms/tests/views/tests_views_scan_orders.py`
+- `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/orders/tests_pack_handlers.py`
 
 ### Public Account Review Contract
 
