@@ -46,6 +46,66 @@ class ImportProductsExtraTests(TestCase):
         self.assertEqual(category.parent.name, "MEDICAL")
         self.assertEqual(warnings, [])
 
+    def test_import_product_row_auto_generates_sku_when_blank(self):
+        product, created, warnings = import_product_row({"name": "Produit Sans SKU"})
+
+        self.assertTrue(created)
+        self.assertTrue(product.sku.startswith("ASF-"))
+        self.assertEqual(warnings, [])
+
+    def test_import_product_row_rejects_duplicate_rack_color_in_same_warehouse(self):
+        existing, _, _ = import_product_row(
+            {
+                "name": "Produit Existant",
+                "warehouse": "Main",
+                "zone": "A",
+                "aisle": "01",
+                "shelf": "001",
+                "rack_color": "#FF0000",
+            }
+        )
+
+        with self.assertRaisesMessage(ValueError, "Couleur rack déjà utilisée dans cet entrepôt."):
+            import_product_row(
+                {
+                    "name": "Produit Nouveau",
+                    "warehouse": "Main",
+                    "zone": "B",
+                    "aisle": "01",
+                    "shelf": "001",
+                    "rack_color": "#FF0000",
+                }
+            )
+
+        self.assertEqual(existing.default_location.zone, "A")
+
+    def test_import_product_row_allows_same_rack_color_in_other_warehouse(self):
+        import_product_row(
+            {
+                "name": "Produit Main",
+                "warehouse": "Main",
+                "zone": "A",
+                "aisle": "01",
+                "shelf": "001",
+                "rack_color": "#FF0000",
+            }
+        )
+
+        product, created, warnings = import_product_row(
+            {
+                "name": "Produit Secondary",
+                "warehouse": "Secondary",
+                "zone": "A",
+                "aisle": "01",
+                "shelf": "001",
+                "rack_color": "#FF0000",
+            }
+        )
+
+        self.assertTrue(created)
+        self.assertEqual(product.default_location.warehouse.name, "Secondary")
+        self.assertEqual(warnings, [])
+
     def test_extract_product_identity_normalizes(self):
         sku, name, brand = extract_product_identity(
             {"sku": "SKU-1", "name": "compresses steriles", "brand": "acme"}

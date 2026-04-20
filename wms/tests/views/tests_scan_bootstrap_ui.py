@@ -2390,6 +2390,23 @@ class ScanBootstrapUiTests(TestCase):
             r'<input[^>]+id="id_confirm_defaults"[^>]+checked',
         )
 
+    def test_scan_pack_offers_unknown_product_creation_escape_hatch(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Créer un nouveau produit")
+        self.assertContains(response, 'id="pack-unknown-product-overlay"')
+        self.assertContains(response, 'id="pack-unknown-product-accept"')
+        self.assertContains(response, 'id="pack-unknown-product-reject"')
+        self.assertContains(
+            response,
+            'data-import-product-url="/scan/import/"',
+        )
+        self.assertContains(
+            response,
+            "Le colis en cours ne sera pas sauvegardé",
+        )
+
     def test_scan_state_pages_use_bootstrap_card_shell(self):
         for route_name in [
             "scan:scan_cartons_ready",

@@ -95,6 +95,26 @@ class ScanImportViewTests(TestCase):
             html=True,
         )
 
+    def test_scan_import_product_card_exposes_richer_product_fields(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="product_weight_g"')
+        self.assertContains(response, 'id="product_length_cm"')
+        self.assertContains(response, 'id="product_width_cm"')
+        self.assertContains(response, 'id="product_height_cm"')
+        self.assertContains(response, 'id="product_volume_cm3"')
+        self.assertContains(response, 'id="product_storage_conditions"')
+        self.assertContains(response, 'id="product_perishable"')
+        self.assertContains(response, 'id="product_quarantine_default"')
+        self.assertContains(response, "Laisser vide pour auto-génération")
+        self.assertContains(
+            response,
+            "Cliquez dans les champs de sélection pour choisir une valeur existante ou saisir un nouveau texte",
+        )
+
     def test_scan_import_stock_toggle_styles_live_in_shared_scan_stylesheets(self):
         scan_css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.css"
         scan_bootstrap_css_path = (

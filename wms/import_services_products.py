@@ -7,7 +7,11 @@ from django.db import transaction
 
 from .import_services_categories import build_category_path
 from .import_services_common import _row_is_empty
-from .import_services_locations import get_or_create_location
+from .import_services_locations import (
+    ensure_rack_color_available,
+    get_or_create_location,
+    upsert_rack_color,
+)
 from .import_services_tags import build_product_tags
 from .import_utils import get_value, parse_bool, parse_decimal, parse_int, parse_str
 from .models import Product, ProductLot, RackColor
@@ -292,10 +296,10 @@ def _parse_product_tags(row):
 def _apply_rack_color(default_location, row):
     rack_color = parse_str(get_value(row, "rack_color", "couleur_rack", "color_rack"))
     if rack_color and default_location is not None:
-        RackColor.objects.update_or_create(
+        upsert_rack_color(
             warehouse=default_location.warehouse,
             zone=default_location.zone,
-            defaults={"color": rack_color},
+            color=rack_color,
         )
 
 
@@ -304,6 +308,23 @@ def _parse_default_location(row):
     zone = parse_str(get_value(row, "zone", "rack"))
     aisle = parse_str(get_value(row, "aisle", "etagere"))
     shelf = parse_str(get_value(row, "shelf", "bac", "emplacement"))
+    rack_color = parse_str(get_value(row, "rack_color", "couleur_rack", "color_rack"))
+    if rack_color and warehouse_name and zone:
+        normalized_zone = normalize_upper(zone)
+        existing_rack = (
+            RackColor.objects.filter(
+                warehouse__name=warehouse_name,
+                color__iexact=rack_color,
+            )
+            .exclude(zone=normalized_zone)
+            .first()
+        )
+        if existing_rack is not None:
+            ensure_rack_color_available(
+                warehouse=existing_rack.warehouse,
+                zone=normalized_zone,
+                color=rack_color,
+            )
     default_location = get_or_create_location(warehouse_name, zone, aisle, shelf)
     _apply_rack_color(default_location, row)
     return default_location is not None, default_location

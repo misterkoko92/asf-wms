@@ -198,6 +198,37 @@ def _build_category_selector_data():
     return sorted(data, key=lambda item: (item["path"], item["name"]))
 
 
+def _build_brand_selector_data():
+    return list(
+        Product.objects.exclude(brand="")
+        .order_by("brand")
+        .values_list("brand", flat=True)
+        .distinct()
+    )
+
+
+def _build_distinct_product_value_selector_data(field_name):
+    return list(
+        Product.objects.exclude(**{field_name: ""})
+        .order_by(field_name)
+        .values_list(field_name, flat=True)
+        .distinct()
+    )
+
+
+def _build_rack_color_selector_data():
+    return [
+        {
+            "color": rack_color.color,
+            "warehouse": rack_color.warehouse.name,
+            "zone": rack_color.zone,
+        }
+        for rack_color in RackColor.objects.select_related("warehouse")
+        .only("color", "zone", "warehouse__name")
+        .order_by("color", "warehouse__name", "zone")
+    ]
+
+
 def _build_product_selector_data():
     rack_color_lookup = _build_rack_color_lookup()
     products = (
@@ -219,6 +250,14 @@ def _build_product_selector_data():
             "default_location__zone",
             "default_location__aisle",
             "default_location__shelf",
+            "length_cm",
+            "width_cm",
+            "height_cm",
+            "weight_g",
+            "volume_cm3",
+            "storage_conditions",
+            "perishable",
+            "quarantine_default",
             "notes",
             "category__name",
             "category__parent__name",
@@ -250,6 +289,14 @@ def _build_product_selector_data():
                 "zone": location.zone if location else "",
                 "aisle": location.aisle if location else "",
                 "shelf": location.shelf if location else "",
+                "length_cm": _stringify_decimal(product.length_cm),
+                "width_cm": _stringify_decimal(product.width_cm),
+                "height_cm": _stringify_decimal(product.height_cm),
+                "weight_g": product.weight_g if product.weight_g is not None else "",
+                "volume_cm3": product.volume_cm3 if product.volume_cm3 is not None else "",
+                "storage_conditions": product.storage_conditions or "",
+                "perishable": bool(product.perishable),
+                "quarantine_default": bool(product.quarantine_default),
                 "rack_color": (
                     rack_color_lookup.get((location.warehouse_id, location.zone), "")
                     if location
@@ -335,6 +382,10 @@ def _build_import_selector_data():
         "locations": _build_location_selector_data(),
         "warehouses": _build_warehouse_selector_data(),
         "categories": _build_category_selector_data(),
+        "brands": _build_brand_selector_data(),
+        "product_colors": _build_distinct_product_value_selector_data("color"),
+        "storage_conditions": _build_distinct_product_value_selector_data("storage_conditions"),
+        "rack_colors": _build_rack_color_selector_data(),
         "contacts": _build_contact_selector_data(),
         "users": _build_user_selector_data(),
         "product_tags": list(ProductTag.objects.order_by("name").values_list("name", flat=True)),

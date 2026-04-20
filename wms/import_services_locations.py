@@ -4,6 +4,31 @@ from .models import Location, RackColor, Warehouse
 from .text_utils import normalize_upper
 
 
+def ensure_rack_color_available(*, warehouse, zone, color):
+    if not warehouse or not zone or not color:
+        return
+    normalized_zone = normalize_upper(zone)
+    conflict = (
+        RackColor.objects.filter(warehouse=warehouse, color__iexact=color)
+        .exclude(zone=normalized_zone)
+        .first()
+    )
+    if conflict is not None:
+        raise ValueError("Couleur rack déjà utilisée dans cet entrepôt.")
+
+
+def upsert_rack_color(*, warehouse, zone, color):
+    if not warehouse or not zone or not color:
+        return
+    normalized_zone = normalize_upper(zone)
+    ensure_rack_color_available(warehouse=warehouse, zone=normalized_zone, color=color)
+    RackColor.objects.update_or_create(
+        warehouse=warehouse,
+        zone=normalized_zone,
+        defaults={"color": color},
+    )
+
+
 def get_or_create_location(warehouse_name, zone, aisle, shelf):
     if not all([warehouse_name, zone, aisle, shelf]):
         return None
@@ -65,6 +90,8 @@ def import_locations(rows):
             zone = normalize_upper(zone)
             aisle = normalize_upper(aisle)
             shelf = normalize_upper(shelf)
+            if rack_color:
+                ensure_rack_color_available(warehouse=warehouse, zone=zone, color=rack_color)
             location, was_created = Location.objects.get_or_create(
                 warehouse=warehouse, zone=zone, aisle=aisle, shelf=shelf
             )
@@ -75,11 +102,7 @@ def import_locations(rows):
             if was_created:
                 created += 1
             if rack_color:
-                RackColor.objects.update_or_create(
-                    warehouse=warehouse,
-                    zone=zone,
-                    defaults={"color": rack_color},
-                )
+                upsert_rack_color(warehouse=warehouse, zone=zone, color=rack_color)
         except ValueError as exc:
             errors.append(f"Ligne {index}: {exc}")
     return created, updated, errors

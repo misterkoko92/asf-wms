@@ -7,6 +7,7 @@
   <div
     id="pack-page"
     data-preparateur-pack-mode="{% if request.scan_is_preparateur %}1{% else %}0{% endif %}"
+    data-import-product-url="{% url 'scan:scan_import' %}"
     {% if not request.scan_is_preparateur %}
       data-local-document-helper-root="1"
       data-local-document-helper-origin="{{ local_document_helper_origin }}"
@@ -181,7 +182,16 @@
                   {% include "scan/includes/pack_custom_format_fields.html" %}
 
                   <div class="pack-lines" id="pack-lines"></div>
-                  <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn mb-3" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+                  <div class="scan-inline-actions ui-comp-actions flex-wrap mb-3">
+                    <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+                    <a
+                      id="pack-create-product-link"
+                      class="scan-scan-btn btn btn-tertiary"
+                      href="{% url 'scan:scan_import' %}"
+                    >
+                      {% trans "Créer un nouveau produit" %}
+                    </a>
+                  </div>
                   <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
                   {% include "scan/includes/pack_shipping_section.html" %}
                 </form>
@@ -221,7 +231,16 @@
           {% include "scan/includes/pack_custom_format_fields.html" %}
 
           <div class="pack-lines" id="pack-lines"></div>
-          <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn mb-3" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+          <div class="scan-inline-actions ui-comp-actions flex-wrap mb-3">
+            <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+            <a
+              id="pack-create-product-link"
+              class="scan-scan-btn btn btn-tertiary"
+              href="{% url 'scan:scan_import' %}"
+            >
+              {% trans "Créer un nouveau produit" %}
+            </a>
+          </div>
           <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
           {% include "scan/includes/pack_shipping_section.html" %}
         </form>
@@ -235,6 +254,43 @@
           <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
         {% endfor %}
       </datalist>
+      <div
+        id="pack-unknown-product-overlay"
+        class="scan-choice-overlay"
+        aria-hidden="true"
+        hidden
+      >
+        <div
+          class="scan-choice-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pack-unknown-product-title"
+        >
+          <div class="scan-choice-header">
+            <strong id="pack-unknown-product-title">{% trans "Produit inconnu" %}</strong>
+          </div>
+          <div class="scan-choice-status">
+            <p class="mb-2">{% trans "Souhaitez-vous créer ce produit dans la base ?" %}</p>
+            <p class="mb-0">{% trans "Le colis en cours ne sera pas sauvegardé." %}</p>
+          </div>
+          <div class="scan-choice-actions ui-comp-actions">
+            <button
+              type="button"
+              id="pack-unknown-product-accept"
+              class="scan-submit scan-submit-inline btn btn-primary"
+            >
+              {% trans "Accepter" %}
+            </button>
+            <button
+              type="button"
+              id="pack-unknown-product-reject"
+              class="scan-scan-btn btn btn-tertiary"
+            >
+              {% trans "Refuser" %}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   {% if not request.scan_is_preparateur %}

@@ -81,6 +81,40 @@ class ImportLocationsExtraTests(TestCase):
         rack_color = RackColor.objects.get(warehouse=warehouse, zone="B")
         self.assertEqual(rack_color.color, "Red")
 
+    def test_import_locations_rejects_duplicate_rack_color_within_same_warehouse(self):
+        rows = [
+            {
+                "warehouse": "Main",
+                "zone": "A",
+                "aisle": "01",
+                "shelf": "001",
+                "rack_color": "Red",
+            },
+            {
+                "warehouse": "Main",
+                "zone": "B",
+                "aisle": "01",
+                "shelf": "001",
+                "rack_color": "Red",
+            },
+            {
+                "warehouse": "Secondary",
+                "zone": "A",
+                "aisle": "01",
+                "shelf": "001",
+                "rack_color": "Red",
+            },
+        ]
+
+        created, updated, errors = import_locations(rows)
+
+        self.assertEqual(created, 2)
+        self.assertEqual(updated, 0)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("Couleur rack déjà utilisée dans cet entrepôt.", errors[0])
+        self.assertTrue(RackColor.objects.filter(warehouse__name="Main", zone="A").exists())
+        self.assertTrue(RackColor.objects.filter(warehouse__name="Secondary", zone="A").exists())
+
     def test_import_warehouses_creates_updates_and_errors(self):
         Warehouse.objects.create(name="Main", code="OLD")
         rows = [
