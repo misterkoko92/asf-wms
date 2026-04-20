@@ -1096,10 +1096,12 @@ def scan_carton_edit(request, carton_id):
         {
             "label": _("Liste de colisage"),
             "url": carton_summary["packing_list_url"],
+            "use_local_helper": False,
         },
         {
             "label": _("Picking"),
             "url": carton_summary["picking_url"],
+            "use_local_helper": True,
         },
     ]
 
