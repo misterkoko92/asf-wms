@@ -733,6 +733,124 @@ class ScanPackForm(forms.Form):
         shipment_field.label_from_instance = _shipment_reference_label
 
 
+class ScanPackUnknownProductForm(forms.Form):
+    unknown_product_line_index = forms.IntegerField(widget=forms.HiddenInput())
+    unknown_product_source_code = forms.CharField(required=False, widget=forms.HiddenInput())
+    unknown_product_name = forms.CharField(label=_("Nom du produit"), max_length=200)
+    unknown_product_sku = forms.CharField(label=_("SKU"), required=False, max_length=40)
+    unknown_product_barcode = forms.CharField(label=_("Barcode"), required=False, max_length=80)
+    unknown_product_ean = forms.CharField(label=_("EAN"), required=False, max_length=32)
+    unknown_product_pack_family = forms.ChoiceField(
+        label=_("Famille MM/CN"),
+        choices=(("MM", "MM"), ("CN", "CN")),
+    )
+    unknown_product_initial_quantity = forms.IntegerField(
+        label=_("Quantité initiale"),
+        min_value=1,
+    )
+    unknown_product_lot_code = forms.CharField(label=_("Lot"), required=False)
+    unknown_product_expires_on = forms.DateField(
+        label=_("Date péremption"),
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+    )
+    unknown_product_brand = forms.CharField(label=_("Marque"), required=False, max_length=120)
+    unknown_product_notes = forms.CharField(
+        label=_("Notes"),
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    unknown_product_location = forms.ModelChoiceField(
+        label=_("Emplacement"),
+        queryset=Location.objects.none(),
+    )
+    unknown_product_location_warehouse = forms.CharField(required=False)
+    unknown_product_location_zone = forms.CharField(required=False)
+    unknown_product_location_aisle = forms.CharField(required=False)
+    unknown_product_location_shelf = forms.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["unknown_product_location"].queryset = Location.objects.select_related(
+            "warehouse"
+        ).order_by("warehouse__name", "zone", "aisle", "shelf")
+
+    def clean(self):
+        cleaned = super().clean()
+        source_code = _normalize_form_text(cleaned, "unknown_product_source_code")
+        sku = _normalize_form_text(cleaned, "unknown_product_sku")
+        barcode = _normalize_form_text(cleaned, "unknown_product_barcode")
+        ean = _normalize_form_text(cleaned, "unknown_product_ean")
+        warehouse = _normalize_form_text(cleaned, "unknown_product_location_warehouse")
+        zone = _normalize_form_text(cleaned, "unknown_product_location_zone")
+        aisle = _normalize_form_text(cleaned, "unknown_product_location_aisle")
+        shelf = _normalize_form_text(cleaned, "unknown_product_location_shelf")
+        if not any([sku, barcode, ean]) and source_code:
+            barcode = source_code
+            cleaned["unknown_product_barcode"] = barcode
+
+        if not any([sku, barcode, ean]):
+            self.add_error(
+                "unknown_product_barcode",
+                _("Renseignez au moins un identifiant scannable."),
+            )
+
+        product_location = cleaned.get("unknown_product_location")
+        if not warehouse:
+            self.add_error("unknown_product_location_warehouse", _("Entrepôt requis."))
+        if not zone:
+            self.add_error("unknown_product_location_zone", _("Zone requise."))
+        if not aisle:
+            self.add_error("unknown_product_location_aisle", _("Allée requise."))
+        if not shelf:
+            self.add_error("unknown_product_location_shelf", _("Étagère requise."))
+        if product_location is not None:
+            if warehouse and warehouse != (product_location.warehouse.name or "").strip():
+                self.add_error(
+                    "unknown_product_location",
+                    _("L'emplacement sélectionné ne correspond pas à l'entrepôt."),
+                )
+            if zone and zone != (product_location.zone or "").strip():
+                self.add_error(
+                    "unknown_product_location",
+                    _("L'emplacement sélectionné ne correspond pas à la zone."),
+                )
+            if aisle and aisle != (product_location.aisle or "").strip():
+                self.add_error(
+                    "unknown_product_location",
+                    _("L'emplacement sélectionné ne correspond pas à l'allée."),
+                )
+            if shelf and shelf != (product_location.shelf or "").strip():
+                self.add_error(
+                    "unknown_product_location",
+                    _("L'emplacement sélectionné ne correspond pas à l'étagère."),
+                )
+
+        if sku and Product.objects.filter(sku__iexact=sku).exists():
+            self.add_error("unknown_product_sku", _("Ce SKU existe déjà."))
+        if barcode and Product.objects.filter(barcode__iexact=barcode).exists():
+            self.add_error("unknown_product_barcode", _("Ce barcode existe déjà."))
+        if ean and Product.objects.filter(ean__iexact=ean).exists():
+            self.add_error("unknown_product_ean", _("Cet EAN existe déjà."))
+
+        cleaned["line_index"] = cleaned.get("unknown_product_line_index")
+        cleaned["source_code"] = source_code
+        cleaned["name"] = _normalize_form_text(cleaned, "unknown_product_name")
+        cleaned["sku"] = sku
+        cleaned["barcode"] = barcode
+        cleaned["ean"] = ean
+        cleaned["pack_family"] = _normalize_form_text(
+            cleaned, "unknown_product_pack_family"
+        ).upper()
+        cleaned["initial_quantity"] = cleaned.get("unknown_product_initial_quantity")
+        cleaned["lot_code"] = _normalize_form_text(cleaned, "unknown_product_lot_code")
+        cleaned["expires_on"] = cleaned.get("unknown_product_expires_on")
+        cleaned["brand"] = _normalize_form_text(cleaned, "unknown_product_brand")
+        cleaned["notes"] = _normalize_form_text(cleaned, "unknown_product_notes")
+        cleaned["location"] = product_location
+        return cleaned
+
+
 class ScanPrepareKitsForm(forms.Form):
     kit_id = forms.ModelChoiceField(
         label="Nom du kit",

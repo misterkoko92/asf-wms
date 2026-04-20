@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import RequestFactory, TestCase
 
+from wms.forms import ScanPackUnknownProductForm
 from wms.models import (
     Carton,
     CartonStatus,
@@ -20,7 +21,12 @@ from wms.models import (
     VolunteerProfile,
     Warehouse,
 )
-from wms.pack_handlers import build_pack_defaults, handle_pack_post
+from wms.pack_handlers import (
+    build_pack_defaults,
+    create_preparateur_unknown_product_from_pack,
+    handle_pack_post,
+    notify_preparateur_product_review_needed,
+)
 from wms.services import StockError
 
 TEST_PASSWORD = "pass1234"  # pragma: allowlist secret
@@ -892,4 +898,96 @@ class PackHandlersTests(TestCase):
                 action=CartonVolunteerActivityAction.EDITED,
                 actor=self.staff_user,
             ).exists()
+        )
+
+    def test_create_preparateur_unknown_product_from_pack_creates_stock_and_notifies_reviewers(
+        self,
+    ):
+        stock_location, _ready_mm, _ready_cn = self._create_locations()
+        ProductCategory.objects.create(name="MM")
+        request = self._db_request(preparateur=True)
+        form = ScanPackUnknownProductForm(
+            data={
+                "unknown_product_line_index": "1",
+                "unknown_product_source_code": "1234567890",
+                "unknown_product_name": "Produit Nouveau",
+                "unknown_product_barcode": "1234567890",
+                "unknown_product_pack_family": "MM",
+                "unknown_product_initial_quantity": "9",
+                "unknown_product_lot_code": "LOT-NEW",
+                "unknown_product_expires_on": "2026-05-01",
+                "unknown_product_location": str(stock_location.id),
+                "unknown_product_location_warehouse": stock_location.warehouse.name,
+                "unknown_product_location_zone": stock_location.zone,
+                "unknown_product_location_aisle": stock_location.aisle,
+                "unknown_product_location_shelf": stock_location.shelf,
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+        with mock.patch(
+            "wms.pack_handlers.notify_preparateur_product_review_needed"
+        ) as notify_mock:
+            product = create_preparateur_unknown_product_from_pack(
+                request=request,
+                form=form,
+            )
+
+        self.assertTrue(product.is_incomplete)
+        self.assertEqual(product.default_location, stock_location)
+        self.assertEqual(product.category.name, "MM")
+        lot = ProductLot.objects.get(product=product)
+        self.assertEqual(lot.quantity_on_hand, 9)
+        self.assertEqual(lot.location, stock_location)
+        notify_mock.assert_called_once_with(
+            product=product,
+            created_by=request.user,
+            location=stock_location,
+            quantity=9,
+            lot_code="LOT-NEW",
+            expires_on=form.cleaned_data["expires_on"],
+        )
+
+    def test_notify_preparateur_product_review_needed_enqueues_superusers_and_validators(self):
+        get_user_model().objects.create_superuser(
+            username="pack-review-superuser",
+            password=TEST_PASSWORD,
+            email="superuser@example.com",
+        )
+        validator = get_user_model().objects.create_user(
+            username="pack-review-validator",
+            password=TEST_PASSWORD,
+            is_staff=True,
+            email="validator@example.com",
+        )
+        Group.objects.get_or_create(name="Account_User_Validation")[0].user_set.add(validator)
+        warehouse = Warehouse.objects.create(name="Notif Warehouse", code="NW")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="B",
+            aisle="02",
+            shelf="003",
+        )
+        product = Product.objects.create(
+            sku="NOTIF-001",
+            name="Produit Notification",
+            default_location=location,
+            is_incomplete=True,
+        )
+
+        with mock.patch("wms.pack_handlers.enqueue_email_safe", return_value=True) as enqueue_mock:
+            queued = notify_preparateur_product_review_needed(
+                product=product,
+                created_by=self.staff_user,
+                location=location,
+                quantity=4,
+                lot_code="LOT-NOTIF",
+                expires_on=None,
+            )
+
+        self.assertTrue(queued)
+        self.assertEqual(
+            set(enqueue_mock.call_args.kwargs["recipient"]),
+            {"superuser@example.com", "validator@example.com"},
         )

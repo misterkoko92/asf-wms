@@ -7,7 +7,6 @@
   <div
     id="pack-page"
     data-preparateur-pack-mode="{% if request.scan_is_preparateur %}1{% else %}0{% endif %}"
-    data-import-product-url="{% url 'scan:scan_import' %}"
     {% if not request.scan_is_preparateur %}
       data-local-document-helper-root="1"
       data-local-document-helper-origin="{{ local_document_helper_origin }}"
@@ -200,7 +199,30 @@
           {% endif %}
         </div>
       {% else %}
-        <h2 class="ui-comp-title">{% trans "Préparation cartons" %}</h2>
+        {% if request.scan_is_preparateur and selected_order_summary %}
+          <section class="scan-field ui-comp-panel scan-preparateur-selected-order-summary">
+            <div class="scan-preparateur-selected-order-top">
+              <div>
+                <div class="ui-comp-note">{% trans "Commande sélectionnée" %}</div>
+                <div class="scan-preparateur-selected-order-ref">{{ selected_order_summary.reference_label }}</div>
+              </div>
+              {% if selected_order_summary.shipment_reference %}
+                <div class="scan-preparateur-selected-order-chip">
+                  {% trans "Expédition" %}: {{ selected_order_summary.shipment_reference }}
+                </div>
+              {% endif %}
+            </div>
+            <div class="scan-preparateur-selected-order-meta">
+              {% if selected_order_summary.recipient_name %}
+                <span>{% trans "Destinataire" %}: {{ selected_order_summary.recipient_name }}</span>
+              {% endif %}
+              {% if selected_order_summary.destination_label %}
+                <span>{% trans "Destination" %}: {{ selected_order_summary.destination_label }}</span>
+              {% endif %}
+            </div>
+          </section>
+        {% endif %}
+        <h2 class="ui-comp-title">{% trans "Préparer des colis" %}</h2>
         {% if form.non_field_errors %}
           {% ui_alert tone="error" body=form.non_field_errors|join:" " %}
         {% endif %}
@@ -243,54 +265,23 @@
           </div>
           <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
           {% include "scan/includes/pack_shipping_section.html" %}
+          {% if request.scan_is_preparateur %}
+            {% include "scan/includes/pack_unknown_product_modal.html" %}
+          {% endif %}
         </form>
       {% endif %}
       {{ products_json|json_script:"product-data" }}
       {{ carton_formats|json_script:"carton-format-data" }}
       {{ line_values|json_script:"pack-lines-data" }}
       {{ line_errors|json_script:"pack-lines-errors" }}
+      {% if request.scan_is_preparateur %}
+        {{ location_data|json_script:"pack-location-data" }}
+      {% endif %}
       <datalist id="product-options">
         {% for product in products_json %}
           <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
         {% endfor %}
       </datalist>
-      <div
-        id="pack-unknown-product-overlay"
-        class="scan-choice-overlay"
-        aria-hidden="true"
-        hidden
-      >
-        <div
-          class="scan-choice-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pack-unknown-product-title"
-        >
-          <div class="scan-choice-header">
-            <strong id="pack-unknown-product-title">{% trans "Produit inconnu" %}</strong>
-          </div>
-          <div class="scan-choice-status">
-            <p class="mb-2">{% trans "Souhaitez-vous créer ce produit dans la base ?" %}</p>
-            <p class="mb-0">{% trans "Le colis en cours ne sera pas sauvegardé." %}</p>
-          </div>
-          <div class="scan-choice-actions ui-comp-actions">
-            <button
-              type="button"
-              id="pack-unknown-product-accept"
-              class="scan-submit scan-submit-inline btn btn-primary"
-            >
-              {% trans "Accepter" %}
-            </button>
-            <button
-              type="button"
-              id="pack-unknown-product-reject"
-              class="scan-scan-btn btn btn-tertiary"
-            >
-              {% trans "Refuser" %}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
   {% if not request.scan_is_preparateur %}

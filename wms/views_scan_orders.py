@@ -1,4 +1,7 @@
-from django.shortcuts import get_object_or_404, render
+from urllib.parse import urlencode
+
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from .models import OrderReviewStatus
@@ -7,16 +10,23 @@ from .order_scan_handlers import handle_order_action
 from .order_scan_state import build_order_scan_state
 from .order_view_handlers import handle_order_detail_action, handle_orders_view_action
 from .order_view_helpers import build_order_detail_payload
+from .preparateur_orders import (
+    build_preparateur_orders_queryset,
+    set_preparateur_selected_order,
+)
 from .scan_helpers import build_product_options
+from .scan_permissions import user_is_preparateur
 from .view_permissions import scan_staff_required
 from .view_utils import sorted_choices
 
 TEMPLATE_SCAN_ORDER = "scan/order.html"
 TEMPLATE_ORDERS_VIEW = "scan/orders_view.html"
 TEMPLATE_ORDER_DETAIL = "scan/order_detail.html"
+TEMPLATE_PREPARATEUR_ORDER_SELECT = "scan/preparateur_order_select.html"
 
 ACTIVE_ORDER = "order"
 ACTIVE_ORDERS_VIEW = "orders_view"
+ACTIVE_PREPARATEUR_ORDER_SELECT = "preparateur_order_select"
 
 
 def _render_scan_order(request, *, product_options, order_state):
@@ -58,6 +68,17 @@ def _render_order_detail(request, *, detail):
             "active": ACTIVE_ORDERS_VIEW,
             "detail": detail,
             "review_status_choices": sorted_choices(OrderReviewStatus.choices),
+        },
+    )
+
+
+def _render_preparateur_order_select(request, *, orders):
+    return render(
+        request,
+        TEMPLATE_PREPARATEUR_ORDER_SELECT,
+        {
+            "active": ACTIVE_PREPARATEUR_ORDER_SELECT,
+            "orders": orders,
         },
     )
 
@@ -117,3 +138,25 @@ def scan_order_detail(request, order_id):
             return response
     detail = build_order_detail_payload(order)
     return _render_order_detail(request, detail=detail)
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_preparateur_order_select(request):
+    if not user_is_preparateur(request.user):
+        return redirect("scan:scan_orders_view")
+
+    orders_qs = build_preparateur_orders_queryset().order_by("-created_at", "-id")
+    if request.method == "POST":
+        order = get_object_or_404(orders_qs, pk=request.POST.get("order_id"))
+        set_preparateur_selected_order(request, order)
+        redirect_url = reverse("scan:scan_pack")
+        if order.shipment_id and order.shipment and order.shipment.reference:
+            shipment_query = urlencode({"shipment_reference": order.shipment.reference})
+            return redirect(f"{redirect_url}?{shipment_query}")
+        return redirect(redirect_url)
+
+    return _render_preparateur_order_select(
+        request,
+        orders=orders_qs,
+    )

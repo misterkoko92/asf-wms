@@ -24,6 +24,7 @@ from wms.models import (
     OrderReviewStatus,
     OrderShipmentLink,
     Product,
+    ProductCategory,
     ProductLot,
     Receipt,
     ReceiptShipmentAllocation,
@@ -725,11 +726,12 @@ class ScanShipmentsViewsTests(TestCase):
             reverse("scan:scan_carton_picking", args=[carton.id]),
         )
         self.assertContains(response, "Créer un nouveau produit")
-        self.assertContains(response, 'id="pack-unknown-product-overlay"')
         self.assertContains(
             response,
-            'data-import-product-url="/scan/import/"',
+            'id="pack-create-product-link"',
         )
+        self.assertContains(response, 'href="/scan/import/"')
+        self.assertNotContains(response, 'id="pack-unknown-product-overlay"')
 
     def test_scan_carton_edit_renders_read_only_fiche_when_shipment_is_planned(self):
         shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
@@ -1086,11 +1088,106 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, "Ajouter emplacement")
         self.assertContains(response, 'data-preparateur-pack-mode="1"')
         self.assertContains(response, "Préparer des colis")
-        self.assertContains(response, "Runs magasin")
-        self.assertContains(response, reverse("scan:scan_preparation_run_list"))
+        self.assertContains(response, "Choisir une commande")
+        self.assertContains(response, reverse("scan:scan_preparateur_order_select"))
+        self.assertContains(response, "Voir dernier colis")
+        self.assertContains(response, reverse("scan:scan_preparateur_last_carton"))
+        self.assertContains(response, f"Bonjour {preparateur.username}")
+        self.assertNotContains(response, "Runs magasin")
+        self.assertNotContains(response, 'id="scan-faq-link"')
+        self.assertNotContains(response, 'id="scan-masthead-account-toggle"')
         self.assertNotContains(response, "Tableau De Bord")
         self.assertNotContains(response, "Vue Stock")
         self.assertNotContains(response, "Admin Django")
+
+    def test_scan_pack_preparateur_renders_unknown_product_modal_with_location_selectors(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+        self._get_test_product_lot()
+
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="pack-unknown-product-modal"')
+        self.assertContains(response, 'name="unknown_product_name"')
+        self.assertContains(response, 'name="unknown_product_initial_quantity"')
+        self.assertContains(response, 'name="unknown_product_pack_family"')
+        self.assertContains(response, 'name="unknown_product_location"')
+        self.assertContains(response, 'id="id_unknown_product_location_warehouse"')
+        self.assertContains(response, 'id="id_unknown_product_location_zone"')
+        self.assertContains(response, 'id="id_unknown_product_location_aisle"')
+        self.assertContains(response, 'id="id_unknown_product_location_shelf"')
+        self.assertContains(response, 'id="pack-location-data"')
+        self.assertNotContains(response, 'name="unknown_product_location_free_text"')
+
+    def test_scan_pack_preparateur_create_unknown_product_rehydrates_selected_line(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+        warehouse = Warehouse.objects.create(name="Prep warehouse", code="PREP")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        ProductCategory.objects.create(name="MM")
+
+        with mock.patch("wms.pack_handlers.notify_preparateur_product_review_needed"):
+            response = self.client.post(
+                reverse("scan:scan_pack"),
+                {
+                    "action": "create_unknown_product",
+                    "carton_format_id": "custom",
+                    "carton_length_cm": "40",
+                    "carton_width_cm": "30",
+                    "carton_height_cm": "30",
+                    "carton_max_weight_g": "8000",
+                    "line_count": "1",
+                    "line_1_product_code": "9988776655",
+                    "line_1_quantity": "2",
+                    "unknown_product_line_index": "1",
+                    "unknown_product_source_code": "9988776655",
+                    "unknown_product_name": "Produit Nouveau Préparateur",
+                    "unknown_product_barcode": "9988776655",
+                    "unknown_product_pack_family": "MM",
+                    "unknown_product_initial_quantity": "7",
+                    "unknown_product_location": str(location.id),
+                    "unknown_product_location_warehouse": warehouse.name,
+                    "unknown_product_location_zone": location.zone,
+                    "unknown_product_location_aisle": location.aisle,
+                    "unknown_product_location_shelf": location.shelf,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        product = Product.objects.get(name="Produit Nouveau Préparateur")
+        lot = ProductLot.objects.get(product=product)
+        self.assertTrue(product.is_incomplete)
+        self.assertEqual(product.default_location, location)
+        self.assertEqual(lot.quantity_on_hand, 7)
+        self.assertEqual(response.context["line_values"][0]["product_code"], product.sku)
+        self.assertContains(response, product.sku)
+
+    def test_scan_pack_preparateur_displays_selected_order_summary_from_session(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+        order = Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association Selectionnée",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Commande sélectionnée")
+        self.assertContains(response, f"CMD-{order.id}")
+        self.assertContains(response, "Association Selectionnée")
 
     def test_scan_pack_preparateur_renders_success_modal_with_distinct_carton_numbers(self):
         preparateur = self._create_preparateur_user()

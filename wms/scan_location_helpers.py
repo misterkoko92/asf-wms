@@ -16,6 +16,14 @@ def build_location_data():
         )
     )
     return [
-        {"id": location.id, "label": str(location), "warehouse": location.warehouse.name}
+        {
+            "id": location.id,
+            "label": str(location),
+            "warehouse": location.warehouse.name,
+            "warehouse_id": location.warehouse_id,
+            "zone": location.zone or "",
+            "aisle": location.aisle or "",
+            "shelf": location.shelf or "",
+        }
         for location in locations
     ]

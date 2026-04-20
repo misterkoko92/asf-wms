@@ -1000,10 +1000,7 @@
     const packPage = document.getElementById('pack-page');
     const preparateurMode =
       !!packPage && packPage.dataset.preparateurPackMode === '1';
-    const importProductUrl =
-      packPage && packPage.dataset.importProductUrl ? packPage.dataset.importProductUrl : '';
     const addButton = document.getElementById('pack-add-line');
-    const createProductLink = document.getElementById('pack-create-product-link');
     const lineCountInput = document.getElementById('pack_line_count');
     const formatSelect = document.getElementById('id_carton_format');
     const customFields = document.getElementById('custom-carton-fields');
@@ -1016,15 +1013,13 @@
     const formatDataEl = document.getElementById('carton-format-data');
     const lineDataEl = document.getElementById('pack-lines-data');
     const lineErrorsEl = document.getElementById('pack-lines-errors');
-    const unknownProductOverlay = document.getElementById('pack-unknown-product-overlay');
-    const unknownProductAccept = document.getElementById('pack-unknown-product-accept');
-    const unknownProductReject = document.getElementById('pack-unknown-product-reject');
+    const locationDataEl = document.getElementById('pack-location-data');
 
     let products = [];
     let formats = [];
     let lineValues = [];
     let lineErrors = {};
-    let activeUnknownProductTarget = null;
+    let locations = [];
 
     try {
       products = JSON.parse(productDataEl ? productDataEl.textContent || '[]' : '[]');
@@ -1045,6 +1040,11 @@
       lineErrors = JSON.parse(lineErrorsEl ? lineErrorsEl.textContent || '{}' : '{}');
     } catch (err) {
       lineErrors = {};
+    }
+    try {
+      locations = JSON.parse(locationDataEl ? locationDataEl.textContent || '[]' : '[]');
+    } catch (err) {
+      locations = [];
     }
 
     const normalize = value => (value || '').toString().trim().toLowerCase();
@@ -1095,93 +1095,174 @@
     const productMatcher = createProductMatcher(productEntries);
     const findProduct = value => productMatcher(value);
     packProductResolver = value => productMatcher(value);
+    const unknownProductModalEl = document.getElementById('pack-unknown-product-modal');
+    const unknownProductSourceDisplay = document.getElementById(
+      'pack-unknown-product-source-display'
+    );
+    const unknownProductLineIndexInput = document.getElementById(
+      'id_unknown_product_line_index'
+    );
+    const unknownProductSourceInput = document.getElementById(
+      'id_unknown_product_source_code'
+    );
+    const unknownProductNameInput = document.getElementById('id_unknown_product_name');
+    const unknownProductBarcodeInput = document.getElementById('id_unknown_product_barcode');
+    const unknownProductLocationInput = document.getElementById(
+      'id_unknown_product_location'
+    );
+    const unknownProductWarehouseSelect = document.getElementById(
+      'id_unknown_product_location_warehouse'
+    );
+    const unknownProductZoneSelect = document.getElementById(
+      'id_unknown_product_location_zone'
+    );
+    const unknownProductAisleSelect = document.getElementById(
+      'id_unknown_product_location_aisle'
+    );
+    const unknownProductShelfSelect = document.getElementById(
+      'id_unknown_product_location_shelf'
+    );
+    const canCreateUnknownProduct =
+      preparateurMode &&
+      !!unknownProductModalEl &&
+      !!unknownProductLocationInput &&
+      !!unknownProductWarehouseSelect &&
+      !!unknownProductZoneSelect &&
+      !!unknownProductAisleSelect &&
+      !!unknownProductShelfSelect;
 
-    const closeUnknownProductOverlay = () => {
-      if (!unknownProductOverlay) {
+    const uniqueValues = values => Array.from(new Set(values.filter(value => !!value)));
+
+    const setSelectOptions = (select, values, selectedValue) => {
+      if (!select) {
         return;
       }
-      unknownProductOverlay.hidden = true;
-      unknownProductOverlay.classList.remove('active');
-      unknownProductOverlay.setAttribute('aria-hidden', 'true');
-    };
-
-    const openUnknownProductOverlay = target => {
-      if (!unknownProductOverlay || !importProductUrl || !target || !target.input) {
-        return;
-      }
-      activeUnknownProductTarget = target;
-      unknownProductOverlay.hidden = false;
-      unknownProductOverlay.classList.add('active');
-      unknownProductOverlay.setAttribute('aria-hidden', 'false');
-    };
-
-    const rejectUnknownProduct = () => {
-      const target = activeUnknownProductTarget;
-      closeUnknownProductOverlay();
-      activeUnknownProductTarget = null;
-      if (!target || !target.input) {
-        return;
-      }
-      if (target.filterInput) {
-        target.filterInput.value = '';
-      }
-      target.input.value = '';
-      dispatchValueEvent(target.input);
-      window.requestAnimationFrame(() => {
-        try {
-          target.input.focus();
-        } catch (err) {
-          // Ignore focus errors on detached inputs.
-        }
+      const nextSelectedValue = values.includes(selectedValue) ? selectedValue : '';
+      select.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Choisir';
+      select.appendChild(placeholder);
+      values.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
       });
+      select.value = nextSelectedValue;
     };
 
-    const maybePromptUnknownProduct = target => {
-      if (!target || !target.input) {
+    const refreshUnknownProductLocationSelectors = () => {
+      if (!canCreateUnknownProduct) {
         return;
       }
-      const value = (target.input.value || '').toString().trim();
-      if (!value) {
-        return;
+      const initialLocation = locations.find(
+        location => String(location.id) === String(unknownProductLocationInput.value || '')
+      );
+      if (initialLocation) {
+        if (!unknownProductWarehouseSelect.dataset.selected) {
+          unknownProductWarehouseSelect.dataset.selected = initialLocation.warehouse || '';
+        }
+        if (!unknownProductZoneSelect.dataset.selected) {
+          unknownProductZoneSelect.dataset.selected = initialLocation.zone || '';
+        }
+        if (!unknownProductAisleSelect.dataset.selected) {
+          unknownProductAisleSelect.dataset.selected = initialLocation.aisle || '';
+        }
+        if (!unknownProductShelfSelect.dataset.selected) {
+          unknownProductShelfSelect.dataset.selected = initialLocation.shelf || '';
+        }
       }
-      if (findProduct(value)) {
-        return;
-      }
-      openUnknownProductOverlay(target);
+
+      const selectedWarehouse =
+        unknownProductWarehouseSelect.value || unknownProductWarehouseSelect.dataset.selected || '';
+      const warehouseValues = uniqueValues(locations.map(location => location.warehouse || ''));
+      setSelectOptions(unknownProductWarehouseSelect, warehouseValues, selectedWarehouse);
+      unknownProductWarehouseSelect.dataset.selected = '';
+
+      const zoneValues = uniqueValues(
+        locations
+          .filter(location => !unknownProductWarehouseSelect.value || location.warehouse === unknownProductWarehouseSelect.value)
+          .map(location => location.zone || '')
+      );
+      const selectedZone =
+        unknownProductZoneSelect.value || unknownProductZoneSelect.dataset.selected || '';
+      setSelectOptions(unknownProductZoneSelect, zoneValues, selectedZone);
+      unknownProductZoneSelect.dataset.selected = '';
+
+      const aisleValues = uniqueValues(
+        locations
+          .filter(location => {
+            if (unknownProductWarehouseSelect.value && location.warehouse !== unknownProductWarehouseSelect.value) {
+              return false;
+            }
+            if (unknownProductZoneSelect.value && location.zone !== unknownProductZoneSelect.value) {
+              return false;
+            }
+            return true;
+          })
+          .map(location => location.aisle || '')
+      );
+      const selectedAisle =
+        unknownProductAisleSelect.value || unknownProductAisleSelect.dataset.selected || '';
+      setSelectOptions(unknownProductAisleSelect, aisleValues, selectedAisle);
+      unknownProductAisleSelect.dataset.selected = '';
+
+      const shelfValues = uniqueValues(
+        locations
+          .filter(location => {
+            if (unknownProductWarehouseSelect.value && location.warehouse !== unknownProductWarehouseSelect.value) {
+              return false;
+            }
+            if (unknownProductZoneSelect.value && location.zone !== unknownProductZoneSelect.value) {
+              return false;
+            }
+            if (unknownProductAisleSelect.value && location.aisle !== unknownProductAisleSelect.value) {
+              return false;
+            }
+            return true;
+          })
+          .map(location => location.shelf || '')
+      );
+      const selectedShelf =
+        unknownProductShelfSelect.value || unknownProductShelfSelect.dataset.selected || '';
+      setSelectOptions(unknownProductShelfSelect, shelfValues, selectedShelf);
+      unknownProductShelfSelect.dataset.selected = '';
+
+      const selectedLocation = locations.find(location => {
+        return (
+          location.warehouse === unknownProductWarehouseSelect.value &&
+          location.zone === unknownProductZoneSelect.value &&
+          location.aisle === unknownProductAisleSelect.value &&
+          location.shelf === unknownProductShelfSelect.value
+        );
+      });
+      unknownProductLocationInput.value = selectedLocation ? String(selectedLocation.id) : '';
     };
 
-    if (unknownProductReject) {
-      unknownProductReject.addEventListener('click', rejectUnknownProduct);
-    }
-
-    if (unknownProductAccept) {
-      unknownProductAccept.addEventListener('click', () => {
-        if (!importProductUrl) {
-          closeUnknownProductOverlay();
-          activeUnknownProductTarget = null;
-          return;
-        }
-        window.location.assign(importProductUrl);
-      });
-    }
-
-    if (unknownProductOverlay) {
-      unknownProductOverlay.addEventListener('click', event => {
-        if (event.target === unknownProductOverlay) {
-          rejectUnknownProduct();
-        }
-      });
-    }
-
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && unknownProductOverlay && !unknownProductOverlay.hidden) {
-        rejectUnknownProduct();
+    const openUnknownProductModal = ({ lineIndex, sourceCode }) => {
+      if (!canCreateUnknownProduct || !window.bootstrap || !window.bootstrap.Modal) {
+        return;
       }
-    });
-
-    if (createProductLink && importProductUrl) {
-      createProductLink.setAttribute('href', importProductUrl);
-    }
+      const normalizedSourceCode = (sourceCode || '').toString().trim();
+      if (unknownProductLineIndexInput) {
+        unknownProductLineIndexInput.value = String(lineIndex || '');
+      }
+      if (unknownProductSourceInput) {
+        unknownProductSourceInput.value = normalizedSourceCode;
+      }
+      if (unknownProductSourceDisplay) {
+        unknownProductSourceDisplay.textContent = normalizedSourceCode || '-';
+      }
+      if (unknownProductBarcodeInput && !unknownProductBarcodeInput.value && normalizedSourceCode) {
+        unknownProductBarcodeInput.value = normalizedSourceCode;
+      }
+      refreshUnknownProductLocationSelectors();
+      window.bootstrap.Modal.getOrCreateInstance(unknownProductModalEl).show();
+      if (unknownProductNameInput && !unknownProductNameInput.value) {
+        unknownProductNameInput.focus();
+      }
+    };
 
     const getProductVolume = product => {
       if (!product) {
@@ -1384,6 +1465,7 @@
       const rebuildOptions = query => {
         const normalized = normalizeText(query);
         const selectedValue = productInput.value;
+        let matched = false;
         productInput.innerHTML = '';
         const baseOption = document.createElement('option');
         baseOption.value = '';
@@ -1400,11 +1482,18 @@
               return;
             }
           }
+          matched = true;
           const option = document.createElement('option');
           option.value = product.codeValue || product.name;
           option.textContent = label;
           productInput.appendChild(option);
         });
+        if (!matched && query) {
+          const customOption = document.createElement('option');
+          customOption.value = query;
+          customOption.textContent = `Nouveau : ${query}`;
+          productInput.appendChild(customOption);
+        }
         if (selectedValue) {
           productInput.value = selectedValue;
         }
@@ -1520,6 +1609,20 @@
       filterInput.addEventListener('input', event => {
         rebuildOptions(event.target.value);
       });
+      filterInput.addEventListener('change', event => {
+        const rawValue = (event.target.value || '').trim();
+        if (!rawValue) {
+          return;
+        }
+        const matched = findProduct(rawValue);
+        if (matched && matched.codeValue) {
+          productInput.value = matched.codeValue;
+        } else {
+          rebuildOptions(rawValue);
+          productInput.value = rawValue;
+        }
+        dispatchValueEvent(productInput);
+      });
 
       const updateFamilyControls = () => {
         if (!preparateurMode || !familyField || !familySelect || !familyStatus) {
@@ -1549,18 +1652,24 @@
 
       productInput.addEventListener('change', event => {
         updateAllLineMetrics();
+        const selectedValue = (event.target.value || '').trim();
+        const match = findProduct(selectedValue);
         if (event.target.value) {
-          const match = findProduct(event.target.value);
           if (match) {
             filterInput.value = optionLabel(match);
           } else {
-            filterInput.value = event.target.value;
+            filterInput.value = selectedValue;
           }
         } else {
           filterInput.value = '';
         }
         updateFamilyControls();
-        maybePromptUnknownProduct({ input: productInput, filterInput });
+        if (preparateurMode && selectedValue && !match) {
+          openUnknownProductModal({
+            lineIndex: index,
+            sourceCode: selectedValue
+          });
+        }
       });
       quantityInput.addEventListener('input', updateAllLineMetrics);
       productInput.addEventListener('change', updateAllLineMetrics);
@@ -1605,9 +1714,36 @@
       return parsed;
     };
 
+    if (canCreateUnknownProduct) {
+      [
+        unknownProductWarehouseSelect,
+        unknownProductZoneSelect,
+        unknownProductAisleSelect,
+        unknownProductShelfSelect
+      ].forEach(select => {
+        if (!select) {
+          return;
+        }
+        select.addEventListener('change', refreshUnknownProductLocationSelectors);
+      });
+      refreshUnknownProductLocationSelectors();
+    }
+
     const initialCount = resolveCount(lineCountInput ? lineCountInput.value : lineValues.length || 1);
     renderLines(initialCount);
     toggleCustomFields();
+
+    if (
+      canCreateUnknownProduct &&
+      unknownProductModalEl.dataset.openOnLoad === '1' &&
+      window.bootstrap &&
+      window.bootstrap.Modal
+    ) {
+      window.setTimeout(() => {
+        refreshUnknownProductLocationSelectors();
+        window.bootstrap.Modal.getOrCreateInstance(unknownProductModalEl).show();
+      }, 0);
+    }
 
     if (addButton) {
       addButton.addEventListener('click', () => {

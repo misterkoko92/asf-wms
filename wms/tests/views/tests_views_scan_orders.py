@@ -1,6 +1,7 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
@@ -63,6 +64,15 @@ class ScanOrdersViewsTests(TestCase):
             review_status=review_status,
             created_by=created_by,
         )
+
+    def _create_preparateur(self):
+        user = get_user_model().objects.create_user(
+            username="scan-orders-preparateur",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(name="Preparateur")[0].user_set.add(user)
+        return user
 
     def test_scan_order_get_renders_context(self):
         order_state = {
@@ -461,3 +471,54 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         create_shipment_mock.assert_called_once_with(order=order, force_new=True)
         attach_mock.assert_called_once_with(order, new_shipment)
+
+    def test_scan_preparateur_order_select_lists_only_approved_orders(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        self._create_order(
+            association_name="Association En Attente",
+            review_status=OrderReviewStatus.PENDING,
+        )
+        approved = self._create_order(
+            association_name="Association Validée",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+
+        response = self.client.get(reverse("scan:scan_preparateur_order_select"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Choisir une commande")
+        self.assertContains(response, approved.reference or f"CMD-{approved.id}")
+        self.assertContains(response, "Association Validée")
+        self.assertNotContains(response, "Association En Attente")
+
+    def test_scan_preparateur_order_select_stores_selection_and_prefills_pack_shipment(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        shipment = Shipment.objects.create(
+            reference="EXP-PREP-001",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+        order = self._create_order(
+            association_name="Association Préparateur",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        order.shipment = shipment
+        order.save(update_fields=["shipment"])
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_select"),
+            {"order_id": str(order.id)},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            f"{reverse('scan:scan_pack')}?shipment_reference={shipment.reference}",
+        )
+        session = self.client.session
+        self.assertEqual(session["preparateur_selected_order_id"], order.id)

@@ -1,0 +1,61 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - {% trans "Choisir une commande" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card scan-preparateur-order-select-page">
+    <div class="d-flex flex-column gap-2 mb-4">
+      <h2 class="ui-comp-title mb-0">{% trans "Choisir une commande" %}</h2>
+      <p class="scan-help ui-comp-note mb-0">
+        {% trans "Sélectionner une commande déjà validée pour préparer les colis correspondants." %}
+      </p>
+    </div>
+
+    {% if orders %}
+      <div class="scan-preparateur-order-list">
+        {% for order in orders %}
+          <form method="post" class="scan-preparateur-order-card ui-comp-panel">
+            {% csrf_token %}
+            <input type="hidden" name="order_id" value="{{ order.id }}">
+            <div class="scan-preparateur-order-card-top">
+              <div>
+                <div class="scan-preparateur-order-ref">
+                  {% if order.reference %}
+                    {{ order.reference }}
+                  {% else %}
+                    CMD-{{ order.id }}
+                  {% endif %}
+                </div>
+                <div class="scan-preparateur-order-party">
+                  {{ order.association_contact.name|default:order.recipient_name }}
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                {% trans "Préparer la commande" %}
+              </button>
+            </div>
+            <div class="scan-preparateur-order-card-meta">
+              <span>{% trans "Destinataire" %}: {{ order.recipient_name|default:"-" }}</span>
+              {% if order.shipment_id and order.shipment.reference %}
+                <span>{% trans "Expédition" %}: {{ order.shipment.reference }}</span>
+              {% endif %}
+              {% if order.destination_city or order.destination_country %}
+                <span>
+                  {% trans "Destination" %}:
+                  {{ order.destination_city|default:"" }}{% if order.destination_city and order.destination_country %} - {% endif %}{{ order.destination_country|default:"" }}
+                </span>
+              {% endif %}
+            </div>
+          </form>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="ui-comp-panel">
+        <p class="scan-help ui-comp-note mb-0">
+          {% trans "Aucune commande validée n'est disponible pour la préparation." %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

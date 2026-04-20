@@ -439,7 +439,7 @@ class ScanViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_root"))
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_home"))
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_order_select"))
 
     def test_scan_root_redirects_regular_staff_to_dashboard(self):
         response = self.client.get(reverse("scan:scan_root"))
@@ -455,6 +455,8 @@ class ScanViewTests(TestCase):
         shipments_response = self.client.get(reverse("scan:scan_shipments_ready"))
         home_response = self.client.get(reverse("scan:scan_preparateur_home"))
         pack_response = self.client.get(reverse("scan:scan_pack"))
+        order_select_response = self.client.get(reverse("scan:scan_preparateur_order_select"))
+        last_carton_response = self.client.get(reverse("scan:scan_preparateur_last_carton"))
         preparation_runs_response = self.client.get(reverse("scan:scan_preparation_run_list"))
         preparation_config_response = self.client.get(
             reverse("scan:scan_preparation_parameter_set_config")
@@ -465,9 +467,37 @@ class ScanViewTests(TestCase):
         self.assertEqual(shipments_response.status_code, 403)
         self.assertEqual(home_response.status_code, 200)
         self.assertEqual(pack_response.status_code, 200)
+        self.assertEqual(order_select_response.status_code, 200)
+        self.assertEqual(last_carton_response.status_code, 302)
         self.assertEqual(preparation_runs_response.status_code, 200)
         self.assertEqual(preparation_config_response.status_code, 200)
         self.assertEqual(sync_response.status_code, 200)
+
+    def test_preparateur_last_carton_redirects_to_latest_prepared_carton(self):
+        preparateur = self._create_preparateur()
+        other_preparateur = get_user_model().objects.create_user(
+            username="scan-preparateur-other",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(name="Preparateur")[0].user_set.add(other_preparateur)
+        self.client.force_login(preparateur)
+
+        older = Carton.objects.create(code="PREP-LAST-001", prepared_by=preparateur)
+        Carton.objects.create(code="PREP-LAST-002", prepared_by=other_preparateur)
+        newer = Carton.objects.create(code="PREP-LAST-003", prepared_by=preparateur)
+
+        response = self.client.get(reverse("scan:scan_preparateur_last_carton"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            reverse("scan:scan_carton_edit", kwargs={"carton_id": newer.id}),
+        )
+        self.assertNotEqual(
+            response["Location"],
+            reverse("scan:scan_carton_edit", kwargs={"carton_id": older.id}),
+        )
 
     def test_admin_site_denies_preparateur(self):
         preparateur = self._create_preparateur()

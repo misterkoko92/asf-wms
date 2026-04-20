@@ -1,21 +1,27 @@
 from collections import defaultdict
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
 from .carton_activity import record_carton_volunteer_activity
 from .carton_status_events import set_carton_status
 from .domain.stock import ensure_carton_code
+from .emailing import enqueue_email_safe, get_admin_emails, get_group_emails
 from .models import (
     CartonFormat,
     CartonStatus,
     CartonVolunteerActivityAction,
     Location,
+    Product,
+    ProductCategory,
     Shipment,
 )
 from .scan_helpers import (
@@ -29,7 +35,7 @@ from .scan_helpers import (
     resolve_shipment,
 )
 from .scan_permissions import user_is_preparateur
-from .services import StockError, pack_carton, unpack_carton
+from .services import StockError, pack_carton, receive_stock, unpack_carton
 from .shipment_status import sync_shipment_ready_state
 
 PREPARATEUR_FAMILY_MM = "MM"
@@ -44,6 +50,7 @@ PREPARATEUR_LOCATION_LABELS = {
     PREPARATEUR_FAMILY_MM: "Colis Prets MM",
     PREPARATEUR_FAMILY_CN: "Colis Prets CN",
 }
+ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 
 
 def _normalize_pack_family(value):
@@ -101,6 +108,108 @@ def _resolve_preparateur_locations():
         family: _resolve_preparateur_location(label)
         for family, label in PREPARATEUR_LOCATION_LABELS.items()
     }
+
+
+def _resolve_preparateur_root_category(family):
+    return (
+        ProductCategory.objects.filter(parent__isnull=True, name__iexact=family)
+        .order_by("id")
+        .first()
+    )
+
+
+def notify_preparateur_product_review_needed(
+    *,
+    product,
+    created_by,
+    location,
+    quantity,
+    lot_code,
+    expires_on,
+):
+    validation_group_name = getattr(
+        settings,
+        "ACCOUNT_REQUEST_VALIDATION_GROUP_NAME",
+        ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT,
+    )
+    recipients = list(
+        dict.fromkeys(
+            [
+                *get_admin_emails(),
+                *get_group_emails(validation_group_name, require_staff=True),
+            ]
+        )
+    )
+    if not recipients:
+        return False
+
+    review_url = reverse("scan:scan_stock_update")
+    expires_on_label = expires_on.isoformat() if expires_on else "-"
+    created_by_label = getattr(created_by, "username", "") or str(created_by)
+    message = "\n".join(
+        [
+            _("Un produit créé par un préparateur doit être revu."),
+            "",
+            _("Produit : %(name)s") % {"name": product.name},
+            _("SKU : %(sku)s") % {"sku": product.sku},
+            _("Famille racine : %(family)s") % {"family": _get_product_root_category_name(product)},
+            _("Créé par : %(username)s") % {"username": created_by_label},
+            _("Emplacement : %(location)s") % {"location": location},
+            _("Quantité initiale : %(quantity)s") % {"quantity": quantity},
+            _("Lot : %(lot)s") % {"lot": lot_code or "-"},
+            _("Péremption : %(expires_on)s") % {"expires_on": expires_on_label},
+            "",
+            _("Revue produit : %(url)s") % {"url": review_url},
+        ]
+    )
+    return enqueue_email_safe(
+        subject=_("Revue produit requise : %(sku)s") % {"sku": product.sku},
+        message=message,
+        recipient=recipients,
+        tags=["scan", "preparateur", "product_review"],
+    )
+
+
+def create_preparateur_unknown_product_from_pack(*, request, form):
+    if not form.is_valid():
+        raise ValueError("Unknown product form is invalid.")
+
+    family = form.cleaned_data["pack_family"]
+    category = _resolve_preparateur_root_category(family)
+    if category is None:
+        raise StockError(_("Catégorie racine introuvable pour %(family)s.") % {"family": family})
+
+    with transaction.atomic():
+        product = Product.objects.create(
+            sku=form.cleaned_data["sku"],
+            name=form.cleaned_data["name"],
+            brand=form.cleaned_data["brand"],
+            barcode=form.cleaned_data["barcode"],
+            ean=form.cleaned_data["ean"],
+            category=category,
+            default_location=form.cleaned_data["location"],
+            notes=form.cleaned_data["notes"],
+            is_incomplete=True,
+        )
+        receive_stock(
+            user=request.user,
+            product=product,
+            quantity=form.cleaned_data["initial_quantity"],
+            location=form.cleaned_data["location"],
+            lot_code=form.cleaned_data["lot_code"],
+            received_on=timezone.localdate(),
+            expires_on=form.cleaned_data["expires_on"],
+        )
+
+    notify_preparateur_product_review_needed(
+        product=product,
+        created_by=request.user,
+        location=form.cleaned_data["location"],
+        quantity=form.cleaned_data["initial_quantity"],
+        lot_code=form.cleaned_data["lot_code"],
+        expires_on=form.cleaned_data["expires_on"],
+    )
+    return product
 
 
 def _resolve_pack_action(request):
