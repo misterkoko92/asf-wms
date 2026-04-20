@@ -371,6 +371,9 @@ def pack_carton_from_reserved(
     current_location=None,
     carton_size=None,
     display_expires_on=None,
+    prepared_by_user=None,
+    volunteer_profile=None,
+    actor_user=None,
 ):
     carton = _prepare_carton(
         user=user,
@@ -378,6 +381,9 @@ def pack_carton_from_reserved(
         shipment=shipment,
         current_location=current_location,
         carton_size=carton_size,
+        prepared_by_user=prepared_by_user,
+        volunteer_profile=volunteer_profile,
+        actor_user=actor_user,
     )
 
     movement_type = MovementType.OUT if shipment else MovementType.PRECONDITION
@@ -485,7 +491,15 @@ def assign_ready_cartons_to_order(*, order: Order):
 
 
 @transaction.atomic
-def prepare_order(*, user, order: Order):
+def prepare_order(
+    *,
+    user,
+    order: Order,
+    prepared_by_user=None,
+    volunteer_profile=None,
+    actor_user=None,
+    created_cartons=None,
+):
     if order.status not in {OrderStatus.RESERVED, OrderStatus.PREPARING}:
         raise StockError("Commande non réservée.")
     shipment = create_shipment_for_order(order=order)
@@ -531,7 +545,12 @@ def prepare_order(*, user, order: Order):
                     carton=carton,
                     shipment=shipment,
                     carton_size=carton_size,
+                    prepared_by_user=prepared_by_user,
+                    volunteer_profile=volunteer_profile,
+                    actor_user=actor_user,
                 )
+            if carton is not None and created_cartons is not None:
+                created_cartons.append(carton)
     order.refresh_from_db()
     if all(line.remaining_quantity == 0 for line in order.lines.all()):
         order.status = OrderStatus.READY

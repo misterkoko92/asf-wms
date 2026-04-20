@@ -20,6 +20,8 @@ from wms.models import (
     CartonItem,
     CartonStatus,
     CartonStatusEvent,
+    CartonVolunteerActivity,
+    CartonVolunteerActivityAction,
     Destination,
     Location,
     MovementType,
@@ -40,6 +42,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentValidationStatus,
     StockMovement,
+    VolunteerProfile,
     Warehouse,
 )
 
@@ -220,6 +223,15 @@ class DomainOrdersExtraTests(TestCase):
             quantity_reserved=quantity_reserved,
             location=self.location,
         )
+
+    def _create_volunteer(self, *, username="orders-volunteer", first_name="Martin"):
+        volunteer_user = get_user_model().objects.create_user(
+            username=username,
+            password="pass1234",
+            first_name=first_name,
+            last_name="Dupond",
+        )
+        return VolunteerProfile.objects.create(user=volunteer_user, is_active=True)
 
     def _create_reservation(self, *, line, lot, quantity):
         return OrderReservation.objects.create(
@@ -931,6 +943,58 @@ class DomainOrdersExtraTests(TestCase):
             ):
                 with self.assertRaisesMessage(StockError, "Produit manquant dans la commande."):
                     prepare_order(user=self.user, order=order)
+
+    def test_prepare_order_uses_selected_volunteer_for_created_cartons(self):
+        order, _line = self._create_order(
+            status=OrderStatus.DRAFT,
+            quantity=3,
+        )
+        self._create_lot(
+            product=self.product,
+            code="LOT-VOLUNTEER",
+            quantity_on_hand=8,
+        )
+        CartonFormat.objects.create(
+            name="Default",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        volunteer = self._create_volunteer()
+        created_cartons = []
+        self.product.weight_g = 100
+        self.product.length_cm = 10
+        self.product.width_cm = 10
+        self.product.height_cm = 10
+        self.product.save(update_fields=["weight_g", "length_cm", "width_cm", "height_cm"])
+        reserve_stock_for_order(order=order)
+
+        assigned = prepare_order(
+            user=self.user,
+            order=order,
+            prepared_by_user=volunteer.user,
+            volunteer_profile=volunteer,
+            actor_user=self.user,
+            created_cartons=created_cartons,
+        )
+
+        order.refresh_from_db()
+        self.assertEqual(assigned, 0)
+        self.assertEqual(order.status, OrderStatus.READY)
+        self.assertEqual(len(created_cartons), 1)
+        carton = created_cartons[0]
+        carton.refresh_from_db()
+        self.assertEqual(carton.prepared_by, volunteer.user)
+        self.assertTrue(
+            CartonVolunteerActivity.objects.filter(
+                carton=carton,
+                volunteer=volunteer,
+                action=CartonVolunteerActivityAction.PREPARED,
+                actor=self.user,
+            ).exists()
+        )
 
 
 class _FakeLot:

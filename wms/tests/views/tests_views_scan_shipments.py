@@ -1111,13 +1111,19 @@ class ScanShipmentsViewsTests(TestCase):
                         "zone_label": "Colis Prets MM",
                         "family": "MM",
                         "items": [],
+                        "packing_list_url": "/scan/cartons/10/document/?delivery=html",
                     },
                     {
                         "code": "CN-20260316-04",
                         "zone_label": "Colis Prets CN",
                         "family": "CN",
                         "items": [],
+                        "packing_list_url": "/scan/cartons/11/document/?delivery=html",
                     },
+                ],
+                "print_urls": [
+                    "/scan/cartons/10/document/?delivery=html",
+                    "/scan/cartons/11/document/?delivery=html",
                 ],
                 "aggregate": [],
                 "show_success_modal": True,
@@ -1133,7 +1139,45 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Écrire le numéro CN-20260316-04")
         self.assertContains(response, 'id="pack-success-modal"')
         self.assertContains(response, 'id="pack-success-backdrop"')
-        self.assertContains(response, "document.getElementById('pack-success-backdrop')")
+        self.assertContains(response, 'class="btn-close"')
+        self.assertContains(response, 'data-pack-success-close="1"')
+        self.assertContains(response, 'data-pack-success-print="1"')
+        self.assertContains(response, 'data-pack-print-all="1"')
+        self.assertContains(response, "Imprimer tout")
+        self.assertContains(response, "/scan/cartons/10/document/?delivery=html")
+        self.assertContains(response, "/scan/cartons/11/document/?delivery=html")
+
+    def test_scan_pack_preparateur_success_modal_uses_single_print_label_for_one_carton(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session["pack_results"] = [10]
+        session.save()
+
+        with mock.patch(
+            "wms.views_scan_shipments.build_packing_result",
+            return_value={
+                "cartons": [
+                    {
+                        "code": "MM-20260316-12",
+                        "zone_label": "Colis Prets MM",
+                        "family": "MM",
+                        "items": [],
+                        "packing_list_url": "/scan/cartons/10/document/?delivery=html",
+                    }
+                ],
+                "print_urls": ["/scan/cartons/10/document/?delivery=html"],
+                "aggregate": [],
+                "show_success_modal": True,
+            },
+        ):
+            response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-pack-success-print="1"')
+        self.assertContains(response, 'data-pack-print-all="0"')
+        self.assertContains(response, "Imprimer")
+        self.assertNotContains(response, "Imprimer tout")
 
     def test_scan_shipment_create_hides_secondary_draft_button_near_submit(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))

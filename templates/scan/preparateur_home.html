@@ -1,0 +1,136 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - {% trans "Accueil préparateur" %}{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-column gap-4">
+    <section class="scan-card card border-0 ui-comp-card">
+      <div class="d-flex flex-column gap-3">
+        <div>
+          <h2 class="ui-comp-title mb-2">{% trans "Choisir un bénévole" %}</h2>
+          <p class="scan-help ui-comp-note mb-0">
+            {% trans "Le bénévole sélectionné reste actif sur les pages préparateur jusqu'à la déconnexion." %}
+          </p>
+        </div>
+        <form method="post" class="row g-3 align-items-end">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="set_active_volunteer">
+          <div class="col-12 col-lg-8">
+            <label class="form-label" for="id_preparateur_volunteer">{% trans "Bénévole actif" %}</label>
+            <select
+              id="id_preparateur_volunteer"
+              name="volunteer_id"
+              class="form-select ui-select--xl"
+            >
+              <option value="">{% trans "Sélectionner un bénévole" %}</option>
+              {% for volunteer in volunteer_options %}
+                <option value="{{ volunteer.id }}" {% if volunteer.id == selected_volunteer_id %}selected{% endif %}>
+                  {{ volunteer.label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-lg-4">
+            <button type="submit" class="btn btn-primary w-100">{% trans "Valider" %}</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div class="d-flex flex-column gap-4">
+        <div>
+          <h2 class="ui-comp-title mb-2">{% trans "Actions d'accueil" %}</h2>
+          {% if has_active_volunteer %}
+            <p class="scan-help ui-comp-note mb-0">
+              {% trans "Choisissez une commande prioritaire ou basculez vers la préparation de colis non affectés." %}
+            </p>
+          {% else %}
+            <p class="scan-help ui-comp-note mb-0">
+              {% trans "Les actions restent désactivées tant qu'aucun bénévole n'est choisi." %}
+            </p>
+          {% endif %}
+        </div>
+
+        <div class="row g-4">
+          <div class="col-12 col-xl-6">
+            <div class="scan-field ui-comp-panel h-100 d-flex flex-column gap-3">
+              <div>
+                <h3 class="ui-comp-title h5 mb-2">{% trans "Préparer une commande" %}</h3>
+                <p class="scan-help ui-comp-note mb-0">
+                  {% trans "La commande proposée par défaut est la plus critique et réalisable immédiatement." %}
+                </p>
+              </div>
+
+              {% if has_active_volunteer and order_groups %}
+                <form method="post" class="d-flex flex-column gap-3 mt-auto">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="prepare_order">
+                  <div>
+                    <label class="form-label" for="id_preparateur_order">{% trans "Commande" %}</label>
+                    <select
+                      id="id_preparateur_order"
+                      name="order_id"
+                      class="form-select ui-select--xl"
+                    >
+                      {% for group in order_groups %}
+                        {% if group.options %}
+                          <optgroup label="{{ group.label }}">
+                            {% for option in group.options %}
+                              <option value="{{ option.order.id }}" {% if option.order.id == selected_order_id %}selected{% endif %}>
+                                {{ option.label }}
+                              </option>
+                            {% endfor %}
+                          </optgroup>
+                        {% endif %}
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <button type="submit" class="btn btn-primary">{% trans "Préparer une commande" %}</button>
+                </form>
+              {% else %}
+                <div class="mt-auto">
+                  <button type="button" class="btn btn-primary" disabled>{% trans "Préparer une commande" %}</button>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="col-12 col-xl-6">
+            <div class="scan-field ui-comp-panel h-100 d-flex flex-column gap-3">
+              <div>
+                <h3 class="ui-comp-title h5 mb-2">{% trans "Préparer des colis non affectés" %}</h3>
+                <p class="scan-help ui-comp-note mb-0">
+                  {% trans "Ouvre l'écran existant de préparation colis." %}
+                </p>
+              </div>
+
+              <div class="mt-auto d-flex flex-wrap gap-2">
+                {% if has_active_volunteer %}
+                  <a
+                    class="btn btn-secondary"
+                    href="{% url 'scan:scan_pack' %}"
+                  >
+                    {% trans "Préparer des colis non affectés" %}
+                  </a>
+                {% else %}
+                  <button type="button" class="btn btn-secondary" disabled>{% trans "Préparer des colis non affectés" %}</button>
+                {% endif %}
+                {% if last_carton_id %}
+                  <form method="post" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="view_last_carton">
+                    <button type="submit" class="btn btn-tertiary">{% trans "Voir dernier carton" %}</button>
+                  </form>
+                {% else %}
+                  <button type="button" class="btn btn-tertiary" disabled>{% trans "Voir dernier carton" %}</button>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+{% endblock %}

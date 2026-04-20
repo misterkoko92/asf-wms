@@ -7,6 +7,7 @@ from django.db.models import Case, F, IntegerField, Value, When
 from django.db.models.expressions import ExpressionWrapper
 from django.utils import timezone
 
+from ..carton_activity import record_carton_volunteer_activity
 from ..carton_status_events import set_carton_status
 from ..kit_components import KitCycleError, get_component_quantities
 from ..models import (
@@ -15,6 +16,7 @@ from ..models import (
     CartonItem,
     CartonSequence,
     CartonStatus,
+    CartonVolunteerActivityAction,
     Location,
     MovementType,
     Product,
@@ -225,6 +227,9 @@ def _prepare_carton(
     current_location=None,
     carton_code: str | None = None,
     carton_size=None,
+    prepared_by_user=None,
+    volunteer_profile=None,
+    actor_user=None,
 ):
     if carton is None and carton_code:
         carton = Carton.objects.filter(code=carton_code).first()
@@ -249,13 +254,20 @@ def _prepare_carton(
                     shipment=shipment,
                     preassigned_destination=preassigned_destination if shipment is None else None,
                     current_location=current_location,
-                    prepared_by=user,
+                    prepared_by=prepared_by_user or user,
                 )
             except IntegrityError:
                 if carton_code:
                     raise
                 continue
             break
+        if volunteer_profile is not None:
+            record_carton_volunteer_activity(
+                carton=carton,
+                volunteer=volunteer_profile,
+                action=CartonVolunteerActivityAction.PREPARED,
+                actor=actor_user or user,
+            )
         if carton_code:
             carton._manual_code = True
     else:
@@ -550,6 +562,9 @@ def pack_carton(
     current_location=None,
     carton_size=None,
     skip_picking_status=False,
+    prepared_by_user=None,
+    volunteer_profile=None,
+    actor_user=None,
 ):
     carton = _prepare_carton(
         user=user,
@@ -559,6 +574,9 @@ def pack_carton(
         current_location=current_location,
         carton_code=carton_code,
         carton_size=carton_size,
+        prepared_by_user=prepared_by_user,
+        volunteer_profile=volunteer_profile,
+        actor_user=actor_user,
     )
 
     movement_type = MovementType.OUT if shipment else MovementType.PRECONDITION

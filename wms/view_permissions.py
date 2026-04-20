@@ -17,6 +17,11 @@ from .models import (
 )
 from .portal_access import list_user_portal_scopes, resolve_active_portal_scope
 from .portal_helpers import get_association_profile
+from .preparateur_session import (
+    build_preparateur_volunteer_label,
+    get_active_preparateur_volunteer,
+    get_preparateur_greeting_name,
+)
 from .scan_permissions import is_scan_view_allowed_for_user, user_is_preparateur
 
 BLOCKED_REASON_QUERY_PARAM = "blocked"
@@ -66,6 +71,19 @@ def scan_staff_required(view):
         if not request.user.is_staff:
             raise PermissionDenied
         request.scan_is_preparateur = user_is_preparateur(request.user)
+        request.scan_active_volunteer = None
+        request.scan_active_volunteer_label = ""
+        request.scan_active_volunteer_greeting_name = ""
+        if request.scan_is_preparateur:
+            active_volunteer = get_active_preparateur_volunteer(request)
+            request.scan_active_volunteer = active_volunteer
+            if active_volunteer is not None:
+                request.scan_active_volunteer_label = build_preparateur_volunteer_label(
+                    active_volunteer
+                )
+                request.scan_active_volunteer_greeting_name = get_preparateur_greeting_name(
+                    active_volunteer
+                )
         if not is_scan_view_allowed_for_user(request):
             raise PermissionDenied
         return view(request, *args, **kwargs)
