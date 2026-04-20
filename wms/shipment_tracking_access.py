@@ -4,9 +4,60 @@ from django.db.models import Q
 
 from .models import (
     ShipmentTrackingAccessGrant,
+    ShipmentTrackingAccessRole,
     ShipmentTrackingAuthSource,
     ShipmentTrackingIdentityStatus,
+    ShipmentTrackingProofMode,
+    ShipmentTrackingStatus,
 )
+
+DEFAULT_TRACKING_ESCALE_CODE = "CDG"
+TRACKING_CONTACT_ROLES = {
+    ShipmentTrackingAccessRole.SHIPPER,
+    ShipmentTrackingAccessRole.RECIPIENT,
+    ShipmentTrackingAccessRole.CORRESPONDENT,
+}
+TRACKING_DOWNSTREAM_RECEIPT_STATUSES = {
+    ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+    ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+}
+TRACKING_PENDING_ACCOUNT_FIELDS_BY_ROLE = {
+    ShipmentTrackingAccessRole.VOLUNTEER: {
+        "role",
+        "email",
+        "first_name",
+        "last_name",
+    },
+    ShipmentTrackingAccessRole.SHIPPER: {
+        "role",
+        "email",
+        "structure_name",
+        "address_line1",
+        "postal_code",
+        "city",
+        "country",
+    },
+    ShipmentTrackingAccessRole.RECIPIENT: {
+        "role",
+        "email",
+        "structure_name",
+        "address_line1",
+        "postal_code",
+        "city",
+        "country",
+        "escale_code",
+    },
+    ShipmentTrackingAccessRole.CORRESPONDENT: {
+        "role",
+        "email",
+        "structure_name",
+        "address_line1",
+        "postal_code",
+        "city",
+        "country",
+        "escale_code",
+    },
+}
 
 
 def resolve_tracking_identifier_from_grant(grant: ShipmentTrackingAccessGrant) -> str:
@@ -36,6 +87,53 @@ def build_tracking_actor_snapshot_from_grant(
         "destination_id": getattr(destination, "id", None),
         "destination_iata_code": str(getattr(destination, "iata_code", "") or "").strip(),
     }
+
+
+def tracking_identifier_label_for_role(role: str) -> str:
+    if role == ShipmentTrackingAccessRole.VOLUNTEER:
+        return "ID bénévole"
+    if role in TRACKING_CONTACT_ROLES:
+        return "ID ASF"
+    return "Identifiant"
+
+
+def shipment_has_boarding_ok(shipment) -> bool:
+    if shipment is None:
+        return False
+    if getattr(shipment, "status", "") in {"shipped", "received_correspondent", "delivered"}:
+        return True
+    tracking_events = getattr(shipment, "tracking_events", None)
+    if tracking_events is None:
+        return False
+    return tracking_events.filter(status=ShipmentTrackingStatus.BOARDING_OK).exists()
+
+
+def default_tracking_escale_for_shipment(shipment) -> str:
+    if not shipment_has_boarding_ok(shipment):
+        return DEFAULT_TRACKING_ESCALE_CODE
+    destination = getattr(shipment, "destination", None)
+    destination_iata = str(getattr(destination, "iata_code", "") or "").strip().upper()
+    return destination_iata or DEFAULT_TRACKING_ESCALE_CODE
+
+
+def tracking_status_requires_proof(status: str) -> bool:
+    return status in TRACKING_DOWNSTREAM_RECEIPT_STATUSES
+
+
+def tracking_pending_account_fields_for_role(role: str) -> set[str]:
+    return TRACKING_PENDING_ACCOUNT_FIELDS_BY_ROLE.get(role, {"role", "email"})
+
+
+def tracking_requires_structure_details(role: str) -> bool:
+    return role in TRACKING_CONTACT_ROLES
+
+
+def resolve_tracking_proof_mode(*, proof_no_photo: bool, proof_file) -> str:
+    if proof_no_photo:
+        return ShipmentTrackingProofMode.MANUAL
+    if proof_file:
+        return ShipmentTrackingProofMode.PHOTO
+    return ""
 
 
 def find_active_tracking_access_grant(
