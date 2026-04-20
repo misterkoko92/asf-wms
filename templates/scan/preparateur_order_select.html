@@ -12,50 +12,52 @@
       </p>
     </div>
 
-    {% if orders %}
-      <div class="scan-preparateur-order-list">
-        {% for order in orders %}
-          <form method="post" class="scan-preparateur-order-card ui-comp-panel">
-            {% csrf_token %}
-            <input type="hidden" name="order_id" value="{{ order.id }}">
-            <div class="scan-preparateur-order-card-top">
-              <div>
-                <div class="scan-preparateur-order-ref">
-                  {% if order.reference %}
-                    {{ order.reference }}
-                  {% else %}
-                    CMD-{{ order.id }}
+    {% for group in order_group_sections %}
+      <section class="d-flex flex-column gap-3{% if not forloop.last %} mb-4{% endif %}">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <h3 class="ui-comp-subtitle mb-0">{{ group.label }}</h3>
+          <span class="badge text-bg-light ui-comp-count-badge">{{ group.orders|length }}</span>
+        </div>
+
+        {% if group.orders %}
+          <div class="scan-preparateur-order-list">
+            {% for order in group.orders %}
+              <form method="post" class="scan-preparateur-order-card ui-comp-panel">
+                {% csrf_token %}
+                <input type="hidden" name="order_id" value="{{ order.order.id }}">
+                <div class="scan-preparateur-order-card-top">
+                  <div>
+                    <div class="scan-preparateur-order-ref">
+                      {{ order.reference_label }}
+                    </div>
+                    <div class="scan-preparateur-order-party">
+                      {{ order.association_name }}
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary">
+                    {% trans "Préparer la commande" %}
+                  </button>
+                </div>
+                <div class="scan-preparateur-order-card-meta">
+                  <span>{% trans "Destinataire" %}: {{ order.recipient_name|default:"-" }}</span>
+                  {% if order.shipment_reference %}
+                    <span>{% trans "Expédition" %}: {{ order.shipment_reference }}</span>
+                  {% endif %}
+                  {% if order.destination_label %}
+                    <span>{% trans "Destination" %}: {{ order.destination_label }}</span>
                   {% endif %}
                 </div>
-                <div class="scan-preparateur-order-party">
-                  {{ order.association_contact.name|default:order.recipient_name }}
-                </div>
-              </div>
-              <button type="submit" class="btn btn-primary">
-                {% trans "Préparer la commande" %}
-              </button>
-            </div>
-            <div class="scan-preparateur-order-card-meta">
-              <span>{% trans "Destinataire" %}: {{ order.recipient_name|default:"-" }}</span>
-              {% if order.shipment_id and order.shipment.reference %}
-                <span>{% trans "Expédition" %}: {{ order.shipment.reference }}</span>
-              {% endif %}
-              {% if order.destination_city or order.destination_country %}
-                <span>
-                  {% trans "Destination" %}:
-                  {{ order.destination_city|default:"" }}{% if order.destination_city and order.destination_country %} - {% endif %}{{ order.destination_country|default:"" }}
-                </span>
-              {% endif %}
-            </div>
-          </form>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="ui-comp-panel">
-        <p class="scan-help ui-comp-note mb-0">
-          {% trans "Aucune commande validée n'est disponible pour la préparation." %}
-        </p>
-      </div>
-    {% endif %}
+              </form>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="ui-comp-panel">
+            <p class="scan-help ui-comp-note mb-0">
+              {% trans "Aucune commande dans ce groupe pour le moment." %}
+            </p>
+          </div>
+        {% endif %}
+      </section>
+    {% endfor %}
   </div>
 {% endblock %}

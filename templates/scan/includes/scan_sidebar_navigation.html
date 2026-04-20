@@ -4,9 +4,16 @@
     <a
       id="scan-sidebar-preparateur-order-select"
       href="{% url 'scan:scan_preparateur_order_select' %}"
-      class="scan-sidebar-link{% if active == 'pack' or active == 'preparateur_order_select' %} active{% endif %}"
+      class="scan-sidebar-link{% if active == 'preparateur_order_select' or active == 'preparateur_order_prepare' %} active{% endif %}"
     >
       Choisir une commande
+    </a>
+    <a
+      id="scan-sidebar-preparateur-pack"
+      href="{% url 'scan:scan_preparateur_pack_start' %}"
+      class="scan-sidebar-link{% if active == 'pack' %} active{% endif %}"
+    >
+      Préparer des colis
     </a>
     <a
       id="scan-sidebar-preparateur-last-carton"

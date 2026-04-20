@@ -1,5 +1,4 @@
-from urllib.parse import urlencode
-
+from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -11,11 +10,21 @@ from .order_scan_state import build_order_scan_state
 from .order_view_handlers import handle_order_detail_action, handle_orders_view_action
 from .order_view_helpers import build_order_detail_payload
 from .preparateur_orders import (
+    build_preparateur_order_group_sections,
+    build_preparateur_order_groups,
+    build_preparateur_order_picking_context,
+    build_preparateur_order_ready_cartons,
     build_preparateur_orders_queryset,
+    build_preparateur_selected_order_summary,
+    ensure_preparateur_order_plan,
+    get_preparateur_selected_order,
+    mark_preparateur_plan_carton_ready,
+    set_preparateur_order_plan,
     set_preparateur_selected_order,
 )
 from .scan_helpers import build_product_options
 from .scan_permissions import user_is_preparateur
+from .services import StockError
 from .view_permissions import scan_staff_required
 from .view_utils import sorted_choices
 
@@ -23,10 +32,13 @@ TEMPLATE_SCAN_ORDER = "scan/order.html"
 TEMPLATE_ORDERS_VIEW = "scan/orders_view.html"
 TEMPLATE_ORDER_DETAIL = "scan/order_detail.html"
 TEMPLATE_PREPARATEUR_ORDER_SELECT = "scan/preparateur_order_select.html"
+TEMPLATE_PREPARATEUR_ORDER_PREPARE = "scan/preparateur_order_prepare.html"
+TEMPLATE_PREPARATEUR_ORDER_PICKING = "print/picking_list_kits.html"
 
 ACTIVE_ORDER = "order"
 ACTIVE_ORDERS_VIEW = "orders_view"
 ACTIVE_PREPARATEUR_ORDER_SELECT = "preparateur_order_select"
+ACTIVE_PREPARATEUR_ORDER_PREPARE = "preparateur_order_prepare"
 
 
 def _render_scan_order(request, *, product_options, order_state):
@@ -72,13 +84,33 @@ def _render_order_detail(request, *, detail):
     )
 
 
-def _render_preparateur_order_select(request, *, orders):
+def _render_preparateur_order_select(request, *, order_group_sections, order_groups):
     return render(
         request,
         TEMPLATE_PREPARATEUR_ORDER_SELECT,
         {
             "active": ACTIVE_PREPARATEUR_ORDER_SELECT,
-            "orders": orders,
+            "order_group_sections": order_group_sections,
+            "order_groups": order_groups,
+        },
+    )
+
+
+def _render_preparateur_order_prepare(request, *, order, plan):
+    pending_cartons = [
+        carton for carton in plan.get("cartons", []) if carton.get("status") != "ready"
+    ]
+    return render(
+        request,
+        TEMPLATE_PREPARATEUR_ORDER_PREPARE,
+        {
+            "active": ACTIVE_PREPARATEUR_ORDER_PREPARE,
+            "order": order,
+            "order_summary": build_preparateur_selected_order_summary(order),
+            "plan": plan,
+            "pending_cartons": pending_cartons,
+            "ready_cartons": build_preparateur_order_ready_cartons(order),
+            "picking_url": reverse("scan:scan_preparateur_order_prepare_picking"),
         },
     )
 
@@ -150,13 +182,61 @@ def scan_preparateur_order_select(request):
     if request.method == "POST":
         order = get_object_or_404(orders_qs, pk=request.POST.get("order_id"))
         set_preparateur_selected_order(request, order)
-        redirect_url = reverse("scan:scan_pack")
-        if order.shipment_id and order.shipment and order.shipment.reference:
-            shipment_query = urlencode({"shipment_reference": order.shipment.reference})
-            return redirect(f"{redirect_url}?{shipment_query}")
-        return redirect(redirect_url)
+        return redirect(reverse("scan:scan_preparateur_order_prepare"))
 
+    order_groups = build_preparateur_order_groups(orders_qs)
     return _render_preparateur_order_select(
         request,
-        orders=orders_qs,
+        order_group_sections=build_preparateur_order_group_sections(order_groups),
+        order_groups=order_groups,
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_preparateur_order_prepare(request):
+    if not user_is_preparateur(request.user):
+        return redirect("scan:scan_orders_view")
+
+    order = get_preparateur_selected_order(request)
+    if order is None:
+        return redirect("scan:scan_preparateur_order_select")
+
+    plan = ensure_preparateur_order_plan(request, order=order)
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == "mark_carton_ready":
+            try:
+                carton_index = int(request.POST.get("carton_index") or 0)
+                carton_id = mark_preparateur_plan_carton_ready(
+                    user=request.user,
+                    order=order,
+                    plan=plan,
+                    carton_index=carton_index,
+                )
+            except (TypeError, ValueError, StockError) as exc:
+                messages.error(request, str(exc))
+            else:
+                set_preparateur_order_plan(request, plan)
+                messages.success(request, "Le colis a été marqué prêt.")
+        return redirect("scan:scan_preparateur_order_prepare")
+
+    return _render_preparateur_order_prepare(request, order=order, plan=plan)
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_preparateur_order_prepare_picking(request):
+    if not user_is_preparateur(request.user):
+        return redirect("scan:scan_orders_view")
+
+    order = get_preparateur_selected_order(request)
+    if order is None:
+        return redirect("scan:scan_preparateur_order_select")
+
+    plan = ensure_preparateur_order_plan(request, order=order)
+    return render(
+        request,
+        TEMPLATE_PREPARATEUR_ORDER_PICKING,
+        build_preparateur_order_picking_context(plan),
     )

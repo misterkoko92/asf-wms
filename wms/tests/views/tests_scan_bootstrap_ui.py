@@ -212,12 +212,24 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'id="scan-masthead-account-toggle"')
         nav_html = self._scan_sidebar_html(response)
         self.assertIn(reverse("scan:scan_preparateur_order_select"), nav_html)
+        self.assertIn(reverse("scan:scan_preparateur_pack_start"), nav_html)
         self.assertIn(reverse("scan:scan_preparateur_last_carton"), nav_html)
         self.assertIn("Choisir une commande", nav_html)
+        self.assertIn("Préparer des colis", nav_html)
         self.assertIn("Voir dernier colis", nav_html)
         self.assertIn("Changer de compte", nav_html)
         self.assertIn("Déconnexion", nav_html)
         self.assertNotIn("Runs magasin", nav_html)
+        self._assert_nav_labels_in_order(
+            nav_html,
+            [
+                "Choisir une commande",
+                "Préparer des colis",
+                "Voir dernier colis",
+                "Changer de compte",
+                "Déconnexion",
+            ],
+        )
 
     def test_scan_sidebar_exposes_listing_link_in_reception_group(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
@@ -2423,22 +2435,6 @@ class ScanBootstrapUiTests(TestCase):
             response.content.decode(),
             r'<input[^>]+id="id_confirm_defaults"[^>]+checked',
         )
-
-    def test_scan_pack_offers_unknown_product_creation_escape_hatch(self):
-        response = self.client.get(reverse("scan:scan_pack"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Créer un nouveau produit")
-        self.assertContains(
-            response,
-            'id="pack-create-product-link"',
-        )
-        self.assertContains(
-            response,
-            'href="/scan/import/"',
-        )
-        self.assertNotContains(response, 'id="pack-unknown-product-overlay"')
-        self.assertNotContains(response, 'data-import-product-url="/scan/import/"')
 
     def test_scan_state_pages_use_bootstrap_card_shell(self):
         for route_name in [

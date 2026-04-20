@@ -143,14 +143,32 @@ Primary runtime sources:
 Current contract:
 
 - preparateur-only scan users now use a dedicated two-row masthead in `templates/scan/base.html`:
-  - row 1 keeps `Bonjour <username>` on the left and only the shared history navigation on the right
+  - row 1 keeps `Bonjour <volunteer-or-username>` on the left and only the shared history navigation on the right
   - row 2 keeps the `Menu` toggle on the left and the `Messagerie Médicale` brand block on the right
 - preparateur-only scan users keep a reduced sidebar with direct links to:
+  - `Préparer des colis`
   - `Choisir une commande`
   - `Voir dernier colis`
   - `Changer de compte`
   - `Déconnexion`
-- `/scan/preparateur/orders/` is the preparateur landing page and lists only approved orders
+- `/scan/` redirects preparateurs to `/scan/preparateur/`
+- `/scan/preparateur/` is the preparateur landing page:
+  - it lists active volunteers sorted by `last_name`, then `first_name`, then `id`
+  - it stores the selected volunteer in session key `preparateur_active_volunteer_id`
+  - `Préparer une commande` redirects to `/scan/preparateur/orders/`
+  - `Préparer des colis` clears the selected-order session and redirects to `/scan/pack/`
+- `/scan/preparateur/orders/` lists only approved orders that still have remaining lines to prepare
+- `/scan/preparateur/orders/prepare/` is the guided command-preparation workbench for the selected order:
+  - it stores the generated picking plan in session key `preparateur_order_plan`
+  - it groups remaining plannable quantities into standard-format cartons before any stock move is committed
+  - it keeps a `Télécharger le picking` shortcut that renders one picking sheet per planned carton
+  - it lets the preparateur mark each planned carton `Prêt` only after the physical carton is completed
+- `/scan/preparateur/orders/` groups orders by feasibility buckets:
+  - `Réalisables à 100%`
+  - `Réalisables partiellement`
+  - `Non réalisables pour le moment`
+- inside each feasibility bucket, preparateur orders stay sorted by `created_at desc`, then `id desc`
+- `/scan/preparateur/pack/` is the explicit exit route from command mode toward free-pack mode; it clears the selected order and generated plan before redirecting to `/scan/pack/`
 - `/scan/preparateur/last-carton/` redirects to the latest carton prepared by the current preparateur via `scan_carton_edit`
 - the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`,
   `Préparation`, `Expéditions`, `Contacts`, `Gestion`
@@ -192,22 +210,20 @@ Current contract:
 Maintenance rule:
 
 - if a scan sidebar entry is added, removed, renamed, or moved between groups, update the shared include, the relevant scan view `active` keys, the bootstrap regression tests, and this repo-reference section in the same work
-- if the preparateur home entrypoint, bénévole session binding, or carton-activity trace changes,
-  keep `wms/preparateur_session.py`, `wms/views_scan_preparateur.py`, the preparateur whitelist,
-  and the preparateur view tests aligned in the same work
 - do not introduce page-local navigation copies for warehouse-preparation flows; the shared scan sidebar remains the operator entry point
 
 Reference tests:
 
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_views_scan_preparation.py`
-- `wms/tests/views/tests_views_scan_preparateur.py`
 
 ### Scan Preparateur Pack Contract
 
 Primary runtime sources:
 
+- `wms/preparateur_session.py`
 - `wms/preparateur_orders.py`
+- `wms/views_scan_preparateur.py`
 - `wms/views_scan_orders.py`
 - `wms/views_scan_shipments.py`
 - `wms/forms.py`
@@ -219,8 +235,17 @@ Primary runtime sources:
 
 Current contract:
 
-- the preparateur flow starts on approved-order selection, then keeps the selected order in session key `preparateur_selected_order_id`
-- `/scan/pack/` shows a selected-order summary for preparateurs and preserves the linked shipment reference through the hidden shipment field when one exists
+- the preparateur flow starts on `/scan/preparateur/`, which selects the active volunteer before branching
+- the active volunteer is stored in session key `preparateur_active_volunteer_id`
+- choosing `Préparer une commande` keeps the active volunteer and opens the grouped approved-order selector
+- choosing `Préparer des colis` keeps the active volunteer, clears session keys `preparateur_selected_order_id` and `preparateur_order_plan`, and opens free-pack mode directly
+- the approved-order selector keeps the selected order in session key `preparateur_selected_order_id`
+- preparateur orders without lines or without any remaining quantity are excluded from the selector
+- `/scan/preparateur/orders/prepare/` stores the generated order-picking plan in session key `preparateur_order_plan`
+- the command-preparation workbench uses the standard carton format to generate the picking plan before creating cartons in stock
+- each planned carton becomes a real carton only when the preparateur clicks `Marquer prêt`; that action creates or reuses the order shipment, packs the planned products, and updates the order preparation progress
+- the preparateur menu entry `Préparer des colis` must leave command mode through `/scan/preparateur/pack/`, not keep the selected order on `/scan/pack/`
+- `/scan/pack/` shows a selected-order summary for preparateurs only when a selected order is still active and preserves the linked shipment reference through the hidden shipment field when one exists
 - when a preparateur scans or selects an unknown product on the pack page, the UI opens a modal instead of only returning a line error
 - the minimal creation payload is:
   - product name
@@ -233,7 +258,7 @@ Current contract:
 
 Maintenance rule:
 
-- if the preparateur pack flow changes, keep the session helper, approved-order selection view, pack template, unknown-product modal JS, pack handlers, reviewer notification path, regression tests, and this repo-reference section aligned in the same work
+- if the preparateur pack flow changes, keep the session helper, approved-order selection view, command-preparation workbench, pack template, unknown-product modal JS, pack handlers, reviewer notification path, regression tests, and this repo-reference section aligned in the same work
 
 Reference tests:
 

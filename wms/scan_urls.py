@@ -6,7 +6,6 @@ app_name = "scan"
 
 urlpatterns = [
     path("", views.scan_root, name="scan_root"),
-    path("preparateur/", views.scan_preparateur_home, name="scan_preparateur_home"),
     path("dashboard/", views.scan_dashboard, name="scan_dashboard"),
     path("pilotage/", views.scan_pilotage, name="scan_pilotage"),
     path("stock/", views.scan_stock, name="scan_stock"),
@@ -104,15 +103,31 @@ urlpatterns = [
     path("orders-view/", views.scan_orders_view, name="scan_orders_view"),
     path("orders/<int:order_id>/", views.scan_order_detail, name="scan_order_detail"),
     path("orders/", views.scan_order, name="scan_order"),
+    path("preparateur/", views.scan_preparateur_home, name="scan_preparateur_home"),
     path(
         "preparateur/orders/",
         views.scan_preparateur_order_select,
         name="scan_preparateur_order_select",
     ),
     path(
+        "preparateur/orders/prepare/",
+        views.scan_preparateur_order_prepare,
+        name="scan_preparateur_order_prepare",
+    ),
+    path(
+        "preparateur/orders/prepare/picking/",
+        views.scan_preparateur_order_prepare_picking,
+        name="scan_preparateur_order_prepare_picking",
+    ),
+    path(
         "preparateur/last-carton/",
         views.scan_preparateur_last_carton,
         name="scan_preparateur_last_carton",
+    ),
+    path(
+        "preparateur/pack/",
+        views.scan_preparateur_pack_start,
+        name="scan_preparateur_pack_start",
     ),
     path("pack/", views.scan_pack, name="scan_pack"),
     path("carton/<int:carton_id>/edit/", views.scan_carton_edit, name="scan_carton_edit"),
