@@ -85,3 +85,75 @@ class CartonVolunteerActivityTests(TestCase):
         )
 
         self.assertEqual(find_last_carton_for_volunteer(self.volunteer), packed_carton)
+
+    def test_record_carton_volunteer_activity_ignores_missing_inputs_and_invalid_actor(self):
+        saved_carton = Carton.objects.create(
+            code="CT-ACTIVITY-SAVED",
+            status=CartonStatus.PACKED,
+            prepared_by=self.volunteer.user,
+        )
+        unsaved_carton = Carton(
+            code="CT-ACTIVITY-UNSAVED",
+            status=CartonStatus.DRAFT,
+            prepared_by=self.volunteer.user,
+        )
+        unsaved_volunteer_user = get_user_model()(
+            username="carton-activity-unsaved-volunteer",
+            first_name="Noah",
+            last_name="Ghost",
+        )
+        unsaved_volunteer = VolunteerProfile(user=unsaved_volunteer_user, is_active=True)
+
+        self.assertIsNone(
+            record_carton_volunteer_activity(
+                carton=None,
+                volunteer=self.volunteer,
+                action=CartonVolunteerActivityAction.PREPARED,
+            )
+        )
+        self.assertIsNone(
+            record_carton_volunteer_activity(
+                carton=unsaved_carton,
+                volunteer=self.volunteer,
+                action=CartonVolunteerActivityAction.PREPARED,
+            )
+        )
+        self.assertIsNone(
+            record_carton_volunteer_activity(
+                carton=saved_carton,
+                volunteer=None,
+                action=CartonVolunteerActivityAction.PREPARED,
+            )
+        )
+        self.assertIsNone(
+            record_carton_volunteer_activity(
+                carton=saved_carton,
+                volunteer=unsaved_volunteer,
+                action=CartonVolunteerActivityAction.PREPARED,
+            )
+        )
+
+        activity = record_carton_volunteer_activity(
+            carton=saved_carton,
+            volunteer=self.volunteer,
+            action=CartonVolunteerActivityAction.EDITED,
+            actor="not-a-model",
+        )
+
+        self.assertIsNotNone(activity)
+        self.assertIsNone(activity.actor)
+
+    def test_find_last_carton_for_volunteer_falls_back_to_latest_shipped_activity(self):
+        shipped_carton = Carton.objects.create(
+            code="CT-ACTIVITY-SHIPPED-ONLY",
+            status=CartonStatus.SHIPPED,
+            prepared_by=self.volunteer.user,
+        )
+        record_carton_volunteer_activity(
+            carton=shipped_carton,
+            volunteer=self.volunteer,
+            action=CartonVolunteerActivityAction.PREPARED,
+            actor=self.actor,
+        )
+
+        self.assertEqual(find_last_carton_for_volunteer(self.volunteer), shipped_carton)

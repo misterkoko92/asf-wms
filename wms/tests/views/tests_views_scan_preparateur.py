@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from wms.carton_activity import find_last_carton_for_volunteer
 from wms.models import (
     Carton,
     CartonFormat,
@@ -22,10 +23,21 @@ from wms.models import (
     VolunteerProfile,
     Warehouse,
 )
+from wms.preparateur_session import (
+    build_preparateur_volunteer_label,
+    clear_active_preparateur_volunteer,
+    get_active_preparateur_volunteer,
+    get_preparateur_greeting_name,
+)
+from wms.services import StockError
 
 PREPARATEUR_HOME_PATH = "/scan/preparateur/"
 ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY = "scan_active_preparateur_volunteer_id"
 TEST_PASSWORD = "pass1234"  # pragma: allowlist secret
+
+
+class _Session(dict):
+    modified = False
 
 
 class ScanPreparateurViewTests(TestCase):
@@ -281,6 +293,42 @@ class ScanPreparateurViewTests(TestCase):
             [alpha.id, second.id, third.id, critical.id],
         )
 
+    def test_scan_preparateur_home_rejects_unknown_volunteer_id(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        response = self.client.post(
+            PREPARATEUR_HOME_PATH,
+            {
+                "action": "set_active_volunteer",
+                "volunteer_id": "999999",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bénévole introuvable.")
+        self.assertNotIn(
+            ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY,
+            self.client.session,
+        )
+
+    def test_scan_preparateur_home_requires_active_volunteer_for_actions(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        response = self.client.post(
+            PREPARATEUR_HOME_PATH,
+            {
+                "action": "prepare_order",
+                "order_id": "123",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Choisissez un bénévole avant de continuer.")
+
     def test_scan_preparateur_home_prepare_order_redirects_to_created_carton(self):
         preparateur = self._create_preparateur()
         volunteer = self._create_volunteer(
@@ -343,6 +391,112 @@ class ScanPreparateurViewTests(TestCase):
         )
         self.assertEqual(prepare_mock.call_args.kwargs["actor_user"], preparateur)
 
+    def test_scan_preparateur_home_prepare_order_rejects_unknown_order(self):
+        preparateur = self._create_preparateur()
+        volunteer = self._create_volunteer(
+            first_name="Martin",
+            last_name="Dupond",
+            username="vol-order-missing",
+        )
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session[ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY] = volunteer.id
+        session.save()
+
+        response = self.client.post(
+            PREPARATEUR_HOME_PATH,
+            {
+                "action": "prepare_order",
+                "order_id": "999999",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Commande introuvable.")
+
+    def test_scan_preparateur_home_prepare_order_handles_stock_error(self):
+        preparateur = self._create_preparateur()
+        volunteer = self._create_volunteer(
+            first_name="Martin",
+            last_name="Dupond",
+            username="vol-order-stock-error",
+        )
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session[ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY] = volunteer.id
+        session.save()
+        order = self._create_order(
+            shipper_name="Stock Error Med",
+            product=self._create_stocked_product(
+                sku="SKU-STOCK-ERROR",
+                name="Perfusion",
+                quantity_on_hand=20,
+            ),
+            quantity=2,
+            review_status=OrderReviewStatus.APPROVED,
+            status=OrderStatus.DRAFT,
+        )
+
+        with mock.patch("wms.views_scan_preparateur.reserve_stock_for_order") as reserve_mock:
+            with mock.patch(
+                "wms.views_scan_preparateur.prepare_order",
+                side_effect=StockError("stock bloqué"),
+            ):
+                response = self.client.post(
+                    PREPARATEUR_HOME_PATH,
+                    {
+                        "action": "prepare_order",
+                        "order_id": str(order.id),
+                    },
+                    follow=True,
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "stock bloqué")
+        reserve_mock.assert_called_once_with(order=order)
+
+    def test_scan_preparateur_home_prepare_order_without_carton_redirects_home(self):
+        preparateur = self._create_preparateur()
+        volunteer = self._create_volunteer(
+            first_name="Martin",
+            last_name="Dupond",
+            username="vol-order-no-carton",
+        )
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session[ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY] = volunteer.id
+        session.save()
+        order = self._create_order(
+            shipper_name="No Carton Med",
+            product=self._create_stocked_product(
+                sku="SKU-NO-CARTON",
+                name="Sparadrap",
+                quantity_on_hand=20,
+            ),
+            quantity=2,
+            review_status=OrderReviewStatus.APPROVED,
+            status=OrderStatus.RESERVED,
+        )
+
+        with mock.patch(
+            "wms.views_scan_preparateur.attach_order_documents_to_shipment"
+        ) as attach_mock:
+            with mock.patch("wms.views_scan_preparateur.prepare_order") as prepare_mock:
+                response = self.client.post(
+                    PREPARATEUR_HOME_PATH,
+                    {
+                        "action": "prepare_order",
+                        "order_id": str(order.id),
+                    },
+                    follow=True,
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Préparation lancée.")
+        attach_mock.assert_not_called()
+        prepare_mock.assert_called_once()
+
     def test_scan_preparateur_home_view_last_carton_prefers_latest_non_shipped(self):
         preparateur = self._create_preparateur()
         volunteer = self._create_volunteer(
@@ -390,6 +544,52 @@ class ScanPreparateurViewTests(TestCase):
             reverse("scan:scan_carton_edit", args=[latest_non_shipped.id]),
         )
 
+    def test_scan_preparateur_home_view_last_carton_shows_error_without_activity(self):
+        preparateur = self._create_preparateur()
+        volunteer = self._create_volunteer(
+            first_name="Martin",
+            last_name="Dupond",
+            username="vol-last-carton-empty",
+        )
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session[ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY] = volunteer.id
+        session.save()
+
+        response = self.client.post(
+            PREPARATEUR_HOME_PATH,
+            {
+                "action": "view_last_carton",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucun carton trouvé pour ce bénévole.")
+
+    def test_scan_preparateur_home_rejects_unknown_action(self):
+        preparateur = self._create_preparateur()
+        volunteer = self._create_volunteer(
+            first_name="Martin",
+            last_name="Dupond",
+            username="vol-unknown-action",
+        )
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session[ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY] = volunteer.id
+        session.save()
+
+        response = self.client.post(
+            PREPARATEUR_HOME_PATH,
+            {
+                "action": "not-supported",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Action préparateur inconnue.")
+
     def test_preparateur_whitelist_keeps_home_pack_runs_and_sync_only(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
@@ -411,3 +611,47 @@ class ScanPreparateurViewTests(TestCase):
         self.assertEqual(preparation_runs_response.status_code, 200)
         self.assertEqual(preparation_config_response.status_code, 200)
         self.assertEqual(sync_response.status_code, 200)
+
+    def test_preparateur_session_helpers_cover_fallbacks_and_missing_volunteer_cleanup(self):
+        volunteer = self._create_volunteer(
+            first_name="",
+            last_name="",
+            username="vol-fallback-username",
+        )
+        volunteer.short_name = "Momo"
+        volunteer_last_name = self._create_volunteer(
+            first_name="",
+            last_name="Durand",
+            username="vol-fallback-last-name",
+        )
+
+        request = mock.Mock()
+        request.session = _Session(
+            {
+                ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY: volunteer.id + 999,
+            }
+        )
+        active_volunteer = get_active_preparateur_volunteer(request)
+
+        self.assertIsNone(active_volunteer)
+        self.assertNotIn(
+            ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY,
+            request.session,
+        )
+        self.assertTrue(request.session.modified)
+        self.assertEqual(build_preparateur_volunteer_label(volunteer), "vol-fallback-username")
+        self.assertEqual(get_preparateur_greeting_name(volunteer), "Momo")
+        self.assertEqual(get_preparateur_greeting_name(volunteer_last_name), "Durand")
+
+        request.session = _Session(
+            {
+                ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY: volunteer.id,
+            }
+        )
+        clear_active_preparateur_volunteer(request)
+        self.assertNotIn(
+            ACTIVE_PREPARATEUR_VOLUNTEER_SESSION_KEY,
+            request.session,
+        )
+        self.assertTrue(request.session.modified)
+        self.assertIsNone(find_last_carton_for_volunteer(None))
