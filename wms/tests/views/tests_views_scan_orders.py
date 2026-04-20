@@ -29,6 +29,13 @@ from wms.models import (
     Warehouse,
 )
 from wms.order_view_helpers import build_orders_view_rows
+from wms.preparateur_orders import (
+    build_preparateur_order_picking_context,
+    build_preparateur_selected_order_summary,
+    get_preparateur_order_plan,
+    get_preparateur_selected_order,
+    mark_preparateur_plan_carton_ready,
+)
 
 
 class ScanOrdersViewsTests(TestCase):
@@ -677,6 +684,12 @@ class ScanOrdersViewsTests(TestCase):
         session = self.client.session
         self.assertEqual(session["preparateur_selected_order_id"], order.id)
 
+    def test_scan_preparateur_order_select_redirects_non_preparateur_to_orders_view(self):
+        response = self.client.get(reverse("scan:scan_preparateur_order_select"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_orders_view"))
+
     def test_scan_preparateur_order_prepare_renders_generated_cartons_and_picking_actions(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
@@ -751,3 +764,118 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(follow_up.status_code, 200)
         self.assertContains(follow_up, carton.code)
         self.assertContains(follow_up, reverse("scan:scan_carton_edit", args=[carton.id]))
+
+    def test_scan_preparateur_order_prepare_redirects_non_preparateur_to_orders_view(self):
+        response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_orders_view"))
+
+    def test_scan_preparateur_order_prepare_redirects_without_selected_order(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_order_select"))
+
+    def test_scan_preparateur_order_prepare_handles_mark_ready_error(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        product = self._create_stock_product(
+            sku="PREP-ERR",
+            name="Produit Erreur",
+            quantity_on_hand=10,
+        )
+        order = self._create_order(
+            association_name="Association Error",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=order, product=product, quantity=1)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_prepare"),
+            {"action": "mark_carton_ready", "carton_index": "invalid"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "invalid literal for int()")
+
+    def test_scan_preparateur_order_prepare_picking_redirects_non_preparateur_or_without_order(
+        self,
+    ):
+        non_preparateur_response = self.client.get(
+            reverse("scan:scan_preparateur_order_prepare_picking")
+        )
+        self.assertEqual(non_preparateur_response.status_code, 302)
+        self.assertEqual(
+            non_preparateur_response["Location"],
+            reverse("scan:scan_orders_view"),
+        )
+
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        no_order_response = self.client.get(reverse("scan:scan_preparateur_order_prepare_picking"))
+        self.assertEqual(no_order_response.status_code, 302)
+        self.assertEqual(
+            no_order_response["Location"],
+            reverse("scan:scan_preparateur_order_select"),
+        )
+
+    def test_preparateur_order_helpers_cover_session_and_early_return_branches(self):
+        product = self._create_stock_product(
+            sku="PREP-HELPER",
+            name="Produit Helper",
+            quantity_on_hand=2,
+        )
+        pending_order = self._create_order(
+            association_name="Association Pending Helper",
+            review_status=OrderReviewStatus.PENDING,
+        )
+        self._create_order_line(order=pending_order, product=product, quantity=1)
+
+        request = mock.Mock()
+        request.session = {
+            "preparateur_selected_order_id": pending_order.id,
+            "preparateur_order_plan": {"cartons": "invalid"},
+        }
+
+        self.assertIsNone(get_preparateur_order_plan(request))
+        self.assertIsNone(get_preparateur_selected_order(request))
+        self.assertNotIn("preparateur_selected_order_id", request.session)
+        self.assertIsNone(build_preparateur_selected_order_summary(None))
+        self.assertEqual(
+            build_preparateur_order_picking_context(
+                {"cartons": [{"items": []}, {"label": "Colis 2", "items": []}]}
+            ),
+            {
+                "carton_blocks": [
+                    {"carton_code": "-", "item_rows": []},
+                    {"carton_code": "Colis 2", "item_rows": []},
+                ],
+                "picking_title": "Liste picking - commande",
+            },
+        )
+        self.assertEqual(
+            mark_preparateur_plan_carton_ready(
+                user=self.staff_user,
+                order=pending_order,
+                plan={
+                    "cartons": [
+                        {
+                            "index": 1,
+                            "status": "ready",
+                            "carton_id": 777,
+                            "items": [],
+                        }
+                    ]
+                },
+                carton_index=1,
+            ),
+            777,
+        )
