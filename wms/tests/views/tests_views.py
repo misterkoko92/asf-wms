@@ -1953,7 +1953,7 @@ class ScanViewTests(TestCase):
         finally:
             response.close()
 
-    def test_scan_shipment_track_accepts_token_route(self):
+    def test_scan_shipment_track_requires_login_before_token_route_mutation(self):
         shipment, carton = self._create_shipment_with_carton()
         carton.status = CartonStatus.LABELED
         carton.save(update_fields=["status"])
@@ -1968,8 +1968,9 @@ class ScanViewTests(TestCase):
                 "comments": "ok",
             },
         )
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 1)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Connexion requise")
+        self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0)
 
     def test_scan_shipment_track_shows_back_to_shipments_button_for_staff(self):
         shipment, _carton = self._create_shipment_with_carton()
