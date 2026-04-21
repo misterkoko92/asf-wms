@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Connexion suivi expédition</title>
+</head>
+<body>
+  <h1>Connexion suivi expédition</h1>
+  {% if errors %}
+    <div>
+      {% for error in errors %}
+        <p>{{ error }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <input type="hidden" name="role" value="{{ role }}">
+    <label for="id_identifier">Identifiant</label>
+    <input id="id_identifier" type="text" name="identifier" value="{{ identifier }}">
+    <label for="id_password">Mot de passe</label>
+    <input id="id_password" type="password" name="password">
+    <button type="submit">Connexion</button>
+  </form>
+</body>
+</html>

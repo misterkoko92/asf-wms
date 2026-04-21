@@ -73,6 +73,11 @@ Ask yourself:
 - does document-first creation still create a final shipment reference with zero cartons allowed?
 - do carton state transitions still agree with shipment state transitions?
 - do tracking and close endpoints still expose the same availability rules?
+- if the public QR tracking route changes, do `wms/shipment_tracking_access.py`,
+  `wms/views_shipment_tracking_access.py`, `wms/shipment_tracking_handlers.py`,
+  `templates/scan/shipment_tracking.html`, the recovery/pending email templates, and the
+  pending-review tests still agree on authentication, role authorization, proof requirements, and
+  pending identity creation?
 - if the shipment tracking list changes, did `wms/scan_list_urls.py`, `wms/templatetags/wms_dates.py`,
   `templates/scan/includes/scan_list_pagination.html`, and `docs/repo-reference/04-shared-contracts.md`
   move with it?

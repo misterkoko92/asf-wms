@@ -4,6 +4,7 @@ from io import BytesIO
 
 import qrcode
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -230,11 +231,143 @@ class ShipmentTrackingStatus(models.TextChoices):
     RECEIVED_RECIPIENT = "received_recipient", _("Reçu destinataire")
 
 
+class ShipmentTrackingAccessRole(models.TextChoices):
+    VOLUNTEER = "volunteer", _("Bénévole")
+    SHIPPER = "shipper", _("Expéditeur")
+    RECIPIENT = "recipient", _("Destinataire")
+    CORRESPONDENT = "correspondent", _("Correspondant")
+
+
+class ShipmentTrackingIdentityStatus(models.TextChoices):
+    VERIFIED = "verified", _("Vérifié")
+    PENDING = "pending", _("En attente")
+
+
+class ShipmentTrackingAuthSource(models.TextChoices):
+    STAFF = "staff", _("Staff")
+    PORTAL = "portal", _("Portail")
+    VOLUNTEER = "volunteer", _("Bénévole")
+    QR_RESTRICTED = "qr_restricted", _("Accès QR restreint")
+
+
+class ShipmentTrackingProofMode(models.TextChoices):
+    PHOTO = "photo", _("Photo")
+    MANUAL = "manual", _("Manuel")
+
+
+class ShipmentTrackingAccessGrant(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shipment_tracking_access_grants",
+    )
+    role = models.CharField(max_length=40, choices=ShipmentTrackingAccessRole.choices)
+    contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="shipment_tracking_access_grants",
+    )
+    volunteer_profile = models.ForeignKey(
+        "wms.VolunteerProfile",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="shipment_tracking_access_grants",
+    )
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="shipment_tracking_access_grants",
+    )
+    identity_status = models.CharField(
+        max_length=20,
+        choices=ShipmentTrackingIdentityStatus.choices,
+        default=ShipmentTrackingIdentityStatus.VERIFIED,
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipment_tracking_access_grants_created",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipment_tracking_access_grants_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["user_id", "role", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(contact__isnull=False) & models.Q(volunteer_profile__isnull=True))
+                    | (models.Q(contact__isnull=True) & models.Q(volunteer_profile__isnull=False))
+                ),
+                name="wms_tracking_access_grant_exactly_one_identity",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "contact"],
+                condition=models.Q(contact__isnull=False),
+                name="wms_tracking_access_grant_unique_contact_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "volunteer_profile"],
+                condition=models.Q(volunteer_profile__isnull=False),
+                name="wms_tracking_access_grant_unique_volunteer_scope",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        target = self.contact or self.volunteer_profile
+        return f"{self.user} - {self.role} - {target}"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if bool(self.contact_id) == bool(self.volunteer_profile_id):
+            errors["contact"] = _("Choisissez exactement une identité QR.")
+            errors["volunteer_profile"] = _("Choisissez exactement une identité QR.")
+        if self.role == ShipmentTrackingAccessRole.VOLUNTEER and not self.volunteer_profile_id:
+            errors["volunteer_profile"] = _("Le rôle bénévole requiert un profil bénévole.")
+        if self.role != ShipmentTrackingAccessRole.VOLUNTEER and not self.contact_id:
+            errors["contact"] = _("Ce rôle QR requiert un contact.")
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class ShipmentTrackingEvent(models.Model):
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="tracking_events")
     status = models.CharField(max_length=40, choices=ShipmentTrackingStatus.choices)
     actor_name = models.CharField(max_length=120)
     actor_structure = models.CharField(max_length=120)
+    actor_role = models.CharField(max_length=40, blank=True, default="")
+    actor_identifier = models.CharField(max_length=80, blank=True, default="")
+    actor_email = models.EmailField(blank=True, default="")
+    actor_identity_status = models.CharField(max_length=20, blank=True, default="")
+    auth_source = models.CharField(max_length=40, blank=True, default="")
+    escale_code = models.CharField(max_length=20, blank=True, default="")
+    actor_snapshot = models.JSONField(default=dict, blank=True)
+    proof_mode = models.CharField(max_length=20, blank=True, default="")
+    proof_file = models.FileField(
+        upload_to="shipment_tracking_proofs/",
+        blank=True,
+    )
+    proof_carton_reference = models.CharField(max_length=120, blank=True, default="")
     comments = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True

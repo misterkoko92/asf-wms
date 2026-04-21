@@ -74,6 +74,12 @@ from .views_scan_stock import (
     scan_stock_update,
     scan_sync,
 )
+from .views_shipment_tracking_access import (
+    scan_shipment_tracking_access_login,
+    scan_shipment_tracking_access_logout,
+    scan_shipment_tracking_access_recovery,
+    scan_shipment_tracking_access_set_password,
+)
 
 SCAN_FLOW_EXPORTS = (
     "scan_root",
@@ -122,6 +128,10 @@ SCAN_FLOW_EXPORTS = (
     "scan_shipment_create",
     "scan_shipment_edit",
     "scan_shipment_track",
+    "scan_shipment_tracking_access_login",
+    "scan_shipment_tracking_access_recovery",
+    "scan_shipment_tracking_access_set_password",
+    "scan_shipment_tracking_access_logout",
     "scan_shipment_track_legacy",
     "scan_out",
     "scan_sync",

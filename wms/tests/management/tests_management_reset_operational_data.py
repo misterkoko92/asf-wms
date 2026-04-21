@@ -38,6 +38,8 @@ from wms.models import (
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
+    ShipmentTrackingAccessGrant,
+    ShipmentTrackingAccessRole,
     ShipmentValidationStatus,
     Warehouse,
     WmsRuntimeSettings,
@@ -168,6 +170,11 @@ class ResetOperationalDataCommandTests(TestCase):
             role=PortalAccessRole.SHIPPER_ADMIN,
             is_active=True,
         )
+        self.shipment_tracking_access_grant = ShipmentTrackingAccessGrant.objects.create(
+            user=self.user,
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            contact=self.association,
+        )
         self.shipment_recipient_organization = ShipmentRecipientOrganization.objects.create(
             organization=self.recipient,
             destination=self.destination,
@@ -213,6 +220,11 @@ class ResetOperationalDataCommandTests(TestCase):
             ).exists()
         )
         self.assertTrue(PortalAccessGrant.objects.filter(pk=self.portal_access_grant.pk).exists())
+        self.assertTrue(
+            ShipmentTrackingAccessGrant.objects.filter(
+                pk=self.shipment_tracking_access_grant.pk
+            ).exists()
+        )
         self.assertTrue(ShipmentShipper.objects.filter(pk=self.shipment_shipper.pk).exists())
         self.assertTrue(
             ShipmentRecipientOrganization.objects.filter(
@@ -311,6 +323,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(PublicAccountRequest.objects.exists())
         self.assertFalse(RecipientStructureDocument.objects.exists())
         self.assertFalse(PortalAccessGrant.objects.exists())
+        self.assertFalse(ShipmentTrackingAccessGrant.objects.exists())
         self.assertFalse(ShipmentShipper.objects.exists())
         self.assertFalse(ShipmentRecipientOrganization.objects.exists())
         self.assertFalse(ShipmentRecipientContact.objects.exists())

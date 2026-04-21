@@ -1858,7 +1858,10 @@ class UiShipmentTrackingEventCreateView(APIView):
         allowed_statuses = allowed_tracking_statuses_for_shipment(shipment)
         form = ShipmentTrackingForm(
             serializer.validated_data,
+            request.FILES or None,
             allowed_statuses=allowed_statuses,
+            shipment=shipment,
+            actor_role=serializer.validated_data.get("actor_role", ""),
         )
         if not form.is_valid():
             field_errors, non_field_errors = form_error_payload(form)
@@ -1883,6 +1886,11 @@ class UiShipmentTrackingEventCreateView(APIView):
             status=status_value,
             actor_name=form.cleaned_data["actor_name"],
             actor_structure=form.cleaned_data["actor_structure"],
+            actor_role=form.cleaned_data.get("actor_role", ""),
+            escale_code=form.cleaned_data.get("escale_code", ""),
+            proof_mode=form.cleaned_data.get("proof_mode", ""),
+            proof_file=form.cleaned_data.get("proof_file"),
+            proof_carton_reference=form.cleaned_data.get("proof_carton_reference", ""),
             comments=form.cleaned_data["comments"] or "",
             created_by=request.user if request.user.is_authenticated else None,
         )
@@ -1915,6 +1923,8 @@ class UiShipmentTrackingEventCreateView(APIView):
                     "status_label": tracking_event.get_status_display(),
                     "created_at": tracking_event.created_at.isoformat(),
                     "comments": tracking_event.comments,
+                    "proof_mode": tracking_event.proof_mode,
+                    "proof_carton_reference": tracking_event.proof_carton_reference,
                 },
             },
             status=status.HTTP_201_CREATED,

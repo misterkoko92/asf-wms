@@ -277,6 +277,7 @@ Validate:
   - if carton batch scope changed, validate one batch assignment from Vue Colis and both grouped packing-list print formats
   - validate one tracking or close action on an existing shipment
 - Conditional smoke based on release scope:
+  - if QR shipment tracking access changed, validate anonymous QR open, identifier entry, login-required redirect, lost-code email, pending-account creation, and one authenticated proof scan for correspondent or recipient
   - if `portal` changed, validate portal login plus one nominal order or recipient update flow
   - if `planning` changed, validate run-list attention cards, version cockpit access on an existing run, one run input preparation path (`api`/`hybrid`) with either retained flights or an explicit `flight_import_failed` issue, and strict `Planning.pdf` / `Planning.xlsx` artifact regeneration and download when relevant
   - if `billing` changed, validate one nominal billing preview/export or payment/correction flow
@@ -643,6 +644,14 @@ Board features:
 - Week filter (`planned_week`) based on `planned` tracking timestamp.
 - Closed-case filter (`exclude` by default, `all` optional).
 - Columns: planned, boarding OK, shipped, received correspondent, delivered timestamps.
+
+QR tracking access:
+
+- `/scan/shipment/track/<tracking_token>/` can be opened anonymously, but mutation requires a logged-in identity.
+- The QR gateway uses existing ASF IDs for contacts and volunteer IDs for volunteers, then redirects to the QR tracking login before the scan can continue.
+- Lost-code recovery requires role, email, and escale; matching identities receive the ASF ID, role, login link, password link, and tracking return link.
+- Pending identity creation creates a restricted QR access grant plus a pending public or volunteer review request; approval remains handled by the existing review queues.
+- Correspondent and recipient receipt scans require a carton proof, either IATA-face photo or manual carton number when photo capture is impossible.
 
 Case closure rules:
 

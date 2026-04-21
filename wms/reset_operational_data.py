@@ -133,6 +133,7 @@ DELETE_BATCHES = (
         (
             "wms.AccountDocument",
             "wms.RecipientStructureDocument",
+            "wms.ShipmentTrackingAccessGrant",
             "wms.PublicAccountRequest",
             "wms.VolunteerAccountRequest",
             "wms.PortalAccessGrant",

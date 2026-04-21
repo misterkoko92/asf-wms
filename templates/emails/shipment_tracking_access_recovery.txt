@@ -1,0 +1,8 @@
+Expédition {{ shipment.reference }}
+Rôle : {{ role_label }}
+ASF ID : {{ identifier }}
+{% if escale_code %}Escale : {{ escale_code }}{% endif %}
+
+Connexion : {{ login_url }}
+Définir le mot de passe : {{ set_password_url }}
+Retour au suivi : {{ tracking_url }}

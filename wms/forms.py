@@ -30,6 +30,8 @@ from .models import (
     ReceiptType,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingAccessRole,
+    ShipmentTrackingProofMode,
     ShipmentTrackingStatus,
     Warehouse,
 )
@@ -42,6 +44,14 @@ from .shipment_helpers import (
     shipment_correspondent_contact_for_destination,
     shipment_link_for_recipient_contact,
     shipment_shipper_from_contact,
+)
+from .shipment_tracking_access import (
+    default_tracking_escale_for_shipment,
+    resolve_tracking_proof_mode,
+    tracking_identifier_label_for_role,
+    tracking_pending_account_fields_for_role,
+    tracking_requires_structure_details,
+    tracking_status_requires_proof,
 )
 from .view_utils import sorted_choices
 
@@ -1227,16 +1237,44 @@ class ShipmentTrackingForm(forms.Form):
     )
     actor_name = forms.CharField(label=_("Nom"), max_length=120)
     actor_structure = forms.CharField(label=_("Structure"), max_length=120)
+    actor_role = forms.ChoiceField(
+        choices=ShipmentTrackingAccessRole.choices,
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+    escale_code = forms.CharField(label=_("Escale"), max_length=20, required=False)
     comments = forms.CharField(
         label=_("Commentaires"),
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
     )
+    proof_no_photo = forms.BooleanField(
+        label=_("Je ne peux pas prendre de photos"),
+        required=False,
+    )
+    proof_file = forms.FileField(
+        label=_("Photo face IATA"),
+        required=False,
+    )
+    proof_carton_reference = forms.CharField(
+        label=_("Numéro du colis"),
+        max_length=120,
+        required=False,
+        help_text=_(
+            "Le numéro du colis se trouve sur la liste de colisage collée sur un côté du colis"
+        ),
+    )
 
     def __init__(self, *args, **kwargs):
         initial_status = kwargs.pop("initial_status", None)
         allowed_statuses = kwargs.pop("allowed_statuses", None)
+        shipment = kwargs.pop("shipment", None)
+        actor_role = kwargs.pop("actor_role", None)
         super().__init__(*args, **kwargs)
+        self.shipment = shipment
+        self.actor_role = (
+            actor_role or self.data.get("actor_role") or self.initial.get("actor_role")
+        )
         choices = list(ShipmentTrackingStatus.choices)
         if allowed_statuses is not None:
             allowed_set = set(allowed_statuses)
@@ -1246,6 +1284,152 @@ class ShipmentTrackingForm(forms.Form):
             self.fields["status"].initial = initial_status
         elif choices:
             self.fields["status"].initial = choices[0][0]
+        if self.actor_role:
+            self.fields["actor_role"].initial = self.actor_role
+        if shipment is not None:
+            self.fields["escale_code"].initial = default_tracking_escale_for_shipment(shipment)
+        self.fields["status"].widget.attrs.update({"class": "form-select ui-select--lg"})
+        self.fields["actor_name"].widget.attrs.update({"class": "form-control"})
+        self.fields["actor_structure"].widget.attrs.update({"class": "form-control"})
+        self.fields["escale_code"].widget.attrs.update({"class": "form-control"})
+        self.fields["comments"].widget.attrs.update({"class": "form-control"})
+        self.fields["proof_no_photo"].widget.attrs.update({"class": "form-check-input"})
+        self.fields["proof_file"].widget.attrs.update(
+            {"class": "form-control", "accept": "image/*"}
+        )
+        self.fields["proof_carton_reference"].widget.attrs.update({"class": "form-control"})
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["actor_name"] = _normalize_form_text(cleaned, "actor_name")
+        cleaned["actor_structure"] = _normalize_form_text(cleaned, "actor_structure")
+        cleaned["comments"] = _normalize_form_text(cleaned, "comments")
+        cleaned["proof_carton_reference"] = _normalize_form_text(cleaned, "proof_carton_reference")
+        cleaned["escale_code"] = _normalize_form_text(cleaned, "escale_code").upper()
+        if not cleaned.get("actor_role") and self.actor_role:
+            cleaned["actor_role"] = self.actor_role
+        proof_mode = resolve_tracking_proof_mode(
+            proof_no_photo=bool(cleaned.get("proof_no_photo")),
+            proof_file=cleaned.get("proof_file"),
+        )
+        cleaned["proof_mode"] = proof_mode
+        if tracking_status_requires_proof(cleaned.get("status")):
+            if proof_mode == ShipmentTrackingProofMode.MANUAL:
+                if not cleaned.get("proof_carton_reference"):
+                    self.add_error(
+                        "proof_carton_reference",
+                        _("Indiquez le numéro du colis si vous ne pouvez pas prendre de photo."),
+                    )
+            elif proof_mode != ShipmentTrackingProofMode.PHOTO:
+                self.add_error(
+                    "proof_file",
+                    _("Ajoutez une photo de la face IATA du colis."),
+                )
+        return cleaned
+
+
+class ShipmentTrackingGatewayForm(forms.Form):
+    role = forms.ChoiceField(
+        label=_("Rôle"),
+        choices=ShipmentTrackingAccessRole.choices,
+    )
+    identifier = forms.CharField(label=_("Identifiant"), max_length=80)
+
+    def __init__(self, *args, **kwargs):
+        selected_role = kwargs.pop("selected_role", None)
+        super().__init__(*args, **kwargs)
+        role = selected_role or self.data.get("role") or self.initial.get("role")
+        self.fields["role"].widget.attrs.update(
+            {"class": "form-select ui-select--md", "data-tracking-role-select": "1"}
+        )
+        self.fields["identifier"].widget.attrs.update({"class": "form-control"})
+        if role:
+            self.fields["role"].initial = role
+            self.fields["identifier"].label = tracking_identifier_label_for_role(role)
+
+    def clean_identifier(self):
+        return str(self.cleaned_data["identifier"] or "").strip()
+
+
+class ShipmentTrackingAccessRecoveryForm(forms.Form):
+    role = forms.ChoiceField(
+        label=_("Rôle"),
+        choices=ShipmentTrackingAccessRole.choices,
+    )
+    email = forms.EmailField(label=_("Email"))
+    escale_code = forms.CharField(label=_("Escale"), max_length=20)
+
+    def __init__(self, *args, **kwargs):
+        shipment = kwargs.pop("shipment", None)
+        selected_role = kwargs.pop("selected_role", None)
+        super().__init__(*args, **kwargs)
+        self.fields["role"].widget.attrs.update(
+            {"class": "form-select ui-select--md", "data-tracking-role-select": "1"}
+        )
+        self.fields["email"].widget.attrs.update({"class": "form-control"})
+        self.fields["escale_code"].widget.attrs.update({"class": "form-control"})
+        self.fields["escale_code"].initial = default_tracking_escale_for_shipment(shipment)
+        if selected_role:
+            self.fields["role"].initial = selected_role
+
+    def clean_escale_code(self):
+        return str(self.cleaned_data["escale_code"] or "").strip().upper()
+
+
+class ShipmentTrackingPendingAccountForm(forms.Form):
+    role = forms.ChoiceField(
+        label=_("Rôle"),
+        choices=ShipmentTrackingAccessRole.choices,
+    )
+    email = forms.EmailField(label=_("Email"))
+    first_name = forms.CharField(label=_("Prénom"), max_length=120, required=False)
+    last_name = forms.CharField(label=_("Nom"), max_length=120, required=False)
+    structure_name = forms.CharField(label=_("Structure"), max_length=200, required=False)
+    address_line1 = forms.CharField(label=_("Adresse"), max_length=200, required=False)
+    postal_code = forms.CharField(label=_("Code postal"), max_length=20, required=False)
+    city = forms.CharField(label=_("Ville"), max_length=120, required=False)
+    country = forms.CharField(label=_("Pays"), max_length=80, required=False, initial="France")
+    escale_code = forms.CharField(label=_("Escale"), max_length=20, required=False)
+
+    def __init__(self, *args, **kwargs):
+        selected_role = kwargs.pop("selected_role", None)
+        super().__init__(*args, **kwargs)
+        self.selected_role = selected_role or self.data.get("role") or self.initial.get("role")
+        visible_fields = tracking_pending_account_fields_for_role(self.selected_role)
+        for field_name in list(self.fields):
+            if field_name not in visible_fields:
+                self.fields.pop(field_name)
+        for field in self.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
+        if "role" in self.fields:
+            self.fields["role"].widget.attrs.update(
+                {"class": "form-select ui-select--md", "data-tracking-role-select": "1"}
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        role = cleaned.get("role") or self.selected_role
+        if role == ShipmentTrackingAccessRole.VOLUNTEER:
+            if not str(cleaned.get("first_name") or "").strip():
+                self.add_error("first_name", _("Renseignez le prénom."))
+            if not str(cleaned.get("last_name") or "").strip():
+                self.add_error("last_name", _("Renseignez le nom."))
+        elif tracking_requires_structure_details(role):
+            for field_name in ("structure_name", "address_line1", "city", "country"):
+                if not str(cleaned.get(field_name) or "").strip():
+                    self.add_error(field_name, _("Ce champ est obligatoire."))
+        if (
+            role
+            in {
+                ShipmentTrackingAccessRole.RECIPIENT,
+                ShipmentTrackingAccessRole.CORRESPONDENT,
+            }
+            and not str(cleaned.get("escale_code") or "").strip()
+        ):
+            self.add_error("escale_code", _("Ce champ est obligatoire."))
+        if "escale_code" in self.fields:
+            cleaned["escale_code"] = str(cleaned.get("escale_code") or "").strip().upper()
+        return cleaned
 
 
 def _select_single_choice(field: forms.ModelChoiceField) -> None:

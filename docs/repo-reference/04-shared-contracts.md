@@ -1179,6 +1179,59 @@ Reference tests:
 - `wms/tests/views/tests_views_portal.py`
 - `api/tests/tests_ui_endpoints.py`
 
+### Shipment QR Tracking Access Contract
+
+Primary runtime sources:
+
+- `wms/models_domain/shipment.py`
+- `wms/shipment_tracking_access.py`
+- `wms/shipment_tracking_handlers.py`
+- `wms/views_scan_shipments.py`
+- `wms/views_shipment_tracking_access.py`
+- `templates/scan/shipment_tracking.html`
+- `templates/emails/shipment_tracking_access_recovery.txt`
+- `templates/emails/shipment_tracking_pending_created.txt`
+- `wms/static/scan/modules/shipment-tracking.js`
+
+Current contract:
+
+- `/scan/shipment/track/<tracking_token>/` is public to open but authenticated to mutate: an
+  anonymous QR scan can view the gateway, documents, and history, but cannot create a
+  `ShipmentTrackingEvent`
+- the gateway reuses existing identifiers: contact-backed roles use `Contact.asf_id`, volunteers
+  use `VolunteerProfile.volunteer_id`
+- after entering an identifier, users must authenticate through the QR tracking login flow before
+  the scan can continue; the active restricted grant is stored in session and matched back to the
+  requested shipment party
+- lost-code recovery uses role + email + escale and keeps unknown emails indistinguishable from
+  known emails while sending the ASF ID, role, login link, password link, and tracking return link
+  for matching identities
+- when no identifier exists, the QR flow creates a restricted `pending` identity, a
+  `ShipmentTrackingAccessGrant(identity_status=pending)`, and the relevant pending review object
+  without granting broad portal or volunteer access before approval
+- pending creation must reuse an existing pending review object for the same identity instead of
+  duplicating review queue rows
+- before `BOARDING_OK`, the QR tracking escale defaults to `CDG`; after boarding, it defaults to
+  the shipment destination IATA code when available
+- correspondent and recipient receipt scans require a carton proof: photo of the IATA face by
+  default, or a manual carton number when the user checks that they cannot take photos
+- role-to-status authorization is enforced server-side, not only by the form options
+
+Maintenance rule:
+
+- if QR tracking identity, recovery, pending creation, proof, or role-to-status rules change,
+  update the model/helper tests, form tests, access-view tests, scan-view tests, email tests, and
+  this contract together
+- keep this flow on the legacy Django scan stack while the Next/React migration remains paused
+
+Reference tests:
+
+- `wms/tests/shipment/tests_shipment_tracking_access.py`
+- `wms/tests/forms/tests_forms_shipment_tracking.py`
+- `wms/tests/views/tests_views_shipment_tracking_access.py`
+- `wms/tests/views/tests_views_scan_shipments.py`
+- `wms/tests/emailing/tests_shipment_tracking_access.py`
+
 ### Local Shipment Dispute Center Contract
 
 Primary runtime sources:

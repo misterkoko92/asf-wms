@@ -247,14 +247,25 @@ class UiApiE2EWorkflowsTests(TestCase):
         return recipient_contact
 
     def _post_tracking(self, shipment_id, status_value):
+        payload = {
+            "status": status_value,
+            "actor_name": "E2E Ops",
+            "actor_structure": "ASF",
+            "comments": f"Transition {status_value}",
+        }
+        if status_value in {
+            ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+        }:
+            payload.update(
+                {
+                    "proof_no_photo": True,
+                    "proof_carton_reference": f"E2E-COLIS-{shipment_id}",
+                }
+            )
         return self.staff_client.post(
             f"/api/v1/ui/shipments/{shipment_id}/tracking-events/",
-            {
-                "status": status_value,
-                "actor_name": "E2E Ops",
-                "actor_structure": "ASF",
-                "comments": f"Transition {status_value}",
-            },
+            payload,
             format="json",
         )
 

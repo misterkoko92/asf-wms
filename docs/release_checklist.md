@@ -56,6 +56,7 @@ Notes:
 - [ ] Always-on smoke: validate document-first shipment creation so destination + 3 contacts creates a shipment with a final reference even when carton count is empty.
 - [ ] Always-on smoke: if carton batch scope changed, validate Vue Colis batch assignment plus grouped picking / packing-list outputs.
 - [ ] Always-on smoke: validate one shipment tracking or close action on an existing shipment.
+- [ ] Conditional smoke: if QR shipment tracking access changed, validate an anonymous QR tracking open, identifier entry, login-required redirect, lost-code email, pending-account creation, and one authenticated correspondent/recipient proof scan.
 - [ ] Conditional smoke: if dashboard scope changed, validate one `Blocages workflow` row opens the expected dossier and claim/release works once.
 - [ ] Conditional smoke: if pilotage/settings scope changed, validate `/scan/settings/`, `/scan/dashboard/`, and `/scan/pilotage/` all expose `Seuils actifs`, the expected active preset label, and coherent planning thresholds.
 - [ ] Conditional smoke: if portal scope changed, validate portal login plus one nominal shipper flow; if a `recipient_admin` grant is enabled in the target environment, also validate `/portal/` in recipient scope plus one recipient shared-data update.
