@@ -311,7 +311,7 @@
               <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
             </form>
           {% endif %}
-        {% else %}
+        {% elif access_required %}
           <div id="shipment-tracking-access" class="scan-field">
             <h3 class="ui-comp-title">{% trans "Connexion requise" %}</h3>
             <div class="scan-help">
@@ -410,6 +410,10 @@
 
               <button type="submit" class="scan-submit btn btn-primary">{% trans "Créer le compte pending" %}</button>
             </form>
+          </div>
+        {% else %}
+          <div class="scan-help">
+            {% trans "Mise à jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus récent." %}
           </div>
         {% endif %}
 
