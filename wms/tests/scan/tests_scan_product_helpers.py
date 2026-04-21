@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 from unittest import mock
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 from wms.models import Location, Product, ProductKitItem, ProductLot, Warehouse
 from wms.scan_product_helpers import (
@@ -169,6 +171,63 @@ class ScanProductHelpersTests(TestCase):
             options = build_product_options(include_kits=True)
 
         self.assertEqual(options, [])
+
+    def test_build_product_options_limits_queries_when_including_multiple_kits(self):
+        components = []
+        for index in range(12):
+            product = Product.objects.create(
+                name=f"Component {index}",
+                sku=f"COMP-{index}",
+                weight_g=100 + index,
+                length_cm=1,
+                width_cm=2,
+                height_cm=3,
+            )
+            ProductLot.objects.create(
+                product=product,
+                quantity_on_hand=20,
+                quantity_reserved=0,
+                location=self.location,
+            )
+            components.append(product)
+
+        for index in range(3):
+            child_kit = Product.objects.create(name=f"Child Kit {index}", sku=f"CHILD-{index}")
+            ProductKitItem.objects.create(
+                kit=child_kit,
+                component=components[index * 4],
+                quantity=1,
+            )
+            ProductKitItem.objects.create(
+                kit=child_kit,
+                component=components[index * 4 + 1],
+                quantity=1,
+            )
+            parent_kit = Product.objects.create(name=f"Parent Kit {index}", sku=f"PARENT-{index}")
+            ProductKitItem.objects.create(kit=parent_kit, component=child_kit, quantity=1)
+            ProductKitItem.objects.create(
+                kit=parent_kit,
+                component=components[index * 4 + 2],
+                quantity=1,
+            )
+            ProductKitItem.objects.create(
+                kit=parent_kit,
+                component=components[index * 4 + 3],
+                quantity=1,
+            )
+
+        previous_debug_cursor = connection.force_debug_cursor
+        connection.force_debug_cursor = True
+        try:
+            with CaptureQueriesContext(connection) as ctx:
+                options = build_product_options(include_kits=True)
+        finally:
+            connection.force_debug_cursor = previous_debug_cursor
+
+        self.assertLessEqual(len(ctx), 8)
+        option_by_sku = {item["sku"]: item for item in options}
+        self.assertEqual(option_by_sku["PARENT-0"]["available_stock"], 20)
+        self.assertEqual(option_by_sku["PARENT-0"]["weight_g"], 406)
 
     def test_build_product_group_key_prefers_lot(self):
         product = Product.objects.create(name="Lot Product", sku="SKU-LOT", brand="Brand")
