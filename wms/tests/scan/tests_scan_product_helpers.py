@@ -145,6 +145,24 @@ class ScanProductHelpersTests(TestCase):
         zero_kit_option = next(item for item in options if item["id"] == zero_qty_kit.id)
         self.assertEqual(zero_kit_option["available_stock"], 0)
 
+    def test_build_product_options_sets_unknown_kit_metrics_to_none(self):
+        component = Product.objects.create(name="Comp No Metrics", sku="COMP-NO-METRICS")
+        ProductLot.objects.create(
+            product=component,
+            quantity_on_hand=4,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        kit = Product.objects.create(name="Kit No Metrics", sku="KIT-NO-METRICS")
+        ProductKitItem.objects.create(kit=kit, component=component, quantity=2)
+
+        options = build_product_options(include_kits=True)
+        kit_option = next(item for item in options if item["id"] == kit.id)
+
+        self.assertEqual(kit_option["available_stock"], 2)
+        self.assertIsNone(kit_option["weight_g"])
+        self.assertIsNone(kit_option["volume_cm3"])
+
     def test_build_product_options_skips_defensive_empty_prefetched_kit(self):
         base_qs = mock.MagicMock()
         base_qs.annotate.return_value = base_qs
