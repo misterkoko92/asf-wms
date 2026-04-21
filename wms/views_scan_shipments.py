@@ -77,7 +77,7 @@ from .prepare_kits_helpers import (
     build_prepare_kits_picking_context,
     prepare_kits,
 )
-from .recipient_product_preferences import score_recipient_carton_compatibility
+from .recipient_product_preferences import score_recipient_carton_compatibilities
 from .runtime_settings import is_shipment_track_legacy_enabled
 from .scan_helpers import (
     build_carton_formats,
@@ -263,6 +263,11 @@ def _annotate_carton_selection_compatibility(*, cartons_json, recipient_contacts
         )
     }
     as_of = timezone.now()
+    compatibility_by_carton_id = score_recipient_carton_compatibilities(
+        recipient_organizations=recipient_organizations.values(),
+        cartons=cartons_by_id.values(),
+        as_of=as_of,
+    )
     for carton_row in cartons_json or []:
         if not isinstance(carton_row, dict):
             continue
@@ -273,11 +278,11 @@ def _annotate_carton_selection_compatibility(*, cartons_json, recipient_contacts
                 recipient_organization_id,
                 recipient_organization,
             ) in recipient_organizations.items():
-                compatibility = score_recipient_carton_compatibility(
-                    recipient_organization=recipient_organization,
-                    carton=carton_object,
-                    as_of=as_of,
+                compatibility = compatibility_by_carton_id.get(carton_object.id, {}).get(
+                    recipient_organization_id
                 )
+                if compatibility is None:
+                    continue
                 compatibility_by_recipient_organization_id[str(recipient_organization_id)] = {
                     "bucket": compatibility.bucket,
                     "score": compatibility.score,

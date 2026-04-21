@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -446,6 +446,288 @@ def list_recipient_product_coverages(
         )
         for product in list(products)
     ]
+
+
+def score_recipient_carton_compatibilities(
+    *,
+    recipient_organizations: Iterable,
+    cartons: Iterable,
+    as_of=None,
+):
+    recipient_organization_list = [
+        recipient_organization
+        for recipient_organization in recipient_organizations
+        if getattr(recipient_organization, "id", None)
+    ]
+    carton_list = [carton for carton in cartons if getattr(carton, "id", None)]
+    if not recipient_organization_list or not carton_list:
+        return {}
+
+    carton_ids = [carton.id for carton in carton_list]
+    carton_items = list(
+        CartonItem.objects.filter(carton_id__in=carton_ids)
+        .select_related(
+            "product_lot__product__category",
+            "product_lot__product__category__parent",
+            "product_lot__product__category__parent__parent",
+            "product_lot__product__category__parent__parent__parent",
+        )
+        .order_by("carton_id", "id")
+    )
+
+    carton_product_quantities_by_carton_id: dict[int, list[CartonProductQuantity]] = {
+        carton.id: [] for carton in carton_list
+    }
+    product_quantity_maps_by_carton_id: dict[int, OrderedDict[int, CartonProductQuantity]] = {
+        carton.id: OrderedDict() for carton in carton_list
+    }
+    products_by_id = {}
+    for item in carton_items:
+        product = item.product_lot.product
+        products_by_id[product.id] = product
+        product_quantities = product_quantity_maps_by_carton_id[item.carton_id]
+        if product.id not in product_quantities:
+            product_quantities[product.id] = CartonProductQuantity(product=product, quantity=0)
+        existing = product_quantities[product.id]
+        product_quantities[product.id] = CartonProductQuantity(
+            product=existing.product,
+            quantity=existing.quantity + int(item.quantity or 0),
+        )
+    for carton_id, product_quantities in product_quantity_maps_by_carton_id.items():
+        carton_product_quantities_by_carton_id[carton_id] = list(product_quantities.values())
+
+    product_list = list(products_by_id.values())
+    product_ids = [product.id for product in product_list]
+    category_ids = {
+        category.id
+        for product in product_list
+        for category in _category_lineage(getattr(product, "category", None))
+    }
+
+    recipient_organization_ids = [
+        recipient_organization.id for recipient_organization in recipient_organization_list
+    ]
+    preferences_by_org_product_id = defaultdict(dict)
+    preferences_by_org_category_id = defaultdict(dict)
+    if product_ids or category_ids:
+        preferences = (
+            RecipientProductPreference.objects.filter(
+                recipient_organization_id__in=recipient_organization_ids,
+            )
+            .filter(Q(product_id__in=product_ids) | Q(category_id__in=category_ids))
+            .select_related("product", "category")
+        )
+        for preference in preferences:
+            if preference.product_id:
+                preferences_by_org_product_id[preference.recipient_organization_id][
+                    preference.product_id
+                ] = preference
+            if getattr(preference, "category_id", None):
+                preferences_by_org_category_id[preference.recipient_organization_id][
+                    preference.category_id
+                ] = preference
+
+    effective_preference_by_pair = {}
+    requested_or_allowed_pairs = set()
+    for recipient_organization in recipient_organization_list:
+        product_preferences = preferences_by_org_product_id.get(recipient_organization.id, {})
+        category_preferences = preferences_by_org_category_id.get(recipient_organization.id, {})
+        for product in product_list:
+            effective_preference = _effective_preference_from_row(
+                recipient_organization=recipient_organization,
+                product=product,
+                preference=_resolve_preference_for_product(
+                    recipient_organization=recipient_organization,
+                    product=product,
+                    preferences_by_product_id=product_preferences,
+                    preferences_by_category_id=category_preferences,
+                ),
+            )
+            effective_preference_by_pair[(recipient_organization.id, product.id)] = (
+                effective_preference
+            )
+            if effective_preference.status in {
+                RecipientProductPreferenceStatus.REQUESTED,
+                RecipientProductPreferenceStatus.ALLOWED,
+            }:
+                requested_or_allowed_pairs.add((recipient_organization.id, product.id))
+
+    recipient_contact_ids = defaultdict(set)
+    for recipient_organization_id, contact_id in ShipmentRecipientContact.objects.filter(
+        recipient_organization_id__in=recipient_organization_ids,
+        is_active=True,
+    ).values_list("recipient_organization_id", "contact_id"):
+        recipient_contact_ids[recipient_organization_id].add(contact_id)
+    destination_and_contact_to_org_ids = defaultdict(list)
+    relevant_destination_ids = set()
+    all_contact_ids = set()
+    for recipient_organization in recipient_organization_list:
+        destination_id = recipient_organization.destination_id
+        relevant_destination_ids.add(destination_id)
+        contact_ids = recipient_contact_ids[recipient_organization.id]
+        if recipient_organization.organization_id:
+            contact_ids.add(recipient_organization.organization_id)
+        for contact_id in contact_ids:
+            destination_and_contact_to_org_ids[(destination_id, contact_id)].append(
+                recipient_organization.id
+            )
+            all_contact_ids.add(contact_id)
+
+    period_window_by_unit = {}
+    coverage_counts_by_pair = defaultdict(lambda: {"delivered": 0, "pipeline": 0})
+    if requested_or_allowed_pairs and all_contact_ids:
+        requested_or_allowed_product_ids = {
+            product_id for _recipient_organization_id, product_id in requested_or_allowed_pairs
+        }
+        shipment_product_rows = CartonItem.objects.filter(
+            product_lot__product_id__in=requested_or_allowed_product_ids,
+            carton__shipment__isnull=False,
+            carton__shipment__destination_id__in=relevant_destination_ids,
+            carton__shipment__recipient_contact_ref_id__in=all_contact_ids,
+        ).values_list(
+            "product_lot__product_id",
+            "carton__shipment__destination_id",
+            "carton__shipment__recipient_contact_ref_id",
+            "carton__shipment__closed_at",
+            "carton__shipment__workflow_projection__delivered_at",
+            "quantity",
+        )
+        for (
+            product_id,
+            destination_id,
+            recipient_contact_id,
+            shipment_closed_at,
+            delivered_at,
+            quantity,
+        ) in shipment_product_rows:
+            org_ids = destination_and_contact_to_org_ids.get(
+                (destination_id, recipient_contact_id),
+                [],
+            )
+            if not org_ids:
+                continue
+            for recipient_organization_id in org_ids:
+                effective_preference = effective_preference_by_pair.get(
+                    (recipient_organization_id, product_id)
+                )
+                if effective_preference is None or effective_preference.status not in {
+                    RecipientProductPreferenceStatus.REQUESTED,
+                    RecipientProductPreferenceStatus.ALLOWED,
+                }:
+                    continue
+                period_unit = effective_preference.period_unit
+                if period_unit not in period_window_by_unit:
+                    period_window_by_unit[period_unit] = _resolve_period_window(
+                        as_of=as_of,
+                        period_unit=period_unit,
+                    )
+                period_start, period_end = period_window_by_unit[period_unit]
+                coverage_counts = coverage_counts_by_pair[(recipient_organization_id, product_id)]
+                if (
+                    delivered_at
+                    and period_start
+                    and period_end
+                    and period_start <= delivered_at < period_end
+                ):
+                    coverage_counts["delivered"] += int(quantity or 0)
+                    continue
+                if delivered_at is None and not shipment_closed_at:
+                    coverage_counts["pipeline"] += int(quantity or 0)
+
+    compatibility_by_carton_id = {}
+    for carton in carton_list:
+        carton_compatibilities = {}
+        product_quantities = carton_product_quantities_by_carton_id.get(carton.id, [])
+        for recipient_organization in recipient_organization_list:
+            refusal_conflicts = []
+            requested_useful = 0
+            allowed_useful = 0
+            requested_excess = 0
+            allowed_excess = 0
+            unspecified_units = 0
+            for product_row in product_quantities:
+                effective_preference = effective_preference_by_pair.get(
+                    (recipient_organization.id, product_row.product.id)
+                )
+                if effective_preference is None:
+                    unspecified_units += product_row.quantity
+                    continue
+                if (
+                    effective_preference.status == RecipientProductPreferenceStatus.REFUSED
+                    and effective_preference.preference is not None
+                ):
+                    refusal_conflicts.append(product_row.product)
+                    continue
+                if effective_preference.status not in {
+                    RecipientProductPreferenceStatus.REQUESTED,
+                    RecipientProductPreferenceStatus.ALLOWED,
+                }:
+                    unspecified_units += product_row.quantity
+                    continue
+
+                coverage_counts = coverage_counts_by_pair.get(
+                    (recipient_organization.id, product_row.product.id),
+                    {"delivered": 0, "pipeline": 0},
+                )
+                remaining_need = max(
+                    int(effective_preference.quantity_target or 0)
+                    - coverage_counts["delivered"]
+                    - coverage_counts["pipeline"],
+                    0,
+                )
+                if effective_preference.status == RecipientProductPreferenceStatus.REQUESTED:
+                    if remaining_need:
+                        requested_useful += min(product_row.quantity, remaining_need)
+                    else:
+                        requested_excess += product_row.quantity
+                    continue
+                if remaining_need:
+                    allowed_useful += min(product_row.quantity, remaining_need)
+                else:
+                    allowed_excess += product_row.quantity
+
+            if refusal_conflicts:
+                refused_labels = ", ".join(
+                    getattr(product, "name", str(product)) for product in refusal_conflicts
+                )
+                carton_compatibilities[recipient_organization.id] = RecipientCartonCompatibility(
+                    recipient_organization=recipient_organization,
+                    carton=carton,
+                    bucket="incompatibles",
+                    score=-1000,
+                    explanation=f"Contient un produit refuse: {refused_labels}",
+                )
+                continue
+
+            score = (
+                requested_useful * 100
+                + allowed_useful * 30
+                + unspecified_units
+                - requested_excess * 20
+                - allowed_excess * 5
+            )
+            if requested_useful > 0:
+                bucket = "tres_adaptes"
+                explanation = "Couvre un besoin demande actif"
+            elif allowed_useful > 0:
+                bucket = "compatibles"
+                explanation = "Couvre un besoin autorise actif"
+            elif requested_excess > 0 or allowed_excess > 0:
+                bucket = "a_eviter"
+                explanation = "Produits explicites sans besoin actif"
+            else:
+                bucket = "compatibles"
+                explanation = "Aucun refus explicite, sans besoin exprime"
+
+            carton_compatibilities[recipient_organization.id] = RecipientCartonCompatibility(
+                recipient_organization=recipient_organization,
+                carton=carton,
+                bucket=bucket,
+                score=score,
+                explanation=explanation,
+            )
+        compatibility_by_carton_id[carton.id] = carton_compatibilities
+    return compatibility_by_carton_id
 
 
 def score_recipient_carton_compatibility(

@@ -5,8 +5,10 @@ from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import connection
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -33,7 +35,10 @@ from wms.models import (
     Receipt,
     ReceiptShipmentAllocation,
     ReceiptType,
+    RecipientProductPreference,
+    RecipientProductPreferenceStatus,
     Shipment,
+    ShipmentRecipientOrganization,
     ShipmentStatus,
     ShipmentTrackingAccessGrant,
     ShipmentTrackingAccessRole,
@@ -396,6 +401,98 @@ class ScanShipmentsViewsTests(TestCase):
             cartons_json[3]["compatibility_by_recipient_organization_id"],
             {},
         )
+
+    def test_annotate_carton_selection_compatibility_limits_queries_for_multiple_rows(self):
+        correspondent = Contact.objects.create(
+            name="Correspondent ABJ",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ",
+            country="COTE D'IVOIRE",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        secondary_product = Product.objects.create(
+            sku="SKU-SHIPMENTS-2",
+            name="Bandages",
+            brand="ACME",
+        )
+        secondary_lot = ProductLot.objects.create(
+            product=secondary_product,
+            lot_code="LOT-SHIPMENTS-2",
+            quantity_on_hand=20,
+            location=self._get_test_product_lot().location,
+        )
+        recipient_organizations = []
+        recipient_contacts_json = []
+        for index in range(4):
+            organization = Contact.objects.create(
+                name=f"Recipient org {index}",
+                contact_type=ContactType.ORGANIZATION,
+                is_active=True,
+            )
+            recipient_organization = ShipmentRecipientOrganization.objects.create(
+                organization=organization,
+                destination=destination,
+                validation_status="validated",
+                is_active=True,
+            )
+            RecipientProductPreference.objects.create(
+                recipient_organization=recipient_organization,
+                product=self._get_test_product_lot().product,
+                status=RecipientProductPreferenceStatus.REQUESTED,
+                quantity_target=10,
+                period_unit="week",
+                updated_by=self.staff_user,
+            )
+            recipient_organizations.append(recipient_organization)
+            recipient_contacts_json.append(
+                {
+                    "recipient_organization_ids_by_destination_id": {
+                        str(destination.id): recipient_organization.id,
+                    }
+                }
+            )
+
+        cartons = []
+        for index in range(4):
+            carton = Carton.objects.create(code=f"C-BULK-{index}", status=CartonStatus.PACKED)
+            CartonItem.objects.create(
+                carton=carton,
+                product_lot=self._get_test_product_lot(),
+                quantity=1,
+            )
+            CartonItem.objects.create(
+                carton=carton,
+                product_lot=secondary_lot,
+                quantity=1,
+            )
+            cartons.append(carton)
+        cartons_json = [{"id": carton.id} for carton in cartons]
+
+        previous_debug_cursor = connection.force_debug_cursor
+        connection.force_debug_cursor = True
+        try:
+            with CaptureQueriesContext(connection) as ctx:
+                _annotate_carton_selection_compatibility(
+                    cartons_json=cartons_json,
+                    recipient_contacts_json=recipient_contacts_json,
+                )
+        finally:
+            connection.force_debug_cursor = previous_debug_cursor
+
+        self.assertLessEqual(len(ctx), 12)
+        for carton_row in cartons_json:
+            for recipient_organization in recipient_organizations:
+                self.assertEqual(
+                    carton_row["compatibility_by_recipient_organization_id"][
+                        str(recipient_organization.id)
+                    ]["bucket"],
+                    "tres_adaptes",
+                )
 
     def test_scan_cartons_ready_uses_fixed_width_select_classes_and_descending_shipment_order(self):
         older = self._create_shipment(status=ShipmentStatus.DRAFT, reference="250999")

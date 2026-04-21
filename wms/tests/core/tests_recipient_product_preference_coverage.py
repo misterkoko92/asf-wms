@@ -548,3 +548,78 @@ class RecipientParcelCompatibilityTests(RecipientProductPreferenceTestDataMixin,
         self.assertEqual(compatibility.bucket, "compatibles")
         self.assertEqual(compatibility.score, 3)
         self.assertIn("sans besoin exprime", compatibility.explanation)
+
+    def test_bulk_compatibilities_cover_history_and_bucket_branches(self):
+        helper = self._helper_module()
+        allowed_fresh_product = self._create_product(
+            sku="PREF-COMP-BULK-ALLOWED",
+            name="Produit autorise bulk",
+        )
+        allowed_fresh_product.category = self.category_l2
+        allowed_fresh_product.save(update_fields=["category"])
+        allowed_exhausted_product = self._create_product(
+            sku="PREF-COMP-BULK-EXCESS",
+            name="Produit autorise excess bulk",
+        )
+        allowed_exhausted_product.category = self.category_l2
+        allowed_exhausted_product.save(update_fields=["category"])
+        unspecified_product = self._create_product(
+            sku="PREF-COMP-BULK-OPEN",
+            name="Produit libre bulk",
+        )
+        self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            product=self.product,
+            status="requested",
+            quantity_target=2,
+            period_unit="week",
+            updated_by=self.user,
+        )
+        self._preference_model().objects.create(
+            recipient_organization=self.recipient_organization,
+            category=self.category_l2,
+            status="allowed",
+            quantity_target=3,
+            period_unit="week",
+            updated_by=self.user,
+        )
+        as_of = self._aware(2026, 4, 8, 12)
+        self._create_shipment_item(
+            product=self.product,
+            quantity=2,
+            delivered_at=self._aware(2026, 4, 7, 9),
+        )
+        self._create_shipment_item(
+            product=allowed_exhausted_product,
+            quantity=2,
+            delivered_at=self._aware(2026, 4, 7, 10),
+        )
+        self._create_shipment_item(product=allowed_exhausted_product, quantity=1)
+        requested_excess_carton = self._create_carton(product=self.product, quantity=1)
+        allowed_fresh_carton = self._create_carton(product=allowed_fresh_product, quantity=2)
+        allowed_excess_carton = self._create_carton(product=allowed_exhausted_product, quantity=2)
+        unspecified_carton = self._create_carton(product=unspecified_product, quantity=3)
+
+        result = helper.score_recipient_carton_compatibilities(
+            recipient_organizations=[self.recipient_organization],
+            cartons=[
+                requested_excess_carton,
+                allowed_fresh_carton,
+                allowed_excess_carton,
+                unspecified_carton,
+            ],
+            as_of=as_of,
+        )
+
+        requested_excess = result[requested_excess_carton.id][self.recipient_organization.id]
+        allowed_fresh = result[allowed_fresh_carton.id][self.recipient_organization.id]
+        allowed_excess = result[allowed_excess_carton.id][self.recipient_organization.id]
+        unspecified = result[unspecified_carton.id][self.recipient_organization.id]
+        self.assertEqual(requested_excess.bucket, "a_eviter")
+        self.assertEqual(requested_excess.score, -20)
+        self.assertEqual(allowed_fresh.bucket, "compatibles")
+        self.assertEqual(allowed_fresh.score, 60)
+        self.assertEqual(allowed_excess.bucket, "a_eviter")
+        self.assertEqual(allowed_excess.score, -10)
+        self.assertEqual(unspecified.bucket, "compatibles")
+        self.assertEqual(unspecified.score, 3)
