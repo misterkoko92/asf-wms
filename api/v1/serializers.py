@@ -249,7 +249,12 @@ class UiShipmentTrackingEventSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=ShipmentTrackingStatus.choices)
     actor_name = serializers.CharField(max_length=120)
     actor_structure = serializers.CharField(max_length=120)
+    actor_role = serializers.CharField(required=False, allow_blank=True, default="")
+    escale_code = serializers.CharField(required=False, allow_blank=True, default="")
     comments = serializers.CharField(required=False, allow_blank=True, default="")
+    proof_no_photo = serializers.BooleanField(required=False, default=False)
+    proof_file = serializers.FileField(required=False)
+    proof_carton_reference = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class UiPortalOrderLineSerializer(serializers.Serializer):

@@ -56,6 +56,7 @@ from wms.models import (
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentTrackingEvent,
+    ShipmentTrackingProofMode,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
     ShipmentWorkflowProjection,
@@ -2459,6 +2460,38 @@ class UiApiEndpointsTests(TestCase):
             ShipmentTrackingEvent.objects.filter(shipment=track_shipment).count(),
             1,
         )
+
+    def test_ui_tracking_event_accepts_manual_carton_proof_for_receipt_step(self):
+        track_shipment = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.staff_user,
+        )
+
+        response = self.staff_client.post(
+            f"/api/v1/ui/shipments/{track_shipment.id}/tracking-events/",
+            {
+                "status": ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+                "actor_name": "Operateur",
+                "actor_structure": "ASF",
+                "proof_no_photo": True,
+                "proof_carton_reference": "IATA-LOCAL-001",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        tracking_event = ShipmentTrackingEvent.objects.get(shipment=track_shipment)
+        self.assertEqual(tracking_event.proof_mode, ShipmentTrackingProofMode.MANUAL)
+        self.assertEqual(tracking_event.proof_carton_reference, "IATA-LOCAL-001")
 
     def test_ui_close_shipment_blocks_incomplete_case(self):
         blocked_shipment = Shipment.objects.create(
