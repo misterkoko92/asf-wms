@@ -12,6 +12,7 @@ from .models import (
 )
 
 DEFAULT_TRACKING_ESCALE_CODE = "CDG"
+ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY = "shipment_tracking_active_grant_id"
 TRACKING_CONTACT_ROLES = {
     ShipmentTrackingAccessRole.SHIPPER,
     ShipmentTrackingAccessRole.RECIPIENT,
@@ -20,6 +21,26 @@ TRACKING_CONTACT_ROLES = {
 TRACKING_DOWNSTREAM_RECEIPT_STATUSES = {
     ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
     ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+}
+TRACKING_ALLOWED_STATUSES_BY_ROLE = {
+    ShipmentTrackingAccessRole.VOLUNTEER: {
+        ShipmentTrackingStatus.PLANNING_OK,
+        ShipmentTrackingStatus.PLANNED,
+        ShipmentTrackingStatus.MOVED_EXPORT,
+        ShipmentTrackingStatus.BOARDING_OK,
+    },
+    ShipmentTrackingAccessRole.SHIPPER: {
+        ShipmentTrackingStatus.PLANNING_OK,
+        ShipmentTrackingStatus.PLANNED,
+        ShipmentTrackingStatus.MOVED_EXPORT,
+        ShipmentTrackingStatus.BOARDING_OK,
+    },
+    ShipmentTrackingAccessRole.CORRESPONDENT: {
+        ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+    },
+    ShipmentTrackingAccessRole.RECIPIENT: {
+        ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+    },
 }
 TRACKING_PENDING_ACCOUNT_FIELDS_BY_ROLE = {
     ShipmentTrackingAccessRole.VOLUNTEER: {
@@ -67,6 +88,10 @@ def resolve_tracking_identifier_from_grant(grant: ShipmentTrackingAccessGrant) -
         volunteer_id = getattr(grant.volunteer_profile, "volunteer_id", None)
         return str(volunteer_id) if volunteer_id is not None else ""
     return ""
+
+
+def normalize_tracking_identifier(raw_value) -> str:
+    return str(raw_value or "").strip()
 
 
 def build_tracking_actor_snapshot_from_grant(
@@ -128,6 +153,25 @@ def tracking_requires_structure_details(role: str) -> bool:
     return role in TRACKING_CONTACT_ROLES
 
 
+def tracking_allowed_statuses_for_role(role: str, statuses) -> list[str]:
+    status_values = list(statuses or [])
+    if not role:
+        return status_values
+    allowed = TRACKING_ALLOWED_STATUSES_BY_ROLE.get(role)
+    if allowed is None:
+        return []
+    return [status for status in status_values if status in allowed]
+
+
+def tracking_role_allows_status(role: str, status: str) -> bool:
+    if not role:
+        return True
+    allowed = TRACKING_ALLOWED_STATUSES_BY_ROLE.get(role)
+    if allowed is None:
+        return False
+    return status in allowed
+
+
 def resolve_tracking_proof_mode(*, proof_no_photo: bool, proof_file) -> str:
     if proof_no_photo:
         return ShipmentTrackingProofMode.MANUAL
@@ -160,3 +204,85 @@ def find_active_tracking_access_grant(
             Q(destination=destination) | Q(destination__isnull=True)
         ).order_by("-destination_id", "id")
     return queryset.first()
+
+
+def resolve_tracking_access_grant_by_identifier(*, role: str, identifier: str):
+    normalized_identifier = normalize_tracking_identifier(identifier)
+    if not normalized_identifier:
+        return None
+    queryset = ShipmentTrackingAccessGrant.objects.filter(
+        role=role,
+        is_active=True,
+    ).select_related("contact", "volunteer_profile", "destination", "user")
+    if role == ShipmentTrackingAccessRole.VOLUNTEER:
+        try:
+            volunteer_id = int(normalized_identifier)
+        except (TypeError, ValueError):
+            return None
+        return queryset.filter(volunteer_profile__volunteer_id=volunteer_id).first()
+    return queryset.filter(contact__asf_id__iexact=normalized_identifier).first()
+
+
+def resolve_tracking_access_grant_by_email(*, role: str, email: str):
+    normalized_email = str(email or "").strip().lower()
+    if not normalized_email:
+        return None
+    return (
+        ShipmentTrackingAccessGrant.objects.filter(
+            role=role,
+            is_active=True,
+            user__email__iexact=normalized_email,
+        )
+        .select_related("contact", "volunteer_profile", "destination", "user")
+        .first()
+    )
+
+
+def activate_tracking_access_grant(request, *, grant: ShipmentTrackingAccessGrant | None) -> None:
+    if grant is None:
+        request.session.pop(ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY, None)
+        return
+    request.session[ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY] = grant.id
+
+
+def resolve_active_tracking_access_grant(request):
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    grant_id = request.session.get(ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY)
+    if not grant_id:
+        return None
+    return (
+        ShipmentTrackingAccessGrant.objects.filter(
+            id=grant_id,
+            user=user,
+            is_active=True,
+        )
+        .select_related("contact", "volunteer_profile", "destination", "user")
+        .first()
+    )
+
+
+def resolve_shipment_contact_for_role(*, shipment, role: str):
+    if shipment is None:
+        return None
+    if role == ShipmentTrackingAccessRole.SHIPPER:
+        return getattr(shipment, "shipper_contact_ref", None)
+    if role == ShipmentTrackingAccessRole.RECIPIENT:
+        return getattr(shipment, "recipient_contact_ref", None)
+    if role == ShipmentTrackingAccessRole.CORRESPONDENT:
+        return getattr(shipment, "correspondent_contact_ref", None)
+    return None
+
+
+def tracking_grant_matches_shipment(*, grant, shipment, role: str, identifier: str = "") -> bool:
+    if grant is None or grant.role != role:
+        return False
+    if identifier and resolve_tracking_identifier_from_grant(
+        grant
+    ) != normalize_tracking_identifier(identifier):
+        return False
+    if role == ShipmentTrackingAccessRole.VOLUNTEER:
+        return bool(getattr(grant, "volunteer_profile_id", None))
+    contact = resolve_shipment_contact_for_role(shipment=shipment, role=role)
+    return bool(contact and getattr(grant, "contact_id", None) == contact.id)

@@ -1288,6 +1288,16 @@ class ShipmentTrackingForm(forms.Form):
             self.fields["actor_role"].initial = self.actor_role
         if shipment is not None:
             self.fields["escale_code"].initial = default_tracking_escale_for_shipment(shipment)
+        self.fields["status"].widget.attrs.update({"class": "form-select ui-select--lg"})
+        self.fields["actor_name"].widget.attrs.update({"class": "form-control"})
+        self.fields["actor_structure"].widget.attrs.update({"class": "form-control"})
+        self.fields["escale_code"].widget.attrs.update({"class": "form-control"})
+        self.fields["comments"].widget.attrs.update({"class": "form-control"})
+        self.fields["proof_no_photo"].widget.attrs.update({"class": "form-check-input"})
+        self.fields["proof_file"].widget.attrs.update(
+            {"class": "form-control", "accept": "image/*"}
+        )
+        self.fields["proof_carton_reference"].widget.attrs.update({"class": "form-control"})
 
     def clean(self):
         cleaned = super().clean()
@@ -1329,6 +1339,10 @@ class ShipmentTrackingGatewayForm(forms.Form):
         selected_role = kwargs.pop("selected_role", None)
         super().__init__(*args, **kwargs)
         role = selected_role or self.data.get("role") or self.initial.get("role")
+        self.fields["role"].widget.attrs.update(
+            {"class": "form-select ui-select--md", "data-tracking-role-select": "1"}
+        )
+        self.fields["identifier"].widget.attrs.update({"class": "form-control"})
         if role:
             self.fields["role"].initial = role
             self.fields["identifier"].label = tracking_identifier_label_for_role(role)
@@ -1349,6 +1363,11 @@ class ShipmentTrackingAccessRecoveryForm(forms.Form):
         shipment = kwargs.pop("shipment", None)
         selected_role = kwargs.pop("selected_role", None)
         super().__init__(*args, **kwargs)
+        self.fields["role"].widget.attrs.update(
+            {"class": "form-select ui-select--md", "data-tracking-role-select": "1"}
+        )
+        self.fields["email"].widget.attrs.update({"class": "form-control"})
+        self.fields["escale_code"].widget.attrs.update({"class": "form-control"})
         self.fields["escale_code"].initial = default_tracking_escale_for_shipment(shipment)
         if selected_role:
             self.fields["role"].initial = selected_role
@@ -1380,6 +1399,12 @@ class ShipmentTrackingPendingAccountForm(forms.Form):
         for field_name in list(self.fields):
             if field_name not in visible_fields:
                 self.fields.pop(field_name)
+        for field in self.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
+        if "role" in self.fields:
+            self.fields["role"].widget.attrs.update(
+                {"class": "form-select ui-select--md", "data-tracking-role-select": "1"}
+            )
 
     def clean(self):
         cleaned = super().clean()

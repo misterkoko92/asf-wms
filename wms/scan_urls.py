@@ -143,6 +143,26 @@ urlpatterns = [
         name="scan_shipment_track",
     ),
     path(
+        "shipment/track/access/login/",
+        views.scan_shipment_tracking_access_login,
+        name="scan_shipment_tracking_access_login",
+    ),
+    path(
+        "shipment/track/access/recovery/",
+        views.scan_shipment_tracking_access_recovery,
+        name="scan_shipment_tracking_access_recovery",
+    ),
+    path(
+        "shipment/track/access/set-password/<uidb64>/<token>/",
+        views.scan_shipment_tracking_access_set_password,
+        name="scan_shipment_tracking_access_set_password",
+    ),
+    path(
+        "shipment/track/access/logout/",
+        views.scan_shipment_tracking_access_logout,
+        name="scan_shipment_tracking_access_logout",
+    ),
+    path(
         "shipment/track/<str:shipment_ref>/",
         views.scan_shipment_track_legacy,
         name="scan_shipment_track_legacy",

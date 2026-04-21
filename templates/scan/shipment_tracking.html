@@ -230,8 +230,9 @@
             </div>
           {% else %}
             <h3 class="ui-comp-title">{% trans "Mettre à jour le suivi" %}</h3>
-            <form method="post" id="shipment-tracking-update-form" class="ui-comp-form">
+            <form method="post" enctype="multipart/form-data" id="shipment-tracking-update-form" class="ui-comp-form">
               {% csrf_token %}
+              {{ form.actor_role }}
               <input type="hidden" name="return_to_list" value="0" id="id_return_to_list">
               <input type="hidden" name="return_to" value="{{ return_to }}" id="id_return_to">
               {% if form.non_field_errors %}
@@ -263,9 +264,46 @@
               </div>
 
               <div class="scan-field">
+                <label class="form-label" for="id_escale_code">{% trans "Escale" %}</label>
+                {{ form.escale_code }}
+                <div class="scan-help">{% trans "Avant validation MAB OK, l'escale reste CDG par défaut." %}</div>
+                {% for error in form.escale_code.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <div class="scan-field">
                 <label class="form-label" for="id_comments">{% trans "Commentaires" %}</label>
                 {{ form.comments }}
                 {% for error in form.comments.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <div class="scan-field" data-proof-photo>
+                <label class="form-label" for="id_proof_file">{% trans "Photo du colis face IATA" %}</label>
+                {{ form.proof_file }}
+                <div class="scan-help">{% trans "Obligatoire pour les scans correspondant et destinataire, sauf impossibilité de prise de photo." %}</div>
+                {% for error in form.proof_file.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <div class="scan-field form-check">
+                {{ form.proof_no_photo }}
+                <label class="form-check-label" for="id_proof_no_photo">{{ form.proof_no_photo.label }}</label>
+                {% for error in form.proof_no_photo.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <div class="scan-field" data-proof-manual hidden>
+                <label class="form-label" for="id_proof_carton_reference">{{ form.proof_carton_reference.label }}</label>
+                {{ form.proof_carton_reference }}
+                {% if form.proof_carton_reference.help_text %}
+                  <div class="scan-help">{{ form.proof_carton_reference.help_text }}</div>
+                {% endif %}
+                {% for error in form.proof_carton_reference.errors %}
                   <div class="scan-message error">{{ error }}</div>
                 {% endfor %}
               </div>
@@ -274,8 +312,104 @@
             </form>
           {% endif %}
         {% else %}
-          <div class="scan-help">
-            {% trans "Mise à jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus récent." %}
+          <div id="shipment-tracking-access" class="scan-field">
+            <h3 class="ui-comp-title">{% trans "Connexion requise" %}</h3>
+            <div class="scan-help">
+              {% trans "Entrez votre identifiant, puis connectez-vous pour poursuivre le scan. Aucun suivi ne peut être enregistré sans connexion." %}
+            </div>
+
+            <form method="post" class="ui-comp-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="gateway">
+              {% if gateway_form.non_field_errors %}
+                <div class="scan-message error">{{ gateway_form.non_field_errors }}</div>
+              {% endif %}
+
+              <div class="scan-field">
+                <label class="form-label" for="id_role">{{ gateway_form.role.label }}</label>
+                {{ gateway_form.role }}
+                {% for error in gateway_form.role.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <div class="scan-field">
+                <label class="form-label" for="id_identifier">{{ gateway_form.identifier.label }}</label>
+                {{ gateway_form.identifier }}
+                {% for error in gateway_form.identifier.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <button type="submit" class="scan-submit btn btn-primary">{% trans "Se connecter pour poursuivre" %}</button>
+            </form>
+
+            <hr class="scan-divider">
+
+            <h3 class="ui-comp-title">{% trans "Code perdu ?" %}</h3>
+            <div class="scan-help">
+              {% trans "Renseignez votre email, votre escale et votre rôle. Un email automatique indiquera l'ID ASF et le rôle attribué si votre profil est reconnu." %}
+            </div>
+            <form method="post" action="{% url 'scan:scan_shipment_tracking_access_recovery' %}" class="ui-comp-form">
+              {% csrf_token %}
+              <input type="hidden" name="tracking_token" value="{{ shipment.tracking_token }}">
+
+              <div class="scan-field">
+                <label class="form-label" for="{{ recovery_form.role.id_for_label }}">{{ recovery_form.role.label }}</label>
+                {{ recovery_form.role }}
+                {% for error in recovery_form.role.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <div class="scan-field">
+                <label class="form-label" for="{{ recovery_form.email.id_for_label }}">{{ recovery_form.email.label }}</label>
+                {{ recovery_form.email }}
+                {% for error in recovery_form.email.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <div class="scan-field">
+                <label class="form-label" for="{{ recovery_form.escale_code.id_for_label }}">{{ recovery_form.escale_code.label }}</label>
+                {{ recovery_form.escale_code }}
+                <div class="scan-help">{% trans "CDG est utilisé par défaut tant que les étapes avant MAB OK ne sont pas validées." %}</div>
+                {% for error in recovery_form.escale_code.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <button type="submit" class="scan-scan-btn btn btn-tertiary">{% trans "Recevoir mon identifiant" %}</button>
+            </form>
+
+            <hr class="scan-divider">
+
+            <h3 class="ui-comp-title">{% trans "Pas d'ID ?" %}</h3>
+            <div class="scan-help">
+              {% trans "Créez un compte en attente. Le rôle, l'email et les détails de structure sont obligatoires selon le rôle choisi." %}
+            </div>
+            <form method="post" class="ui-comp-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="create_pending_account">
+              {% if pending_form.non_field_errors %}
+                <div class="scan-message error">{{ pending_form.non_field_errors }}</div>
+              {% endif %}
+
+              {% for field in pending_form %}
+                <div class="scan-field">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.name == "escale_code" %}
+                    <div class="scan-help">{% trans "CDG est utilisé par défaut tant que les étapes avant MAB OK ne sont pas validées." %}</div>
+                  {% endif %}
+                  {% for error in field.errors %}
+                    <div class="scan-message error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endfor %}
+
+              <button type="submit" class="scan-submit btn btn-primary">{% trans "Créer le compte pending" %}</button>
+            </form>
           </div>
         {% endif %}
 
@@ -438,6 +572,7 @@
       })();
     </script>
   {% endif %}
+  <script src="{% static 'scan/modules/shipment-tracking.js' %}"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>

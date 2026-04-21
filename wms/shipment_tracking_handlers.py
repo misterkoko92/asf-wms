@@ -17,6 +17,7 @@ from .models import (
 )
 from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_status import sync_shipment_ready_state
+from .shipment_tracking_access import tracking_role_allows_status
 from .workflow_observability import log_shipment_dispute_action
 
 TRACKING_TO_SHIPMENT_STATUS = {
@@ -305,6 +306,7 @@ def handle_shipment_tracking_post(
     *,
     shipment,
     form,
+    actor_context=None,
     return_to_list=False,
     return_to_view=DEFAULT_RETURN_LIST_VIEW,
     return_to_key=DEFAULT_RETURN_TO_KEY,
@@ -337,15 +339,42 @@ def handle_shipment_tracking_post(
     if not form.is_valid():
         return None
     status_value = form.cleaned_data["status"]
+    actor_context = actor_context or {}
+    actor_role = actor_context.get("role") or form.cleaned_data.get("actor_role") or ""
+    if (
+        actor_role
+        and not actor_context.get("is_staff")
+        and not tracking_role_allows_status(actor_role, status_value)
+    ):
+        form.add_error("status", _("Cette étape n'est pas autorisée pour ce rôle."))
+        return None
     transition_error = validate_tracking_transition(shipment, status_value)
     if transition_error:
         form.add_error("status", transition_error)
         return None
+    actor_snapshot = dict(actor_context.get("snapshot") or {})
+    actor_snapshot.setdefault("role", actor_role)
+    actor_snapshot.setdefault("identifier", actor_context.get("identifier", ""))
+    actor_snapshot.setdefault("email", actor_context.get("email", ""))
+    actor_snapshot.setdefault("identity_status", actor_context.get("identity_status", ""))
+    actor_snapshot.setdefault("auth_source", actor_context.get("auth_source", ""))
+    actor_snapshot["actor_name"] = form.cleaned_data["actor_name"]
+    actor_snapshot["actor_structure"] = form.cleaned_data["actor_structure"]
     ShipmentTrackingEvent.objects.create(
         shipment=shipment,
         status=status_value,
         actor_name=form.cleaned_data["actor_name"],
         actor_structure=form.cleaned_data["actor_structure"],
+        actor_role=actor_role,
+        actor_identifier=actor_context.get("identifier", ""),
+        actor_email=actor_context.get("email", ""),
+        actor_identity_status=actor_context.get("identity_status", ""),
+        auth_source=actor_context.get("auth_source", ""),
+        escale_code=form.cleaned_data.get("escale_code", ""),
+        actor_snapshot=actor_snapshot,
+        proof_mode=form.cleaned_data.get("proof_mode", ""),
+        proof_file=form.cleaned_data.get("proof_file"),
+        proof_carton_reference=form.cleaned_data.get("proof_carton_reference", ""),
         comments=form.cleaned_data["comments"] or "",
         created_by=request.user if request.user.is_authenticated else None,
     )

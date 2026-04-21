@@ -1,6 +1,7 @@
 from datetime import datetime
 from types import SimpleNamespace
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -26,15 +27,25 @@ from wms.models import (
     Product,
     ProductCategory,
     ProductLot,
+    PublicAccountRequest,
+    PublicAccountRequestStatus,
+    PublicAccountRequestType,
     Receipt,
     ReceiptShipmentAllocation,
     ReceiptType,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingAccessGrant,
+    ShipmentTrackingAccessRole,
     ShipmentTrackingEvent,
+    ShipmentTrackingIdentityStatus,
     ShipmentTrackingStatus,
+    VolunteerAccountRequest,
+    VolunteerAccountRequestStatus,
+    VolunteerProfile,
     Warehouse,
 )
+from wms.shipment_tracking_access import ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY
 from wms.shipment_view_helpers import build_shipments_tracking_rows
 from wms.views_scan_shipments import _annotate_carton_selection_compatibility
 
@@ -2217,6 +2228,392 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(
             response.context_data["back_to_url"],
             reverse("scan:scan_shipments_ready"),
+        )
+
+    def test_scan_shipment_track_get_renders_access_gateway_for_unauthenticated_user(self):
+        self.client.logout()
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            with mock.patch(
+                "wms.views_scan_shipments.render",
+                side_effect=self._render_stub,
+            ):
+                response = self.client.get(
+                    reverse(
+                        "scan:scan_shipment_track",
+                        kwargs={"tracking_token": shipment.tracking_token},
+                    )
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context_data["can_update_tracking"])
+        self.assertTrue(response.context_data["access_required"])
+        self.assertIn("gateway_form", response.context_data)
+        self.assertIn("recovery_form", response.context_data)
+        self.assertIn("pending_form", response.context_data)
+
+    def test_scan_shipment_track_post_unauthenticated_does_not_create_event(self):
+        self.client.logout()
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            response = self.client.post(
+                reverse(
+                    "scan:scan_shipment_track",
+                    kwargs={"tracking_token": shipment.tracking_token},
+                ),
+                {
+                    "status": ShipmentTrackingStatus.PLANNING_OK,
+                    "actor_name": "Anon",
+                    "actor_structure": "Guest",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ShipmentTrackingEvent.objects.count(), 0)
+
+    def test_scan_shipment_track_gateway_post_redirects_to_login_with_next(self):
+        self.client.logout()
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        contact = Contact.objects.create(
+            name="Structure Gateway",
+            email="gateway@example.com",
+            is_active=True,
+        )
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            response = self.client.post(
+                reverse(
+                    "scan:scan_shipment_track",
+                    kwargs={"tracking_token": shipment.tracking_token},
+                ),
+                {
+                    "action": "gateway",
+                    "role": ShipmentTrackingAccessRole.SHIPPER,
+                    "identifier": contact.asf_id,
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        location = response["Location"]
+        self.assertTrue(location.startswith(reverse("scan:scan_shipment_tracking_access_login")))
+        query = parse_qs(urlsplit(location).query)
+        self.assertEqual(query["role"], [ShipmentTrackingAccessRole.SHIPPER])
+        self.assertEqual(query["identifier"], [contact.asf_id])
+        self.assertIn(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]), query["next"][0]
+        )
+        self.assertIn(f"identifier={contact.asf_id}", query["next"][0])
+
+    def test_scan_shipment_track_get_allows_matching_restricted_grant_user(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        contact = Contact.objects.create(
+            name="Structure Shipper",
+            email="shipper-grant@example.com",
+            is_active=True,
+        )
+        shipment.shipper_contact_ref = contact
+        shipment.shipper_name = contact.name
+        shipment.save(update_fields=["shipper_contact_ref", "shipper_name"])
+        user = get_user_model().objects.create_user(
+            username="shipper-grant@example.com",
+            email="shipper-grant@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        grant = ShipmentTrackingAccessGrant.objects.create(
+            user=user,
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            contact=contact,
+            identity_status=ShipmentTrackingIdentityStatus.PENDING,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY] = grant.id
+        session.save()
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            with mock.patch(
+                "wms.views_scan_shipments.render",
+                side_effect=self._render_stub,
+            ):
+                response = self.client.get(
+                    reverse(
+                        "scan:scan_shipment_track",
+                        kwargs={"tracking_token": shipment.tracking_token},
+                    ),
+                    {
+                        "role": ShipmentTrackingAccessRole.SHIPPER,
+                        "identifier": contact.asf_id,
+                    },
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context_data["can_update_tracking"])
+        self.assertFalse(response.context_data["access_required"])
+
+    def test_scan_shipment_track_post_blocks_disallowed_role_transition_for_restricted_user(self):
+        shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)
+        contact = Contact.objects.create(
+            name="Structure Shipper Downstream",
+            email="shipper-downstream@example.com",
+            is_active=True,
+        )
+        shipment.shipper_contact_ref = contact
+        shipment.shipper_name = contact.name
+        shipment.save(update_fields=["shipper_contact_ref", "shipper_name"])
+        user = get_user_model().objects.create_user(
+            username="shipper-downstream@example.com",
+            email="shipper-downstream@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        grant = ShipmentTrackingAccessGrant.objects.create(
+            user=user,
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            contact=contact,
+            identity_status=ShipmentTrackingIdentityStatus.VERIFIED,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY] = grant.id
+        session.save()
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            response = self.client.post(
+                reverse(
+                    "scan:scan_shipment_track",
+                    kwargs={"tracking_token": shipment.tracking_token},
+                )
+                + f"?role={ShipmentTrackingAccessRole.SHIPPER}&identifier={contact.asf_id}",
+                {
+                    "status": ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+                    "actor_name": "Shipper",
+                    "actor_structure": "Org",
+                    "proof_no_photo": "on",
+                    "proof_carton_reference": "C-001",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ShipmentTrackingEvent.objects.count(), 0)
+
+    def test_scan_shipment_track_post_stores_actor_snapshot_and_manual_proof_for_restricted_user(
+        self,
+    ):
+        shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)
+        contact = Contact.objects.create(
+            name="Correspondant Tracking",
+            email="correspondant@example.com",
+            is_active=True,
+        )
+        shipment.correspondent_contact_ref = contact
+        shipment.correspondent_name = contact.name
+        shipment.save(update_fields=["correspondent_contact_ref", "correspondent_name"])
+        user = get_user_model().objects.create_user(
+            username="correspondant@example.com",
+            email="correspondant@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        grant = ShipmentTrackingAccessGrant.objects.create(
+            user=user,
+            role=ShipmentTrackingAccessRole.CORRESPONDENT,
+            contact=contact,
+            identity_status=ShipmentTrackingIdentityStatus.PENDING,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY] = grant.id
+        session.save()
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            response = self.client.post(
+                reverse(
+                    "scan:scan_shipment_track",
+                    kwargs={"tracking_token": shipment.tracking_token},
+                )
+                + f"?role={ShipmentTrackingAccessRole.CORRESPONDENT}&identifier={contact.asf_id}",
+                {
+                    "status": ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+                    "actor_name": "Correspondant",
+                    "actor_structure": "Escale",
+                    "proof_no_photo": "on",
+                    "proof_carton_reference": "C-900",
+                },
+                follow=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        event = ShipmentTrackingEvent.objects.get()
+        self.assertEqual(event.actor_role, ShipmentTrackingAccessRole.CORRESPONDENT)
+        self.assertEqual(event.actor_identifier, contact.asf_id)
+        self.assertEqual(event.actor_email, user.email)
+        self.assertEqual(event.actor_identity_status, ShipmentTrackingIdentityStatus.PENDING)
+        self.assertEqual(event.auth_source, "qr_restricted")
+        self.assertEqual(event.proof_mode, "manual")
+        self.assertEqual(event.proof_carton_reference, "C-900")
+        self.assertEqual(event.actor_snapshot["role"], ShipmentTrackingAccessRole.CORRESPONDENT)
+
+    def test_scan_shipment_track_pending_shipper_creation_creates_request_and_grant(self):
+        self.client.logout()
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        shipment.shipper_contact_ref = None
+        shipment.shipper_name = "Nouvelle structure expéditeur"
+        shipment.save(update_fields=["shipper_contact_ref", "shipper_name"])
+
+        with mock.patch(
+            "wms.views_scan_shipments.send_or_enqueue_email_safe",
+            return_value=True,
+        ) as send_mock:
+            response = self.client.post(
+                reverse(
+                    "scan:scan_shipment_track",
+                    kwargs={"tracking_token": shipment.tracking_token},
+                ),
+                {
+                    "action": "create_pending_account",
+                    "role": ShipmentTrackingAccessRole.SHIPPER,
+                    "email": "pending-shipper@example.com",
+                    "structure_name": "Nouvelle structure expéditeur",
+                    "address_line1": "1 rue du test",
+                    "city": "Paris",
+                    "country": "France",
+                },
+                follow=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        shipment.refresh_from_db()
+        self.assertIsNotNone(shipment.shipper_contact_ref)
+        self.assertFalse(shipment.shipper_contact_ref.is_active)
+        self.assertTrue(
+            ShipmentTrackingAccessGrant.objects.filter(
+                role=ShipmentTrackingAccessRole.SHIPPER,
+                contact=shipment.shipper_contact_ref,
+                identity_status=ShipmentTrackingIdentityStatus.PENDING,
+            ).exists()
+        )
+        account_request = PublicAccountRequest.objects.get(contact=shipment.shipper_contact_ref)
+        self.assertEqual(account_request.status, PublicAccountRequestStatus.PENDING)
+        self.assertEqual(account_request.account_type, PublicAccountRequestType.SHIPPER)
+        send_mock.assert_called_once()
+
+    def test_scan_shipment_track_pending_shipper_creation_reuses_pending_request(self):
+        self.client.logout()
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        shipment.shipper_contact_ref = None
+        shipment.save(update_fields=["shipper_contact_ref"])
+        payload = {
+            "action": "create_pending_account",
+            "role": ShipmentTrackingAccessRole.SHIPPER,
+            "email": "pending-shipper-reuse@example.com",
+            "structure_name": "Structure reuse",
+            "address_line1": "1 rue du test",
+            "city": "Paris",
+            "country": "France",
+        }
+
+        with mock.patch("wms.views_scan_shipments.send_or_enqueue_email_safe", return_value=True):
+            for _index in range(2):
+                response = self.client.post(
+                    reverse(
+                        "scan:scan_shipment_track",
+                        kwargs={"tracking_token": shipment.tracking_token},
+                    ),
+                    payload,
+                )
+                self.assertEqual(response.status_code, 302)
+
+        shipment.refresh_from_db()
+        self.assertEqual(
+            PublicAccountRequest.objects.filter(
+                contact=shipment.shipper_contact_ref,
+                status=PublicAccountRequestStatus.PENDING,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            ShipmentTrackingAccessGrant.objects.filter(
+                contact=shipment.shipper_contact_ref,
+                role=ShipmentTrackingAccessRole.SHIPPER,
+            ).count(),
+            1,
+        )
+
+    def test_scan_shipment_track_pending_volunteer_creation_creates_request_and_grant(self):
+        self.client.logout()
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+
+        with mock.patch(
+            "wms.views_scan_shipments.send_or_enqueue_email_safe",
+            return_value=True,
+        ) as send_mock:
+            response = self.client.post(
+                reverse(
+                    "scan:scan_shipment_track",
+                    kwargs={"tracking_token": shipment.tracking_token},
+                ),
+                {
+                    "action": "create_pending_account",
+                    "role": ShipmentTrackingAccessRole.VOLUNTEER,
+                    "email": "pending-volunteer@example.com",
+                    "first_name": "Jeanne",
+                    "last_name": "Test",
+                },
+                follow=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        volunteer_request = VolunteerAccountRequest.objects.get(
+            email="pending-volunteer@example.com"
+        )
+        self.assertEqual(volunteer_request.status, VolunteerAccountRequestStatus.PENDING)
+        profile = VolunteerProfile.objects.get(user__email="pending-volunteer@example.com")
+        self.assertFalse(profile.is_active)
+        self.assertTrue(
+            ShipmentTrackingAccessGrant.objects.filter(
+                role=ShipmentTrackingAccessRole.VOLUNTEER,
+                volunteer_profile=profile,
+                identity_status=ShipmentTrackingIdentityStatus.PENDING,
+            ).exists()
+        )
+        send_mock.assert_called_once()
+
+    def test_scan_shipment_track_pending_volunteer_creation_reuses_pending_request(self):
+        self.client.logout()
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        payload = {
+            "action": "create_pending_account",
+            "role": ShipmentTrackingAccessRole.VOLUNTEER,
+            "email": "pending-volunteer-reuse@example.com",
+            "first_name": "Jean",
+            "last_name": "Reuse",
+        }
+
+        with mock.patch("wms.views_scan_shipments.send_or_enqueue_email_safe", return_value=True):
+            for _index in range(2):
+                response = self.client.post(
+                    reverse(
+                        "scan:scan_shipment_track",
+                        kwargs={"tracking_token": shipment.tracking_token},
+                    ),
+                    payload,
+                )
+                self.assertEqual(response.status_code, 302)
+
+        self.assertEqual(
+            VolunteerAccountRequest.objects.filter(
+                email="pending-volunteer-reuse@example.com",
+                status=VolunteerAccountRequestStatus.PENDING,
+            ).count(),
+            1,
+        )
+        profile = VolunteerProfile.objects.get(user__email="pending-volunteer-reuse@example.com")
+        self.assertEqual(
+            ShipmentTrackingAccessGrant.objects.filter(
+                volunteer_profile=profile,
+                role=ShipmentTrackingAccessRole.VOLUNTEER,
+            ).count(),
+            1,
         )
 
     def test_scan_shipment_track_legacy_renders_read_only_tracking(self):

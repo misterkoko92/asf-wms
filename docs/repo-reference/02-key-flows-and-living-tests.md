@@ -35,8 +35,10 @@ Use it when you need to answer:
 - `wms/views_scan_settings.py`
 - `wms/scan_dashboard_sla.py`
 - `wms/scan_shipment_handlers.py`
+- `wms/shipment_tracking_access.py`
 - `wms/recipient_product_preferences.py`
 - `wms/shipment_tracking_handlers.py`
+- `wms/views_shipment_tracking_access.py`
 - `wms/shipment_document_handlers.py`
 - `wms/workflow_projection.py`
 - `wms/management/commands/rebuild_workflow_projections.py`
@@ -165,6 +167,16 @@ Use it when you need to answer:
 - shipment `carton_lists` kept as a per-carton action page for continuous-roll printing
 - carton bundle page exposes global print actions for continuous-roll and A4 four-up outputs
 - tracking events
+- public shipment QR tracking under `/scan/shipment/track/<tracking_token>/` is an
+  authenticated gateway: unauthenticated scans must enter their existing ASF/volunteer identifier
+  and then log in before any tracking event can be recorded
+- lost-code recovery for shipment QR tracking uses role + email + escale and sends the existing
+  ASF ID / role back by email without revealing whether an unknown email exists
+- no-identifier QR tracking creation creates a restricted `pending` identity and the matching
+  pending review object (`PublicAccountRequest` or `VolunteerAccountRequest`) without granting
+  broad portal / volunteer access before review approval
+- correspondent and recipient receipt scans require proof of a carton face IATA by photo, or a
+  manual carton number when the operator checks that they cannot take a photo
 - structured shipment dispute intake, assignment, due date, and resolution
 - shipment tracking list filters for open, overdue, and unassigned disputes
 - shipment tracking deep links filtered by `destination`
@@ -184,6 +196,10 @@ Use it when you need to answer:
 - `wms/tests/shipment/tests_carton_volunteer_activity.py`
 - `wms/tests/orders/tests_pack_handlers.py`
 - `wms/tests/domain/tests_domain_orders_extra.py`
+- `wms/tests/views/tests_views_shipment_tracking_access.py`
+- `wms/tests/shipment/tests_shipment_tracking_access.py`
+- `wms/tests/forms/tests_forms_shipment_tracking.py`
+- `wms/tests/emailing/tests_shipment_tracking_access.py`
 - `wms/tests/views/tests_views_scan_preparation.py`
 - `wms/tests/views/tests_views_tracking_dispute.py`
 - `wms/tests/views/tests_views_scan_stock.py`

@@ -1,14 +1,23 @@
 import logging
+from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
 from django.views.decorators.http import require_http_methods
+
+from contacts.models import Contact
 
 from .carton_handlers import handle_carton_status_update
 from .carton_view_helpers import (
@@ -16,12 +25,16 @@ from .carton_view_helpers import (
     build_cartons_ready_rows,
     get_carton_capacity_cm3,
 )
+from .emailing import send_or_enqueue_email_safe
 from .forms import (
     ScanPackForm,
     ScanPackUnknownProductForm,
     ScanPrepareKitsForm,
     ScanShipmentForm,
+    ShipmentTrackingAccessRecoveryForm,
     ShipmentTrackingForm,
+    ShipmentTrackingGatewayForm,
+    ShipmentTrackingPendingAccountForm,
 )
 from .helper_install import build_helper_install_context, build_helper_installer_response
 from .kits_view_helpers import build_kits_view_rows
@@ -32,12 +45,21 @@ from .models import (
     Destination,
     Document,
     DocumentType,
+    PublicAccountRequest,
+    PublicAccountRequestStatus,
+    PublicAccountRequestType,
     Shipment,
     ShipmentDisputeOwner,
     ShipmentDisputeReason,
     ShipmentDisputeStatus,
     ShipmentRecipientOrganization,
     ShipmentStatus,
+    ShipmentTrackingAccessGrant,
+    ShipmentTrackingAccessRole,
+    ShipmentTrackingIdentityStatus,
+    VolunteerAccountRequest,
+    VolunteerAccountRequestStatus,
+    VolunteerProfile,
 )
 from .order_helpers import resolve_linked_order_for_shipment
 from .pack_handlers import (
@@ -83,6 +105,15 @@ from .shipment_form_helpers import (
     build_shipment_order_product_options,
 )
 from .shipment_status import confirm_shipment_ready, shipment_can_be_confirmed_ready
+from .shipment_tracking_access import (
+    build_tracking_actor_snapshot_from_grant,
+    default_tracking_escale_for_shipment,
+    resolve_active_tracking_access_grant,
+    resolve_shipment_contact_for_role,
+    resolve_tracking_identifier_from_grant,
+    tracking_allowed_statuses_for_role,
+    tracking_grant_matches_shipment,
+)
 from .shipment_tracking_handlers import (
     allowed_tracking_statuses_for_shipment,
     handle_shipment_tracking_post,
@@ -710,6 +741,342 @@ def _build_dispute_timeline(dispute_summary):
     return timeline
 
 
+def _normalize_tracking_role(source) -> str:
+    value = (source or "").strip()
+    if value in set(ShipmentTrackingAccessRole.values):
+        return value
+    return ""
+
+
+def _build_volunteer_actor_context(request, *, role, identifier):
+    profile = getattr(getattr(request, "user", None), "volunteer_profile", None)
+    if profile is None:
+        return None
+    volunteer_identifier = str(getattr(profile, "volunteer_id", "") or "").strip()
+    if identifier and volunteer_identifier != identifier:
+        return None
+    email = str(getattr(request.user, "email", "") or "").strip()
+    identity_status = (
+        ShipmentTrackingIdentityStatus.VERIFIED
+        if getattr(profile, "is_active", False)
+        else ShipmentTrackingIdentityStatus.PENDING
+    )
+    snapshot = {
+        "role": role,
+        "identifier": volunteer_identifier,
+        "email": email,
+        "identity_status": identity_status,
+        "auth_source": "volunteer",
+        "volunteer_profile_id": profile.id,
+    }
+    return {
+        "role": role,
+        "identifier": volunteer_identifier,
+        "email": email,
+        "identity_status": identity_status,
+        "auth_source": "volunteer",
+        "snapshot": snapshot,
+        "is_staff": False,
+    }
+
+
+def _resolve_tracking_actor_context(request, *, shipment, role, identifier):
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    if user.is_staff:
+        return {
+            "role": role,
+            "identifier": identifier,
+            "email": str(getattr(user, "email", "") or "").strip(),
+            "identity_status": ShipmentTrackingIdentityStatus.VERIFIED,
+            "auth_source": "staff",
+            "snapshot": {
+                "role": role,
+                "identifier": identifier,
+                "email": str(getattr(user, "email", "") or "").strip(),
+                "identity_status": ShipmentTrackingIdentityStatus.VERIFIED,
+                "auth_source": "staff",
+            },
+            "is_staff": True,
+        }
+
+    active_grant = resolve_active_tracking_access_grant(request)
+    if active_grant is not None:
+        active_role = role or active_grant.role
+        active_identifier = identifier or resolve_tracking_identifier_from_grant(active_grant)
+        if tracking_grant_matches_shipment(
+            grant=active_grant,
+            shipment=shipment,
+            role=active_role,
+            identifier=active_identifier,
+        ):
+            snapshot = build_tracking_actor_snapshot_from_grant(active_grant)
+            return {
+                "role": active_role,
+                "identifier": active_identifier,
+                "email": str(getattr(active_grant.user, "email", "") or "").strip(),
+                "identity_status": active_grant.identity_status,
+                "auth_source": "qr_restricted",
+                "snapshot": snapshot,
+                "grant": active_grant,
+                "is_staff": False,
+            }
+
+    if role == ShipmentTrackingAccessRole.VOLUNTEER:
+        return _build_volunteer_actor_context(request, role=role, identifier=identifier)
+    return None
+
+
+def _build_tracking_next_url(*, shipment, role, identifier):
+    query = urlencode({"role": role, "identifier": identifier})
+    return f"{reverse('scan:scan_shipment_track', args=[shipment.tracking_token])}?{query}"
+
+
+def _build_tracking_login_url(*, shipment, role, identifier):
+    next_url = _build_tracking_next_url(
+        shipment=shipment,
+        role=role,
+        identifier=identifier,
+    )
+    query = urlencode(
+        {
+            "next": next_url,
+            "role": role,
+            "identifier": identifier,
+        }
+    )
+    return f"{reverse('scan:scan_shipment_tracking_access_login')}?{query}"
+
+
+def _build_tracking_set_password_url(request, *, user, grant, next_url):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    query = urlencode({"next": next_url, "grant": grant.id})
+    return request.build_absolute_uri(
+        reverse("scan:scan_shipment_tracking_access_set_password", args=[uid, token]) + f"?{query}"
+    )
+
+
+def _get_or_create_tracking_pending_user(*, email, role, identifier, first_name="", last_name=""):
+    user_model = get_user_model()
+    user = user_model.objects.filter(email__iexact=email).first()
+    if user is None:
+        username = f"qr-{role}-{identifier or email}".lower()[:150]
+        user = user_model.objects.create_user(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+    else:
+        updates = []
+        if first_name and user.first_name != first_name:
+            user.first_name = first_name
+            updates.append("first_name")
+        if last_name and user.last_name != last_name:
+            user.last_name = last_name
+            updates.append("last_name")
+        if not user.is_active:
+            user.is_active = True
+            updates.append("is_active")
+        if updates:
+            user.save(update_fields=updates)
+    return user
+
+
+def _assign_pending_contact_to_shipment(*, shipment, role, contact):
+    update_fields = []
+    if role == ShipmentTrackingAccessRole.SHIPPER:
+        shipment.shipper_contact_ref = contact
+        shipment.shipper_name = contact.name
+        update_fields.extend(["shipper_contact_ref", "shipper_name"])
+    elif role == ShipmentTrackingAccessRole.RECIPIENT:
+        shipment.recipient_contact_ref = contact
+        shipment.recipient_name = contact.name
+        update_fields.extend(["recipient_contact_ref", "recipient_name"])
+    elif role == ShipmentTrackingAccessRole.CORRESPONDENT:
+        shipment.correspondent_contact_ref = contact
+        shipment.correspondent_name = contact.name
+        update_fields.extend(["correspondent_contact_ref", "correspondent_name"])
+    if update_fields:
+        shipment.save(update_fields=update_fields)
+
+
+def _send_pending_tracking_access_email(*, request, shipment, grant):
+    identifier = resolve_tracking_identifier_from_grant(grant)
+    next_url = _build_tracking_next_url(
+        shipment=shipment,
+        role=grant.role,
+        identifier=identifier,
+    )
+    set_password_url = _build_tracking_set_password_url(
+        request,
+        user=grant.user,
+        grant=grant,
+        next_url=next_url,
+    )
+    login_url = request.build_absolute_uri(
+        reverse("scan:scan_shipment_tracking_access_login")
+        + f"?{urlencode({'next': next_url, 'role': grant.role})}"
+    )
+    tracking_url = request.build_absolute_uri(
+        reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+    )
+    message = render_to_string(
+        "emails/shipment_tracking_pending_created.txt",
+        {
+            "shipment": shipment,
+            "grant": grant,
+            "identifier": identifier,
+            "role_label": grant.get_role_display(),
+            "login_url": login_url,
+            "set_password_url": set_password_url,
+            "tracking_url": tracking_url,
+        },
+    )
+    send_or_enqueue_email_safe(
+        subject=_("ASF WMS - Accès suivi expédition créé"),
+        message=message,
+        recipient=[grant.user.email],
+    )
+
+
+def _sync_pending_volunteer_account_request(*, form, email):
+    request_row = VolunteerAccountRequest.objects.filter(
+        email__iexact=email,
+        status=VolunteerAccountRequestStatus.PENDING,
+    ).first()
+    values = {
+        "first_name": str(form.cleaned_data.get("first_name") or "").strip(),
+        "last_name": str(form.cleaned_data.get("last_name") or "").strip(),
+        "email": email,
+        "status": VolunteerAccountRequestStatus.PENDING,
+    }
+    if request_row is None:
+        return VolunteerAccountRequest.objects.create(**values)
+    update_fields = []
+    for field_name, value in values.items():
+        if getattr(request_row, field_name) != value:
+            setattr(request_row, field_name, value)
+            update_fields.append(field_name)
+    if update_fields:
+        request_row.save(update_fields=update_fields)
+    return request_row
+
+
+def _sync_pending_public_account_request(*, form, shipment, role, contact, email):
+    account_type = (
+        PublicAccountRequestType.SHIPPER
+        if role == ShipmentTrackingAccessRole.SHIPPER
+        else PublicAccountRequestType.RECIPIENT
+    )
+    request_row = PublicAccountRequest.objects.filter(
+        contact=contact,
+        account_type=account_type,
+        requested_account_type=role,
+        status=PublicAccountRequestStatus.PENDING,
+    ).first()
+    values = {
+        "contact": contact,
+        "account_type": account_type,
+        "requested_account_type": role,
+        "status": PublicAccountRequestStatus.PENDING,
+        "association_name": str(form.cleaned_data.get("structure_name") or "").strip(),
+        "email": email,
+        "address_line1": str(form.cleaned_data.get("address_line1") or "").strip(),
+        "postal_code": str(form.cleaned_data.get("postal_code") or "").strip(),
+        "city": str(form.cleaned_data.get("city") or "").strip(),
+        "country": str(form.cleaned_data.get("country") or "").strip() or "France",
+        "destination": shipment.destination
+        if role
+        in {
+            ShipmentTrackingAccessRole.RECIPIENT,
+            ShipmentTrackingAccessRole.CORRESPONDENT,
+        }
+        else None,
+    }
+    if request_row is None:
+        return PublicAccountRequest.objects.create(**values)
+    update_fields = []
+    for field_name, value in values.items():
+        if getattr(request_row, field_name) != value:
+            setattr(request_row, field_name, value)
+            update_fields.append(field_name)
+    if update_fields:
+        request_row.save(update_fields=update_fields)
+    return request_row
+
+
+def _create_pending_tracking_access(request, *, shipment, form):
+    role = form.cleaned_data["role"]
+    email = str(form.cleaned_data["email"] or "").strip().lower()
+    with transaction.atomic():
+        if role == ShipmentTrackingAccessRole.VOLUNTEER:
+            user = _get_or_create_tracking_pending_user(
+                email=email,
+                role=role,
+                identifier=email,
+                first_name=str(form.cleaned_data.get("first_name") or "").strip(),
+                last_name=str(form.cleaned_data.get("last_name") or "").strip(),
+            )
+            profile, _created = VolunteerProfile.objects.get_or_create(user=user)
+            profile.short_name = str(form.cleaned_data.get("first_name") or "").strip()[:30]
+            profile.is_active = False
+            profile.must_change_password = True
+            profile.save()
+            _sync_pending_volunteer_account_request(form=form, email=email)
+            grant, _created = ShipmentTrackingAccessGrant.objects.get_or_create(
+                user=user,
+                role=role,
+                volunteer_profile=profile,
+                defaults={"identity_status": ShipmentTrackingIdentityStatus.PENDING},
+            )
+        else:
+            contact = resolve_shipment_contact_for_role(shipment=shipment, role=role)
+            if contact is None:
+                contact = Contact.objects.create(
+                    name=str(form.cleaned_data.get("structure_name") or "").strip(),
+                    email=email,
+                    is_active=False,
+                )
+            else:
+                contact.name = (
+                    str(form.cleaned_data.get("structure_name") or "").strip() or contact.name
+                )
+                contact.email = email or contact.email
+                contact.is_active = False
+                contact.save(update_fields=["name", "email", "is_active"])
+            _assign_pending_contact_to_shipment(shipment=shipment, role=role, contact=contact)
+            user = _get_or_create_tracking_pending_user(
+                email=email,
+                role=role,
+                identifier=getattr(contact, "asf_id", "") or email,
+            )
+            grant, _created = ShipmentTrackingAccessGrant.objects.get_or_create(
+                user=user,
+                role=role,
+                contact=contact,
+                defaults={"identity_status": ShipmentTrackingIdentityStatus.PENDING},
+            )
+            _sync_pending_public_account_request(
+                form=form,
+                shipment=shipment,
+                role=role,
+                contact=contact,
+                email=email,
+            )
+
+        if grant.identity_status != ShipmentTrackingIdentityStatus.PENDING:
+            grant.identity_status = ShipmentTrackingIdentityStatus.PENDING
+            grant.save(update_fields=["identity_status"])
+
+    _send_pending_tracking_access_email(request=request, shipment=shipment, grant=grant)
+    return grant
+
+
 def _render_shipment_tracking(
     request,
     *,
@@ -719,6 +1086,12 @@ def _render_shipment_tracking(
     can_update_tracking,
     back_to_url,
     return_to,
+    access_required=False,
+    gateway_form=None,
+    recovery_form=None,
+    pending_form=None,
+    selected_role="",
+    selected_identifier="",
 ):
     documents, carton_docs, additional_docs, events = _build_tracking_page_data(shipment)
     is_staff_user = bool(request.user.is_authenticated and request.user.is_staff)
@@ -736,6 +1109,12 @@ def _render_shipment_tracking(
             "events": events,
             "form": form,
             "can_update_tracking": can_update_tracking,
+            "access_required": access_required,
+            "gateway_form": gateway_form,
+            "recovery_form": recovery_form,
+            "pending_form": pending_form,
+            "selected_role": selected_role,
+            "selected_identifier": selected_identifier,
             "can_manage_dispute": is_staff_user,
             "show_back_to_list": is_staff_user,
             "back_to_url": back_to_url,
@@ -1438,16 +1817,68 @@ def scan_shipment_track(request, tracking_token):
     shipment = get_object_or_404(Shipment, tracking_token=tracking_token)
     shipment.ensure_qr_code(request=request)
     source = request.POST if request.method == "POST" else request.GET
+    action = (request.POST.get("action") or "").strip() if request.method == "POST" else ""
     return_to = _normalize_return_to(source.get("return_to"))
+    selected_role = _normalize_tracking_role(source.get("role") or request.GET.get("role"))
+    selected_identifier = (source.get("identifier") or request.GET.get("identifier") or "").strip()
+    actor_context = _resolve_tracking_actor_context(
+        request,
+        shipment=shipment,
+        role=selected_role,
+        identifier=selected_identifier,
+    )
+    if actor_context is not None:
+        selected_role = actor_context.get("role", selected_role)
+        selected_identifier = actor_context.get("identifier", selected_identifier)
+    if not selected_role:
+        selected_role = ShipmentTrackingAccessRole.VOLUNTEER
+    is_dispute_action = action in {"set_disputed", "resolve_dispute"}
+
     last_event = shipment.tracking_events.order_by("-created_at").first()
     allowed_statuses = allowed_tracking_statuses_for_shipment(shipment)
+    if actor_context is not None and not actor_context.get("is_staff"):
+        allowed_statuses = tracking_allowed_statuses_for_role(
+            actor_context.get("role"),
+            allowed_statuses,
+        )
     next_status = next_tracking_status(last_event.status if last_event else None)
     if allowed_statuses and next_status not in allowed_statuses:
         next_status = allowed_statuses[0]
-    form = ShipmentTrackingForm(
-        request.POST or None,
-        initial_status=next_status,
-        allowed_statuses=allowed_statuses,
+    can_update_tracking = actor_context is not None
+    form = None
+    if can_update_tracking or is_dispute_action:
+        form = ShipmentTrackingForm(
+            request.POST or None,
+            initial_status=next_status,
+            allowed_statuses=allowed_statuses,
+            shipment=shipment,
+            actor_role=selected_role,
+        )
+    gateway_form = ShipmentTrackingGatewayForm(
+        request.POST if action == "gateway" else None,
+        initial={
+            "role": selected_role,
+            "identifier": selected_identifier,
+        },
+        selected_role=selected_role,
+    )
+    default_escale = default_tracking_escale_for_shipment(shipment)
+    recovery_form = ShipmentTrackingAccessRecoveryForm(
+        request.POST if action == "recovery" else None,
+        initial={
+            "role": selected_role,
+            "escale_code": default_escale,
+        },
+        selected_role=selected_role,
+        shipment=shipment,
+    )
+    pending_form = ShipmentTrackingPendingAccountForm(
+        request.POST if action == "create_pending_account" else None,
+        initial={
+            "role": selected_role,
+            "escale_code": default_escale,
+        },
+        selected_role=selected_role,
     )
     return_to_list = (
         request.method == "POST"
@@ -1456,24 +1887,63 @@ def scan_shipment_track(request, tracking_token):
         and (request.POST.get("return_to_list") or "").strip() == "1"
     )
     return_to_view = _return_to_view_name(return_to) if return_to_list else None
-    response = handle_shipment_tracking_post(
-        request,
-        shipment=shipment,
-        form=form,
-        return_to_list=return_to_list,
-        return_to_view=return_to_view,
-        return_to_key=return_to,
-    )
-    if response:
-        return response
+    if request.method == "POST" and action == "gateway":
+        if gateway_form.is_valid():
+            return redirect(
+                _build_tracking_login_url(
+                    shipment=shipment,
+                    role=gateway_form.cleaned_data["role"],
+                    identifier=gateway_form.cleaned_data["identifier"],
+                )
+            )
+    elif request.method == "POST" and action == "create_pending_account":
+        if pending_form.is_valid():
+            grant = _create_pending_tracking_access(request, shipment=shipment, form=pending_form)
+            identifier = resolve_tracking_identifier_from_grant(grant)
+            messages.success(
+                request,
+                _(
+                    "Compte créé en attente. Consultez votre email pour définir votre mot de passe puis connectez-vous pour poursuivre le scan."
+                ),
+            )
+            return redirect(
+                _build_tracking_login_url(
+                    shipment=shipment,
+                    role=grant.role,
+                    identifier=identifier,
+                )
+            )
+    elif (
+        request.method == "POST" and (can_update_tracking or is_dispute_action) and form is not None
+    ):
+        response = handle_shipment_tracking_post(
+            request,
+            shipment=shipment,
+            form=form,
+            actor_context=actor_context,
+            return_to_list=return_to_list,
+            return_to_view=return_to_view,
+            return_to_key=return_to,
+        )
+        if response:
+            return response
+    elif request.method == "POST" and not can_update_tracking:
+        messages.error(request, _("Connectez-vous pour poursuivre le suivi."))
+
     return _render_shipment_tracking(
         request,
         shipment=shipment,
         tracking_url=shipment.get_tracking_url(request=request),
         form=form,
-        can_update_tracking=True,
+        can_update_tracking=can_update_tracking,
         back_to_url=_return_to_url(return_to),
         return_to=return_to,
+        access_required=not can_update_tracking,
+        gateway_form=gateway_form,
+        recovery_form=recovery_form,
+        pending_form=pending_form,
+        selected_role=selected_role,
+        selected_identifier=selected_identifier,
     )
 
 
