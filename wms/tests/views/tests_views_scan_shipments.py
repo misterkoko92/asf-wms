@@ -47,7 +47,13 @@ from wms.models import (
 )
 from wms.shipment_tracking_access import ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY
 from wms.shipment_view_helpers import build_shipments_tracking_rows
-from wms.views_scan_shipments import _annotate_carton_selection_compatibility
+from wms.views_scan_shipments import (
+    _annotate_carton_selection_compatibility,
+    _assign_pending_contact_to_shipment,
+    _build_tracking_login_url,
+    _build_tracking_set_password_url,
+    _get_or_create_tracking_pending_user,
+)
 
 
 class ScanShipmentsViewsTests(TestCase):
@@ -146,6 +152,103 @@ class ScanShipmentsViewsTests(TestCase):
             quantity=1,
         )
         return carton
+
+    def test_tracking_pending_account_helpers_create_update_and_assign(self):
+        created_user = _get_or_create_tracking_pending_user(
+            email="pending-new@example.com",
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            identifier="ASF-PENDING",
+            first_name="Ada",
+            last_name="Lovelace",
+        )
+        existing_user = get_user_model().objects.create_user(
+            username="pending-existing",
+            email="pending-existing@example.com",
+            password="pass1234",
+            first_name="Old",
+            is_active=False,
+        )
+
+        updated_user = _get_or_create_tracking_pending_user(
+            email=existing_user.email,
+            role=ShipmentTrackingAccessRole.VOLUNTEER,
+            identifier="VOL-1",
+            first_name="Grace",
+            last_name="Hopper",
+        )
+
+        created_user.refresh_from_db()
+        updated_user.refresh_from_db()
+        self.assertEqual(created_user.first_name, "Ada")
+        self.assertFalse(created_user.has_usable_password())
+        self.assertEqual(updated_user.first_name, "Grace")
+        self.assertEqual(updated_user.last_name, "Hopper")
+        self.assertTrue(updated_user.is_active)
+
+        shipment = self._create_shipment(reference="SHP-PENDING-ASSIGN")
+        shipper = Contact.objects.create(name="Pending Shipper", email="shipper@example.com")
+        recipient = Contact.objects.create(name="Pending Recipient", email="recipient@example.com")
+        correspondent = Contact.objects.create(
+            name="Pending Correspondent",
+            email="correspondent@example.com",
+        )
+
+        _assign_pending_contact_to_shipment(
+            shipment=shipment,
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            contact=shipper,
+        )
+        _assign_pending_contact_to_shipment(
+            shipment=shipment,
+            role=ShipmentTrackingAccessRole.RECIPIENT,
+            contact=recipient,
+        )
+        _assign_pending_contact_to_shipment(
+            shipment=shipment,
+            role=ShipmentTrackingAccessRole.CORRESPONDENT,
+            contact=correspondent,
+        )
+
+        shipment.refresh_from_db()
+        self.assertEqual(shipment.shipper_contact_ref, shipper)
+        self.assertEqual(shipment.recipient_contact_ref, recipient)
+        self.assertEqual(shipment.correspondent_contact_ref, correspondent)
+
+    def test_tracking_pending_account_url_helpers_include_next_and_grant(self):
+        shipment = self._create_shipment(reference="SHP-PENDING-URL")
+        contact = Contact.objects.create(
+            name="Pending URL Contact", email="pending-url@example.com"
+        )
+        user = get_user_model().objects.create_user(
+            username="pending-url-user",
+            email=contact.email,
+            password="pass1234",
+        )
+        grant = ShipmentTrackingAccessGrant.objects.create(
+            user=user,
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            contact=contact,
+            identity_status=ShipmentTrackingIdentityStatus.PENDING,
+        )
+        request = self.factory.get("/")
+
+        login_url = _build_tracking_login_url(
+            shipment=shipment,
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            identifier=contact.asf_id,
+        )
+        set_password_url = _build_tracking_set_password_url(
+            request,
+            user=user,
+            grant=grant,
+            next_url=login_url,
+        )
+
+        self.assertIn(reverse("scan:scan_shipment_tracking_access_login"), login_url)
+        self.assertIn(str(shipment.tracking_token), login_url)
+        self.assertIn(contact.asf_id, login_url)
+        self.assertIn("/scan/shipment/track/access/set-password/", set_password_url)
+        self.assertIn(f"grant={grant.id}", set_password_url)
 
     def test_scan_cartons_ready_short_circuits_when_handler_returns_response(self):
         with mock.patch(
