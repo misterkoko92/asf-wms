@@ -11,11 +11,11 @@ class RuntimeRoleMigrationFlagsTests(TestCase):
     def test_runtime_defaults_expose_current_runtime_flags(self):
         runtime = WmsRuntimeSettings.get_solo()
         self.assertEqual(runtime.low_stock_threshold, 20)
-        self.assertTrue(runtime.enable_shipment_track_legacy)
+        self.assertFalse(runtime.enable_shipment_track_legacy)
 
         config = get_runtime_config()
         self.assertEqual(config.low_stock_threshold, 20)
-        self.assertTrue(config.enable_shipment_track_legacy)
+        self.assertFalse(config.enable_shipment_track_legacy)
 
     def test_runtime_config_reads_current_settings_fallback(self):
         with override_settings(

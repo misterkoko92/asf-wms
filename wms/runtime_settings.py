@@ -128,7 +128,7 @@ def _fallback_runtime_config() -> RuntimeConfig:
             default=900,
             minimum=1,
         ),
-        enable_shipment_track_legacy=bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)),
+        enable_shipment_track_legacy=bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", False)),
     )
 
 
@@ -222,7 +222,7 @@ def get_runtime_config() -> RuntimeConfig:
 
 def is_shipment_track_legacy_enabled() -> bool:
     runtime_flag = get_runtime_config().enable_shipment_track_legacy
-    env_flag = bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True))
+    env_flag = bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", False))
     return env_flag and runtime_flag
 
 
