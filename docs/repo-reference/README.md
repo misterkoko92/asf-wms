@@ -6,12 +6,13 @@ Use it to re-enter the codebase quickly before a change, and again before closin
 
 ## Read This At The Start Of A Ticket
 
-1. `docs/repo-reference/01-architecture-and-entrypoints.md`
-2. `docs/repo-reference/02-key-flows-and-living-tests.md`
-3. `docs/repo-reference/03-impact-map.md`
-4. `docs/repo-reference/04-shared-contracts.md`
+1. `docs/repo-reference/00-product-context.md` — mission, utilisateurs, volume réel, contraintes (read first)
+2. `docs/repo-reference/01-architecture-and-entrypoints.md`
+3. `docs/repo-reference/02-key-flows-and-living-tests.md`
+4. `docs/repo-reference/03-impact-map.md`
+5. `docs/repo-reference/04-shared-contracts.md`
 
-If the change is very local, read `01` then jump directly to the relevant sections in `02` and `03`.
+If the change is very local, read `00` and `01` then jump directly to the relevant sections in `02` and `03`.
 
 ## What This Reference Covers
 
@@ -80,6 +81,7 @@ Before closing the change:
 
 ## Files In This Directory
 
+- `00-product-context.md`: mission, utilisateurs, volume réel, déploiement, contraintes — le *pourquoi* du projet
 - `01-architecture-and-entrypoints.md`: where the app starts and how the layers fit together
 - `02-key-flows-and-living-tests.md`: the critical business flows and the tests that currently embody them
 - `03-impact-map.md`: change propagation checklist for recurring maintenance work

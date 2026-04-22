@@ -50,6 +50,7 @@ from wms.models import (
     VolunteerAccountRequestStatus,
     VolunteerProfile,
     Warehouse,
+    WmsRuntimeSettings,
 )
 from wms.shipment_tracking_access import ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY
 from wms.shipment_view_helpers import build_shipments_tracking_rows
@@ -2956,7 +2957,11 @@ class ScanShipmentsViewsTests(TestCase):
             1,
         )
 
+    @override_settings(ENABLE_SHIPMENT_TRACK_LEGACY=True)
     def test_scan_shipment_track_legacy_renders_read_only_tracking(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.enable_shipment_track_legacy = True
+        runtime.save(update_fields=["enable_shipment_track_legacy"])
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
         with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
             with mock.patch(

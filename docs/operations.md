@@ -65,7 +65,7 @@ Security-related values (recommended in production):
 - `CSRF_COOKIE_SECURE=true`
 - `USE_PROXY_SSL_HEADER=true` (if reverse proxy terminates TLS)
 - `TRUSTED_PROXY_IPS` (comma-separated proxy IPs allowed to provide `X-Forwarded-For`)
-- `DOCUMENT_SCAN_BACKEND=clamav` (or `noop` for local/dev only)
+- `DOCUMENT_SCAN_BACKEND=clamav` (`noop` is reserved for automated tests only)
 - `DOCUMENT_SCAN_CLAMAV_COMMAND=clamscan`
 - `DOCUMENT_SCAN_TIMEOUT_SECONDS=30`
 - `DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS=900`
@@ -391,8 +391,7 @@ python manage.py process_document_scan_queue --include-failed --limit=100
 python manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0
 # Make shortcut
 make scan-queue-runtime-check
-# Dev-only (if ClamAV is intentionally unavailable locally)
-DOCUMENT_SCAN_BACKEND=noop python manage.py check_document_scan_runtime --allow-noop
+# `DOCUMENT_SCAN_BACKEND=noop` is reserved for automated tests and is rejected at startup otherwise.
 ```
 
 Suggested cron (every minute):

@@ -1,4 +1,5 @@
 import os
+import secrets
 import sys
 from pathlib import Path
 
@@ -42,10 +43,20 @@ def _is_secure_secret_key(secret_key: str) -> bool:
     return True
 
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-change-this")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
 
-DEBUG = _env_bool("DJANGO_DEBUG", True)
+DEBUG = _env_bool("DJANGO_DEBUG", False)
 RUNNING_TESTS = "test" in sys.argv
+
+if not SECRET_KEY:
+    if RUNNING_TESTS:
+        SECRET_KEY = secrets.token_urlsafe(64)
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY environment variable is required. "
+            'Generate a strong key with: python -c "import secrets; '
+            'print(secrets.token_urlsafe(64))"'
+        )
 
 if not DEBUG and not RUNNING_TESTS and not _is_secure_secret_key(SECRET_KEY):
     raise ImproperlyConfigured(
@@ -67,6 +78,10 @@ CSRF_COOKIE_SECURE = _env_bool(
     "CSRF_COOKIE_SECURE",
     not DEBUG and not RUNNING_TESTS,
 )
+SESSION_COOKIE_HTTPONLY = _env_bool("SESSION_COOKIE_HTTPONLY", True)
+SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Strict").strip() or "Strict"
+CSRF_COOKIE_HTTPONLY = _env_bool("CSRF_COOKIE_HTTPONLY", True)
+CSRF_COOKIE_SAMESITE = os.environ.get("CSRF_COOKIE_SAMESITE", "Strict").strip() or "Strict"
 SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", not DEBUG)
 SECURE_HSTS_PRELOAD = _env_bool("SECURE_HSTS_PRELOAD", not DEBUG)
@@ -81,6 +96,11 @@ TRUSTED_PROXY_IPS: list[str] = _env_list("TRUSTED_PROXY_IPS")
 DOCUMENT_SCAN_BACKEND = (
     os.environ.get("DOCUMENT_SCAN_BACKEND", "clamav").strip().lower() or "clamav"
 )
+if DOCUMENT_SCAN_BACKEND == "noop" and not RUNNING_TESTS:
+    raise ImproperlyConfigured(
+        "DOCUMENT_SCAN_BACKEND=noop is only allowed in tests. "
+        "Use 'clamav' (or another real backend) in production."
+    )
 DOCUMENT_SCAN_CLAMAV_COMMAND = (
     os.environ.get("DOCUMENT_SCAN_CLAMAV_COMMAND", "clamscan").strip() or "clamscan"
 )
@@ -286,4 +306,4 @@ EMAIL_QUEUE_MAX_ATTEMPTS = _env_int("EMAIL_QUEUE_MAX_ATTEMPTS", 5)
 EMAIL_QUEUE_RETRY_BASE_SECONDS = _env_int("EMAIL_QUEUE_RETRY_BASE_SECONDS", 60)
 EMAIL_QUEUE_RETRY_MAX_SECONDS = _env_int("EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600)
 EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS = _env_int("EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900)
-ENABLE_SHIPMENT_TRACK_LEGACY = _env_bool("ENABLE_SHIPMENT_TRACK_LEGACY", True)
+ENABLE_SHIPMENT_TRACK_LEGACY = _env_bool("ENABLE_SHIPMENT_TRACK_LEGACY", False)

@@ -26,7 +26,7 @@ SCAN_SETTINGS_PRESETS = {
             "email_queue_retry_base_seconds": 60,
             "email_queue_retry_max_seconds": 3600,
             "email_queue_processing_timeout_seconds": 900,
-            "enable_shipment_track_legacy": True,
+            "enable_shipment_track_legacy": False,
         },
     },
     "incident_email_queue": {

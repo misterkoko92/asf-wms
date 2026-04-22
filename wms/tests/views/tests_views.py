@@ -2128,7 +2128,11 @@ class ScanViewTests(TestCase):
         response = self.client.get(legacy_url)
         self.assertEqual(response.status_code, 404)
 
+    @override_settings(ENABLE_SHIPMENT_TRACK_LEGACY=True)
     def test_scan_shipment_track_legacy_is_read_only_for_staff(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.enable_shipment_track_legacy = True
+        runtime.save(update_fields=["enable_shipment_track_legacy"])
         shipment, _carton = self._create_shipment_with_carton()
         self.client.force_login(self.superuser)
         legacy_url = reverse("scan:scan_shipment_track_legacy", args=[shipment.reference])
