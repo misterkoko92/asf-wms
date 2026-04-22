@@ -30,6 +30,58 @@ For each deferred follow-up, capture:
 
 ## Deferred items
 
+### 2026-04-22 - Data-driven preparateur pack families beyond MM/CN
+
+- Surface: legacy scan preparateur free-pack flow (`/scan/pack/`), preparateur order preparation
+  (`/scan/preparateur/orders/prepare/`), carton standard-format resolution, product catalog root
+  families.
+- Deferred change: replace the current hardcoded `MM` / `CN` family contract with a data-driven
+  preparation-family model so:
+  - the operator-facing selector is not limited to two code values,
+  - automatic family resolution can map products to configurable preparation families,
+  - each family can carry its own default carton format without code changes.
+- Decision for now: keep the current automatic `MM` / `CN` behavior and the manual override only
+  for products whose root category does not resolve cleanly.
+- Why deferred now:
+  - the current batch targets operational preparateur fixes and layout work, not a catalog/admin
+    model migration,
+  - making the family selector evolutive touches catalog data, admin configuration, standard carton
+    mapping, validation, and preparateur packing rules,
+  - reopening this properly needs a business decision on where preparation families are configured
+    and how they relate to product categories.
+- Estimated cost if reopened: about 2 to 4 developer days plus admin/data QA.
+- Trigger to reopen:
+  - a third preparation family must be introduced,
+  - operations need to manage family values or default carton mappings without code changes.
+- Canonical references:
+  - `wms/pack_handlers.py`
+  - `wms/preparateur_orders.py`
+  - `wms/scan_carton_helpers.py`
+  - `wms/forms.py`
+  - `wms/static/scan/scan.js`
+
+### 2026-04-22 - Product packaging aliases for box-only UDI cases
+
+- Surface: legacy scan product lookup, preparateur pack flow, product catalog, stock/order units.
+- Deferred change: add a packaging-alias model so one canonical product can have box/unit aliases
+  with their own barcode/EAN/UDI identifiers and unit multipliers.
+- Decision for now: implement barcode/EAN/GS1-UDI fallback against existing product identifiers
+  only; keep packaging aliases as a catalog follow-up.
+- Why deferred now:
+  - the current batch targets operational preparateur fixes without a catalog migration,
+  - aliases affect imports, admin/product editing, stock movement, order quantities, and packing
+    math,
+  - canonical stock units need a product decision before adding multiplier behavior.
+- Estimated cost if reopened: about 3 to 6 developer days plus catalog data cleanup and QA.
+- Trigger to reopen: repeated need to scan a containing box while preparing or receiving canonical
+  unit quantities.
+- Canonical references:
+  - `docs/plans/2026-04-22-product-packaging-aliases-follow-up.md`
+  - `wms/models_domain/catalog.py`
+  - `wms/scan_product_helpers.py`
+  - `wms/pack_handlers.py`
+  - `wms/preparateur_orders.py`
+
 ### 2026-04-10 - Portal FAQ first pass and deferred self-service gaps
 
 - Surface: legacy portal shipper and recipient flows (`/portal/`, `/portal/orders/*`, `/portal/recipients/*`, `/portal/account/`, `/portal/billing/*`).

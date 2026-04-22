@@ -43,6 +43,8 @@ pip install -r requirements-dev.txt
 ```bash
 uv sync --frozen
 make test
+make test-fast      # reuses the test DB
+make test-smoke     # critical cross-domain smoke subset
 make coverage
 ```
 

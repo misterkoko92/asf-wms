@@ -253,6 +253,18 @@
           {% include "scan/includes/pack_custom_format_fields.html" %}
 
           <div class="pack-lines" id="pack-lines"></div>
+          <div class="scan-field scan-pack-forced-count-row">
+            <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis" %}</label>
+            <input type="number"
+                   name="forced_carton_count"
+                   id="id_forced_carton_count"
+                   class="form-control scan-pack-forced-count-input"
+                   min="1"
+                   step="1"
+                   value="{{ forced_carton_count|default:'' }}"
+                   placeholder="{% trans "Auto" %}">
+            <p class="scan-help ui-comp-note mb-0">{% trans "Laisser vide pour conserver le calcul automatique." %}</p>
+          </div>
           <div class="scan-inline-actions ui-comp-actions flex-wrap mb-3">
             <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
             <a

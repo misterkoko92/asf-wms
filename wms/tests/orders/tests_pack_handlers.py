@@ -9,6 +9,7 @@ from django.test import RequestFactory, TestCase
 from wms.forms import ScanPackUnknownProductForm
 from wms.models import (
     Carton,
+    CartonFormat,
     CartonStatus,
     CartonStatusEvent,
     CartonVolunteerActivity,
@@ -163,7 +164,9 @@ class PackHandlersTests(TestCase):
             height_cm=Decimal("35"),
             max_weight_g=12000,
         )
-        format_id, custom, line_count, line_values = build_pack_defaults(default_format)
+        format_id, custom, line_count, line_values, forced_carton_count = build_pack_defaults(
+            default_format
+        )
         self.assertEqual(format_id, "9")
         self.assertEqual(
             custom,
@@ -186,8 +189,9 @@ class PackHandlersTests(TestCase):
                 }
             ],
         )
+        self.assertIsNone(forced_carton_count)
 
-        format_id, custom, line_count, line_values = build_pack_defaults(None)
+        format_id, custom, line_count, line_values, forced_carton_count = build_pack_defaults(None)
         self.assertEqual(format_id, "custom")
         self.assertEqual(
             custom,
@@ -210,6 +214,63 @@ class PackHandlersTests(TestCase):
                 }
             ],
         )
+        self.assertIsNone(forced_carton_count)
+
+    def test_handle_pack_post_forced_carton_count_replaces_auto_bins(self):
+        request = self._request(
+            {
+                "line_count": "1",
+                "line_1_product_code": "SKU-1",
+                "line_1_quantity": "5",
+                "forced_carton_count": "1",
+                "confirm_defaults": "1",
+            }
+        )
+        product = SimpleNamespace(id=5, name="Produit 1")
+        created_carton = SimpleNamespace(id=77)
+        form = self._form(valid=True, shipment_reference="")
+        auto_bins = [
+            {"items": {product.id: {"product": product, "quantity": 3}}},
+            {"items": {product.id: {"product": product, "quantity": 2}}},
+        ]
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            with mock.patch("wms.pack_handlers.resolve_product", return_value=product):
+                with mock.patch("wms.pack_handlers.get_product_weight_g", return_value=20):
+                    with mock.patch("wms.pack_handlers.get_product_volume_cm3", return_value=30):
+                        with mock.patch(
+                            "wms.pack_handlers.build_packing_bins",
+                            return_value=(auto_bins, [], []),
+                        ):
+                            with mock.patch(
+                                "wms.pack_handlers.build_forced_carton_warnings",
+                                return_value=[],
+                            ):
+                                with mock.patch(
+                                    "wms.pack_handlers.pack_carton",
+                                    return_value=created_carton,
+                                ) as pack_carton_mock:
+                                    with mock.patch(
+                                        "wms.pack_handlers.messages.warning"
+                                    ) as warning_mock:
+                                        with mock.patch(
+                                            "wms.pack_handlers.messages.success"
+                                        ) as success_mock:
+                                            response, state = handle_pack_post(
+                                                request,
+                                                form=form,
+                                                default_format=None,
+                                            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(state["forced_carton_count"], 1)
+        self.assertEqual(request.session["pack_results"], [77])
+        self.assertEqual(pack_carton_mock.call_count, 1)
+        warning_messages = [call.args[1] for call in warning_mock.call_args_list]
+        self.assertIn("Nombre de colis forcé: 1 au lieu de 2.", warning_messages)
+        success_mock.assert_called_once_with(request, "1 carton(s) préparé(s).")
 
     def test_handle_pack_post_validates_shipment_carton_and_line_fields(self):
         request = self._request(
@@ -776,6 +837,66 @@ class PackHandlersTests(TestCase):
         self.assertEqual(carton.current_location, ready_mm)
         self.assertTrue(carton.code.startswith("MM-"))
 
+    def test_handle_pack_post_preparateur_uses_standard_format_for_family(self):
+        stock_location, ready_mm, _ready_cn = self._create_locations()
+        default_format = CartonFormat.objects.create(
+            name="Fallback Default Pack",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        mm_format = CartonFormat.objects.create(
+            name="MM Standard",
+            length_cm=12,
+            width_cm=10,
+            height_cm=8,
+            max_weight_g=5000,
+        )
+        category_mm = ProductCategory.objects.create(name="MM")
+        product = Product.objects.create(
+            sku="SKU-MM-FORMAT",
+            name="Produit MM Format",
+            category=category_mm,
+            weight_g=100,
+            volume_cm3=100,
+            default_location=stock_location,
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-MM-FORMAT",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            location=stock_location,
+        )
+        request = self._db_request(
+            {
+                "carton_format_id": str(default_format.id),
+                "line_count": "1",
+                "line_1_product_code": product.sku,
+                "line_1_quantity": "1",
+            },
+            preparateur=True,
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch("wms.pack_handlers.messages.warning"):
+            with mock.patch("wms.pack_handlers.messages.success"):
+                response, state = handle_pack_post(
+                    request,
+                    form=form,
+                    default_format=default_format,
+                )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(state["line_errors"], {})
+        carton = Carton.objects.get()
+        self.assertEqual(carton.current_location, ready_mm)
+        self.assertEqual(carton.length_cm, mm_format.length_cm)
+        self.assertEqual(carton.width_cm, mm_format.width_cm)
+        self.assertEqual(carton.height_cm, mm_format.height_cm)
+
     def test_handle_pack_post_preparateur_uses_active_volunteer_as_prepared_by(self):
         category_mm = ProductCategory.objects.create(name="MM")
         product_mm = self._create_stock_product(
@@ -914,6 +1035,11 @@ class PackHandlersTests(TestCase):
                 "unknown_product_barcode": "1234567890",
                 "unknown_product_pack_family": "MM",
                 "unknown_product_initial_quantity": "9",
+                "unknown_product_brand": "Marque Nouveau",
+                "unknown_product_length_cm": "12",
+                "unknown_product_width_cm": "5",
+                "unknown_product_height_cm": "3",
+                "unknown_product_weight_g": "320",
                 "unknown_product_lot_code": "LOT-NEW",
                 "unknown_product_expires_on": "2026-05-01",
                 "unknown_product_location": str(stock_location.id),
@@ -937,6 +1063,14 @@ class PackHandlersTests(TestCase):
         self.assertTrue(product.is_incomplete)
         self.assertEqual(product.default_location, stock_location)
         self.assertEqual(product.category.name, "MM")
+        self.assertTrue(product.sku)
+        self.assertNotEqual(product.sku, "1234567890")
+        self.assertEqual(product.brand, "MARQUE NOUVEAU")
+        self.assertEqual(product.length_cm, Decimal("12.00"))
+        self.assertEqual(product.width_cm, Decimal("5.00"))
+        self.assertEqual(product.height_cm, Decimal("3.00"))
+        self.assertEqual(product.weight_g, 320)
+        self.assertEqual(product.volume_cm3, 180)
         lot = ProductLot.objects.get(product=product)
         self.assertEqual(lot.quantity_on_hand, 9)
         self.assertEqual(lot.location, stock_location)

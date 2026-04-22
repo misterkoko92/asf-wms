@@ -51,6 +51,7 @@ Stable primitives currently documented:
 - `ui_status_badge`
 - `ui_switch`
 - `ui-number-input`
+- `ui-date-input`
 - `ui-comp-card`
 - `ui-comp-panel`
 - `ui-comp-actions`
@@ -142,15 +143,25 @@ Primary runtime sources:
 
 Current contract:
 
-- preparateur-only scan users now use a dedicated two-row masthead in `templates/scan/base.html`:
-  - row 1 keeps `Bonjour <volunteer-or-username>` on the left and only the shared history navigation on the right
-  - row 2 keeps the `Menu` toggle on the left and the `Messagerie Médicale` brand block on the right
+- preparateur-only scan users now use a responsive masthead in `templates/scan/base.html`:
+  - mobile/tablet keeps the dedicated two-row preparateur layout
+  - desktop keeps the standard scan masthead geometry
+  - the shell renders a single greeting, preferring `Bonjour <active volunteer first name>` once a
+    bénévole is selected and falling back to the shared account username before selection
+  - history navigation remains available in the masthead
 - preparateur-only scan users keep a reduced sidebar with direct links to:
   - `Préparer des colis`
   - `Choisir une commande`
-  - `Voir dernier colis`
+  - `Voir les colis`
   - `Changer de compte`
   - `Déconnexion`
+- `Changer de compte` must log the operator out and send them to the staff login with
+  `next=/scan/`
+- `Déconnexion` must log the operator out and return to the domain root `/`, not the Django admin
+- `Voir les colis` opens `/scan/cartons/` for all non-shipped cartons, without filtering by
+  preparateur or active volunteer
+- preparateur-only scan users may print non-shipped carton packing lists and picking sheets for any
+  carton, while shipped cartons remain blocked on preparateur print routes
 - `/scan/` redirects preparateurs to `/scan/preparateur/`
 - `/scan/preparateur/` is the preparateur landing page:
   - it lists active volunteers sorted by `last_name`, then `first_name`, then `id`
@@ -161,15 +172,25 @@ Current contract:
 - `/scan/preparateur/orders/prepare/` is the guided command-preparation workbench for the selected order:
   - it stores the generated picking plan in session key `preparateur_order_plan`
   - it groups remaining plannable quantities into standard-format cartons before any stock move is committed
+  - MM cartons use `MM Standard` when that `CartonFormat` exists
+  - CN cartons use `CN Standard` when that `CartonFormat` exists
+  - missing family-specific formats fall back to the default/first carton format, then the
+    preparateur fallback dimensions
+  - operators may force a carton count for single-family plans; the forced plan is stored in the
+    session and displays warnings when the forced carton count exceeds volume/weight constraints
   - it keeps a `Télécharger le picking` shortcut that renders one picking sheet per planned carton
   - it lets the preparateur mark each planned carton `Prêt` only after the physical carton is completed
+  - `Marquer prêt` must reject a stale plan whose `order_id` no longer matches the selected order
+  - cartons created by `Marquer prêt` must attach to the selected order's existing shipment, or to
+    exactly one newly created shipment for that same order when none exists
 - `/scan/preparateur/orders/` groups orders by feasibility buckets:
   - `Réalisables à 100%`
   - `Réalisables partiellement`
   - `Non réalisables pour le moment`
 - inside each feasibility bucket, preparateur orders stay sorted by `created_at desc`, then `id desc`
 - `/scan/preparateur/pack/` is the explicit exit route from command mode toward free-pack mode; it clears the selected order and generated plan before redirecting to `/scan/pack/`
-- `/scan/preparateur/last-carton/` redirects to the latest carton prepared by the current preparateur via `scan_carton_edit`
+- `/scan/preparateur/last-carton/` remains a compatibility route, but the sidebar entry now points
+  to `/scan/cartons/` as `Voir les colis`
 - the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`,
   `Préparation`, `Expéditions`, `Contacts`, `Gestion`
 - the shared `Contacts` group currently exposes, in order:
@@ -246,13 +267,36 @@ Current contract:
 - each planned carton becomes a real carton only when the preparateur clicks `Marquer prêt`; that action creates or reuses the order shipment, packs the planned products, and updates the order preparation progress
 - the preparateur menu entry `Préparer des colis` must leave command mode through `/scan/preparateur/pack/`, not keep the selected order on `/scan/pack/`
 - `/scan/pack/` shows a selected-order summary for preparateurs only when a selected order is still active and preserves the linked shipment reference through the hidden shipment field when one exists
+- the `/scan/pack/` product card uses a three-row operator layout:
+  - row 1: product search field + `Scanner un code barre / QR Code`
+  - row 2: product selector + quantity + expiration date
+  - row 3: optional forced carton count input, left empty for automatic calculation
+- the pack line layout must keep the product selector readable without squeezing the searchable
+  field behind the scan button
+- preparateur free-pack also applies family-specific standard carton formats while packing:
+  `MM Standard` for MM products and `CN Standard` for CN products
+- free-pack supports a forced carton count for both standard staff and preparateurs; when set, the
+  flow replaces the automatic bin count, warns when the forced plan exceeds the selected format,
+  and ignores the override for mixed MM/CN preparateur packs
+- the shared scan overlay exposes a camera-facing choice:
+  - `Caméra arrière` maps to `facingMode: environment`
+  - `Caméra frontale` maps to `facingMode: user`
+  - barcode and OCR flows must reuse the selected camera mode
+- product scan resolution tries exact barcode, then exact EAN, then extracted GS1/UDI GTIN
+  candidates against barcode/EAN before falling back to SKU, exact product name, and unique name
+  prefix matching
 - when a preparateur scans or selects an unknown product on the pack page, the UI opens a modal instead of only returning a line error
 - the minimal creation payload is:
   - product name
-  - at least one scannable identifier (`sku`, `barcode`, or `ean`; scanned source code can prefill the barcode)
+  - brand when known
+  - at least one scannable identifier (`barcode` or `ean`; scanned source code can prefill the barcode)
   - MM/CN family
+  - three dimensions (`length_cm`, `width_cm`, `height_cm`) and `weight_g`
   - initial quantity
   - structured location selectors `warehouse -> zone -> aisle -> shelf`
+- SKU is not entered by the preparateur in the unknown-product modal; `Product.save()` generates it
+  automatically
+- the unknown-product modal must keep the CN instruction: `Pour les CN, merci de noter le volume du produit (exemple : Sondalis Energy Fibre 500ML)`
 - free-text location entry is not part of the preparateur pack flow
 - preparateur-created products are saved as `is_incomplete=True`, receive immediate initial stock, and trigger reviewer notification to superusers plus the configured account-validation staff group
 
@@ -459,6 +503,7 @@ Current contract:
 - the shared control renders compact decrement/increment buttons on the left side of the field
 - the shared control geometry is driven by shared CSS variables for button size, spacing, inset, and reserved value offset
 - the core runtime synchronizes the input left padding from the rendered control width and shared spacing tokens so values never overlap the buttons even when stylesheet cascade differs by browser
+- the runtime also keeps a CSS variable fallback and resynchronizes on resize/load so dynamically rendered or initially hidden number fields do not place values behind the controls
 - tight contexts can opt into the compact shared sizing variant with `ui-number-input-compact`; the core runtime promotes that marker to the wrapper contract
 - the runtime enhancement respects native `min`, `max`, `step`, `disabled`, and `readonly` semantics
 - the enhancement dispatches native-feeling `input` and `change` events after button clicks so existing page logic keeps reacting to quantity changes
@@ -477,6 +522,38 @@ Reference tests:
 - `wms/tests/views/tests_views_planning.py`
 - `wms/tests/views/tests_views_volunteer.py`
 - `wms/tests/core/tests_ui.py`
+
+### Shared Date Input Contract
+
+Primary runtime sources:
+
+- `wms/static/scan/modules/core.js`
+- `wms/static/scan/scan-bootstrap.css`
+- `templates/scan/base.html`
+- `templates/portal/base.html`
+- `templates/planning/base.html`
+- `templates/benevole/base.html`
+- standalone benevole auth templates that do not extend `benevole/base.html`
+
+Current contract:
+
+- eligible legacy `input[type="date"]` controls can be progressively enhanced into the shared `ui-date-input` wrapper
+- the enhanced field keeps the native date input for keyboard/browser support and adds a shared `Calendrier` action
+- when the browser exposes a usable native picker, the action calls `showPicker()`; otherwise it opens the shared calendar implemented in `core.js`
+- dynamically rendered date fields must dispatch `wms:enhance-date-inputs` with their root element, matching the number-input enhancement contract
+- page-local exceptions can opt out with `data-ui-date-input-optout="1"` or `ui-date-input-optout`
+
+Maintenance rule:
+
+- if the shared date-input behavior changes, keep the shared JS, shared CSS, base template script includes, and bootstrap regression tests aligned in the same work
+- do not add page-local calendar widgets for scan/portal/planning/benevole flows while the shared `ui-date-input` contract covers the same need
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_planning.py`
+- `wms/tests/views/tests_views_volunteer.py`
 
 ### Receipt Conformity Contract
 

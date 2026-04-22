@@ -222,6 +222,9 @@ Ask yourself:
 - does the same primitive exist on `scan`, `portal`, `admin`, and `benevole`?
 - if this touches select controls, did you keep alphabetical sorting, grouped-option ordering, right-side caret spacing, fixed-width classes, and any explicit exceptions aligned across surfaces?
 - if this touches shared number inputs, did you keep `core.js`, shared bootstrap CSS, base template script includes, and the UI Lab contract demo aligned across surfaces?
+- if this touches shared date inputs, did you keep `core.js`, shared bootstrap CSS, base template script includes, and dynamic enhancement dispatches aligned across surfaces?
+- if this touches scan-camera behavior, did barcode and OCR flows keep the same camera-facing
+  selection contract?
 - does the UI Lab still document the current contract?
 - do the governance docs still match the implementation?
 

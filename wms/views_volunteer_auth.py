@@ -263,7 +263,7 @@ def volunteer_forgot_password(request):
 @login_required(login_url="volunteer:login")
 def volunteer_logout(request):
     logout(request)
-    return redirect("volunteer:login")
+    return redirect("/")
 
 
 @require_http_methods(["GET", "POST"])

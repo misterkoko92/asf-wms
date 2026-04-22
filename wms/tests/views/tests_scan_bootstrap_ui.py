@@ -54,8 +54,10 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
+    VolunteerProfile,
     Warehouse,
 )
+from wms.preparateur_session import PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY
 
 
 class ScanBootstrapUiTests(TestCase):
@@ -213,23 +215,51 @@ class ScanBootstrapUiTests(TestCase):
         nav_html = self._scan_sidebar_html(response)
         self.assertIn(reverse("scan:scan_preparateur_order_select"), nav_html)
         self.assertIn(reverse("scan:scan_preparateur_pack_start"), nav_html)
-        self.assertIn(reverse("scan:scan_preparateur_last_carton"), nav_html)
+        self.assertIn(reverse("scan:scan_cartons_ready"), nav_html)
+        self.assertIn(reverse("scan:scan_change_account"), nav_html)
+        self.assertIn(reverse("scan:scan_logout"), nav_html)
         self.assertIn("Choisir une commande", nav_html)
         self.assertIn("Préparer des colis", nav_html)
-        self.assertIn("Voir dernier colis", nav_html)
+        self.assertIn("Voir les colis", nav_html)
+        self.assertNotIn("Voir dernier colis", nav_html)
         self.assertIn("Changer de compte", nav_html)
         self.assertIn("Déconnexion", nav_html)
+        self.assertNotIn("/admin/logout/?next=/", nav_html)
         self.assertNotIn("Runs magasin", nav_html)
         self._assert_nav_labels_in_order(
             nav_html,
             [
                 "Choisir une commande",
                 "Préparer des colis",
-                "Voir dernier colis",
+                "Voir les colis",
                 "Changer de compte",
                 "Déconnexion",
             ],
         )
+
+    def test_scan_pack_preparateur_uses_active_volunteer_greeting_without_duplicate_account_copy(
+        self,
+    ):
+        preparateur = self._create_preparateur_user()
+        volunteer_user = get_user_model().objects.create_user(
+            username="scan-bootstrap-volunteer-alice",
+            password="pass1234",
+            first_name="Alice",
+            last_name="Martin",
+        )
+        volunteer = VolunteerProfile.objects.create(user=volunteer_user, is_active=True)
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session[PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY] = volunteer.id
+        session.save()
+
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bonjour Alice")
+        self.assertNotContains(response, f"Bonjour {preparateur.username}")
+        self.assertContains(response, "scan-preparateur-mobile-masthead")
+        self.assertContains(response, "scan-preparateur-desktop-masthead")
 
     def test_scan_sidebar_exposes_listing_link_in_reception_group(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
@@ -1116,17 +1146,111 @@ class ScanBootstrapUiTests(TestCase):
             ".scan-bootstrap-enabled .ui-number-input .form-control,\n"
             ".scan-bootstrap-enabled .ui-number-input-input {\n"
             "  min-width: 0;\n"
-            "  padding-left: calc(var(--wms-input-padding-x) + var(--ui-number-input-value-offset));",
+            "  box-sizing: border-box;\n"
+            "  padding-left: var(--ui-number-input-reserved-padding);",
             css_content,
+        )
+        self.assertIn(
+            "  padding-inline-start: var(--ui-number-input-reserved-padding);", css_content
         )
         self.assertIn(
             ".scan-bootstrap-enabled .ui-number-input.is-compact {\n"
             "  --ui-number-input-btn-width: 1rem;",
             css_content,
         )
+        self.assertIn("--ui-number-input-reserved-padding:", css_content)
         self.assertIn("function syncNumberInputLayout(input, wrapper, controls) {", core_content)
+        self.assertIn(
+            'wrapper.style.setProperty("--ui-number-input-reserved-padding"', core_content
+        )
+        self.assertIn(
+            "new ResizeObserver(() => syncNumberInputLayout(input, wrapper, controls))",
+            core_content,
+        )
         self.assertIn("input.style.paddingLeft = reservedPaddingPx;", core_content)
         self.assertIn("input.style.paddingInlineStart = reservedPaddingPx;", core_content)
+
+    def test_shared_date_input_exposes_reusable_calendar_contract(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        core_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "modules" / "core.js"
+        core_content = core_path.read_text(encoding="utf-8")
+
+        self.assertIn("function setupDateInputs(root = document) {", core_content)
+        self.assertIn("function enhanceDateInput(input) {", core_content)
+        self.assertIn("function openDatePicker(input, wrapper) {", core_content)
+        self.assertIn("input.showPicker()", core_content)
+        self.assertIn("data-ui-date-input-action", core_content)
+        self.assertIn('input[type="date"]', core_content)
+        self.assertIn(".scan-bootstrap-enabled .ui-date-input {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .ui-date-picker {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .ui-date-picker-day.is-selected", css_content)
+
+    def test_scan_pack_line_layout_splits_search_and_select_and_places_scan_on_first_row(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        scan_js_content = scan_js_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "searchField.className = 'pack-line-field pack-line-search-field';", scan_js_content
+        )
+        self.assertIn(
+            "selectField.className = 'pack-line-field pack-line-select-field';", scan_js_content
+        )
+        self.assertIn(
+            "quantityField.className = 'pack-line-field pack-line-quantity-field';", scan_js_content
+        )
+        self.assertIn(
+            "scanField.className = 'pack-line-field pack-line-scan-field';", scan_js_content
+        )
+        self.assertIn("scanBtn.textContent = 'Scanner un code barre / QR Code';", scan_js_content)
+        self.assertIn(".scan-bootstrap-enabled .pack-line-grid {", css_content)
+        self.assertIn("  grid-template-columns: repeat(12, minmax(0, 1fr));", css_content)
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-search-field {\n  grid-column: 1 / span 9;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-select-field {\n  grid-column: 1 / span 7;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-quantity-field {\n  grid-column: 8 / span 2;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-scan-field {\n  grid-column: 10 / -1;", css_content
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-expires-field {\n  grid-column: 10 / -1;",
+            css_content,
+        )
+
+    def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-scan-camera-facing="environment"')
+        self.assertContains(response, 'data-scan-camera-facing="user"')
+        self.assertContains(response, "Caméra arrière")
+        self.assertContains(response, "Caméra frontale")
+
+        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        scan_js_content = scan_js_path.read_text(encoding="utf-8")
+        self.assertIn("let selectedCameraFacingMode = 'environment';", scan_js_content)
+        self.assertIn("function getCameraVideoConstraints() {", scan_js_content)
+        self.assertIn("setupCameraFacingControls();", scan_js_content)
+        self.assertIn("data-scan-camera-facing", scan_js_content)
+        self.assertIn("facingMode: { ideal: selectedCameraFacingMode }", scan_js_content)
+
+    def test_scan_pack_product_matcher_uses_barcode_ean_then_udi_candidates(self):
+        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        scan_js_content = scan_js_path.read_text(encoding="utf-8")
+
+        self.assertIn("function extractUdiCandidateCodes(value) {", scan_js_content)
+        self.assertIn("const exactCodeFields = ['barcodeLower', 'eanLower'];", scan_js_content)
+        self.assertIn("const udiCandidates = extractUdiCandidateCodes(raw);", scan_js_content)
+        self.assertIn("product[codeField] && product[codeField] === candidate", scan_js_content)
 
     def test_scan_bootstrap_css_keeps_recipient_preference_table_headers_balanced(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"

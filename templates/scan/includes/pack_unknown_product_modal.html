@@ -1,239 +1,256 @@
 {% load i18n %}
-
-<div
-  id="pack-unknown-product-modal"
-  class="modal fade"
-  tabindex="-1"
-  aria-labelledby="pack-unknown-product-modal-title"
-  aria-hidden="true"
-  data-open-on-load="{% if unknown_product_modal_open %}1{% else %}0{% endif %}"
->
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="pack-unknown-product-modal-title" class="modal-title h5 mb-0">{% trans "Ajouter un nouveau produit" %}</h3>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans "Fermer" %}"></button>
-      </div>
-      <div class="modal-body">
-        <input
-          type="hidden"
-          name="{{ unknown_product_form.unknown_product_line_index.html_name }}"
-          id="{{ unknown_product_form.unknown_product_line_index.id_for_label }}"
-          value="{{ unknown_product_form.unknown_product_line_index.value|default:'' }}"
-        >
-        <input
-          type="hidden"
-          name="{{ unknown_product_form.unknown_product_source_code.html_name }}"
-          id="{{ unknown_product_form.unknown_product_source_code.id_for_label }}"
-          value="{{ unknown_product_form.unknown_product_source_code.value|default:'' }}"
-        >
-        <input
-          type="hidden"
-          name="{{ unknown_product_form.unknown_product_location.html_name }}"
-          id="{{ unknown_product_form.unknown_product_location.id_for_label }}"
-          value="{{ unknown_product_form.unknown_product_location.value|default:'' }}"
-        >
-
-        <div class="scan-help ui-comp-note mb-3">
-          {% trans "Code scanné" %}: <strong id="pack-unknown-product-source-display">{{ unknown_product_form.unknown_product_source_code.value|default:"-" }}</strong>
+<div id="pack-unknown-product-modal"
+     class="modal fade"
+     tabindex="-1"
+     aria-labelledby="pack-unknown-product-modal-title"
+     aria-hidden="true"
+     data-open-on-load="{% if unknown_product_modal_open %}1{% else %}0{% endif %}">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="pack-unknown-product-modal-title" class="modal-title h5 mb-0">{% trans "Ajouter un nouveau produit" %}</h3>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="{% trans "Fermer" %}"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden"
+                       name="{{ unknown_product_form.unknown_product_line_index.html_name }}"
+                       id="{{ unknown_product_form.unknown_product_line_index.id_for_label }}"
+                       value="{{ unknown_product_form.unknown_product_line_index.value|default:'' }}">
+                <input type="hidden"
+                       name="{{ unknown_product_form.unknown_product_source_code.html_name }}"
+                       id="{{ unknown_product_form.unknown_product_source_code.id_for_label }}"
+                       value="{{ unknown_product_form.unknown_product_source_code.value|default:'' }}">
+                <input type="hidden"
+                       name="{{ unknown_product_form.unknown_product_location.html_name }}"
+                       id="{{ unknown_product_form.unknown_product_location.id_for_label }}"
+                       value="{{ unknown_product_form.unknown_product_location.value|default:'' }}">
+                <div class="scan-help ui-comp-note mb-3">
+                    {% trans "Code scanné" %}: <strong id="pack-unknown-product-source-display">{{ unknown_product_form.unknown_product_source_code.value|default:"-" }}</strong>
+                </div>
+                <div class="scan-help ui-comp-note mb-3">
+                    {% trans "Pour les CN, merci de noter le volume du produit (exemple : Sondalis Energy Fibre 500ML)" %}
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-md-8">
+                        <label class="form-label" for="id_unknown_product_name">{% trans "Nom du produit" %}</label>
+                        <input type="text"
+                               name="unknown_product_name"
+                               id="id_unknown_product_name"
+                               class="form-control"
+                               value="{{ unknown_product_form.unknown_product_name.value|default:'' }}"
+                               required>
+                        {% for error in unknown_product_form.unknown_product_name.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_brand">{% trans "Marque" %}</label>
+                        <input type="text"
+                               name="unknown_product_brand"
+                               id="id_unknown_product_brand"
+                               class="form-control"
+                               value="{{ unknown_product_form.unknown_product_brand.value|default:'' }}">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_pack_family">{% trans "Famille MM/CN" %}</label>
+                        <select name="unknown_product_pack_family"
+                                id="id_unknown_product_pack_family"
+                                class="form-select"
+                                required>
+                            <option value="">{% trans "Choisir" %}</option>
+                            <option value="MM"
+                                    {% if unknown_product_form.unknown_product_pack_family.value == "MM" %}selected{% endif %}>
+                                MM
+                            </option>
+                            <option value="CN"
+                                    {% if unknown_product_form.unknown_product_pack_family.value == "CN" %}selected{% endif %}>
+                                CN
+                            </option>
+                        </select>
+                        {% for error in unknown_product_form.unknown_product_pack_family.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_barcode">Barcode</label>
+                        <input type="text"
+                               name="unknown_product_barcode"
+                               id="id_unknown_product_barcode"
+                               class="form-control"
+                               value="{{ unknown_product_form.unknown_product_barcode.value|default:'' }}">
+                        {% for error in unknown_product_form.unknown_product_barcode.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_ean">EAN</label>
+                        <input type="text"
+                               name="unknown_product_ean"
+                               id="id_unknown_product_ean"
+                               class="form-control"
+                               value="{{ unknown_product_form.unknown_product_ean.value|default:'' }}">
+                        {% for error in unknown_product_form.unknown_product_ean.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="id_unknown_product_length_cm">{% trans "Longueur (cm)" %}</label>
+                        <input type="number"
+                               name="unknown_product_length_cm"
+                               id="id_unknown_product_length_cm"
+                               class="form-control"
+                               min="0.01"
+                               step="0.01"
+                               value="{{ unknown_product_form.unknown_product_length_cm.value|default:'' }}"
+                               required>
+                        {% for error in unknown_product_form.unknown_product_length_cm.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="id_unknown_product_width_cm">{% trans "Largeur (cm)" %}</label>
+                        <input type="number"
+                               name="unknown_product_width_cm"
+                               id="id_unknown_product_width_cm"
+                               class="form-control"
+                               min="0.01"
+                               step="0.01"
+                               value="{{ unknown_product_form.unknown_product_width_cm.value|default:'' }}"
+                               required>
+                        {% for error in unknown_product_form.unknown_product_width_cm.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="id_unknown_product_height_cm">{% trans "Hauteur (cm)" %}</label>
+                        <input type="number"
+                               name="unknown_product_height_cm"
+                               id="id_unknown_product_height_cm"
+                               class="form-control"
+                               min="0.01"
+                               step="0.01"
+                               value="{{ unknown_product_form.unknown_product_height_cm.value|default:'' }}"
+                               required>
+                        {% for error in unknown_product_form.unknown_product_height_cm.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="id_unknown_product_weight_g">{% trans "Poids (g)" %}</label>
+                        <input type="number"
+                               name="unknown_product_weight_g"
+                               id="id_unknown_product_weight_g"
+                               class="form-control"
+                               min="1"
+                               step="1"
+                               value="{{ unknown_product_form.unknown_product_weight_g.value|default:'' }}"
+                               required>
+                        {% for error in unknown_product_form.unknown_product_weight_g.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_initial_quantity">{% trans "Quantité initiale" %}</label>
+                        <input type="number"
+                               name="unknown_product_initial_quantity"
+                               id="id_unknown_product_initial_quantity"
+                               class="form-control"
+                               min="1"
+                               step="1"
+                               value="{{ unknown_product_form.unknown_product_initial_quantity.value|default:'' }}"
+                               required>
+                        {% for error in unknown_product_form.unknown_product_initial_quantity.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_lot_code">{% trans "Lot" %}</label>
+                        <input type="text"
+                               name="unknown_product_lot_code"
+                               id="id_unknown_product_lot_code"
+                               class="form-control"
+                               value="{{ unknown_product_form.unknown_product_lot_code.value|default:'' }}">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_expires_on">{% trans "Date péremption" %}</label>
+                        <input type="date"
+                               name="unknown_product_expires_on"
+                               id="id_unknown_product_expires_on"
+                               class="form-control"
+                               value="{{ unknown_product_form.unknown_product_expires_on.value|default:'' }}">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="id_unknown_product_location_warehouse">{% trans "Entrepôt" %}</label>
+                        <select name="unknown_product_location_warehouse"
+                                id="id_unknown_product_location_warehouse"
+                                class="form-select"
+                                data-location-level="warehouse"
+                                data-selected="{{ unknown_product_form.unknown_product_location_warehouse.value|default:'' }}"
+                                required></select>
+                        {% for error in unknown_product_form.unknown_product_location_warehouse.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_location_zone">{% trans "Zone" %}</label>
+                        <select name="unknown_product_location_zone"
+                                id="id_unknown_product_location_zone"
+                                class="form-select"
+                                data-location-level="zone"
+                                data-selected="{{ unknown_product_form.unknown_product_location_zone.value|default:'' }}"
+                                required></select>
+                        {% for error in unknown_product_form.unknown_product_location_zone.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_location_aisle">{% trans "Allée" %}</label>
+                        <select name="unknown_product_location_aisle"
+                                id="id_unknown_product_location_aisle"
+                                class="form-select"
+                                data-location-level="aisle"
+                                data-selected="{{ unknown_product_form.unknown_product_location_aisle.value|default:'' }}"
+                                required></select>
+                        {% for error in unknown_product_form.unknown_product_location_aisle.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="id_unknown_product_location_shelf">{% trans "Étagère" %}</label>
+                        <select name="unknown_product_location_shelf"
+                                id="id_unknown_product_location_shelf"
+                                class="form-select"
+                                data-location-level="shelf"
+                                data-selected="{{ unknown_product_form.unknown_product_location_shelf.value|default:'' }}"
+                                required></select>
+                        {% for error in unknown_product_form.unknown_product_location_shelf.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                        {% for error in unknown_product_form.unknown_product_location.errors %}
+                            <div class="scan-message error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="id_unknown_product_notes">{% trans "Notes" %}</label>
+                        <textarea name="unknown_product_notes"
+                                  id="id_unknown_product_notes"
+                                  class="form-control"
+                                  rows="3">{{ unknown_product_form.unknown_product_notes.value|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        data-bs-dismiss="modal">{% trans "Annuler" %}</button>
+                <button type="submit"
+                        class="btn btn-primary"
+                        name="action"
+                        value="create_unknown_product">{% trans "Créer le produit" %}</button>
+            </div>
         </div>
-
-        <div class="row g-3">
-          <div class="col-12 col-md-8">
-            <label class="form-label" for="id_unknown_product_name">{% trans "Nom du produit" %}</label>
-            <input
-              type="text"
-              name="unknown_product_name"
-              id="id_unknown_product_name"
-              class="form-control"
-              value="{{ unknown_product_form.unknown_product_name.value|default:'' }}"
-              required
-            >
-            {% for error in unknown_product_form.unknown_product_name.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_pack_family">{% trans "Famille MM/CN" %}</label>
-            <select
-              name="unknown_product_pack_family"
-              id="id_unknown_product_pack_family"
-              class="form-select"
-              required
-            >
-              <option value="">{% trans "Choisir" %}</option>
-              <option value="MM"{% if unknown_product_form.unknown_product_pack_family.value == "MM" %} selected{% endif %}>MM</option>
-              <option value="CN"{% if unknown_product_form.unknown_product_pack_family.value == "CN" %} selected{% endif %}>CN</option>
-            </select>
-            {% for error in unknown_product_form.unknown_product_pack_family.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_sku">SKU</label>
-            <input
-              type="text"
-              name="unknown_product_sku"
-              id="id_unknown_product_sku"
-              class="form-control"
-              value="{{ unknown_product_form.unknown_product_sku.value|default:'' }}"
-            >
-            {% for error in unknown_product_form.unknown_product_sku.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_barcode">Barcode</label>
-            <input
-              type="text"
-              name="unknown_product_barcode"
-              id="id_unknown_product_barcode"
-              class="form-control"
-              value="{{ unknown_product_form.unknown_product_barcode.value|default:'' }}"
-            >
-            {% for error in unknown_product_form.unknown_product_barcode.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_ean">EAN</label>
-            <input
-              type="text"
-              name="unknown_product_ean"
-              id="id_unknown_product_ean"
-              class="form-control"
-              value="{{ unknown_product_form.unknown_product_ean.value|default:'' }}"
-            >
-            {% for error in unknown_product_form.unknown_product_ean.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_initial_quantity">{% trans "Quantité initiale" %}</label>
-            <input
-              type="number"
-              name="unknown_product_initial_quantity"
-              id="id_unknown_product_initial_quantity"
-              class="form-control"
-              min="1"
-              step="1"
-              value="{{ unknown_product_form.unknown_product_initial_quantity.value|default:'' }}"
-              required
-            >
-            {% for error in unknown_product_form.unknown_product_initial_quantity.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_lot_code">{% trans "Lot" %}</label>
-            <input
-              type="text"
-              name="unknown_product_lot_code"
-              id="id_unknown_product_lot_code"
-              class="form-control"
-              value="{{ unknown_product_form.unknown_product_lot_code.value|default:'' }}"
-            >
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_expires_on">{% trans "Date péremption" %}</label>
-            <input
-              type="date"
-              name="unknown_product_expires_on"
-              id="id_unknown_product_expires_on"
-              class="form-control"
-              value="{{ unknown_product_form.unknown_product_expires_on.value|default:'' }}"
-            >
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="id_unknown_product_brand">{% trans "Marque" %}</label>
-            <input
-              type="text"
-              name="unknown_product_brand"
-              id="id_unknown_product_brand"
-              class="form-control"
-              value="{{ unknown_product_form.unknown_product_brand.value|default:'' }}"
-            >
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="id_unknown_product_location_warehouse">{% trans "Entrepôt" %}</label>
-            <select
-              name="unknown_product_location_warehouse"
-              id="id_unknown_product_location_warehouse"
-              class="form-select"
-              data-location-level="warehouse"
-              data-selected="{{ unknown_product_form.unknown_product_location_warehouse.value|default:'' }}"
-              required
-            ></select>
-            {% for error in unknown_product_form.unknown_product_location_warehouse.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_location_zone">{% trans "Zone" %}</label>
-            <select
-              name="unknown_product_location_zone"
-              id="id_unknown_product_location_zone"
-              class="form-select"
-              data-location-level="zone"
-              data-selected="{{ unknown_product_form.unknown_product_location_zone.value|default:'' }}"
-              required
-            ></select>
-            {% for error in unknown_product_form.unknown_product_location_zone.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_location_aisle">{% trans "Allée" %}</label>
-            <select
-              name="unknown_product_location_aisle"
-              id="id_unknown_product_location_aisle"
-              class="form-select"
-              data-location-level="aisle"
-              data-selected="{{ unknown_product_form.unknown_product_location_aisle.value|default:'' }}"
-              required
-            ></select>
-            {% for error in unknown_product_form.unknown_product_location_aisle.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="id_unknown_product_location_shelf">{% trans "Étagère" %}</label>
-            <select
-              name="unknown_product_location_shelf"
-              id="id_unknown_product_location_shelf"
-              class="form-select"
-              data-location-level="shelf"
-              data-selected="{{ unknown_product_form.unknown_product_location_shelf.value|default:'' }}"
-              required
-            ></select>
-            {% for error in unknown_product_form.unknown_product_location_shelf.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-            {% for error in unknown_product_form.unknown_product_location.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="col-12">
-            <label class="form-label" for="id_unknown_product_notes">{% trans "Notes" %}</label>
-            <textarea
-              name="unknown_product_notes"
-              id="id_unknown_product_notes"
-              class="form-control"
-              rows="3"
-            >{{ unknown_product_form.unknown_product_notes.value|default:'' }}</textarea>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% trans "Annuler" %}</button>
-        <button type="submit" class="btn btn-primary" name="action" value="create_unknown_product">
-          {% trans "Créer le produit" %}
-        </button>
-      </div>
     </div>
-  </div>
 </div>
