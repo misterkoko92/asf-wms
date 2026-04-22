@@ -93,12 +93,15 @@ jobs:
         run: |
           COVERAGE_FAIL_UNDER=93 TEST_PARALLEL=4 uv run make coverage
 
-      - name: Dependency vulnerability audit (informational)
-        continue-on-error: true
+      - name: Dependency vulnerability audit
         run: |
-          uv run pip-audit -r requirements.txt --format json --output pip-audit-report.json || true
+          set +e
+          uv run pip-audit -r requirements.txt --disable-pip --no-deps --format json --output pip-audit-report.json
+          audit_status=$?
+          set -e
           test -f pip-audit-report.json || echo '{"error":"pip-audit did not produce output"}' > pip-audit-report.json
           cat pip-audit-report.json
+          exit "$audit_status"
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7

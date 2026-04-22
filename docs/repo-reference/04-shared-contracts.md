@@ -1725,6 +1725,7 @@ Primary docs:
 
 - `docs/operations.md`
 - `docs/release_checklist.md`
+- `docs/security-dependencies.md`
 
 Why they are shared contracts:
 
@@ -1734,3 +1735,4 @@ Why they are shared contracts:
 Maintenance rule:
 
 - if a critical user journey, queue behavior, or deployment-sensitive asset changes, check whether operations or release smoke wording must change too
+- if dependency security policy or automation changes, keep `docs/security-dependencies.md` and `docs/release_checklist.md` aligned

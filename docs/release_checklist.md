@@ -14,6 +14,8 @@ Use this checklist for each production release.
 - [ ] If V3 structural layers changed, `make ruff-structural` is green.
 - [ ] `make typecheck-pyright` reviewed as informational only and interpreted as the public structural-facade signal, not full ORM coverage.
 - [ ] `make export-requirements` re-run after any dependency change.
+- [ ] For any dependency change, `make deps-check` and `make audit` are green, or the accepted risk is documented as described in `docs/security-dependencies.md`.
+- [ ] The latest `Dependency Audit` workflow run on `main` is green or has an explicit triage note before release.
 
 Fallback if `uv` is blocked locally:
 
@@ -100,4 +102,5 @@ Rollback actions:
 - [ ] No new secret detected in review or CI.
 - [ ] No forgotten formatting diff detected by `pre-commit` or CI.
 - [ ] No drift between `uv.lock` and exported `requirements*.txt`.
+- [ ] No untriaged critical or high dependency advisory remains open beyond the targets in `docs/security-dependencies.md`.
 - [ ] Four consecutive weeks of green CI before any discussion of replacing `mypy`.

@@ -3,7 +3,7 @@ name = "asf-wms"
 version = "0.0.0"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "Django==5.2.12",
+    "Django==5.2.13",
     "djangorestframework==3.16.1",
     "defusedxml==0.7.1",
     "gunicorn==25.1.0",
@@ -12,9 +12,9 @@ dependencies = [
     "ortools==9.15.6755",
     "xlrd==2.0.1",
     "qrcode==7.4.2",
-    "Pillow==12.1.1",
+    "Pillow==12.2.0",
     "pdfplumber==0.11.9",
-    "pypdf==6.9.2",
+    "pypdf==6.10.2",
 ]
 
 [dependency-groups]
