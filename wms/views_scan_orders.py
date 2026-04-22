@@ -19,6 +19,7 @@ from .preparateur_orders import (
     ensure_preparateur_order_plan,
     get_preparateur_selected_order,
     mark_preparateur_plan_carton_ready,
+    rebuild_preparateur_order_plan,
     set_preparateur_order_plan,
     set_preparateur_selected_order,
 )
@@ -115,6 +116,19 @@ def _render_preparateur_order_prepare(request, *, order, plan):
     )
 
 
+def _parse_forced_carton_count(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        forced_count = int(value)
+    except (TypeError, ValueError):
+        raise ValueError("Nombre de colis invalide.")
+    if forced_count <= 0:
+        raise ValueError("Nombre de colis invalide.")
+    return forced_count
+
+
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_order(request):
@@ -205,6 +219,24 @@ def scan_preparateur_order_prepare(request):
     plan = ensure_preparateur_order_plan(request, order=order)
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+        if action == "update_carton_count":
+            try:
+                forced_carton_count = _parse_forced_carton_count(
+                    request.POST.get("forced_carton_count")
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            else:
+                rebuild_preparateur_order_plan(
+                    request,
+                    order=order,
+                    forced_carton_count=forced_carton_count,
+                )
+                if forced_carton_count:
+                    messages.success(request, "Nombre de colis forcé mis à jour.")
+                else:
+                    messages.success(request, "Calcul automatique des colis restauré.")
+            return redirect("scan:scan_preparateur_order_prepare")
         if action == "mark_carton_ready":
             try:
                 carton_index = int(request.POST.get("carton_index") or 0)

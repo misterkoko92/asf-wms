@@ -7,7 +7,6 @@ from .carton_status_events import set_carton_status
 from .domain.orders import create_shipment_for_order, pack_carton_from_reserved
 from .domain.stock import StockError, ensure_carton_code, pack_carton
 from .models import (
-    CartonFormat,
     CartonStatus,
     OrderReviewStatus,
     OrderShipmentLink,
@@ -21,7 +20,9 @@ from .pack_handlers import (
     _resolve_preparateur_location,
     _resolve_preparateur_pack_family,
 )
+from .scan_carton_helpers import resolve_standard_carton_format_for_family
 from .scan_pack_helpers import build_packing_bins
+from .scan_product_helpers import get_product_volume_cm3, get_product_weight_g
 
 PREPARATEUR_SELECTED_ORDER_SESSION_KEY = "preparateur_selected_order_id"
 PREPARATEUR_ORDER_PLAN_SESSION_KEY = "preparateur_order_plan"
@@ -177,20 +178,18 @@ def build_preparateur_order_group_sections(order_groups):
     ]
 
 
-def _build_preparateur_carton_size():
-    default_format = CartonFormat.objects.filter(is_default=True).first()
-    if default_format is None:
-        default_format = CartonFormat.objects.first()
-    if default_format is None:
+def _build_preparateur_carton_size(family=None):
+    carton_format = resolve_standard_carton_format_for_family(family)
+    if carton_format is None:
         return PREPARATEUR_FALLBACK_CARTON_SIZE.copy(), PREPARATEUR_FALLBACK_CARTON_FORMAT_LABEL
     return (
         {
-            "length_cm": float(default_format.length_cm),
-            "width_cm": float(default_format.width_cm),
-            "height_cm": float(default_format.height_cm),
-            "max_weight_g": int(default_format.max_weight_g),
+            "length_cm": float(carton_format.length_cm),
+            "width_cm": float(carton_format.width_cm),
+            "height_cm": float(carton_format.height_cm),
+            "max_weight_g": int(carton_format.max_weight_g),
         },
-        default_format.name,
+        carton_format.name,
     )
 
 
@@ -233,10 +232,86 @@ def _build_plan_item(line, *, quantity):
     }
 
 
-def _build_preparateur_plan_cartons(*, grouped_lines, carton_size):
+def _build_forced_packing_bins(line_items, forced_carton_count):
+    total_quantity = sum(max(0, int(item.get("quantity") or 0)) for item in line_items)
+    if total_quantity <= 0:
+        return []
+    carton_count = max(1, min(int(forced_carton_count or 0), total_quantity))
+    base_quantity = total_quantity // carton_count
+    remainder = total_quantity % carton_count
+    targets = [base_quantity + (1 if index < remainder else 0) for index in range(carton_count)]
+    bins = [{"items": {}} for _index in range(carton_count)]
+    filled = [0 for _index in range(carton_count)]
+    carton_index = 0
+
+    for item in line_items:
+        product = item["product"]
+        remaining = max(0, int(item.get("quantity") or 0))
+        while remaining > 0 and carton_index < carton_count:
+            available = targets[carton_index] - filled[carton_index]
+            if available <= 0:
+                carton_index += 1
+                continue
+            chunk = min(remaining, available)
+            row = bins[carton_index]["items"].setdefault(
+                product.id,
+                {
+                    "product": product,
+                    "quantity": 0,
+                },
+            )
+            row["quantity"] += chunk
+            filled[carton_index] += chunk
+            remaining -= chunk
+            if filled[carton_index] >= targets[carton_index]:
+                carton_index += 1
+
+    return [bin_data for bin_data in bins if bin_data["items"]]
+
+
+def _build_forced_carton_warnings(*, bins, carton_size, carton_format_label):
+    warnings = []
+    carton_volume = (
+        float(carton_size["length_cm"])
+        * float(carton_size["width_cm"])
+        * float(carton_size["height_cm"])
+    )
+    max_weight_g = int(carton_size["max_weight_g"] or 0)
+    for index, bin_data in enumerate(bins, start=1):
+        total_volume = 0.0
+        total_weight = 0
+        for entry in bin_data["items"].values():
+            quantity = int(entry.get("quantity") or 0)
+            product = entry["product"]
+            product_volume = get_product_volume_cm3(product) or 1
+            product_weight = get_product_weight_g(product) or 5
+            total_volume += float(product_volume) * quantity
+            total_weight += int(product_weight) * quantity
+        if carton_volume > 0 and total_volume > carton_volume:
+            warnings.append(
+                f"Colis forcé {index} dépasse le volume du format {carton_format_label}."
+            )
+        if max_weight_g > 0 and total_weight > max_weight_g:
+            warnings.append(
+                f"Colis forcé {index} dépasse le poids max du format {carton_format_label}."
+            )
+    return warnings
+
+
+def _build_preparateur_plan_cartons(*, grouped_lines, forced_carton_count=None):
     cartons = []
     warnings = []
     next_index = 1
+    non_empty_families = [
+        family
+        for family, lines in grouped_lines.items()
+        if any(line["planned_quantity"] > 0 for line in lines)
+    ]
+    force_applies = forced_carton_count and len(non_empty_families) == 1
+    if forced_carton_count and len(non_empty_families) > 1:
+        warnings.append(
+            "Nombre de colis forcé non appliqué: la commande contient plusieurs familles MM/CN."
+        )
     for family, lines in grouped_lines.items():
         line_items = [
             {"product": line["product"], "quantity": line["planned_quantity"]}
@@ -245,12 +320,29 @@ def _build_preparateur_plan_cartons(*, grouped_lines, carton_size):
         ]
         if not line_items:
             continue
-        bins, _errors, family_warnings = build_packing_bins(
+        carton_size, carton_format_label = _build_preparateur_carton_size(family)
+        auto_bins, _errors, family_warnings = build_packing_bins(
             line_items,
             carton_size,
             apply_defaults=True,
         )
         warnings.extend(family_warnings)
+        bins = auto_bins or []
+        if force_applies:
+            forced_bins = _build_forced_packing_bins(line_items, forced_carton_count)
+            if forced_bins:
+                if len(forced_bins) != len(bins):
+                    warnings.append(
+                        f"Nombre de colis forcé: {len(forced_bins)} au lieu de {len(bins)}."
+                    )
+                bins = forced_bins
+                warnings.extend(
+                    _build_forced_carton_warnings(
+                        bins=bins,
+                        carton_size=carton_size,
+                        carton_format_label=carton_format_label,
+                    )
+                )
         line_by_product_id = {line["product_id"]: line for line in lines}
         for bin_data in bins or []:
             item_rows = []
@@ -271,6 +363,8 @@ def _build_preparateur_plan_cartons(*, grouped_lines, carton_size):
                     "label": f"Colis {next_index}",
                     "family": family,
                     "zone_label": zone_label,
+                    "carton_format_label": carton_format_label,
+                    "carton_size": carton_size,
                     "status": PREPARATEUR_PLAN_STATUS_PENDING,
                     "carton_id": None,
                     "carton_code": "",
@@ -281,7 +375,7 @@ def _build_preparateur_plan_cartons(*, grouped_lines, carton_size):
     return cartons, warnings
 
 
-def _build_preparateur_order_plan_from_order(order):
+def _build_preparateur_order_plan_from_order(order, *, forced_carton_count=None):
     lines = [
         line
         for line in order.lines.select_related(
@@ -291,7 +385,6 @@ def _build_preparateur_order_plan_from_order(order):
         .all()
         if line.remaining_quantity > 0
     ]
-    carton_size, carton_format_label = _build_preparateur_carton_size()
     grouped_lines = defaultdict(list)
     unavailable_rows = []
 
@@ -315,13 +408,23 @@ def _build_preparateur_order_plan_from_order(order):
 
     cartons, warnings = _build_preparateur_plan_cartons(
         grouped_lines=grouped_lines,
-        carton_size=carton_size,
+        forced_carton_count=forced_carton_count,
+    )
+    carton_format_labels = sorted(
+        {
+            carton.get("carton_format_label")
+            for carton in cartons
+            if carton.get("carton_format_label")
+        }
+    )
+    carton_format_label = (
+        " / ".join(carton_format_labels) or PREPARATEUR_FALLBACK_CARTON_FORMAT_LABEL
     )
     return {
         "order_id": order.id,
         "reference_label": _build_preparateur_order_reference_label(order),
         "carton_format_label": carton_format_label,
-        "carton_size": carton_size,
+        "forced_carton_count": forced_carton_count,
         "cartons": cartons,
         "warnings": sorted(set(warnings)),
         "unavailable_rows": unavailable_rows,
@@ -333,6 +436,15 @@ def ensure_preparateur_order_plan(request, *, order):
     if plan and plan.get("order_id") == order.id:
         return plan
     plan = _build_preparateur_order_plan_from_order(order)
+    set_preparateur_order_plan(request, plan)
+    return plan
+
+
+def rebuild_preparateur_order_plan(request, *, order, forced_carton_count=None):
+    plan = _build_preparateur_order_plan_from_order(
+        order,
+        forced_carton_count=forced_carton_count,
+    )
     set_preparateur_order_plan(request, plan)
     return plan
 
@@ -442,10 +554,14 @@ def mark_preparateur_plan_carton_ready(*, user, order, plan, carton_index):
         "carton_id"
     ):
         return target_carton["carton_id"]
+    if int(plan.get("order_id") or 0) != order.id:
+        raise ValueError(
+            "Le plan de préparation ne correspond pas à la commande sélectionnée. Rechargez le plan."
+        )
 
     shipment = _ensure_preparateur_shipment(order=order, user=user)
     line_by_id = {line.id: line for line in order.lines.select_related("product").all()}
-    carton_size = plan.get("carton_size") or PREPARATEUR_FALLBACK_CARTON_SIZE.copy()
+    carton_size = target_carton.get("carton_size") or PREPARATEUR_FALLBACK_CARTON_SIZE.copy()
     current_location = _resolve_preparateur_ready_location(target_carton.get("family", ""))
     created_carton = None
 

@@ -9,6 +9,7 @@ from django.urls import reverse
 from contacts.models import Contact, ContactType
 from wms.models import (
     Carton,
+    CartonFormat,
     CartonSourceKind,
     CartonStatus,
     Location,
@@ -20,6 +21,7 @@ from wms.models import (
     OrderShipmentLink,
     OrderStatus,
     Product,
+    ProductCategory,
     ProductLot,
     ProductLotStatus,
     Receipt,
@@ -30,6 +32,7 @@ from wms.models import (
 )
 from wms.order_view_helpers import build_orders_view_rows
 from wms.preparateur_orders import (
+    PREPARATEUR_ORDER_PLAN_SESSION_KEY,
     build_preparateur_order_picking_context,
     build_preparateur_selected_order_summary,
     get_preparateur_order_plan,
@@ -95,6 +98,7 @@ class ScanOrdersViewsTests(TestCase):
         quantity_reserved=0,
         weight_g=250,
         volume_cm3=125,
+        category=None,
     ):
         warehouse = Warehouse.objects.create(name=f"WH-{sku}", code=sku[:4].upper())
         location = Location.objects.create(
@@ -106,6 +110,7 @@ class ScanOrdersViewsTests(TestCase):
         product = Product.objects.create(
             sku=sku,
             name=name,
+            category=category,
             default_location=location,
             weight_g=weight_g,
             volume_cm3=volume_cm3,
@@ -718,6 +723,118 @@ class ScanOrdersViewsTests(TestCase):
         self.assertContains(response, "Produit Plan")
         self.assertContains(response, "Marquer prêt")
 
+    def test_scan_preparateur_order_prepare_uses_standard_format_by_family(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        CartonFormat.objects.create(
+            name="Fallback Default",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        mm_format = CartonFormat.objects.create(
+            name="MM Standard",
+            length_cm=12,
+            width_cm=10,
+            height_cm=8,
+            max_weight_g=5000,
+        )
+        cn_format = CartonFormat.objects.create(
+            name="CN Standard",
+            length_cm=20,
+            width_cm=15,
+            height_cm=10,
+            max_weight_g=7000,
+        )
+        category_mm = ProductCategory.objects.create(name="MM")
+        category_cn = ProductCategory.objects.create(name="CN")
+        product_mm = self._create_stock_product(
+            sku="PREP-FMT-MM",
+            name="Produit Format MM",
+            quantity_on_hand=4,
+            category=category_mm,
+        )
+        product_cn = self._create_stock_product(
+            sku="PREP-FMT-CN",
+            name="Produit Format CN",
+            quantity_on_hand=4,
+            category=category_cn,
+        )
+        order = self._create_order(
+            association_name="Association Formats",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=order, product=product_mm, quantity=1)
+        self._create_order_line(order=order, product=product_cn, quantity=1)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+
+        self.assertEqual(response.status_code, 200)
+        cartons_by_family = {
+            carton["family"]: carton for carton in response.context["plan"]["cartons"]
+        }
+        self.assertEqual(cartons_by_family["MM"]["carton_format_label"], mm_format.name)
+        self.assertEqual(cartons_by_family["MM"]["carton_size"]["length_cm"], 12.0)
+        self.assertEqual(cartons_by_family["CN"]["carton_format_label"], cn_format.name)
+        self.assertEqual(cartons_by_family["CN"]["carton_size"]["length_cm"], 20.0)
+
+    def test_scan_preparateur_order_prepare_forced_carton_count_stores_plan_and_warns(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        CartonFormat.objects.create(
+            name="Fallback Default Forced",
+            length_cm=5,
+            width_cm=10,
+            height_cm=1,
+            max_weight_g=1000,
+            is_default=True,
+        )
+        category_mm = ProductCategory.objects.create(name="MM")
+        product = self._create_stock_product(
+            sku="PREP-FORCE",
+            name="Produit Force",
+            quantity_on_hand=53,
+            weight_g=1,
+            volume_cm3=1,
+            category=category_mm,
+        )
+        order = self._create_order(
+            association_name="Association Force",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=order, product=product, quantity=53)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        auto_response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+        self.assertEqual(auto_response.status_code, 200)
+        self.assertEqual(len(auto_response.context["plan"]["cartons"]), 2)
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_prepare"),
+            {
+                "action": "update_carton_count",
+                "forced_carton_count": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_order_prepare"))
+        forced_plan = self.client.session[PREPARATEUR_ORDER_PLAN_SESSION_KEY]
+        self.assertEqual(forced_plan["forced_carton_count"], 1)
+        self.assertEqual(len(forced_plan["cartons"]), 1)
+        self.assertEqual(forced_plan["cartons"][0]["items"][0]["quantity"], 53)
+        self.assertTrue(any("forcé" in warning for warning in forced_plan["warnings"]))
+        self.assertTrue(any("dépasse" in warning for warning in forced_plan["warnings"]))
+        self.assertEqual(Carton.objects.count(), 0)
+        self.assertEqual(ProductLot.objects.get(product=product).quantity_on_hand, 53)
+
     def test_scan_preparateur_order_prepare_marks_plan_carton_ready_and_updates_order(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
@@ -764,6 +881,105 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(follow_up.status_code, 200)
         self.assertContains(follow_up, carton.code)
         self.assertContains(follow_up, reverse("scan:scan_carton_edit", args=[carton.id]))
+
+    def test_scan_preparateur_order_prepare_marks_existing_order_shipment_ready(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        product = self._create_stock_product(
+            sku="PREP-SHIP",
+            name="Produit Shipment",
+            quantity_on_hand=10,
+            weight_g=100,
+            volume_cm3=100,
+        )
+        order = self._create_order(
+            association_name="Association Shipment",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        target_shipment = Shipment.objects.create(
+            reference="EXP-PREP-TARGET",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+        other_shipment = Shipment.objects.create(
+            reference="EXP-PREP-OTHER",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Other",
+            recipient_name="Other",
+            destination_address="2 Rue Test",
+            destination_country="France",
+        )
+        order.shipment = target_shipment
+        order.save(update_fields=["shipment"])
+        self._create_order_line(order=order, product=product, quantity=2)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        warmup = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+        self.assertEqual(warmup.status_code, 200)
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_prepare"),
+            {
+                "action": "mark_carton_ready",
+                "carton_index": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        carton = Carton.objects.get()
+        self.assertEqual(carton.shipment, target_shipment)
+        self.assertNotEqual(carton.shipment, other_shipment)
+
+    def test_mark_preparateur_plan_carton_ready_rejects_stale_order_plan(self):
+        product = self._create_stock_product(
+            sku="PREP-STALE",
+            name="Produit Stale",
+            quantity_on_hand=2,
+        )
+        current_order = self._create_order(
+            association_name="Association Current",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        stale_order = self._create_order(
+            association_name="Association Stale",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        stale_line = self._create_order_line(order=stale_order, product=product, quantity=1)
+
+        with self.assertRaisesRegex(ValueError, "ne correspond pas"):
+            mark_preparateur_plan_carton_ready(
+                user=self.staff_user,
+                order=current_order,
+                plan={
+                    "order_id": stale_order.id,
+                    "carton_size": {
+                        "length_cm": 40,
+                        "width_cm": 30,
+                        "height_cm": 30,
+                        "max_weight_g": 8000,
+                    },
+                    "cartons": [
+                        {
+                            "index": 1,
+                            "family": "MM",
+                            "status": "pending",
+                            "items": [
+                                {
+                                    "line_id": stale_line.id,
+                                    "product_name": product.name,
+                                    "quantity": 1,
+                                    "location_label": "-",
+                                }
+                            ],
+                        }
+                    ],
+                },
+                carton_index=1,
+            )
 
     def test_scan_preparateur_order_prepare_redirects_non_preparateur_to_orders_view(self):
         response = self.client.get(reverse("scan:scan_preparateur_order_prepare"))

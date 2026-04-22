@@ -5,6 +5,7 @@
   const closeBtn = document.getElementById('scan-close');
   const scanTitle = document.getElementById('scan-modal-title');
   const captureBtn = document.getElementById('scan-capture');
+  const cameraFacingButtons = document.querySelectorAll('[data-scan-camera-facing]');
 
   let activeInput = null;
   let stream = null;
@@ -25,6 +26,7 @@
   let ocrScriptPromise = null;
   let packProductResolver = null;
   let productResolver = null;
+  let selectedCameraFacingMode = 'environment';
   const ZXING_SRC = '/static/scan/zxing.min.js';
   const OCR_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
   const OCR_WORKER_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
@@ -54,6 +56,58 @@
     if (statusEl) {
       statusEl.textContent = text;
     }
+  }
+
+  function getCameraVideoConstraints() {
+    return { facingMode: { ideal: selectedCameraFacingMode } };
+  }
+
+  function getCameraMediaConstraints() {
+    return {
+      video: getCameraVideoConstraints(),
+      audio: false
+    };
+  }
+
+  function syncCameraFacingControls() {
+    cameraFacingButtons.forEach(button => {
+      const isActive = button.dataset.scanCameraFacing === selectedCameraFacingMode;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  function restartScanWithSelectedCamera(previousMode, previousBarcodeInput, previousOcrInput) {
+    stopScan().then(() => {
+      if (previousMode === 'ocr' && previousOcrInput) {
+        startOcrScan(previousOcrInput);
+        return;
+      }
+      if (previousBarcodeInput) {
+        startScan(previousBarcodeInput);
+      }
+    });
+  }
+
+  function setupCameraFacingControls() {
+    if (!cameraFacingButtons.length) {
+      return;
+    }
+    syncCameraFacingControls();
+    cameraFacingButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const nextMode = button.dataset.scanCameraFacing || 'environment';
+        if (nextMode === selectedCameraFacingMode) {
+          return;
+        }
+        selectedCameraFacingMode = nextMode;
+        syncCameraFacingControls();
+        if (!overlay || !overlay.classList.contains('active')) {
+          return;
+        }
+        restartScanWithSelectedCamera(overlay.dataset.mode, activeInput, ocrActiveInput);
+      });
+    });
   }
 
   function wait(ms) {
@@ -256,6 +310,47 @@
     return sectionId;
   }
 
+  function addUniqueCodeCandidate(candidates, value) {
+    const candidate = (value || '').toString().trim().toLowerCase();
+    if (candidate && !candidates.includes(candidate)) {
+      candidates.push(candidate);
+    }
+  }
+
+  function addGtinCandidateVariants(candidates, gtin) {
+    addUniqueCodeCandidate(candidates, gtin);
+    if (gtin.length === 14 && gtin.startsWith('0')) {
+      addUniqueCodeCandidate(candidates, gtin.slice(1));
+    }
+  }
+
+  function extractUdiCandidateCodes(value) {
+    const raw = (value || '').toString().trim();
+    if (!raw) {
+      return [];
+    }
+    const candidates = [];
+    addUniqueCodeCandidate(candidates, raw);
+
+    Array.from(raw.matchAll(/\(01\)\s*(\d{14})/g)).forEach(match => {
+      addGtinCandidateVariants(candidates, match[1]);
+    });
+
+    let compact = raw.replace(/[\s\x1d]/g, '');
+    [']C1', ']d2', ']e0'].some(prefix => {
+      if (compact.toLowerCase().startsWith(prefix.toLowerCase())) {
+        compact = compact.slice(prefix.length);
+        return true;
+      }
+      return false;
+    });
+    Array.from(compact.matchAll(/(?:^|[^\d])01(\d{14})/g)).forEach(match => {
+      addGtinCandidateVariants(candidates, match[1]);
+    });
+
+    return candidates;
+  }
+
   function createProductMatcher(entries) {
     return value => {
       const raw = (value || '').trim();
@@ -264,28 +359,36 @@
       }
       const rawLower = raw.toLowerCase();
       const rawNorm = normalizeText(raw);
-      let match = entries.find(
-        product =>
-          product.nameLower === rawLower ||
-          (product.nameNorm && product.nameNorm === rawNorm)
-      );
-      if (match) {
-        return match;
+      const exactCodeFields = ['barcodeLower', 'eanLower'];
+      for (const codeField of exactCodeFields) {
+        const match = entries.find(
+          product => product[codeField] && product[codeField] === rawLower
+        );
+        if (match) {
+          return match;
+        }
       }
-      match = entries.find(
+      const udiCandidates = extractUdiCandidateCodes(raw);
+      for (const candidate of udiCandidates) {
+        for (const codeField of exactCodeFields) {
+          const match = entries.find(
+            product => product[codeField] && product[codeField] === candidate
+          );
+          if (match) {
+            return match;
+          }
+        }
+      }
+      let match = entries.find(
         product => product.skuLower && product.skuLower === rawLower
       );
       if (match) {
         return match;
       }
       match = entries.find(
-        product => product.barcodeLower && product.barcodeLower === rawLower
-      );
-      if (match) {
-        return match;
-      }
-      match = entries.find(
-        product => product.eanLower && product.eanLower === rawLower
+        product =>
+          product.nameLower === rawLower ||
+          (product.nameNorm && product.nameNorm === rawNorm)
       );
       if (match) {
         return match;
@@ -423,7 +526,7 @@
         zxingReader = new ZXing.BrowserMultiFormatReader();
         if (typeof zxingReader.decodeFromConstraints === 'function') {
           return zxingReader.decodeFromConstraints(
-            { audio: false, video: { facingMode: { ideal: 'environment' } } },
+            getCameraMediaConstraints(),
             video,
             callback
           );
@@ -458,10 +561,7 @@
       try {
         stream = await retryTransientCameraStart(
           () =>
-            navigator.mediaDevices.getUserMedia({
-              video: { facingMode: 'environment' },
-              audio: false
-            }),
+            navigator.mediaDevices.getUserMedia(getCameraMediaConstraints()),
           'Réactivation caméra...'
         );
       } catch (err) {
@@ -732,10 +832,7 @@
       return;
     }
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false
-      });
+      stream = await navigator.mediaDevices.getUserMedia(getCameraMediaConstraints());
     } catch (err) {
       setStatus('Accès caméra refusé.');
       await stopScan();
@@ -4415,6 +4512,7 @@
   setupReceiptLines();
   setupTableTools();
   setupFaqEnhancements();
+  setupCameraFacingControls();
 
   const receivedOnInput = document.getElementById('id_received_on');
   if (receivedOnInput && !receivedOnInput.value) {

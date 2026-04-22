@@ -169,8 +169,17 @@ Current contract:
 - `/scan/preparateur/orders/prepare/` is the guided command-preparation workbench for the selected order:
   - it stores the generated picking plan in session key `preparateur_order_plan`
   - it groups remaining plannable quantities into standard-format cartons before any stock move is committed
+  - MM cartons use `MM Standard` when that `CartonFormat` exists
+  - CN cartons use `CN Standard` when that `CartonFormat` exists
+  - missing family-specific formats fall back to the default/first carton format, then the
+    preparateur fallback dimensions
+  - operators may force a carton count for single-family plans; the forced plan is stored in the
+    session and displays warnings when the forced carton count exceeds volume/weight constraints
   - it keeps a `Télécharger le picking` shortcut that renders one picking sheet per planned carton
   - it lets the preparateur mark each planned carton `Prêt` only after the physical carton is completed
+  - `Marquer prêt` must reject a stale plan whose `order_id` no longer matches the selected order
+  - cartons created by `Marquer prêt` must attach to the selected order's existing shipment, or to
+    exactly one newly created shipment for that same order when none exists
 - `/scan/preparateur/orders/` groups orders by feasibility buckets:
   - `Réalisables à 100%`
   - `Réalisables partiellement`
@@ -257,13 +266,27 @@ Current contract:
 - `/scan/pack/` shows a selected-order summary for preparateurs only when a selected order is still active and preserves the linked shipment reference through the hidden shipment field when one exists
 - the pack line layout must keep the product selector readable: product spans the row until the
   quantity column, while the scan action is a separate control under `Quantité`
+- preparateur free-pack also applies family-specific standard carton formats while packing:
+  `MM Standard` for MM products and `CN Standard` for CN products
+- the shared scan overlay exposes a camera-facing choice:
+  - `Caméra arrière` maps to `facingMode: environment`
+  - `Caméra frontale` maps to `facingMode: user`
+  - barcode and OCR flows must reuse the selected camera mode
+- product scan resolution tries exact barcode, then exact EAN, then extracted GS1/UDI GTIN
+  candidates against barcode/EAN before falling back to SKU, exact product name, and unique name
+  prefix matching
 - when a preparateur scans or selects an unknown product on the pack page, the UI opens a modal instead of only returning a line error
 - the minimal creation payload is:
   - product name
-  - at least one scannable identifier (`sku`, `barcode`, or `ean`; scanned source code can prefill the barcode)
+  - brand when known
+  - at least one scannable identifier (`barcode` or `ean`; scanned source code can prefill the barcode)
   - MM/CN family
+  - three dimensions (`length_cm`, `width_cm`, `height_cm`) and `weight_g`
   - initial quantity
   - structured location selectors `warehouse -> zone -> aisle -> shelf`
+- SKU is not entered by the preparateur in the unknown-product modal; `Product.save()` generates it
+  automatically
+- the unknown-product modal must keep the CN instruction: `Pour les CN, merci de noter le volume du produit (exemple : Sondalis Energy Fibre 500ML)`
 - free-text location entry is not part of the preparateur pack flow
 - preparateur-created products are saved as `is_incomplete=True`, receive immediate initial stock, and trigger reviewer notification to superusers plus the configured account-validation staff group
 

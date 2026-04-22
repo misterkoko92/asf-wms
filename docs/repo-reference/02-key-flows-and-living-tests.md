@@ -135,6 +135,9 @@ Use it when you need to answer:
   persistent single `Bonjour <prenom>` shell greeting, default recommendation of the most critical
   realizable order, grouped order choices, and the `Voir les colis` shortcut to all non-shipped
   cartons
+- preparateur order preparation plans use family-specific standard carton formats (`MM Standard` /
+  `CN Standard`), allow a single-family forced carton count with warnings, and keep `Marquer prêt`
+  tied to the selected order's shipment
 - preparateur carton traceability that stores the selected bénévole on initial carton creation,
   preserves `Carton.prepared_by`, and appends `prepared` / `edited` activity rows for later audit
 - preparateur pack success modal with a top-right close button plus footer print action:

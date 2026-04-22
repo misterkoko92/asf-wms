@@ -2,6 +2,11 @@ from .models import Carton, CartonFormat, CartonSourceKind, CartonStatus
 from .scan_parse import parse_decimal, parse_int
 from .scan_product_helpers import build_product_label
 
+STANDARD_CARTON_FORMAT_NAMES_BY_FAMILY = {
+    "MM": "MM Standard",
+    "CN": "CN Standard",
+}
+
 
 def _build_destination_label(destination):
     if not destination:
@@ -91,6 +96,19 @@ def build_carton_formats():
             }
         )
     return data, default_format
+
+
+def resolve_standard_carton_format_for_family(family):
+    family_key = (family or "").strip().upper()
+    format_name = STANDARD_CARTON_FORMAT_NAMES_BY_FAMILY.get(family_key)
+    if format_name:
+        family_format = CartonFormat.objects.filter(name__iexact=format_name).first()
+        if family_format is not None:
+            return family_format
+    default_format = CartonFormat.objects.filter(is_default=True).first()
+    if default_format is not None:
+        return default_format
+    return CartonFormat.objects.order_by("name", "id").first()
 
 
 def get_carton_volume_cm3(carton_size):

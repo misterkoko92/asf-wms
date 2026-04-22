@@ -33,6 +33,7 @@ from .scan_helpers import (
     resolve_carton_size,
     resolve_product,
     resolve_shipment,
+    resolve_standard_carton_format_for_family,
 )
 from .scan_permissions import user_is_preparateur
 from .services import StockError, pack_carton, receive_stock, unpack_carton
@@ -118,6 +119,17 @@ def _resolve_preparateur_root_category(family):
     )
 
 
+def _carton_size_from_format(format_obj):
+    if format_obj is None:
+        return None
+    return {
+        "length_cm": format_obj.length_cm,
+        "width_cm": format_obj.width_cm,
+        "height_cm": format_obj.height_cm,
+        "max_weight_g": format_obj.max_weight_g,
+    }
+
+
 def notify_preparateur_product_review_needed(
     *,
     product,
@@ -188,6 +200,11 @@ def create_preparateur_unknown_product_from_pack(*, request, form):
             ean=form.cleaned_data["ean"],
             category=category,
             default_location=form.cleaned_data["location"],
+            length_cm=form.cleaned_data["length_cm"],
+            width_cm=form.cleaned_data["width_cm"],
+            height_cm=form.cleaned_data["height_cm"],
+            weight_g=form.cleaned_data["weight_g"],
+            volume_cm3=form.cleaned_data["volume_cm3"],
             notes=form.cleaned_data["notes"],
             is_incomplete=True,
         )
@@ -447,9 +464,11 @@ def _handle_preparateur_pack(
         family_items = grouped_line_items.get(family, [])
         if not family_items:
             continue
+        family_format = resolve_standard_carton_format_for_family(family)
+        family_carton_size = _carton_size_from_format(family_format) or carton_size
         bins, family_errors, family_warnings = build_packing_bins(
             family_items,
-            carton_size,
+            family_carton_size,
             apply_defaults=confirm_defaults,
         )
         pack_errors.extend(family_errors)
@@ -461,6 +480,7 @@ def _handle_preparateur_pack(
                         "family": family,
                         "zone_label": PREPARATEUR_LOCATION_LABELS[family],
                         "current_location": locations_by_family[family],
+                        "carton_size": family_carton_size,
                         "bin_data": bin_data,
                     }
                 )
@@ -497,7 +517,7 @@ def _handle_preparateur_pack(
                         preassigned_destination=preassigned_destination,
                         display_expires_on=entry.get("expires_on"),
                         current_location=plan["current_location"],
-                        carton_size=carton_size,
+                        carton_size=plan["carton_size"],
                         prepared_by_user=active_volunteer.user,
                         volunteer_profile=active_volunteer,
                         actor_user=request.user,

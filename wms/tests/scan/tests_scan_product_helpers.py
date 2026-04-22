@@ -37,6 +37,40 @@ class ScanProductHelpersTests(TestCase):
         resolved = resolve_product("MATCH")
         self.assertEqual(resolved.id, product_barcode.id)
 
+    def test_resolve_product_falls_back_to_ean_before_sku(self):
+        product_ean = Product.objects.create(
+            name="Ean Product",
+            sku="SKU-EAN",
+            ean="MATCH-EAN",
+        )
+        Product.objects.create(name="Sku Product", sku="MATCH-EAN")
+
+        resolved = resolve_product("MATCH-EAN")
+
+        self.assertEqual(resolved.id, product_ean.id)
+
+    def test_resolve_product_extracts_udi_gtin_for_ean_lookup(self):
+        product = Product.objects.create(
+            name="UDI EAN Product",
+            sku="UDI-EAN",
+            ean="1234567890123",
+        )
+
+        resolved = resolve_product("(01)01234567890123(17)260501(10)LOT-A")
+
+        self.assertEqual(resolved.id, product.id)
+
+    def test_resolve_product_extracts_plain_gs1_udi_gtin_for_barcode_lookup(self):
+        product = Product.objects.create(
+            name="UDI Barcode Product",
+            sku="UDI-BARCODE",
+            barcode="01234567890123",
+        )
+
+        resolved = resolve_product("01012345678901231726050110LOT-A")
+
+        self.assertEqual(resolved.id, product.id)
+
     def test_resolve_product_returns_none_for_empty_code(self):
         self.assertIsNone(resolve_product(""))
         self.assertIsNone(resolve_product("   "))

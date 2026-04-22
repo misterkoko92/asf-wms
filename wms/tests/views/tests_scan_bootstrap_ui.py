@@ -1213,6 +1213,31 @@ class ScanBootstrapUiTests(TestCase):
             ".scan-bootstrap-enabled .pack-line-scan-field {\n  grid-column: 10 / -1;", css_content
         )
 
+    def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-scan-camera-facing="environment"')
+        self.assertContains(response, 'data-scan-camera-facing="user"')
+        self.assertContains(response, "Caméra arrière")
+        self.assertContains(response, "Caméra frontale")
+
+        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        scan_js_content = scan_js_path.read_text(encoding="utf-8")
+        self.assertIn("let selectedCameraFacingMode = 'environment';", scan_js_content)
+        self.assertIn("function getCameraVideoConstraints() {", scan_js_content)
+        self.assertIn("setupCameraFacingControls();", scan_js_content)
+        self.assertIn("data-scan-camera-facing", scan_js_content)
+        self.assertIn("facingMode: { ideal: selectedCameraFacingMode }", scan_js_content)
+
+    def test_scan_pack_product_matcher_uses_barcode_ean_then_udi_candidates(self):
+        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        scan_js_content = scan_js_path.read_text(encoding="utf-8")
+
+        self.assertIn("function extractUdiCandidateCodes(value) {", scan_js_content)
+        self.assertIn("const exactCodeFields = ['barcodeLower', 'eanLower'];", scan_js_content)
+        self.assertIn("const udiCandidates = extractUdiCandidateCodes(raw);", scan_js_content)
+        self.assertIn("product[codeField] && product[codeField] === candidate", scan_js_content)
+
     def test_scan_bootstrap_css_keeps_recipient_preference_table_headers_balanced(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
         css_content = css_path.read_text(encoding="utf-8")

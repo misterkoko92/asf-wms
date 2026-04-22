@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from decimal import Decimal
 
@@ -8,12 +9,49 @@ from django.db.models.functions import Coalesce
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import Product, ProductKitItem, ProductLotStatus
 
+_UDI_AI_01_PAREN_RE = re.compile(r"\(01\)\s*(\d{14})")
+_UDI_AI_01_COMPACT_RE = re.compile(r"(?:^|[^\d])01(\d{14})")
+
 
 def get_product_root_category_name(product):
     category = getattr(product, "category", None)
     while category and category.parent_id:
         category = category.parent
     return (category.name or "").strip() if category else ""
+
+
+def _append_unique(items, value):
+    value = (value or "").strip()
+    if value and value not in items:
+        items.append(value)
+
+
+def _append_gtin_variants(items, gtin):
+    _append_unique(items, gtin)
+    if len(gtin) == 14 and gtin.startswith("0"):
+        _append_unique(items, gtin[1:])
+
+
+def extract_product_code_candidates(code: str):
+    raw = (code or "").strip()
+    if not raw:
+        return []
+
+    candidates = []
+    _append_unique(candidates, raw)
+
+    for match in _UDI_AI_01_PAREN_RE.finditer(raw):
+        _append_gtin_variants(candidates, match.group(1))
+
+    compact = re.sub(r"[\s\x1d]", "", raw)
+    for symbology_prefix in ("]C1", "]d2", "]e0"):
+        if compact.lower().startswith(symbology_prefix.lower()):
+            compact = compact[len(symbology_prefix) :]
+            break
+    for match in _UDI_AI_01_COMPACT_RE.finditer(compact):
+        _append_gtin_variants(candidates, match.group(1))
+
+    return candidates
 
 
 def resolve_product(code: str, *, include_kits: bool = False):
@@ -23,20 +61,41 @@ def resolve_product(code: str, *, include_kits: bool = False):
     products = Product.objects.filter(is_active=True)
     if not include_kits:
         products = products.filter(kit_items__isnull=True)
-    product = (
-        products.filter(
-            Q(barcode__iexact=code)
-            | Q(ean__iexact=code)
-            | Q(sku__iexact=code)
-            | Q(name__iexact=code)
+
+    candidates = extract_product_code_candidates(code)
+    code_filter = Q()
+    code_rank_whens = []
+    for index, candidate in enumerate(candidates):
+        code_filter |= Q(barcode__iexact=candidate) | Q(ean__iexact=candidate)
+        code_rank_whens.extend(
+            [
+                When(barcode__iexact=candidate, then=Value(index * 2 + 1)),
+                When(ean__iexact=candidate, then=Value(index * 2 + 2)),
+            ]
         )
+    if code_filter:
+        product = (
+            products.filter(code_filter)
+            .annotate(
+                match_rank=Case(
+                    *code_rank_whens,
+                    default=Value(999),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("match_rank", "name")
+            .first()
+        )
+        if product:
+            return product
+
+    product = (
+        products.filter(Q(sku__iexact=code) | Q(name__iexact=code))
         .annotate(
             match_rank=Case(
-                When(barcode__iexact=code, then=Value(1)),
-                When(ean__iexact=code, then=Value(2)),
-                When(sku__iexact=code, then=Value(3)),
-                When(name__iexact=code, then=Value(4)),
-                default=Value(5),
+                When(sku__iexact=code, then=Value(1)),
+                When(name__iexact=code, then=Value(2)),
+                default=Value(3),
                 output_field=IntegerField(),
             )
         )

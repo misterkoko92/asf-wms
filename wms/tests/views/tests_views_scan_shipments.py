@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
@@ -1419,15 +1420,72 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="pack-unknown-product-modal"')
         self.assertContains(response, 'name="unknown_product_name"')
+        self.assertContains(response, 'name="unknown_product_brand"')
         self.assertContains(response, 'name="unknown_product_initial_quantity"')
         self.assertContains(response, 'name="unknown_product_pack_family"')
+        self.assertContains(response, 'name="unknown_product_length_cm"')
+        self.assertContains(response, 'name="unknown_product_width_cm"')
+        self.assertContains(response, 'name="unknown_product_height_cm"')
+        self.assertContains(response, 'name="unknown_product_weight_g"')
         self.assertContains(response, 'name="unknown_product_location"')
         self.assertContains(response, 'id="id_unknown_product_location_warehouse"')
         self.assertContains(response, 'id="id_unknown_product_location_zone"')
         self.assertContains(response, 'id="id_unknown_product_location_aisle"')
         self.assertContains(response, 'id="id_unknown_product_location_shelf"')
         self.assertContains(response, 'id="pack-location-data"')
+        self.assertContains(
+            response,
+            "Pour les CN, merci de noter le volume du produit",
+        )
+        self.assertNotContains(response, 'name="unknown_product_sku"')
+        self.assertNotContains(response, 'id="id_unknown_product_sku"')
         self.assertNotContains(response, 'name="unknown_product_location_free_text"')
+
+    def test_scan_pack_preparateur_unknown_product_requires_dimensions_and_weight(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+        warehouse = Warehouse.objects.create(name="Prep warehouse required", code="PREQR")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        ProductCategory.objects.create(name="MM")
+
+        response = self.client.post(
+            reverse("scan:scan_pack"),
+            {
+                "action": "create_unknown_product",
+                "carton_format_id": "custom",
+                "carton_length_cm": "40",
+                "carton_width_cm": "30",
+                "carton_height_cm": "30",
+                "carton_max_weight_g": "8000",
+                "line_count": "1",
+                "line_1_product_code": "9988776600",
+                "line_1_quantity": "2",
+                "unknown_product_line_index": "1",
+                "unknown_product_source_code": "9988776600",
+                "unknown_product_name": "Produit Sans Dimensions",
+                "unknown_product_barcode": "9988776600",
+                "unknown_product_pack_family": "MM",
+                "unknown_product_initial_quantity": "7",
+                "unknown_product_location": str(location.id),
+                "unknown_product_location_warehouse": warehouse.name,
+                "unknown_product_location_zone": location.zone,
+                "unknown_product_location_aisle": location.aisle,
+                "unknown_product_location_shelf": location.shelf,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["unknown_product_modal_open"])
+        self.assertFalse(Product.objects.filter(name="Produit Sans Dimensions").exists())
+        self.assertContains(response, 'name="unknown_product_length_cm"')
+        self.assertContains(response, 'name="unknown_product_width_cm"')
+        self.assertContains(response, 'name="unknown_product_height_cm"')
+        self.assertContains(response, 'name="unknown_product_weight_g"')
 
     def test_scan_pack_preparateur_create_unknown_product_rehydrates_selected_line(self):
         preparateur = self._create_preparateur_user()
@@ -1460,6 +1518,11 @@ class ScanShipmentsViewsTests(TestCase):
                     "unknown_product_barcode": "9988776655",
                     "unknown_product_pack_family": "MM",
                     "unknown_product_initial_quantity": "7",
+                    "unknown_product_brand": "Marque Test",
+                    "unknown_product_length_cm": "10.5",
+                    "unknown_product_width_cm": "4",
+                    "unknown_product_height_cm": "2",
+                    "unknown_product_weight_g": "250",
                     "unknown_product_location": str(location.id),
                     "unknown_product_location_warehouse": warehouse.name,
                     "unknown_product_location_zone": location.zone,
@@ -1473,6 +1536,14 @@ class ScanShipmentsViewsTests(TestCase):
         lot = ProductLot.objects.get(product=product)
         self.assertTrue(product.is_incomplete)
         self.assertEqual(product.default_location, location)
+        self.assertNotEqual(product.sku, "9988776655")
+        self.assertTrue(product.sku)
+        self.assertEqual(product.brand, "MARQUE TEST")
+        self.assertEqual(product.length_cm, Decimal("10.50"))
+        self.assertEqual(product.width_cm, Decimal("4.00"))
+        self.assertEqual(product.height_cm, Decimal("2.00"))
+        self.assertEqual(product.weight_g, 250)
+        self.assertEqual(product.volume_cm3, 84)
         self.assertEqual(lot.quantity_on_hand, 7)
         self.assertEqual(response.context["line_values"][0]["product_code"], product.sku)
         self.assertContains(response, product.sku)
