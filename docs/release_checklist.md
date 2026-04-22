@@ -8,7 +8,7 @@ Use this checklist for each production release.
 - [ ] `pre-commit install`
 - [ ] `make pre-commit`
 - [ ] `make ci`
-- [ ] Keep the CI smoke subset small and deterministic. Current cross-domain smoke guards are `api.tests.tests_ui_e2e_workflows`, `wms.tests.emailing.tests_notifications_queue`, `wms.tests.emailing.tests_order_status_notifications`, and `wms.tests.planning.tests_smoke_planning_flow`.
+- [ ] Keep the CI smoke subset small and deterministic. `make test-smoke` runs the current cross-domain smoke guards: `api.tests.tests_ui_e2e_workflows`, `wms.tests.emailing.tests_notifications_queue`, `wms.tests.emailing.tests_order_status_notifications`, and `wms.tests.planning.tests_smoke_planning_flow`.
 - [ ] `make typecheck` is green and remains the blocking type gate.
 - [ ] If V3 structural layers changed, `make typecheck-structural` is green.
 - [ ] If V3 structural layers changed, `make ruff-structural` is green.

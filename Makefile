@@ -13,12 +13,19 @@ PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit |
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
 COVERAGE_FAIL_UNDER ?= 93
 COVERAGE_TEST_ARGS ?=
-TEST_PARALLEL ?= 4
+TEST_PARALLEL ?= auto
 TEST_PARALLEL_ARGS ?= --parallel $(TEST_PARALLEL)
 TEST_FAST_PARALLEL ?= auto
 TEST_FAST_PARALLEL_ARGS ?= --parallel $(TEST_FAST_PARALLEL)
+TEST_SMOKE_PARALLEL ?= 1
+TEST_SMOKE_PARALLEL_ARGS ?= --parallel $(TEST_SMOKE_PARALLEL)
 TEST_LABELS ?=
 TEST_EXTRA_ARGS ?=
+TEST_SMOKE_LABELS ?= \
+	api.tests.tests_ui_e2e_workflows \
+	wms.tests.emailing.tests_notifications_queue \
+	wms.tests.emailing.tests_order_status_notifications \
+	wms.tests.planning.tests_smoke_planning_flow
 COMPILEMESSAGES_IGNORE ?= --ignore='.venv' --ignore='.venv/*' --ignore='.worktrees' --ignore='.worktrees/*'
 UV_EXPORT_ARGS ?= --frozen --no-header --no-annotate --no-hashes
 DEPLOY_ENV_FILE ?= .env.deploy.example
@@ -28,7 +35,7 @@ STRUCTURAL_QUALITY_SCOPE ?= wms/application wms/events wms/jobs wms/parties wms/
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev sync sync-no-dev lock export-requirements deps-check install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright typecheck-structural ruff-structural bandit audit audit-soft security test test-fast test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
+.PHONY: install install-dev sync sync-no-dev lock export-requirements deps-check install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright typecheck-structural ruff-structural bandit audit audit-soft security test test-fast test-smoke test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -133,6 +140,9 @@ test:
 
 test-fast:
 	$(PYTHON) manage.py test $(TEST_LABELS) $(TEST_EXTRA_ARGS) --keepdb $(TEST_FAST_PARALLEL_ARGS)
+
+test-smoke:
+	$(PYTHON) manage.py test $(TEST_SMOKE_LABELS) $(TEST_EXTRA_ARGS) --keepdb $(TEST_SMOKE_PARALLEL_ARGS)
 
 test-next-ui:
 	RUN_UI_TESTS=1 $(PYTHON) manage.py test wms.tests.core.tests_ui.NextUiTests
