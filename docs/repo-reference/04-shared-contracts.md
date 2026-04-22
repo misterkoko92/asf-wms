@@ -155,6 +155,9 @@ Current contract:
   - `Voir les colis`
   - `Changer de compte`
   - `Déconnexion`
+- `Changer de compte` must log the operator out and send them to the staff login with
+  `next=/scan/`
+- `Déconnexion` must log the operator out and return to the domain root `/`, not the Django admin
 - `Voir les colis` opens `/scan/cartons/` for all non-shipped cartons, without filtering by
   preparateur or active volunteer
 - preparateur-only scan users may print non-shipped carton packing lists and picking sheets for any
@@ -264,10 +267,17 @@ Current contract:
 - each planned carton becomes a real carton only when the preparateur clicks `Marquer prêt`; that action creates or reuses the order shipment, packs the planned products, and updates the order preparation progress
 - the preparateur menu entry `Préparer des colis` must leave command mode through `/scan/preparateur/pack/`, not keep the selected order on `/scan/pack/`
 - `/scan/pack/` shows a selected-order summary for preparateurs only when a selected order is still active and preserves the linked shipment reference through the hidden shipment field when one exists
-- the pack line layout must keep the product selector readable: product spans the row until the
-  quantity column, while the scan action is a separate control under `Quantité`
+- the `/scan/pack/` product card uses a three-row operator layout:
+  - row 1: product search field + `Scanner un code barre / QR Code`
+  - row 2: product selector + quantity + expiration date
+  - row 3: optional forced carton count input, left empty for automatic calculation
+- the pack line layout must keep the product selector readable without squeezing the searchable
+  field behind the scan button
 - preparateur free-pack also applies family-specific standard carton formats while packing:
   `MM Standard` for MM products and `CN Standard` for CN products
+- free-pack supports a forced carton count for both standard staff and preparateurs; when set, the
+  flow replaces the automatic bin count, warns when the forced plan exceeds the selected format,
+  and ignores the override for mixed MM/CN preparateur packs
 - the shared scan overlay exposes a camera-facing choice:
   - `Caméra arrière` maps to `facingMode: environment`
   - `Caméra frontale` maps to `facingMode: user`

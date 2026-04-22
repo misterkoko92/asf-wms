@@ -204,10 +204,10 @@
                                     </li>
                                     <li>
                                         <a class="dropdown-item"
-                                           href="/admin/logout/?next=/admin/login/?next=/scan/">{% trans "Changer de compte" %}</a>
+                                           href="{% url 'scan:scan_change_account' %}">{% trans "Changer de compte" %}</a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="/admin/logout/?next=/">{% trans "Déconnexion" %}</a>
+                                        <a class="dropdown-item" href="{% url 'scan:scan_logout' %}">{% trans "Déconnexion" %}</a>
                                     </li>
                                 </ul>
                             </div>

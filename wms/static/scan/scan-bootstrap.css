@@ -1214,33 +1214,41 @@ body.scan-bootstrap-enabled {
   min-width: 0;
 }
 
-.scan-bootstrap-enabled .pack-line-product-field {
+.scan-bootstrap-enabled .pack-line-search-field {
   grid-column: 1 / span 9;
 }
 
+.scan-bootstrap-enabled .pack-line-select-field {
+  grid-column: 1 / span 7;
+}
+
 .scan-bootstrap-enabled .pack-line-quantity-field {
-  grid-column: 10 / -1;
+  grid-column: 8 / span 2;
 }
 
 .scan-bootstrap-enabled .pack-line-scan-field {
   grid-column: 10 / -1;
 }
 
-.scan-bootstrap-enabled .pack-line-expires-field,
+.scan-bootstrap-enabled .pack-line-expires-field {
+  grid-column: 10 / -1;
+}
+
 .scan-bootstrap-enabled .pack-line-family-field {
-  grid-column: span 4;
+  grid-column: 1 / -1;
 }
 
 .scan-bootstrap-enabled .pack-line-metrics {
   grid-column: 1 / -1;
 }
 
-.scan-bootstrap-enabled .pack-line-product-field .scan-select-stack {
-  width: 100%;
-}
-
 .scan-bootstrap-enabled .pack-line-scan-field .scan-scan-btn {
   width: 100%;
+  min-height: calc(2.25rem + 2px);
+}
+
+.scan-bootstrap-enabled .scan-pack-forced-count-row {
+  max-width: 18rem;
 }
 
 .scan-bootstrap-enabled .btn {
@@ -2507,7 +2515,8 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .scan-bootstrap-enabled .pack-line-product-field,
+  .scan-bootstrap-enabled .pack-line-search-field,
+  .scan-bootstrap-enabled .pack-line-select-field,
   .scan-bootstrap-enabled .pack-line-quantity-field,
   .scan-bootstrap-enabled .pack-line-scan-field,
   .scan-bootstrap-enabled .pack-line-expires-field,

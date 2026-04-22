@@ -8,6 +8,8 @@ PREPARATEUR_ALLOWED_SCAN_VIEWS = frozenset(
         "scan_preparateur_order_prepare_picking",
         "scan_preparateur_last_carton",
         "scan_preparateur_pack_start",
+        "scan_change_account",
+        "scan_logout",
         "scan_pack",
         "scan_cartons_ready",
         "scan_carton_edit",

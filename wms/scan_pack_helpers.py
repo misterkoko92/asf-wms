@@ -32,6 +32,92 @@ def build_pack_line_values(line_count, data=None):
     return lines
 
 
+def parse_forced_carton_count(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        forced_count = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Nombre de colis invalide.") from exc
+    if forced_count <= 0:
+        raise ValueError("Nombre de colis invalide.")
+    return forced_count
+
+
+def build_forced_packing_bins(line_items, forced_carton_count):
+    total_quantity = sum(max(0, int(item.get("quantity") or 0)) for item in line_items)
+    if total_quantity <= 0:
+        return []
+    carton_count = max(1, min(int(forced_carton_count or 0), total_quantity))
+    base_quantity = total_quantity // carton_count
+    remainder = total_quantity % carton_count
+    targets = [base_quantity + (1 if index < remainder else 0) for index in range(carton_count)]
+    bins = [{"items": {}} for _index in range(carton_count)]
+    filled = [0 for _index in range(carton_count)]
+    carton_index = 0
+
+    for item in line_items:
+        product = item["product"]
+        expires_on = item.get("expires_on")
+        remaining = max(0, int(item.get("quantity") or 0))
+        while remaining > 0 and carton_index < carton_count:
+            available = targets[carton_index] - filled[carton_index]
+            if available <= 0:
+                carton_index += 1
+                continue
+            chunk = min(remaining, available)
+            row = bins[carton_index]["items"].setdefault(
+                product.id,
+                {
+                    "product": product,
+                    "quantity": 0,
+                    "expires_on": expires_on,
+                },
+            )
+            row["quantity"] += chunk
+            if expires_on is not None:
+                if row["expires_on"] is None:
+                    row["expires_on"] = expires_on
+                else:
+                    row["expires_on"] = min(row["expires_on"], expires_on)
+            filled[carton_index] += chunk
+            remaining -= chunk
+            if filled[carton_index] >= targets[carton_index]:
+                carton_index += 1
+
+    return [bin_data for bin_data in bins if bin_data["items"]]
+
+
+def build_forced_carton_warnings(*, bins, carton_size, carton_format_label):
+    warnings = []
+    carton_volume = (
+        float(carton_size["length_cm"])
+        * float(carton_size["width_cm"])
+        * float(carton_size["height_cm"])
+    )
+    max_weight_g = int(carton_size["max_weight_g"] or 0)
+    for index, bin_data in enumerate(bins, start=1):
+        total_volume = 0.0
+        total_weight = 0
+        for entry in bin_data["items"].values():
+            quantity = int(entry.get("quantity") or 0)
+            product = entry["product"]
+            product_volume = get_product_volume_cm3(product) or 1
+            product_weight = get_product_weight_g(product) or 5
+            total_volume += float(product_volume) * quantity
+            total_weight += int(product_weight) * quantity
+        if carton_volume > 0 and total_volume > carton_volume:
+            warnings.append(
+                f"Colis forcé {index} dépasse le volume du format {carton_format_label}."
+            )
+        if max_weight_g > 0 and total_weight > max_weight_g:
+            warnings.append(
+                f"Colis forcé {index} dépasse le poids max du format {carton_format_label}."
+            )
+    return warnings
+
+
 def build_packing_bins(
     line_items,
     carton_size,

@@ -835,6 +835,88 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(Carton.objects.count(), 0)
         self.assertEqual(ProductLot.objects.get(product=product).quantity_on_hand, 53)
 
+    def test_scan_preparateur_order_prepare_rejects_invalid_forced_carton_count(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        product = self._create_stock_product(
+            sku="PREP-FORCE-INVALID",
+            name="Produit Force Invalid",
+            quantity_on_hand=3,
+        )
+        order = self._create_order(
+            association_name="Association Force Invalid",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=order, product=product, quantity=1)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_prepare"),
+            {
+                "action": "update_carton_count",
+                "forced_carton_count": "0",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nombre de colis invalide.")
+
+    def test_scan_preparateur_order_prepare_restores_auto_carton_count_when_blank(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        CartonFormat.objects.create(
+            name="Fallback Default Auto",
+            length_cm=5,
+            width_cm=10,
+            height_cm=1,
+            max_weight_g=1000,
+            is_default=True,
+        )
+        category_mm = ProductCategory.objects.create(name="MM")
+        product = self._create_stock_product(
+            sku="PREP-FORCE-AUTO",
+            name="Produit Force Auto",
+            quantity_on_hand=53,
+            weight_g=1,
+            volume_cm3=1,
+            category=category_mm,
+        )
+        order = self._create_order(
+            association_name="Association Force Auto",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=order, product=product, quantity=53)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        forced_response = self.client.post(
+            reverse("scan:scan_preparateur_order_prepare"),
+            {
+                "action": "update_carton_count",
+                "forced_carton_count": "1",
+            },
+        )
+        self.assertEqual(forced_response.status_code, 302)
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_order_prepare"),
+            {
+                "action": "update_carton_count",
+                "forced_carton_count": "",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Calcul automatique des colis restauré.")
+        plan = self.client.session[PREPARATEUR_ORDER_PLAN_SESSION_KEY]
+        self.assertIsNone(plan["forced_carton_count"])
+        self.assertEqual(len(plan["cartons"]), 2)
+
     def test_scan_preparateur_order_prepare_marks_plan_carton_ready_and_updates_order(self):
         preparateur = self._create_preparateur()
         self.client.force_login(preparateur)
@@ -1042,6 +1124,32 @@ class ScanOrdersViewsTests(TestCase):
             no_order_response["Location"],
             reverse("scan:scan_preparateur_order_select"),
         )
+
+    def test_scan_preparateur_order_prepare_picking_renders_with_selected_order(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+        product = self._create_stock_product(
+            sku="PREP-PICKING",
+            name="Produit Picking",
+            quantity_on_hand=4,
+        )
+        order = self._create_order(
+            association_name="Association Picking",
+            review_status=OrderReviewStatus.APPROVED,
+        )
+        self._create_order_line(order=order, product=product, quantity=2)
+        session = self.client.session
+        session["preparateur_selected_order_id"] = order.id
+        session.save()
+
+        warmup = self.client.get(reverse("scan:scan_preparateur_order_prepare"))
+        self.assertEqual(warmup.status_code, 200)
+
+        response = self.client.get(reverse("scan:scan_preparateur_order_prepare_picking"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Produit Picking")
+        self.assertContains(response, "Quantité")
 
     def test_preparateur_order_helpers_cover_session_and_early_return_branches(self):
         product = self._create_stock_product(

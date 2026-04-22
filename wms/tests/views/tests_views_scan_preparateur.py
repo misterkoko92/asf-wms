@@ -1,6 +1,7 @@
 import re
 from datetime import date, timedelta
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -220,6 +221,22 @@ class ScanPreparateurHomeViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], reverse("scan:scan_pack"))
+
+    def test_scan_logout_redirects_to_site_root(self):
+        response = self.client.get(reverse("scan:scan_logout"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/")
+
+    def test_scan_change_account_logs_out_and_redirects_to_scan_login(self):
+        response = self.client.get(reverse("scan:scan_change_account"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            f"{reverse('admin:login')}?{urlencode({'next': reverse('scan:scan_root')})}",
+        )
+        self.assertNotIn("_auth_user_id", self.client.session)
 
 
 class ScanPreparateurSessionHelperTests(TestCase):

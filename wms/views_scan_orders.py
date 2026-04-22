@@ -24,6 +24,7 @@ from .preparateur_orders import (
     set_preparateur_selected_order,
 )
 from .scan_helpers import build_product_options
+from .scan_pack_helpers import parse_forced_carton_count
 from .scan_permissions import user_is_preparateur
 from .services import StockError
 from .view_permissions import scan_staff_required
@@ -114,19 +115,6 @@ def _render_preparateur_order_prepare(request, *, order, plan):
             "picking_url": reverse("scan:scan_preparateur_order_prepare_picking"),
         },
     )
-
-
-def _parse_forced_carton_count(value):
-    value = (value or "").strip()
-    if not value:
-        return None
-    try:
-        forced_count = int(value)
-    except (TypeError, ValueError):
-        raise ValueError("Nombre de colis invalide.")
-    if forced_count <= 0:
-        raise ValueError("Nombre de colis invalide.")
-    return forced_count
 
 
 @scan_staff_required
@@ -221,7 +209,7 @@ def scan_preparateur_order_prepare(request):
         action = (request.POST.get("action") or "").strip()
         if action == "update_carton_count":
             try:
-                forced_carton_count = _parse_forced_carton_count(
+                forced_carton_count = parse_forced_carton_count(
                     request.POST.get("forced_carton_count")
                 )
             except ValueError as exc:

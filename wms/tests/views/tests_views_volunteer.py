@@ -146,6 +146,14 @@ class VolunteerAuthViewTests(TestCase):
         self.assertRedirects(response, reverse("volunteer:dashboard"))
         self._assert_browser_session()
 
+    def test_logout_redirects_to_domain_root(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("volunteer:logout"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+
     def test_set_password_rejects_invalid_token(self):
         response = self.client.get(self._set_password_url(self.user, token="invalid-token"))
 

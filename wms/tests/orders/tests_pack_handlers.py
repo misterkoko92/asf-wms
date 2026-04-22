@@ -164,7 +164,9 @@ class PackHandlersTests(TestCase):
             height_cm=Decimal("35"),
             max_weight_g=12000,
         )
-        format_id, custom, line_count, line_values = build_pack_defaults(default_format)
+        format_id, custom, line_count, line_values, forced_carton_count = build_pack_defaults(
+            default_format
+        )
         self.assertEqual(format_id, "9")
         self.assertEqual(
             custom,
@@ -187,8 +189,9 @@ class PackHandlersTests(TestCase):
                 }
             ],
         )
+        self.assertIsNone(forced_carton_count)
 
-        format_id, custom, line_count, line_values = build_pack_defaults(None)
+        format_id, custom, line_count, line_values, forced_carton_count = build_pack_defaults(None)
         self.assertEqual(format_id, "custom")
         self.assertEqual(
             custom,
@@ -211,6 +214,63 @@ class PackHandlersTests(TestCase):
                 }
             ],
         )
+        self.assertIsNone(forced_carton_count)
+
+    def test_handle_pack_post_forced_carton_count_replaces_auto_bins(self):
+        request = self._request(
+            {
+                "line_count": "1",
+                "line_1_product_code": "SKU-1",
+                "line_1_quantity": "5",
+                "forced_carton_count": "1",
+                "confirm_defaults": "1",
+            }
+        )
+        product = SimpleNamespace(id=5, name="Produit 1")
+        created_carton = SimpleNamespace(id=77)
+        form = self._form(valid=True, shipment_reference="")
+        auto_bins = [
+            {"items": {product.id: {"product": product, "quantity": 3}}},
+            {"items": {product.id: {"product": product, "quantity": 2}}},
+        ]
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            with mock.patch("wms.pack_handlers.resolve_product", return_value=product):
+                with mock.patch("wms.pack_handlers.get_product_weight_g", return_value=20):
+                    with mock.patch("wms.pack_handlers.get_product_volume_cm3", return_value=30):
+                        with mock.patch(
+                            "wms.pack_handlers.build_packing_bins",
+                            return_value=(auto_bins, [], []),
+                        ):
+                            with mock.patch(
+                                "wms.pack_handlers.build_forced_carton_warnings",
+                                return_value=[],
+                            ):
+                                with mock.patch(
+                                    "wms.pack_handlers.pack_carton",
+                                    return_value=created_carton,
+                                ) as pack_carton_mock:
+                                    with mock.patch(
+                                        "wms.pack_handlers.messages.warning"
+                                    ) as warning_mock:
+                                        with mock.patch(
+                                            "wms.pack_handlers.messages.success"
+                                        ) as success_mock:
+                                            response, state = handle_pack_post(
+                                                request,
+                                                form=form,
+                                                default_format=None,
+                                            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(state["forced_carton_count"], 1)
+        self.assertEqual(request.session["pack_results"], [77])
+        self.assertEqual(pack_carton_mock.call_count, 1)
+        warning_messages = [call.args[1] for call in warning_mock.call_args_list]
+        self.assertIn("Nombre de colis forcé: 1 au lieu de 2.", warning_messages)
+        success_mock.assert_called_once_with(request, "1 carton(s) préparé(s).")
 
     def test_handle_pack_post_validates_shipment_carton_and_line_fields(self):
         request = self._request(

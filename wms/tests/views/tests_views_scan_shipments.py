@@ -1262,6 +1262,8 @@ class ScanShipmentsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-pack-add-line-btn")
+        self.assertContains(response, 'id="id_forced_carton_count"')
+        self.assertContains(response, "Nombre de colis")
         self.assertContains(response, 'value="prepare_without_conditioning"')
         self.assertContains(response, 'value="prepare_available"')
         self.assertContains(response, "btn btn-outline-secondary")
@@ -1893,6 +1895,7 @@ class ScanShipmentsViewsTests(TestCase):
                                 {"length_cm": 40},
                                 2,
                                 [{"line": 1}, {"line": 2}],
+                                None,
                             ),
                         ):
                             with mock.patch(
@@ -1912,6 +1915,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["line_values"], [{"line": 1}, {"line": 2}])
         self.assertEqual(response.context_data["missing_defaults"], [])
         self.assertTrue(response.context_data["confirm_defaults"])
+        self.assertIsNone(response.context_data["forced_carton_count"])
         packing_result_mock.assert_called_once_with([10, 20])
 
     def test_scan_pack_post_returns_handler_response_when_available(self):
@@ -1954,6 +1958,7 @@ class ScanShipmentsViewsTests(TestCase):
             "line_errors": {"1": "invalid"},
             "missing_defaults": ["SKU-001"],
             "confirm_defaults": True,
+            "forced_carton_count": 3,
         }
         with mock.patch(
             "wms.views_scan_shipments.ScanPackForm",
@@ -1987,6 +1992,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["line_errors"], {"1": "invalid"})
         self.assertEqual(response.context_data["missing_defaults"], ["SKU-001"])
         self.assertTrue(response.context_data["confirm_defaults"])
+        self.assertEqual(response.context_data["forced_carton_count"], 3)
 
     def test_scan_shipment_create_get_builds_initial_line_values(self):
         fake_form = SimpleNamespace(initial={"carton_count": 2})

@@ -760,12 +760,12 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["next"], "")
 
-    def test_portal_logout_redirects_to_login(self):
+    def test_portal_logout_redirects_to_domain_root(self):
         user = self._create_portal_user("portal-auth-e", "e@example.com")
         self.client.force_login(user)
         response = self.client.get(self.logout_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, self.login_url)
+        self.assertEqual(response.url, "/")
 
     def test_portal_set_password_rejects_invalid_token(self):
         user = self._create_portal_user("portal-auth-f", "f@example.com")

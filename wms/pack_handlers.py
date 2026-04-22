@@ -35,6 +35,11 @@ from .scan_helpers import (
     resolve_shipment,
     resolve_standard_carton_format_for_family,
 )
+from .scan_pack_helpers import (
+    build_forced_carton_warnings,
+    build_forced_packing_bins,
+    parse_forced_carton_count,
+)
 from .scan_permissions import user_is_preparateur
 from .services import StockError, pack_carton, receive_stock, unpack_carton
 from .shipment_status import sync_shipment_ready_state
@@ -128,6 +133,16 @@ def _carton_size_from_format(format_obj):
         "height_cm": format_obj.height_cm,
         "max_weight_g": format_obj.max_weight_g,
     }
+
+
+def _resolve_carton_format_label(*, carton_format_id, default_format):
+    if carton_format_id == "custom":
+        return "Personnalisé"
+    if carton_format_id:
+        format_obj = CartonFormat.objects.filter(pk=carton_format_id).only("name").first()
+        if format_obj is not None:
+            return format_obj.name
+    return default_format.name if default_format is not None else "Standard"
 
 
 def notify_preparateur_product_review_needed(
@@ -270,6 +285,7 @@ def _build_state(
     line_errors,
     missing_defaults,
     confirm_defaults,
+    forced_carton_count=None,
 ):
     return {
         "carton_format_id": carton_format_id,
@@ -279,6 +295,7 @@ def _build_state(
         "line_errors": line_errors,
         "missing_defaults": missing_defaults,
         "confirm_defaults": confirm_defaults,
+        "forced_carton_count": forced_carton_count,
     }
 
 
@@ -392,6 +409,7 @@ def _handle_preparateur_pack(
     line_items,
     missing_defaults,
     confirm_defaults,
+    forced_carton_count,
 ):
     active_volunteer = _get_active_preparateur_volunteer(request)
     if active_volunteer is None:
@@ -406,6 +424,7 @@ def _handle_preparateur_pack(
                 line_errors=line_errors,
                 missing_defaults=missing_defaults,
                 confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
             ),
         )
     grouped_line_items = defaultdict(list)
@@ -437,6 +456,7 @@ def _handle_preparateur_pack(
                 line_errors=line_errors,
                 missing_defaults=missing_defaults,
                 confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
             ),
         )
 
@@ -454,17 +474,27 @@ def _handle_preparateur_pack(
                 line_errors=line_errors,
                 missing_defaults=missing_defaults,
                 confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
             ),
         )
 
     pack_errors = []
     pack_warnings = []
     packing_plan = []
+    non_empty_families = [
+        family for family in PREPARATEUR_ALLOWED_FAMILIES if grouped_line_items.get(family)
+    ]
+    force_applies = forced_carton_count and len(non_empty_families) == 1
+    if forced_carton_count and len(non_empty_families) > 1:
+        pack_warnings.append(
+            _("Nombre de colis forcé non appliqué : plusieurs familles MM/CN ont été détectées.")
+        )
     for family in PREPARATEUR_ALLOWED_FAMILIES:
         family_items = grouped_line_items.get(family, [])
         if not family_items:
             continue
         family_format = resolve_standard_carton_format_for_family(family)
+        family_format_label = family_format.name if family_format is not None else "Standard"
         family_carton_size = _carton_size_from_format(family_format) or carton_size
         bins, family_errors, family_warnings = build_packing_bins(
             family_items,
@@ -473,6 +503,22 @@ def _handle_preparateur_pack(
         )
         pack_errors.extend(family_errors)
         pack_warnings.extend(family_warnings)
+        if force_applies:
+            forced_bins = build_forced_packing_bins(family_items, forced_carton_count)
+            if forced_bins:
+                if len(forced_bins) != len(bins or []):
+                    pack_warnings.append(
+                        _("Nombre de colis forcé: %(forced)s au lieu de %(auto)s.")
+                        % {"forced": len(forced_bins), "auto": len(bins or [])}
+                    )
+                bins = forced_bins
+                pack_warnings.extend(
+                    build_forced_carton_warnings(
+                        bins=bins,
+                        carton_size=family_carton_size,
+                        carton_format_label=family_format_label,
+                    )
+                )
         if bins:
             for bin_data in bins:
                 packing_plan.append(
@@ -498,6 +544,7 @@ def _handle_preparateur_pack(
                 line_errors=line_errors,
                 missing_defaults=missing_defaults,
                 confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
             ),
         )
 
@@ -552,6 +599,7 @@ def _handle_preparateur_pack(
                 line_errors=line_errors,
                 missing_defaults=missing_defaults,
                 confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
             ),
         )
     except StockError as exc:
@@ -566,6 +614,7 @@ def _handle_preparateur_pack(
                 line_errors=line_errors,
                 missing_defaults=missing_defaults,
                 confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
             ),
         )
 
@@ -723,10 +772,10 @@ def build_pack_defaults(default_format, *, carton=None):
         }
         line_count = 1
         line_values = build_pack_line_values(line_count)
-        return carton_format_id, carton_custom, line_count, line_values
+        return carton_format_id, carton_custom, line_count, line_values, None
     carton_format_id, carton_custom = _build_carton_custom(default_format, carton)
     line_count, line_values = _build_carton_edit_line_values(carton)
-    return carton_format_id, carton_custom, line_count, line_values
+    return carton_format_id, carton_custom, line_count, line_values, None
 
 
 def handle_pack_post(request, *, form, default_format, editing_carton=None):
@@ -752,10 +801,21 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
     line_items = []
     missing_defaults = []
     confirm_defaults = bool(request.POST.get("confirm_defaults"))
+    forced_carton_error = None
+    try:
+        forced_carton_count = (
+            None
+            if editing_carton is not None
+            else parse_forced_carton_count(request.POST.get("forced_carton_count"))
+        )
+    except ValueError as exc:
+        forced_carton_count = None
+        forced_carton_error = str(exc)
+        form.add_error(None, forced_carton_error)
     shipment = None
     pack_action = _resolve_pack_action(request)
 
-    if form.is_valid():
+    if form.is_valid() and forced_carton_error is None:
         shipment = (
             editing_carton.shipment
             if editing_carton is not None and editing_carton.shipment_id
@@ -848,6 +908,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                             "line_errors": line_errors,
                             "missing_defaults": missing_defaults,
                             "confirm_defaults": confirm_defaults,
+                            "forced_carton_count": forced_carton_count,
                         },
                     )
                 if user_is_preparateur(request.user):
@@ -882,6 +943,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                         line_items=line_items,
                         missing_defaults=missing_defaults,
                         confirm_defaults=confirm_defaults,
+                        forced_carton_count=forced_carton_count,
                     )
                 if editing_carton is not None:
                     return _handle_carton_edit_pack(
@@ -915,6 +977,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                             line_errors=line_errors,
                             missing_defaults=missing_defaults,
                             confirm_defaults=confirm_defaults,
+                            forced_carton_count=forced_carton_count,
                         ),
                     )
                 bins, pack_errors, pack_warnings = build_packing_bins(
@@ -924,6 +987,25 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                     for error in pack_errors:
                         form.add_error(None, error)
                 else:
+                    if forced_carton_count:
+                        forced_bins = build_forced_packing_bins(line_items, forced_carton_count)
+                        if forced_bins:
+                            if len(forced_bins) != len(bins or []):
+                                pack_warnings.append(
+                                    _("Nombre de colis forcé: %(forced)s au lieu de %(auto)s.")
+                                    % {"forced": len(forced_bins), "auto": len(bins or [])}
+                                )
+                            bins = forced_bins
+                            pack_warnings.extend(
+                                build_forced_carton_warnings(
+                                    bins=bins,
+                                    carton_size=carton_size,
+                                    carton_format_label=_resolve_carton_format_label(
+                                        carton_format_id=carton_format_id,
+                                        default_format=default_format,
+                                    ),
+                                )
+                            )
                     current_location = form.cleaned_data["current_location"]
                     ready_location_warning = ""
                     skip_picking_status = False
@@ -944,6 +1026,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                                     line_errors=line_errors,
                                     missing_defaults=missing_defaults,
                                     confirm_defaults=confirm_defaults,
+                                    forced_carton_count=forced_carton_count,
                                 ),
                             )
                         skip_picking_status = True
@@ -999,6 +1082,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                                 "line_errors": line_errors,
                                 "missing_defaults": missing_defaults,
                                 "confirm_defaults": confirm_defaults,
+                                "forced_carton_count": forced_carton_count,
                             },
                         )
                     except StockError as exc:
@@ -1014,5 +1098,6 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
             line_errors=line_errors,
             missing_defaults=missing_defaults,
             confirm_defaults=confirm_defaults,
+            forced_carton_count=forced_carton_count,
         ),
     )

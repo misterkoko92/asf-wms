@@ -177,6 +177,10 @@
   font-weight: 700;
 }
 
+.scan-pack-forced-count-row {
+  max-width: 320px;
+}
+
 .pack-list {
   margin-bottom: 16px;
 }

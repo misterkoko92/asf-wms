@@ -216,12 +216,15 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn(reverse("scan:scan_preparateur_order_select"), nav_html)
         self.assertIn(reverse("scan:scan_preparateur_pack_start"), nav_html)
         self.assertIn(reverse("scan:scan_cartons_ready"), nav_html)
+        self.assertIn(reverse("scan:scan_change_account"), nav_html)
+        self.assertIn(reverse("scan:scan_logout"), nav_html)
         self.assertIn("Choisir une commande", nav_html)
         self.assertIn("Préparer des colis", nav_html)
         self.assertIn("Voir les colis", nav_html)
         self.assertNotIn("Voir dernier colis", nav_html)
         self.assertIn("Changer de compte", nav_html)
         self.assertIn("Déconnexion", nav_html)
+        self.assertNotIn("/admin/logout/?next=/", nav_html)
         self.assertNotIn("Runs magasin", nav_html)
         self._assert_nav_labels_in_order(
             nav_html,
@@ -1183,14 +1186,17 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker {", css_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker-day.is-selected", css_content)
 
-    def test_scan_pack_line_layout_gives_product_room_and_places_scan_under_quantity(self):
+    def test_scan_pack_line_layout_splits_search_and_select_and_places_scan_on_first_row(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
         css_content = css_path.read_text(encoding="utf-8")
         scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
         scan_js_content = scan_js_path.read_text(encoding="utf-8")
 
         self.assertIn(
-            "productField.className = 'pack-line-field pack-line-product-field';", scan_js_content
+            "searchField.className = 'pack-line-field pack-line-search-field';", scan_js_content
+        )
+        self.assertIn(
+            "selectField.className = 'pack-line-field pack-line-select-field';", scan_js_content
         )
         self.assertIn(
             "quantityField.className = 'pack-line-field pack-line-quantity-field';", scan_js_content
@@ -1198,19 +1204,27 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn(
             "scanField.className = 'pack-line-field pack-line-scan-field';", scan_js_content
         )
-        self.assertIn("scanBtn.textContent = 'Scan';", scan_js_content)
+        self.assertIn("scanBtn.textContent = 'Scanner un code barre / QR Code';", scan_js_content)
         self.assertIn(".scan-bootstrap-enabled .pack-line-grid {", css_content)
         self.assertIn("  grid-template-columns: repeat(12, minmax(0, 1fr));", css_content)
         self.assertIn(
-            ".scan-bootstrap-enabled .pack-line-product-field {\n  grid-column: 1 / span 9;",
+            ".scan-bootstrap-enabled .pack-line-search-field {\n  grid-column: 1 / span 9;",
             css_content,
         )
         self.assertIn(
-            ".scan-bootstrap-enabled .pack-line-quantity-field {\n  grid-column: 10 / -1;",
+            ".scan-bootstrap-enabled .pack-line-select-field {\n  grid-column: 1 / span 7;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-quantity-field {\n  grid-column: 8 / span 2;",
             css_content,
         )
         self.assertIn(
             ".scan-bootstrap-enabled .pack-line-scan-field {\n  grid-column: 10 / -1;", css_content
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-expires-field {\n  grid-column: 10 / -1;",
+            css_content,
         )
 
     def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):

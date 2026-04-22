@@ -368,7 +368,7 @@ def portal_forgot_password(request):
 @login_required(login_url="portal:portal_login")
 def portal_logout(request):
     logout(request)
-    return redirect("portal:portal_login")
+    return redirect("/")
 
 
 @login_required(login_url="portal:portal_login")

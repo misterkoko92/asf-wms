@@ -142,6 +142,10 @@ Use it when you need to answer:
   preserves `Carton.prepared_by`, and appends `prepared` / `edited` activity rows for later audit
 - preparateur pack success modal with a top-right close button plus footer print action:
   `Imprimer` for one carton and `Imprimer tout` when several packing lists are shown
+- `/scan/pack/` keeps the product card on a stable three-row layout (search + scan, then
+  selector/quantity/expiration, then optional forced carton count) and lets operators override the
+  automatic carton count on free-pack flows with the same warning model as preparateur order
+  preparation
 - `/scan/cartons/` keeps checkbox-based bulk actions, now confirms any status jump that skips
   intermediate visible carton steps, requires an editable shipment selection when operators jump
   directly to `Étiqueté`, exposes a `Tout sélectionner` control, and shows a multiline `Produits`
