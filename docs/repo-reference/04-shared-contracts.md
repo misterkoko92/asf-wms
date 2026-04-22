@@ -51,6 +51,7 @@ Stable primitives currently documented:
 - `ui_status_badge`
 - `ui_switch`
 - `ui-number-input`
+- `ui-date-input`
 - `ui-comp-card`
 - `ui-comp-panel`
 - `ui-comp-actions`
@@ -142,15 +143,22 @@ Primary runtime sources:
 
 Current contract:
 
-- preparateur-only scan users now use a dedicated two-row masthead in `templates/scan/base.html`:
-  - row 1 keeps `Bonjour <volunteer-or-username>` on the left and only the shared history navigation on the right
-  - row 2 keeps the `Menu` toggle on the left and the `Messagerie Médicale` brand block on the right
+- preparateur-only scan users now use a responsive masthead in `templates/scan/base.html`:
+  - mobile/tablet keeps the dedicated two-row preparateur layout
+  - desktop keeps the standard scan masthead geometry
+  - the shell renders a single greeting, preferring `Bonjour <active volunteer first name>` once a
+    bénévole is selected and falling back to the shared account username before selection
+  - history navigation remains available in the masthead
 - preparateur-only scan users keep a reduced sidebar with direct links to:
   - `Préparer des colis`
   - `Choisir une commande`
-  - `Voir dernier colis`
+  - `Voir les colis`
   - `Changer de compte`
   - `Déconnexion`
+- `Voir les colis` opens `/scan/cartons/` for all non-shipped cartons, without filtering by
+  preparateur or active volunteer
+- preparateur-only scan users may print non-shipped carton packing lists and picking sheets for any
+  carton, while shipped cartons remain blocked on preparateur print routes
 - `/scan/` redirects preparateurs to `/scan/preparateur/`
 - `/scan/preparateur/` is the preparateur landing page:
   - it lists active volunteers sorted by `last_name`, then `first_name`, then `id`
@@ -169,7 +177,8 @@ Current contract:
   - `Non réalisables pour le moment`
 - inside each feasibility bucket, preparateur orders stay sorted by `created_at desc`, then `id desc`
 - `/scan/preparateur/pack/` is the explicit exit route from command mode toward free-pack mode; it clears the selected order and generated plan before redirecting to `/scan/pack/`
-- `/scan/preparateur/last-carton/` redirects to the latest carton prepared by the current preparateur via `scan_carton_edit`
+- `/scan/preparateur/last-carton/` remains a compatibility route, but the sidebar entry now points
+  to `/scan/cartons/` as `Voir les colis`
 - the legacy scan sidebar remains group-based for non-preparateur staff: `Stocks`, `Réception`,
   `Préparation`, `Expéditions`, `Contacts`, `Gestion`
 - the shared `Contacts` group currently exposes, in order:
@@ -246,6 +255,8 @@ Current contract:
 - each planned carton becomes a real carton only when the preparateur clicks `Marquer prêt`; that action creates or reuses the order shipment, packs the planned products, and updates the order preparation progress
 - the preparateur menu entry `Préparer des colis` must leave command mode through `/scan/preparateur/pack/`, not keep the selected order on `/scan/pack/`
 - `/scan/pack/` shows a selected-order summary for preparateurs only when a selected order is still active and preserves the linked shipment reference through the hidden shipment field when one exists
+- the pack line layout must keep the product selector readable: product spans the row until the
+  quantity column, while the scan action is a separate control under `Quantité`
 - when a preparateur scans or selects an unknown product on the pack page, the UI opens a modal instead of only returning a line error
 - the minimal creation payload is:
   - product name
@@ -459,6 +470,7 @@ Current contract:
 - the shared control renders compact decrement/increment buttons on the left side of the field
 - the shared control geometry is driven by shared CSS variables for button size, spacing, inset, and reserved value offset
 - the core runtime synchronizes the input left padding from the rendered control width and shared spacing tokens so values never overlap the buttons even when stylesheet cascade differs by browser
+- the runtime also keeps a CSS variable fallback and resynchronizes on resize/load so dynamically rendered or initially hidden number fields do not place values behind the controls
 - tight contexts can opt into the compact shared sizing variant with `ui-number-input-compact`; the core runtime promotes that marker to the wrapper contract
 - the runtime enhancement respects native `min`, `max`, `step`, `disabled`, and `readonly` semantics
 - the enhancement dispatches native-feeling `input` and `change` events after button clicks so existing page logic keeps reacting to quantity changes
@@ -477,6 +489,38 @@ Reference tests:
 - `wms/tests/views/tests_views_planning.py`
 - `wms/tests/views/tests_views_volunteer.py`
 - `wms/tests/core/tests_ui.py`
+
+### Shared Date Input Contract
+
+Primary runtime sources:
+
+- `wms/static/scan/modules/core.js`
+- `wms/static/scan/scan-bootstrap.css`
+- `templates/scan/base.html`
+- `templates/portal/base.html`
+- `templates/planning/base.html`
+- `templates/benevole/base.html`
+- standalone benevole auth templates that do not extend `benevole/base.html`
+
+Current contract:
+
+- eligible legacy `input[type="date"]` controls can be progressively enhanced into the shared `ui-date-input` wrapper
+- the enhanced field keeps the native date input for keyboard/browser support and adds a shared `Calendrier` action
+- when the browser exposes a usable native picker, the action calls `showPicker()`; otherwise it opens the shared calendar implemented in `core.js`
+- dynamically rendered date fields must dispatch `wms:enhance-date-inputs` with their root element, matching the number-input enhancement contract
+- page-local exceptions can opt out with `data-ui-date-input-optout="1"` or `ui-date-input-optout`
+
+Maintenance rule:
+
+- if the shared date-input behavior changes, keep the shared JS, shared CSS, base template script includes, and bootstrap regression tests aligned in the same work
+- do not add page-local calendar widgets for scan/portal/planning/benevole flows while the shared `ui-date-input` contract covers the same need
+
+Reference tests:
+
+- `wms/tests/views/tests_scan_bootstrap_ui.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_planning.py`
+- `wms/tests/views/tests_views_volunteer.py`
 
 ### Receipt Conformity Contract
 

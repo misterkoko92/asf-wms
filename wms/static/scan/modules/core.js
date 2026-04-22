@@ -1,5 +1,7 @@
 (() => {
   let numberInputCounter = 0;
+  let dateInputCounter = 0;
+  let activeDatePicker = null;
 
   function countDecimals(rawValue) {
     if (rawValue === null || rawValue === undefined) {
@@ -96,6 +98,7 @@
     const reservedPadding = Math.max(basePadding, basePadding + controlsWidth + valueGap);
     const reservedPaddingPx = `${reservedPadding}px`;
 
+    wrapper.style.setProperty("--ui-number-input-reserved-padding", reservedPaddingPx);
     input.style.paddingLeft = reservedPaddingPx;
     input.style.paddingInlineStart = reservedPaddingPx;
   }
@@ -214,6 +217,13 @@
     if (typeof window.requestAnimationFrame === "function") {
       window.requestAnimationFrame(() => syncNumberInputLayout(input, wrapper, controls));
     }
+    if ("ResizeObserver" in window) {
+      const resizeObserver = new ResizeObserver(() => syncNumberInputLayout(input, wrapper, controls));
+      resizeObserver.observe(wrapper);
+      resizeObserver.observe(controls);
+    }
+    window.addEventListener("resize", () => syncNumberInputLayout(input, wrapper, controls));
+    window.addEventListener("load", () => syncNumberInputLayout(input, wrapper, controls));
 
     controls.addEventListener("click", event => {
       const button = event.target.closest(".ui-number-input-btn");
@@ -242,6 +252,284 @@
         ? event.detail.root
         : document;
     setupNumberInputs(root);
+  });
+
+  function getOrAssignDateInputId(input) {
+    if (!input.id) {
+      dateInputCounter += 1;
+      input.id = `ui-date-input-${dateInputCounter}`;
+    }
+    return input.id;
+  }
+
+  function parseDateValue(value) {
+    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+      return null;
+    }
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    const date = new Date(year, month, day);
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month ||
+      date.getDate() !== day
+    ) {
+      return null;
+    }
+    return date;
+  }
+
+  function formatDateValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function getMonthStart(date) {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  }
+
+  function addMonths(date, delta) {
+    return new Date(date.getFullYear(), date.getMonth() + delta, 1);
+  }
+
+  function dispatchDateValue(input) {
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function closeDatePicker() {
+    if (!activeDatePicker) {
+      return;
+    }
+    document.removeEventListener("click", activeDatePicker.handleDocumentClick, true);
+    document.removeEventListener("keydown", activeDatePicker.handleKeydown);
+    window.removeEventListener("resize", activeDatePicker.reposition);
+    window.removeEventListener("scroll", activeDatePicker.reposition, true);
+    activeDatePicker.picker.remove();
+    activeDatePicker = null;
+  }
+
+  function positionDatePicker(picker, wrapper) {
+    const rect = wrapper.getBoundingClientRect();
+    const viewportGap = 8;
+    const pickerWidth = Math.min(320, window.innerWidth - viewportGap * 2);
+    const left = Math.min(
+      Math.max(viewportGap, rect.left),
+      Math.max(viewportGap, window.innerWidth - pickerWidth - viewportGap)
+    );
+    picker.style.width = `${pickerWidth}px`;
+    picker.style.left = `${left + window.scrollX}px`;
+    picker.style.top = `${rect.bottom + viewportGap + window.scrollY}px`;
+  }
+
+  function buildDatePickerDayButton(dayDate, selectedValue, currentMonth) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ui-date-picker-day";
+    const value = formatDateValue(dayDate);
+    button.textContent = String(dayDate.getDate());
+    button.dataset.uiDateInputAction = "select-day";
+    button.dataset.uiDateInputValue = value;
+    button.classList.toggle("is-outside-month", dayDate.getMonth() !== currentMonth);
+    button.classList.toggle("is-selected", value === selectedValue);
+    return button;
+  }
+
+  function openDatePicker(input, wrapper) {
+    closeDatePicker();
+    const selectedDate = parseDateValue(input.value);
+    let currentMonthDate = getMonthStart(selectedDate || new Date());
+    const picker = document.createElement("div");
+    picker.className = "ui-date-picker";
+    picker.setAttribute("role", "dialog");
+    picker.setAttribute("aria-label", "Choisir une date");
+
+    const monthFormatter = new Intl.DateTimeFormat("fr-FR", {
+      month: "long",
+      year: "numeric",
+    });
+
+    const render = () => {
+      const selectedValue = input.value || "";
+      picker.innerHTML = "";
+
+      const header = document.createElement("div");
+      header.className = "ui-date-picker-header";
+
+      const previous = document.createElement("button");
+      previous.type = "button";
+      previous.className = "ui-date-picker-nav";
+      previous.textContent = "<";
+      previous.dataset.uiDateInputAction = "previous-month";
+      previous.setAttribute("aria-label", "Mois precedent");
+
+      const title = document.createElement("div");
+      title.className = "ui-date-picker-title";
+      title.textContent = monthFormatter.format(currentMonthDate);
+
+      const next = document.createElement("button");
+      next.type = "button";
+      next.className = "ui-date-picker-nav";
+      next.textContent = ">";
+      next.dataset.uiDateInputAction = "next-month";
+      next.setAttribute("aria-label", "Mois suivant");
+
+      header.appendChild(previous);
+      header.appendChild(title);
+      header.appendChild(next);
+      picker.appendChild(header);
+
+      const weekdays = document.createElement("div");
+      weekdays.className = "ui-date-picker-weekdays";
+      ["L", "M", "M", "J", "V", "S", "D"].forEach(label => {
+        const day = document.createElement("span");
+        day.textContent = label;
+        weekdays.appendChild(day);
+      });
+      picker.appendChild(weekdays);
+
+      const grid = document.createElement("div");
+      grid.className = "ui-date-picker-grid";
+      const firstDay = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), 1);
+      const mondayOffset = (firstDay.getDay() + 6) % 7;
+      const gridStart = new Date(firstDay);
+      gridStart.setDate(firstDay.getDate() - mondayOffset);
+      for (let index = 0; index < 42; index += 1) {
+        const dayDate = new Date(gridStart);
+        dayDate.setDate(gridStart.getDate() + index);
+        grid.appendChild(
+          buildDatePickerDayButton(dayDate, selectedValue, currentMonthDate.getMonth())
+        );
+      }
+      picker.appendChild(grid);
+    };
+
+    picker.addEventListener("click", event => {
+      const target = event.target.closest("[data-ui-date-input-action]");
+      if (!target) {
+        return;
+      }
+      const action = target.dataset.uiDateInputAction;
+      if (action === "previous-month") {
+        currentMonthDate = addMonths(currentMonthDate, -1);
+        render();
+        return;
+      }
+      if (action === "next-month") {
+        currentMonthDate = addMonths(currentMonthDate, 1);
+        render();
+        return;
+      }
+      if (action === "select-day") {
+        input.value = target.dataset.uiDateInputValue || "";
+        dispatchDateValue(input);
+        closeDatePicker();
+        input.focus();
+      }
+    });
+
+    document.body.appendChild(picker);
+    render();
+
+    const reposition = () => positionDatePicker(picker, wrapper);
+    reposition();
+    const handleDocumentClick = event => {
+      if (picker.contains(event.target) || wrapper.contains(event.target)) {
+        return;
+      }
+      closeDatePicker();
+    };
+    const handleKeydown = event => {
+      if (event.key === "Escape") {
+        closeDatePicker();
+      }
+    };
+    activeDatePicker = {
+      picker,
+      input,
+      wrapper,
+      reposition,
+      handleDocumentClick,
+      handleKeydown,
+    };
+    document.addEventListener("click", handleDocumentClick, true);
+    document.addEventListener("keydown", handleKeydown);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+  }
+
+  function enhanceDateInput(input) {
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    if (input.type !== "date") {
+      return;
+    }
+    if (input.dataset.uiDateInputOptout === "1" || input.classList.contains("ui-date-input-optout")) {
+      return;
+    }
+    if (input.classList.contains("is-ui-date-input-enhanced")) {
+      return;
+    }
+    if (input.closest(".ui-date-input")) {
+      return;
+    }
+    if (!input.parentNode) {
+      return;
+    }
+
+    const inputId = getOrAssignDateInputId(input);
+    const wrapper = document.createElement("div");
+    wrapper.className = "ui-date-input";
+    if (input.classList.contains("form-control") || input.classList.contains("w-100")) {
+      wrapper.classList.add("is-fluid");
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ui-date-input-btn";
+    button.textContent = "Calendrier";
+    button.setAttribute("aria-label", "Ouvrir le calendrier");
+    button.setAttribute("data-ui-date-input-action", "open");
+    button.setAttribute("data-ui-date-input-target", inputId);
+
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+    wrapper.appendChild(button);
+    input.classList.add("ui-date-input-input", "is-ui-date-input-enhanced");
+
+    button.addEventListener("click", () => {
+      if (input.disabled || input.readOnly) {
+        return;
+      }
+      if (typeof input.showPicker === "function") {
+        try {
+          input.showPicker();
+          return;
+        } catch (err) {
+          // Fall through to the shared calendar when native picker access fails.
+        }
+      }
+      openDatePicker(input, wrapper);
+    });
+  }
+
+  function setupDateInputs(root = document) {
+    root.querySelectorAll('input[type="date"]').forEach(enhanceDateInput);
+  }
+
+  document.addEventListener("wms:enhance-date-inputs", event => {
+    const root =
+      event &&
+      event.detail &&
+      event.detail.root instanceof Element
+        ? event.detail.root
+        : document;
+    setupDateInputs(root);
   });
 
   function setupLiveSync() {
@@ -344,5 +632,6 @@
   }
 
   setupNumberInputs();
+  setupDateInputs();
   setupLiveSync();
 })();

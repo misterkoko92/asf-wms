@@ -1,6 +1,7 @@
 from io import BytesIO
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -16,7 +17,7 @@ from .local_document_helper import (
     get_local_helper_document_index,
     is_local_helper_job_request,
 )
-from .models import Carton, Shipment
+from .models import Carton, CartonStatus, Shipment
 from .prepare_kits_helpers import _parse_carton_ids
 from .print_context import (
     build_carton_contact_label_context,
@@ -41,6 +42,7 @@ from .print_pack_routing import (
 )
 from .print_pack_xlsx import build_xlsx_fallback_response
 from .print_renderer import get_template_layout, render_layout_from_layout
+from .scan_permissions import user_is_preparateur
 from .shipment_document_handlers import (
     handle_shipment_document_delete,
     handle_shipment_document_upload,
@@ -58,6 +60,13 @@ TEMPLATE_SHIPMENT_BUNDLE_A4 = "print/shipment_bundle_a4.html"
 TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP = "print/shipment_bundle_a5_two_up.html"
 TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP = "print/shipment_carton_lists_a4_four_up.html"
 TEMPLATE_SHIPMENT_CARTON_DOCUMENTS_A4 = "print/shipment_carton_documents_a4.html"
+
+
+def _require_preparateur_non_shipped_carton(request, carton):
+    if user_is_preparateur(request.user) and carton.status == CartonStatus.SHIPPED:
+        raise PermissionDenied
+
+
 TEMPLATE_CARTON_PACKING_LISTS_CONTINUOUS = "print/carton_packing_lists_bundle.html"
 
 SHIPMENT_VIEW_DOCUMENT_CONFIG = {
@@ -692,6 +701,7 @@ def scan_shipment_document_public(request, shipment_ref, doc_type):
 def scan_shipment_carton_document(request, shipment_id, carton_id):
     shipment = _get_shipment_by_id(shipment_id)
     carton = _get_shipment_carton_or_404(shipment, carton_id)
+    _require_preparateur_non_shipped_carton(request, carton)
     pack_route = resolve_carton_packing_pack()
     render_documents = lambda: _render_pack_xlsx_documents(
         pack_code=pack_route.pack_code,
@@ -766,6 +776,7 @@ def scan_carton_document(request, carton_id):
         Carton.objects.select_related("shipment"),
         pk=carton_id,
     )
+    _require_preparateur_non_shipped_carton(request, carton)
     pack_route = resolve_carton_packing_pack()
     if carton.shipment_id:
         fallback_renderer = lambda: render_carton_document(
@@ -828,6 +839,7 @@ def scan_carton_picking(request, carton_id):
         ),
         pk=carton_id,
     )
+    _require_preparateur_non_shipped_carton(request, carton)
     pack_route = resolve_carton_picking_pack()
     render_documents = lambda: _render_pack_xlsx_documents(
         pack_code=pack_route.pack_code,
@@ -866,6 +878,14 @@ def scan_carton_picking(request, carton_id):
 @require_http_methods(["GET"])
 def scan_cartons_picking(request):
     carton_ids = _parse_carton_ids(request.GET.get("carton_ids"))
+    if (
+        user_is_preparateur(request.user)
+        and Carton.objects.filter(
+            pk__in=carton_ids,
+            status=CartonStatus.SHIPPED,
+        ).exists()
+    ):
+        raise PermissionDenied
     context = _build_cartons_picking_context(carton_ids)
     if context is None:
         raise Http404(_("Aucun picking disponible."))
@@ -886,6 +906,10 @@ def scan_cartons_view_bundle(request, bundle_key):
     cartons = _selected_cartons(carton_ids)
     if not cartons:
         raise Http404(_("Aucun carton sélectionné."))
+    if user_is_preparateur(request.user) and any(
+        carton.status == CartonStatus.SHIPPED for carton in cartons
+    ):
+        raise PermissionDenied
     normalized_bundle_key = (bundle_key or "").strip()
     if normalized_bundle_key != "packing_lists":
         raise Http404(_("Lot de documents introuvable."))

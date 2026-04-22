@@ -1428,13 +1428,11 @@
       grid.className = 'pack-line-grid';
 
       const productField = document.createElement('div');
-      productField.className = 'pack-line-field';
+      productField.className = 'pack-line-field pack-line-product-field';
       const productLabel = document.createElement('label');
       productLabel.textContent = 'Produit';
       productField.appendChild(productLabel);
 
-      const productInline = document.createElement('div');
-      productInline.className = 'scan-inline';
       const productInput = document.createElement('select');
       productInput.id = `id_pack_line_${index}_product_code`;
       productInput.name = `line_${index}_product_code`;
@@ -1517,23 +1515,11 @@
       }
       }
 
-      const scanBtn = document.createElement('button');
-      scanBtn.type = 'button';
-      scanBtn.className = 'scan-scan-btn';
-      scanBtn.dataset.scanTarget = productInput.id;
-      scanBtn.textContent = 'Scanner un code barre ou QR Code';
-
-      const actionWrap = document.createElement('div');
-      actionWrap.className = 'scan-inline-actions';
-      actionWrap.appendChild(scanBtn);
-
-      productInline.appendChild(productStack);
-      productInline.appendChild(actionWrap);
-      productField.appendChild(productInline);
+      productField.appendChild(productStack);
       grid.appendChild(productField);
 
       const quantityField = document.createElement('div');
-      quantityField.className = 'pack-line-field';
+      quantityField.className = 'pack-line-field pack-line-quantity-field';
       const quantityLabel = document.createElement('label');
       quantityLabel.textContent = 'Quantite';
       const quantityInput = document.createElement('input');
@@ -1547,8 +1533,18 @@
       quantityField.appendChild(quantityInput);
       grid.appendChild(quantityField);
 
+      const scanField = document.createElement('div');
+      scanField.className = 'pack-line-field pack-line-scan-field';
+      const scanBtn = document.createElement('button');
+      scanBtn.type = 'button';
+      scanBtn.className = 'scan-scan-btn btn btn-tertiary';
+      scanBtn.dataset.scanTarget = productInput.id;
+      scanBtn.textContent = 'Scan';
+      scanField.appendChild(scanBtn);
+      grid.appendChild(scanField);
+
       const expiresOnField = document.createElement('div');
-      expiresOnField.className = 'pack-line-field';
+      expiresOnField.className = 'pack-line-field pack-line-expires-field';
       const expiresOnLabel = document.createElement('label');
       expiresOnLabel.textContent = 'Date de peremption';
       const expiresOnInput = document.createElement('input');
@@ -1565,7 +1561,7 @@
       let familyStatus = null;
       if (preparateurMode) {
         familyField = document.createElement('div');
-        familyField.className = 'pack-line-field';
+        familyField.className = 'pack-line-field pack-line-family-field';
         const familyLabel = document.createElement('label');
         familyLabel.textContent = 'Type MM/CN';
         familySelect = document.createElement('select');
@@ -1692,6 +1688,12 @@
       }
       container.dispatchEvent(
         new CustomEvent('wms:enhance-number-inputs', {
+          bubbles: true,
+          detail: { root: container }
+        })
+      );
+      container.dispatchEvent(
+        new CustomEvent('wms:enhance-date-inputs', {
           bubbles: true,
           detail: { root: container }
         })

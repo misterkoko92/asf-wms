@@ -132,8 +132,9 @@ Use it when you need to answer:
   they do not overwrite existing stock quantities already present for the matched product
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - preparateur-only login entry under `/scan/preparateur/`, including active bénévole selection,
-  persistent `Bonjour <prenom>` shell greeting, default recommendation of the most critical
-  realizable order, grouped order choices, and the `Voir dernier carton` shortcut
+  persistent single `Bonjour <prenom>` shell greeting, default recommendation of the most critical
+  realizable order, grouped order choices, and the `Voir les colis` shortcut to all non-shipped
+  cartons
 - preparateur carton traceability that stores the selected bénévole on initial carton creation,
   preserves `Carton.prepared_by`, and appends `prepared` / `edited` activity rows for later audit
 - preparateur pack success modal with a top-right close button plus footer print action:

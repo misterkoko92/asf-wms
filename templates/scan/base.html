@@ -25,44 +25,47 @@
   <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
     <header class="scan-header ui-comp-panel{% if request.scan_is_preparateur %} scan-header-preparateur{% endif %}">
       {% if request.scan_is_preparateur %}
-        <div id="scan-preparateur-header-primary" class="scan-preparateur-header-row">
-          <div id="scan-preparateur-greeting" class="scan-preparateur-greeting">Bonjour {{ request.user.username }}</div>
-          <nav id="scan-utility-nav" class="scan-utility-nav scan-utility-nav-preparateur" aria-label="{% trans "Navigation utilitaire scan" %}">
-            {% include "includes/history_nav_buttons.html" with history_nav_prefix="scan" %}
-          </nav>
-        </div>
-        <div id="scan-preparateur-header-secondary" class="scan-preparateur-header-row">
-          <button
-            type="button"
-            id="scan-sidebar-toggle"
-            class="btn btn-tertiary btn-sm scan-sidebar-toggle scan-sidebar-toggle-preparateur"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#scan-sidebar-offcanvas"
-            aria-controls="scan-sidebar-offcanvas"
-            aria-label="{% trans "Afficher la navigation scan" %}"
-          >
-            Menu
-          </button>
-          <a href="{% url 'scan:scan_preparateur_order_select' %}" class="scan-brand-link scan-brand-link-preparateur" aria-label="Aviation Sans Frontières France">
-            <img
-              id="scan-brand-desktop"
-              src="{% static 'scan/logo.jpg' %}"
-              alt=""
-              class="scan-brand-desktop d-none d-md-block"
-            >
-            <img
-              id="scan-brand-mobile"
-              src="{% static 'scan/logo.jpg' %}"
-              alt=""
-              class="scan-brand-mobile d-md-none"
-            >
-            <span class="scan-brand-title">Messagerie Médicale</span>
-          </a>
-          {% if request.scan_is_preparateur and request.scan_active_volunteer_greeting_name %}
-            <div class="scan-help ui-comp-note mb-0">
-              {% blocktrans with name=request.scan_active_volunteer_greeting_name %}Bonjour {{ name }}{% endblocktrans %}
+        <div class="scan-preparateur-mobile-masthead scan-preparateur-desktop-masthead">
+          <div id="scan-preparateur-header-primary" class="scan-preparateur-header-row">
+            <div id="scan-preparateur-greeting" class="scan-preparateur-greeting">
+              {% if request.scan_active_volunteer_greeting_name %}
+                {% blocktrans with name=request.scan_active_volunteer_greeting_name %}Bonjour {{ name }}{% endblocktrans %}
+              {% else %}
+                Bonjour {{ request.user.username }}
+              {% endif %}
             </div>
-          {% endif %}
+            <nav id="scan-utility-nav" class="scan-utility-nav scan-utility-nav-preparateur" aria-label="{% trans "Navigation utilitaire scan" %}">
+              {% include "includes/history_nav_buttons.html" with history_nav_prefix="scan" %}
+            </nav>
+          </div>
+          <div id="scan-preparateur-header-secondary" class="scan-preparateur-header-row">
+            <button
+              type="button"
+              id="scan-sidebar-toggle"
+              class="btn btn-tertiary btn-sm scan-sidebar-toggle scan-sidebar-toggle-preparateur"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#scan-sidebar-offcanvas"
+              aria-controls="scan-sidebar-offcanvas"
+              aria-label="{% trans "Afficher la navigation scan" %}"
+            >
+              Menu
+            </button>
+            <a href="{% url 'scan:scan_preparateur_order_select' %}" class="scan-brand-link scan-brand-link-preparateur" aria-label="Aviation Sans Frontières France">
+              <img
+                id="scan-brand-desktop"
+                src="{% static 'scan/logo.jpg' %}"
+                alt=""
+                class="scan-brand-desktop d-none d-md-block"
+              >
+              <img
+                id="scan-brand-mobile"
+                src="{% static 'scan/logo.jpg' %}"
+                alt=""
+                class="scan-brand-mobile d-md-none"
+              >
+              <span class="scan-brand-title">Messagerie Médicale</span>
+            </a>
+          </div>
         </div>
       {% else %}
         <div class="scan-header-top">

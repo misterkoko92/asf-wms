@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import Http404
@@ -1149,6 +1150,8 @@ def scan_cartons_ready(request):
                 return redirect(
                     f"{reverse('scan:scan_cartons_view_bundle', args=['packing_lists'])}?carton_ids={carton_ids_value}"
                 )
+        if user_is_preparateur(request.user):
+            raise PermissionDenied
 
     response = handle_carton_status_update(request)
     if response:
@@ -1166,6 +1169,8 @@ def scan_cartons_ready(request):
     )
     if shipment_reference_filter:
         cartons_qs = cartons_qs.filter(shipment__reference__iexact=shipment_reference_filter)
+    if user_is_preparateur(request.user):
+        cartons_qs = cartons_qs.exclude(status=CartonStatus.SHIPPED)
     cartons = build_cartons_ready_rows(cartons_qs, carton_capacity_cm3=carton_capacity_cm3)
 
     return render(

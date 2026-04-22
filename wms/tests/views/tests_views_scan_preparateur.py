@@ -335,6 +335,15 @@ class ScanPreparateurSessionHelperTests(TestCase):
 
         self.assertFalse(is_scan_view_allowed_for_user(request))
 
+        request.resolver_match = SimpleNamespace(url_name="scan_cartons_ready")
+        self.assertTrue(is_scan_view_allowed_for_user(request))
+
+        request.resolver_match = SimpleNamespace(url_name="scan_carton_document")
+        self.assertTrue(is_scan_view_allowed_for_user(request))
+
+        request.resolver_match = SimpleNamespace(url_name="scan_dashboard")
+        self.assertFalse(is_scan_view_allowed_for_user(request))
+
 
 class PreparateurHomeQueriesTests(TestCase):
     @classmethod

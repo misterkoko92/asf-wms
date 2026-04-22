@@ -1336,8 +1336,9 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Préparer des colis")
         self.assertContains(response, "Choisir une commande")
         self.assertContains(response, reverse("scan:scan_preparateur_order_select"))
-        self.assertContains(response, "Voir dernier colis")
-        self.assertContains(response, reverse("scan:scan_preparateur_last_carton"))
+        self.assertContains(response, "Voir les colis")
+        self.assertNotContains(response, "Voir dernier colis")
+        self.assertContains(response, reverse("scan:scan_cartons_ready"))
         self.assertContains(response, f"Bonjour {preparateur.username}")
         self.assertNotContains(response, "Runs magasin")
         self.assertNotContains(response, 'id="scan-faq-link"')
@@ -1345,6 +1346,68 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, "Tableau De Bord")
         self.assertNotContains(response, "Vue Stock")
         self.assertNotContains(response, "Admin Django")
+
+    def test_preparateur_can_view_all_non_shipped_cartons_without_prepared_by_filter(self):
+        preparateur = self._create_preparateur_user()
+        other_user = get_user_model().objects.create_user(
+            username="scan-preparateur-other",
+            password="pass1234",
+            is_staff=True,
+        )
+        visible_carton = self._create_carton_with_item(
+            code="C-PREP-VISIBLE-001",
+            status=CartonStatus.PACKED,
+        )
+        visible_carton.prepared_by = other_user
+        visible_carton.save(update_fields=["prepared_by"])
+        shipped_carton = self._create_carton_with_item(
+            code="C-PREP-SHIPPED-001",
+            status=CartonStatus.SHIPPED,
+        )
+        shipped_carton.prepared_by = other_user
+        shipped_carton.save(update_fields=["prepared_by"])
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-PREP-VISIBLE-001")
+        self.assertNotContains(response, "C-PREP-SHIPPED-001")
+        self.assertContains(response, reverse("scan:scan_carton_edit", args=[visible_carton.id]))
+
+    def test_preparateur_can_print_any_non_shipped_carton(self):
+        preparateur = self._create_preparateur_user()
+        other_user = get_user_model().objects.create_user(
+            username="scan-preparateur-print-other",
+            password="pass1234",
+            is_staff=True,
+        )
+        carton = self._create_carton_with_item(
+            code="C-PREP-PRINT-001",
+            status=CartonStatus.PACKED,
+        )
+        carton.prepared_by = other_user
+        carton.save(update_fields=["prepared_by"])
+        self.client.force_login(preparateur)
+
+        with mock.patch("wms.views_print_docs._try_generate_pack_pdf_response") as pdf_response:
+            pdf_response.return_value = HttpResponse("packing-list")
+            response = self.client.get(reverse("scan:scan_carton_document", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"packing-list")
+
+    def test_preparateur_cannot_print_shipped_carton(self):
+        preparateur = self._create_preparateur_user()
+        carton = self._create_carton_with_item(
+            code="C-PREP-PRINT-SHIPPED-001",
+            status=CartonStatus.SHIPPED,
+        )
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_carton_document", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 403)
 
     def test_scan_pack_preparateur_renders_unknown_product_modal_with_location_selectors(self):
         preparateur = self._create_preparateur_user()

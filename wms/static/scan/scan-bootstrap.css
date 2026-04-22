@@ -399,6 +399,12 @@ body.scan-bootstrap-enabled {
   gap: 0.75rem;
 }
 
+.scan-bootstrap-enabled .scan-preparateur-mobile-masthead {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .scan-bootstrap-enabled .scan-preparateur-header-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -964,9 +970,11 @@ body.scan-bootstrap-enabled {
     var(--ui-number-input-controls-gap) +
     var(--ui-number-input-value-gap)
   );
+  --ui-number-input-reserved-padding: calc(var(--wms-input-padding-x) + var(--ui-number-input-value-offset));
   position: relative;
   display: inline-flex;
   align-items: stretch;
+  min-width: calc(var(--ui-number-input-reserved-padding) + 5ch + var(--wms-input-padding-x));
   max-width: 100%;
 }
 
@@ -978,7 +986,9 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .ui-number-input .form-control,
 .scan-bootstrap-enabled .ui-number-input-input {
   min-width: 0;
-  padding-left: calc(var(--wms-input-padding-x) + var(--ui-number-input-value-offset));
+  box-sizing: border-box;
+  padding-left: var(--ui-number-input-reserved-padding);
+  padding-inline-start: var(--ui-number-input-reserved-padding);
 }
 
 .scan-bootstrap-enabled .ui-number-input.is-fluid .form-control,
@@ -1066,6 +1076,171 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled input[type="number"].is-ui-number-input-enhanced::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+.scan-bootstrap-enabled .ui-date-input {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+}
+
+.scan-bootstrap-enabled .ui-date-input.is-fluid {
+  width: 100%;
+  display: flex;
+}
+
+.scan-bootstrap-enabled .ui-date-input-input {
+  min-width: 0;
+  box-sizing: border-box;
+  padding-right: calc(var(--wms-input-padding-x) + 6.4rem);
+  padding-inline-end: calc(var(--wms-input-padding-x) + 6.4rem);
+}
+
+.scan-bootstrap-enabled .ui-date-input.is-fluid .ui-date-input-input {
+  width: 100%;
+}
+
+.scan-bootstrap-enabled .ui-date-input-btn {
+  position: absolute;
+  inset: 0 var(--ui-date-input-inset, 0.3rem) 0 auto;
+  align-self: center;
+  height: calc(var(--wms-input-height) - 0.65rem);
+  min-width: 5.7rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--wms-input-border);
+  border-radius: 0.5rem;
+  background: var(--wms-color-surface-alt);
+  color: var(--wms-input-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.scan-bootstrap-enabled .ui-date-input-btn:focus-visible {
+  outline: none;
+  border-color: var(--wms-input-focus-border);
+  box-shadow: var(--wms-input-focus-shadow);
+}
+
+.scan-bootstrap-enabled .ui-date-picker {
+  position: absolute;
+  z-index: 2200;
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.55rem;
+  background: var(--scan-boot-surface);
+  box-shadow: 0 12px 30px rgba(47, 58, 54, 0.18);
+  padding: 0.75rem;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-title {
+  color: var(--ink);
+  font-weight: 800;
+  text-align: center;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-nav,
+.scan-bootstrap-enabled .ui-date-picker-day {
+  border: 1px solid var(--wms-input-border);
+  border-radius: 0.42rem;
+  background: var(--wms-color-surface);
+  color: var(--wms-input-text);
+  font-weight: 700;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-nav {
+  width: 2rem;
+  height: 2rem;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-weekdays,
+.scan-bootstrap-enabled .ui-date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-weekdays span {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-day {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+}
+
+.scan-bootstrap-enabled .ui-date-picker-day.is-outside-month {
+  color: var(--wms-color-disabled-text);
+  background: var(--wms-color-disabled-bg);
+}
+
+.scan-bootstrap-enabled .ui-date-picker-day.is-selected {
+  background: var(--wms-color-btn-primary-bg);
+  border-color: var(--wms-color-btn-primary-border);
+  color: var(--wms-color-btn-primary-text);
+}
+
+.scan-bootstrap-enabled .pack-lines {
+  gap: 0.9rem;
+}
+
+.scan-bootstrap-enabled .pack-line {
+  border-color: var(--scan-boot-border-strong);
+  border-radius: 0.55rem;
+  background: var(--scan-boot-surface);
+}
+
+.scan-bootstrap-enabled .pack-line-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--wms-field-gap);
+}
+
+.scan-bootstrap-enabled .pack-line-field {
+  min-width: 0;
+}
+
+.scan-bootstrap-enabled .pack-line-product-field {
+  grid-column: 1 / span 9;
+}
+
+.scan-bootstrap-enabled .pack-line-quantity-field {
+  grid-column: 10 / -1;
+}
+
+.scan-bootstrap-enabled .pack-line-scan-field {
+  grid-column: 10 / -1;
+}
+
+.scan-bootstrap-enabled .pack-line-expires-field,
+.scan-bootstrap-enabled .pack-line-family-field {
+  grid-column: span 4;
+}
+
+.scan-bootstrap-enabled .pack-line-metrics {
+  grid-column: 1 / -1;
+}
+
+.scan-bootstrap-enabled .pack-line-product-field .scan-select-stack {
+  width: 100%;
+}
+
+.scan-bootstrap-enabled .pack-line-scan-field .scan-scan-btn {
+  width: 100%;
 }
 
 .scan-bootstrap-enabled .btn {
@@ -2259,6 +2434,39 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
 }
 
 @media (min-width: 992px) {
+  .scan-bootstrap-enabled .scan-header-preparateur {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scan-bootstrap-enabled .scan-preparateur-desktop-masthead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: calc(0.65rem * var(--wms-density-factor));
+    width: 100%;
+  }
+
+  .scan-bootstrap-enabled .scan-preparateur-desktop-masthead #scan-preparateur-header-primary {
+    grid-column: 2;
+    grid-row: 1;
+    grid-template-columns: auto auto;
+  }
+
+  .scan-bootstrap-enabled .scan-preparateur-desktop-masthead #scan-preparateur-header-secondary {
+    grid-column: 1;
+    grid-row: 1;
+    grid-template-columns: auto;
+    justify-content: start;
+  }
+
+  .scan-bootstrap-enabled .scan-sidebar-toggle-preparateur {
+    display: none;
+  }
+
+  .scan-bootstrap-enabled .scan-brand-link-preparateur {
+    justify-self: start;
+  }
+
   .scan-bootstrap-enabled .scan-workspace {
     display: grid;
     grid-template-columns: minmax(240px, 270px) minmax(0, 1fr);
@@ -2293,6 +2501,19 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
   .scan-bootstrap-enabled .scan-inline {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+  }
+
+  .scan-bootstrap-enabled .pack-line-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scan-bootstrap-enabled .pack-line-product-field,
+  .scan-bootstrap-enabled .pack-line-quantity-field,
+  .scan-bootstrap-enabled .pack-line-scan-field,
+  .scan-bootstrap-enabled .pack-line-expires-field,
+  .scan-bootstrap-enabled .pack-line-family-field,
+  .scan-bootstrap-enabled .pack-line-metrics {
+    grid-column: 1 / -1;
   }
 
   .scan-bootstrap-enabled .scan-preparateur-header-row,
