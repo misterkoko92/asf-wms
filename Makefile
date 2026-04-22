@@ -7,7 +7,8 @@ MYPY ?= $(shell [ -x .venv/bin/mypy ] && echo .venv/bin/mypy || echo mypy)
 PYRIGHT ?= $(shell [ -x .venv/bin/pyright ] && echo .venv/bin/pyright || echo pyright)
 PYRIGHT_CONFIG ?= pyrightconfig.json
 PIP_AUDIT ?= $(shell [ -x .venv/bin/pip-audit ] && echo .venv/bin/pip-audit || echo pip-audit)
-PIP_AUDIT_SOFT_ARGS ?= --disable-pip --no-deps
+PIP_AUDIT_ARGS ?= --disable-pip --no-deps
+PIP_AUDIT_SOFT_ARGS ?= $(PIP_AUDIT_ARGS)
 PIP_AUDIT_REPORT ?= pip-audit-report.json
 PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit || echo pre-commit)
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
@@ -120,7 +121,7 @@ bandit:
 	$(BANDIT) -r asf_wms api contacts wms -x "$(BANDIT_EXCLUDES)"
 
 audit:
-	$(PIP_AUDIT) -r requirements.txt
+	$(PIP_AUDIT) -r requirements.txt $(PIP_AUDIT_ARGS)
 
 audit-soft:
 	@set -e; \
