@@ -1,3 +1,5 @@
+from decimal import ROUND_HALF_UP, Decimal
+
 from django import forms
 from django.db.models import Q
 from django.utils import timezone
@@ -765,6 +767,31 @@ class ScanPackUnknownProductForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
     unknown_product_brand = forms.CharField(label=_("Marque"), required=False, max_length=120)
+    unknown_product_length_cm = forms.DecimalField(
+        label=_("Longueur (cm)"),
+        min_value=Decimal("0.01"),
+        max_digits=8,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"min": "0.01", "step": "0.01"}),
+    )
+    unknown_product_width_cm = forms.DecimalField(
+        label=_("Largeur (cm)"),
+        min_value=Decimal("0.01"),
+        max_digits=8,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"min": "0.01", "step": "0.01"}),
+    )
+    unknown_product_height_cm = forms.DecimalField(
+        label=_("Hauteur (cm)"),
+        min_value=Decimal("0.01"),
+        max_digits=8,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"min": "0.01", "step": "0.01"}),
+    )
+    unknown_product_weight_g = forms.IntegerField(
+        label=_("Poids (g)"),
+        min_value=1,
+    )
     unknown_product_notes = forms.CharField(
         label=_("Notes"),
         required=False,
@@ -856,6 +883,18 @@ class ScanPackUnknownProductForm(forms.Form):
         cleaned["lot_code"] = _normalize_form_text(cleaned, "unknown_product_lot_code")
         cleaned["expires_on"] = cleaned.get("unknown_product_expires_on")
         cleaned["brand"] = _normalize_form_text(cleaned, "unknown_product_brand")
+        length_cm = cleaned.get("unknown_product_length_cm")
+        width_cm = cleaned.get("unknown_product_width_cm")
+        height_cm = cleaned.get("unknown_product_height_cm")
+        cleaned["length_cm"] = length_cm
+        cleaned["width_cm"] = width_cm
+        cleaned["height_cm"] = height_cm
+        cleaned["weight_g"] = cleaned.get("unknown_product_weight_g")
+        cleaned["volume_cm3"] = None
+        if length_cm is not None and width_cm is not None and height_cm is not None:
+            cleaned["volume_cm3"] = int(
+                (length_cm * width_cm * height_cm).to_integral_value(rounding=ROUND_HALF_UP)
+            )
         cleaned["notes"] = _normalize_form_text(cleaned, "unknown_product_notes")
         cleaned["location"] = product_location
         return cleaned

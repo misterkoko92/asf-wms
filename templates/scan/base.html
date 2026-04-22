@@ -1,250 +1,301 @@
 {% load static i18n %}
 {% get_current_language as LANGUAGE_CODE %}
-<!doctype html>
+<!DOCTYPE html>
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f5f4f">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/png" href="{% static 'scan/icon.png' %}">
-  <link rel="manifest" href="{% static 'scan/manifest.json' %}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  {% block shared_scan_styles %}
-    <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
-    <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
-  {% endblock %}
-  <link rel="stylesheet" href="{% static 'wms/language-switch.css' %}">
-  {% include "includes/design_vars_style.html" %}
-  {% block extra_head %}{% endblock %}
-  <title>{% block title %}WMS Scan{% endblock %}</title>
-</head>
-<body class="scan-bootstrap-enabled" data-density-mode="{{ wms_design_tokens.density_mode|default:'standard' }}" data-btn-style-mode="{{ wms_design_tokens.btn_style_mode|default:'flat' }}">
-  <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
-    <header class="scan-header ui-comp-panel{% if request.scan_is_preparateur %} scan-header-preparateur{% endif %}">
-      {% if request.scan_is_preparateur %}
-        <div id="scan-preparateur-header-primary" class="scan-preparateur-header-row">
-          <div id="scan-preparateur-greeting" class="scan-preparateur-greeting">Bonjour {{ request.user.username }}</div>
-          <nav id="scan-utility-nav" class="scan-utility-nav scan-utility-nav-preparateur" aria-label="{% trans "Navigation utilitaire scan" %}">
-            {% include "includes/history_nav_buttons.html" with history_nav_prefix="scan" %}
-          </nav>
-        </div>
-        <div id="scan-preparateur-header-secondary" class="scan-preparateur-header-row">
-          <button
-            type="button"
-            id="scan-sidebar-toggle"
-            class="btn btn-tertiary btn-sm scan-sidebar-toggle scan-sidebar-toggle-preparateur"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#scan-sidebar-offcanvas"
-            aria-controls="scan-sidebar-offcanvas"
-            aria-label="{% trans "Afficher la navigation scan" %}"
-          >
-            Menu
-          </button>
-          <a href="{% url 'scan:scan_preparateur_order_select' %}" class="scan-brand-link scan-brand-link-preparateur" aria-label="Aviation Sans Frontières France">
-            <img
-              id="scan-brand-desktop"
-              src="{% static 'scan/logo.jpg' %}"
-              alt=""
-              class="scan-brand-desktop d-none d-md-block"
-            >
-            <img
-              id="scan-brand-mobile"
-              src="{% static 'scan/logo.jpg' %}"
-              alt=""
-              class="scan-brand-mobile d-md-none"
-            >
-            <span class="scan-brand-title">Messagerie Médicale</span>
-          </a>
-          {% if request.scan_is_preparateur and request.scan_active_volunteer_greeting_name %}
-            <div class="scan-help ui-comp-note mb-0">
-              {% blocktrans with name=request.scan_active_volunteer_greeting_name %}Bonjour {{ name }}{% endblocktrans %}
-            </div>
-          {% endif %}
-        </div>
-      {% else %}
-        <div class="scan-header-top">
-          <div class="scan-header-brand">
-            <button
-              type="button"
-              id="scan-sidebar-toggle"
-              class="btn btn-tertiary btn-sm scan-sidebar-toggle d-lg-none"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#scan-sidebar-offcanvas"
-              aria-controls="scan-sidebar-offcanvas"
-              aria-label="{% trans "Afficher la navigation scan" %}"
-            >
-              Menu
-            </button>
-            <a href="{% url 'scan:scan_dashboard' %}" class="scan-brand-link" aria-label="Aviation Sans Frontières France">
-              <img
-                id="scan-brand-desktop"
-                src="{% static 'scan/logo.jpg' %}"
-                alt=""
-                class="scan-brand-desktop d-none d-md-block"
-              >
-              <img
-                id="scan-brand-mobile"
-                src="{% static 'scan/logo.jpg' %}"
-                alt=""
-                class="scan-brand-mobile d-md-none"
-              >
-              <span class="scan-brand-title">Messagerie Médicale</span>
-            </a>
-          </div>
-          <div class="scan-header-tools">
-            {% include "includes/language_switch.html" %}
-          </div>
-        </div>
-        <div class="scan-header-utility">
-          <nav id="scan-utility-nav" class="scan-utility-nav" aria-label="{% trans "Navigation utilitaire scan" %}">
-            {% include "includes/history_nav_buttons.html" with history_nav_prefix="scan" %}
-            <a
-              id="scan-faq-link"
-              href="{% url 'scan:scan_faq' %}"
-              class="btn btn-tertiary btn-sm scan-utility-link scan-utility-icon-link"
-              aria-label="{% trans "FAQ" %}"
-              title="{% trans "FAQ" %}"
-            >
-              <span aria-hidden="true">?</span>
-            </a>
-            {% if request.user.is_superuser and not request.scan_is_preparateur and admin_pending_recipient_validations %}
-              <a
-                id="scan-masthead-notifications"
-                href="{% url 'scan:scan_recipient_validation_list' %}"
-                class="btn btn-warning btn-sm scan-utility-link scan-utility-icon-link scan-utility-count-link"
-                aria-label="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
-                title="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
-              >
-                <span aria-hidden="true">&#128276;</span>
-                <span class="badge text-bg-light ui-comp-count-badge">{{ admin_pending_recipient_validations }}</span>
-              </a>
-            {% endif %}
-            {% if request.user.is_superuser and not request.scan_is_preparateur %}
-              <div class="dropdown">
-                <button
-                  id="scan-masthead-settings-toggle"
-                  class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger scan-utility-icon-link"
-                  type="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                  aria-label="{% trans "Outils de gestion" %}"
-                  title="{% trans "Outils de gestion" %}"
-                >
-                  <span aria-hidden="true">&#9881;</span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li><h6 class="dropdown-header">Général</h6></li>
-                  <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a></li>
-                  <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><h6 class="dropdown-header">Produit</h6></li>
-                  <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a></li>
-                  <li><a href="{% url 'scan:scan_out' %}" class="dropdown-item{% if active == 'out' %} active{% endif %}">{% trans "Supprimer produit" %}</a></li>
-                  {% if scan_billing_admin_visible %}
-                    <li><hr class="dropdown-divider"></li>
-                    <li><h6 class="dropdown-header">Facturation</h6></li>
-                    <li><a href="{% url 'scan:scan_billing_settings' %}" class="dropdown-item{% if active == 'billing_settings' %} active{% endif %}">{% trans "Paramètres" %}</a></li>
-                    <li><a href="{% url 'scan:scan_billing_equivalence' %}" class="dropdown-item{% if active == 'billing_equivalence' %} active{% endif %}">{% trans "Equivalence" %}</a></li>
-                  {% endif %}
-                </ul>
-              </div>
-            {% endif %}
-            <div class="dropdown scan-nav-account">
-              <button
-                id="scan-masthead-account-toggle"
-                class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger scan-utility-icon-link"
-                type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                aria-label="{% trans "Compte" %}"
-                title="{% trans "Compte" %}"
-              >
-                <span aria-hidden="true">&#9711;</span>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li><h6 class="dropdown-header">{{ request.user.email|default:request.user.username }}</h6></li>
-                <li><span class="dropdown-item-text">{% trans "Username:" %} {{ request.user.username }}</span></li>
-                {% if request.user.is_staff and not request.scan_is_preparateur %}
-                  <li><a class="dropdown-item" href="/admin/">{% trans "Admin Django" %}</a></li>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#0f5f4f">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap"
+              rel="stylesheet">
+        <link rel="icon" type="image/png" href="{% static 'scan/icon.png' %}">
+        <link rel="manifest" href="{% static 'scan/manifest.json' %}">
+        <link rel="stylesheet"
+              href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+              integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+              crossorigin="anonymous">
+        {% block shared_scan_styles %}
+            <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+            <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
+        {% endblock %}
+        <link rel="stylesheet" href="{% static 'wms/language-switch.css' %}">
+        {% include "includes/design_vars_style.html" %}
+        {% block extra_head %}{% endblock %}
+        <title>
+            {% block title %}WMS Scan{% endblock %}
+        </title>
+    </head>
+    <body class="scan-bootstrap-enabled"
+          data-density-mode="{{ wms_design_tokens.density_mode|default:'standard' }}"
+          data-btn-style-mode="{{ wms_design_tokens.btn_style_mode|default:'flat' }}">
+        <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
+            <header class="scan-header ui-comp-panel{% if request.scan_is_preparateur %} scan-header-preparateur{% endif %}">
+                {% if request.scan_is_preparateur %}
+                    <div class="scan-preparateur-mobile-masthead scan-preparateur-desktop-masthead">
+                        <div id="scan-preparateur-header-primary"
+                             class="scan-preparateur-header-row">
+                            <div id="scan-preparateur-greeting" class="scan-preparateur-greeting">
+                                {% if request.scan_active_volunteer_greeting_name %}
+                                    {% blocktrans with name=request.scan_active_volunteer_greeting_name %}Bonjour {{ name }}{% endblocktrans %}
+                                {% else %}
+                                    Bonjour {{ request.user.username }}
+                                {% endif %}
+                            </div>
+                            <nav id="scan-utility-nav"
+                                 class="scan-utility-nav scan-utility-nav-preparateur"
+                                 aria-label="{% trans "Navigation utilitaire scan" %}">
+                                {% include "includes/history_nav_buttons.html" with history_nav_prefix="scan" %}
+                            </nav>
+                        </div>
+                        <div id="scan-preparateur-header-secondary"
+                             class="scan-preparateur-header-row">
+                            <button type="button"
+                                    id="scan-sidebar-toggle"
+                                    class="btn btn-tertiary btn-sm scan-sidebar-toggle scan-sidebar-toggle-preparateur"
+                                    data-bs-toggle="offcanvas"
+                                    data-bs-target="#scan-sidebar-offcanvas"
+                                    aria-controls="scan-sidebar-offcanvas"
+                                    aria-label="{% trans "Afficher la navigation scan" %}">Menu</button>
+                            <a href="{% url 'scan:scan_preparateur_order_select' %}"
+                               class="scan-brand-link scan-brand-link-preparateur"
+                               aria-label="Aviation Sans Frontières France">
+                                <img id="scan-brand-desktop"
+                                     src="{% static 'scan/logo.jpg' %}"
+                                     alt=""
+                                     class="scan-brand-desktop d-none d-md-block">
+                                <img id="scan-brand-mobile"
+                                     src="{% static 'scan/logo.jpg' %}"
+                                     alt=""
+                                     class="scan-brand-mobile d-md-none">
+                                <span class="scan-brand-title">Messagerie Médicale</span>
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="scan-header-top">
+                        <div class="scan-header-brand">
+                            <button type="button"
+                                    id="scan-sidebar-toggle"
+                                    class="btn btn-tertiary btn-sm scan-sidebar-toggle d-lg-none"
+                                    data-bs-toggle="offcanvas"
+                                    data-bs-target="#scan-sidebar-offcanvas"
+                                    aria-controls="scan-sidebar-offcanvas"
+                                    aria-label="{% trans "Afficher la navigation scan" %}">Menu</button>
+                            <a href="{% url 'scan:scan_dashboard' %}"
+                               class="scan-brand-link"
+                               aria-label="Aviation Sans Frontières France">
+                                <img id="scan-brand-desktop"
+                                     src="{% static 'scan/logo.jpg' %}"
+                                     alt=""
+                                     class="scan-brand-desktop d-none d-md-block">
+                                <img id="scan-brand-mobile"
+                                     src="{% static 'scan/logo.jpg' %}"
+                                     alt=""
+                                     class="scan-brand-mobile d-md-none">
+                                <span class="scan-brand-title">Messagerie Médicale</span>
+                            </a>
+                        </div>
+                        <div class="scan-header-tools">{% include "includes/language_switch.html" %}</div>
+                    </div>
+                    <div class="scan-header-utility">
+                        <nav id="scan-utility-nav"
+                             class="scan-utility-nav"
+                             aria-label="{% trans "Navigation utilitaire scan" %}">
+                            {% include "includes/history_nav_buttons.html" with history_nav_prefix="scan" %}
+                            <a id="scan-faq-link"
+                               href="{% url 'scan:scan_faq' %}"
+                               class="btn btn-tertiary btn-sm scan-utility-link scan-utility-icon-link"
+                               aria-label="{% trans "FAQ" %}"
+                               title="{% trans "FAQ" %}">
+                                <span aria-hidden="true">?</span>
+                            </a>
+                            {% if request.user.is_superuser and not request.scan_is_preparateur and admin_pending_recipient_validations %}
+                                <a id="scan-masthead-notifications"
+                                   href="{% url 'scan:scan_recipient_validation_list' %}"
+                                   class="btn btn-warning btn-sm scan-utility-link scan-utility-icon-link scan-utility-count-link"
+                                   aria-label="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
+                                   title="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}">
+                                    <span aria-hidden="true">&#128276;</span>
+                                    <span class="badge text-bg-light ui-comp-count-badge">{{ admin_pending_recipient_validations }}</span>
+                                </a>
+                            {% endif %}
+                            {% if request.user.is_superuser and not request.scan_is_preparateur %}
+                                <div class="dropdown">
+                                    <button id="scan-masthead-settings-toggle"
+                                            class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger scan-utility-icon-link"
+                                            type="button"
+                                            data-bs-toggle="dropdown"
+                                            aria-expanded="false"
+                                            aria-label="{% trans "Outils de gestion" %}"
+                                            title="{% trans "Outils de gestion" %}">
+                                        <span aria-hidden="true">&#9881;</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <h6 class="dropdown-header">Général</h6>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'scan:scan_import' %}"
+                                               class="dropdown-item{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'scan:scan_print_templates' %}"
+                                               class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a>
+                                        </li>
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li>
+                                            <h6 class="dropdown-header">Produit</h6>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'scan:scan_product_labels' %}"
+                                               class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'scan:scan_out' %}"
+                                               class="dropdown-item{% if active == 'out' %} active{% endif %}">{% trans "Supprimer produit" %}</a>
+                                        </li>
+                                        {% if scan_billing_admin_visible %}
+                                            <li>
+                                                <hr class="dropdown-divider">
+                                            </li>
+                                            <li>
+                                                <h6 class="dropdown-header">Facturation</h6>
+                                            </li>
+                                            <li>
+                                                <a href="{% url 'scan:scan_billing_settings' %}"
+                                                   class="dropdown-item{% if active == 'billing_settings' %} active{% endif %}">{% trans "Paramètres" %}</a>
+                                            </li>
+                                            <li>
+                                                <a href="{% url 'scan:scan_billing_equivalence' %}"
+                                                   class="dropdown-item{% if active == 'billing_equivalence' %} active{% endif %}">{% trans "Equivalence" %}</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                            <div class="dropdown scan-nav-account">
+                                <button id="scan-masthead-account-toggle"
+                                        class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger scan-utility-icon-link"
+                                        type="button"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false"
+                                        aria-label="{% trans "Compte" %}"
+                                        title="{% trans "Compte" %}">
+                                    <span aria-hidden="true">&#9711;</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <h6 class="dropdown-header">{{ request.user.email|default:request.user.username }}</h6>
+                                    </li>
+                                    <li>
+                                        <span class="dropdown-item-text">{% trans "Username:" %} {{ request.user.username }}</span>
+                                    </li>
+                                    {% if request.user.is_staff and not request.scan_is_preparateur %}
+                                        <li>
+                                            <a class="dropdown-item" href="/admin/">{% trans "Admin Django" %}</a>
+                                        </li>
+                                    {% endif %}
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item"
+                                           href="{% url 'scan:scan_change_account' %}">{% trans "Changer de compte" %}</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'scan:scan_logout' %}">{% trans "Déconnexion" %}</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </nav>
+                    </div>
                 {% endif %}
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/admin/logout/?next=/admin/login/?next=/scan/">{% trans "Changer de compte" %}</a></li>
-                <li><a class="dropdown-item" href="/admin/logout/?next=/">{% trans "Déconnexion" %}</a></li>
-              </ul>
+            </header>
+            <div class="scan-workspace">
+                <div id="scan-sidebar-offcanvas"
+                     class="offcanvas-lg offcanvas-start scan-sidebar-offcanvas"
+                     tabindex="-1"
+                     aria-labelledby="scan-sidebar-title">
+                    <div class="offcanvas-header d-lg-none">
+                        <h2 id="scan-sidebar-title" class="offcanvas-title">Navigation scan</h2>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="offcanvas"
+                                data-bs-target="#scan-sidebar-offcanvas"
+                                aria-label="{% trans "Fermer" %}"></button>
+                    </div>
+                    <div class="offcanvas-body">{% include "scan/includes/scan_sidebar_navigation.html" %}</div>
+                </div>
+                <div class="scan-body">
+                    <main class="scan-main">
+                        {% if messages %}
+                            <div class="scan-messages">
+                                {% for message in messages %}
+                                    <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if admin_pending_account_requests %}
+                            <div class="scan-message warning">
+                                {% blocktrans with pending_count=admin_pending_account_requests %}Nouvelles demandes de compte en attente : {{ pending_count }}{% endblocktrans %}
+                                (
+                                <a href="{% if scan_can_review_account_requests %}{% url 'scan:scan_account_validation_list' %}{% else %}{% url 'admin:wms_publicaccountrequest_changelist' %}{% endif %}">
+                                    {% trans "voir" %}
+                                </a>
+                                )
+                            </div>
+                        {% endif %}
+                        <div id="scan-sync-banner"
+                             class="scan-sync-banner"
+                             data-sync-url="{% url 'scan:scan_sync' %}"
+                             data-sync-interval="8000">
+                            <span>{% trans "Des changements sont disponibles. Recharge pour synchroniser." %}</span>
+                            <button type="button" id="scan-sync-reload" class="btn btn-tertiary btn-sm">{% trans "Recharger" %}</button>
+                        </div>
+                        {% block content %}{% endblock %}
+                    </main>
+                </div>
             </div>
-          </nav>
         </div>
-      {% endif %}
-    </header>
-
-    <div class="scan-workspace">
-      <div
-        id="scan-sidebar-offcanvas"
-        class="offcanvas-lg offcanvas-start scan-sidebar-offcanvas"
-        tabindex="-1"
-        aria-labelledby="scan-sidebar-title"
-      >
-        <div class="offcanvas-header d-lg-none">
-          <h2 id="scan-sidebar-title" class="offcanvas-title">Navigation scan</h2>
-          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#scan-sidebar-offcanvas" aria-label="{% trans "Fermer" %}"></button>
+        <div id="scan-overlay" class="scan-overlay">
+            <div class="scan-modal">
+                <div class="scan-modal-header">
+                    <strong id="scan-modal-title">{% trans "Caméra scan" %}</strong>
+                    <button type="button" id="scan-close" class="btn btn-tertiary btn-sm">{% trans "Fermer" %}</button>
+                </div>
+                <div class="scan-camera-facing-controls"
+                     role="group"
+                     aria-label="{% trans "Choix caméra" %}">
+                    <button type="button"
+                            class="scan-camera-facing-option is-active"
+                            data-scan-camera-facing="environment"
+                            aria-pressed="true">{% trans "Caméra arrière" %}</button>
+                    <button type="button"
+                            class="scan-camera-facing-option"
+                            data-scan-camera-facing="user"
+                            aria-pressed="false">{% trans "Caméra frontale" %}</button>
+                </div>
+                <video id="scan-video" class="scan-video" playsinline>
+                </video>
+                <div class="scan-help" id="scan-status">{% trans "Scan en cours..." %}</div>
+                <div class="scan-modal-actions">
+                    <button type="button"
+                            id="scan-capture"
+                            class="scan-scan-btn btn btn-tertiary">{% trans "Capturer texte" %}</button>
+                </div>
+            </div>
         </div>
-        <div class="offcanvas-body">
-          {% include "scan/includes/scan_sidebar_navigation.html" %}
-        </div>
-      </div>
-
-      <div class="scan-body">
-      <main class="scan-main">
-        {% if messages %}
-          <div class="scan-messages">
-            {% for message in messages %}
-              <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
-        {% if admin_pending_account_requests %}
-          <div class="scan-message warning">
-            {% blocktrans with pending_count=admin_pending_account_requests %}Nouvelles demandes de compte en attente : {{ pending_count }}{% endblocktrans %}
-            (
-            <a href="{% if scan_can_review_account_requests %}{% url 'scan:scan_account_validation_list' %}{% else %}{% url 'admin:wms_publicaccountrequest_changelist' %}{% endif %}">
-              {% trans "voir" %}
-            </a>
-            )
-          </div>
-        {% endif %}
-        <div id="scan-sync-banner" class="scan-sync-banner" data-sync-url="{% url 'scan:scan_sync' %}" data-sync-interval="8000">
-          <span>{% trans "Des changements sont disponibles. Recharge pour synchroniser." %}</span>
-          <button type="button" id="scan-sync-reload" class="btn btn-tertiary btn-sm">{% trans "Recharger" %}</button>
-        </div>
-
-        {% block content %}{% endblock %}
-      </main>
-      </div>
-    </div>
-  </div>
-
-  <div id="scan-overlay" class="scan-overlay">
-    <div class="scan-modal">
-      <div class="scan-modal-header">
-        <strong id="scan-modal-title">{% trans "Caméra scan" %}</strong>
-        <button type="button" id="scan-close" class="btn btn-tertiary btn-sm">{% trans "Fermer" %}</button>
-      </div>
-      <video id="scan-video" class="scan-video" playsinline></video>
-      <div class="scan-help" id="scan-status">{% trans "Scan en cours..." %}</div>
-      <div class="scan-modal-actions">
-        <button type="button" id="scan-capture" class="scan-scan-btn btn btn-tertiary">{% trans "Capturer texte" %}</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script src="{% static 'scan/scan.js' %}"></script>
-  <script src="{% static 'scan/modules/core.js' %}"></script>
-  {% block extra_scripts %}{% endblock %}
-  <script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+                integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+                crossorigin="anonymous"></script>
+        <script src="{% static 'scan/scan.js' %}"></script>
+        <script src="{% static 'scan/modules/core.js' %}"></script>
+        {% block extra_scripts %}{% endblock %}
+        <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}?v=56")
         .then(function(registration) {
@@ -264,6 +315,6 @@
           });
         });
     }
-  </script>
-</body>
+        </script>
+    </body>
 </html>

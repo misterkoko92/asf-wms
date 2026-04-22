@@ -16,22 +16,22 @@
       Préparer des colis
     </a>
     <a
-      id="scan-sidebar-preparateur-last-carton"
-      href="{% url 'scan:scan_preparateur_last_carton' %}"
+      id="scan-sidebar-preparateur-cartons"
+      href="{% url 'scan:scan_cartons_ready' %}"
       class="scan-sidebar-link"
     >
-      Voir dernier colis
+      Voir les colis
     </a>
     <a
       id="scan-sidebar-preparateur-change-account"
-      href="/admin/logout/?next=/admin/login/?next=/scan/"
+      href="{% url 'scan:scan_change_account' %}"
       class="scan-sidebar-link"
     >
       Changer de compte
     </a>
     <a
       id="scan-sidebar-preparateur-logout"
-      href="/admin/logout/?next=/"
+      href="{% url 'scan:scan_logout' %}"
       class="scan-sidebar-link"
     >
       Déconnexion

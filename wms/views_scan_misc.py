@@ -1,5 +1,9 @@
+from urllib.parse import urlencode
+
+from django.contrib.auth import logout
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
@@ -93,6 +97,22 @@ def scan_faq(request):
 @require_http_methods(["GET"])
 def scan_ui_lab(request):
     return render(request, TEMPLATE_SCAN_UI_LAB, _build_ui_lab_context())
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_change_account(request):
+    logout(request)
+    login_url = reverse("admin:login")
+    next_url = reverse("scan:scan_root")
+    return redirect(f"{login_url}?{urlencode({'next': next_url})}")
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_logout(request):
+    logout(request)
+    return redirect("/")
 
 
 def scan_service_worker(request):

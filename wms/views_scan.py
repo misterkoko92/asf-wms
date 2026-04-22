@@ -24,7 +24,13 @@ from .views_scan_billing import (
 )
 from .views_scan_dashboard import scan_dashboard, scan_root
 from .views_scan_design import scan_admin_design
-from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
+from .views_scan_misc import (
+    scan_change_account,
+    scan_faq,
+    scan_logout,
+    scan_service_worker,
+    scan_ui_lab,
+)
 from .views_scan_orders import (
     scan_order,
     scan_order_detail,
@@ -147,7 +153,9 @@ SCAN_FLOW_EXPORTS = (
 )
 
 SCAN_MISC_EXPORTS = (
+    "scan_change_account",
     "scan_faq",
+    "scan_logout",
     "scan_ui_lab",
     "scan_settings",
     "scan_service_worker",

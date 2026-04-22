@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
@@ -1261,6 +1262,8 @@ class ScanShipmentsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-pack-add-line-btn")
+        self.assertContains(response, 'id="id_forced_carton_count"')
+        self.assertContains(response, "Nombre de colis")
         self.assertContains(response, 'value="prepare_without_conditioning"')
         self.assertContains(response, 'value="prepare_available"')
         self.assertContains(response, "btn btn-outline-secondary")
@@ -1336,8 +1339,9 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Préparer des colis")
         self.assertContains(response, "Choisir une commande")
         self.assertContains(response, reverse("scan:scan_preparateur_order_select"))
-        self.assertContains(response, "Voir dernier colis")
-        self.assertContains(response, reverse("scan:scan_preparateur_last_carton"))
+        self.assertContains(response, "Voir les colis")
+        self.assertNotContains(response, "Voir dernier colis")
+        self.assertContains(response, reverse("scan:scan_cartons_ready"))
         self.assertContains(response, f"Bonjour {preparateur.username}")
         self.assertNotContains(response, "Runs magasin")
         self.assertNotContains(response, 'id="scan-faq-link"')
@@ -1345,6 +1349,68 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, "Tableau De Bord")
         self.assertNotContains(response, "Vue Stock")
         self.assertNotContains(response, "Admin Django")
+
+    def test_preparateur_can_view_all_non_shipped_cartons_without_prepared_by_filter(self):
+        preparateur = self._create_preparateur_user()
+        other_user = get_user_model().objects.create_user(
+            username="scan-preparateur-other",
+            password="pass1234",
+            is_staff=True,
+        )
+        visible_carton = self._create_carton_with_item(
+            code="C-PREP-VISIBLE-001",
+            status=CartonStatus.PACKED,
+        )
+        visible_carton.prepared_by = other_user
+        visible_carton.save(update_fields=["prepared_by"])
+        shipped_carton = self._create_carton_with_item(
+            code="C-PREP-SHIPPED-001",
+            status=CartonStatus.SHIPPED,
+        )
+        shipped_carton.prepared_by = other_user
+        shipped_carton.save(update_fields=["prepared_by"])
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-PREP-VISIBLE-001")
+        self.assertNotContains(response, "C-PREP-SHIPPED-001")
+        self.assertContains(response, reverse("scan:scan_carton_edit", args=[visible_carton.id]))
+
+    def test_preparateur_can_print_any_non_shipped_carton(self):
+        preparateur = self._create_preparateur_user()
+        other_user = get_user_model().objects.create_user(
+            username="scan-preparateur-print-other",
+            password="pass1234",
+            is_staff=True,
+        )
+        carton = self._create_carton_with_item(
+            code="C-PREP-PRINT-001",
+            status=CartonStatus.PACKED,
+        )
+        carton.prepared_by = other_user
+        carton.save(update_fields=["prepared_by"])
+        self.client.force_login(preparateur)
+
+        with mock.patch("wms.views_print_docs._try_generate_pack_pdf_response") as pdf_response:
+            pdf_response.return_value = HttpResponse("packing-list")
+            response = self.client.get(reverse("scan:scan_carton_document", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"packing-list")
+
+    def test_preparateur_cannot_print_shipped_carton(self):
+        preparateur = self._create_preparateur_user()
+        carton = self._create_carton_with_item(
+            code="C-PREP-PRINT-SHIPPED-001",
+            status=CartonStatus.SHIPPED,
+        )
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_carton_document", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 403)
 
     def test_scan_pack_preparateur_renders_unknown_product_modal_with_location_selectors(self):
         preparateur = self._create_preparateur_user()
@@ -1356,15 +1422,72 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="pack-unknown-product-modal"')
         self.assertContains(response, 'name="unknown_product_name"')
+        self.assertContains(response, 'name="unknown_product_brand"')
         self.assertContains(response, 'name="unknown_product_initial_quantity"')
         self.assertContains(response, 'name="unknown_product_pack_family"')
+        self.assertContains(response, 'name="unknown_product_length_cm"')
+        self.assertContains(response, 'name="unknown_product_width_cm"')
+        self.assertContains(response, 'name="unknown_product_height_cm"')
+        self.assertContains(response, 'name="unknown_product_weight_g"')
         self.assertContains(response, 'name="unknown_product_location"')
         self.assertContains(response, 'id="id_unknown_product_location_warehouse"')
         self.assertContains(response, 'id="id_unknown_product_location_zone"')
         self.assertContains(response, 'id="id_unknown_product_location_aisle"')
         self.assertContains(response, 'id="id_unknown_product_location_shelf"')
         self.assertContains(response, 'id="pack-location-data"')
+        self.assertContains(
+            response,
+            "Pour les CN, merci de noter le volume du produit",
+        )
+        self.assertNotContains(response, 'name="unknown_product_sku"')
+        self.assertNotContains(response, 'id="id_unknown_product_sku"')
         self.assertNotContains(response, 'name="unknown_product_location_free_text"')
+
+    def test_scan_pack_preparateur_unknown_product_requires_dimensions_and_weight(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+        warehouse = Warehouse.objects.create(name="Prep warehouse required", code="PREQR")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        ProductCategory.objects.create(name="MM")
+
+        response = self.client.post(
+            reverse("scan:scan_pack"),
+            {
+                "action": "create_unknown_product",
+                "carton_format_id": "custom",
+                "carton_length_cm": "40",
+                "carton_width_cm": "30",
+                "carton_height_cm": "30",
+                "carton_max_weight_g": "8000",
+                "line_count": "1",
+                "line_1_product_code": "9988776600",
+                "line_1_quantity": "2",
+                "unknown_product_line_index": "1",
+                "unknown_product_source_code": "9988776600",
+                "unknown_product_name": "Produit Sans Dimensions",
+                "unknown_product_barcode": "9988776600",
+                "unknown_product_pack_family": "MM",
+                "unknown_product_initial_quantity": "7",
+                "unknown_product_location": str(location.id),
+                "unknown_product_location_warehouse": warehouse.name,
+                "unknown_product_location_zone": location.zone,
+                "unknown_product_location_aisle": location.aisle,
+                "unknown_product_location_shelf": location.shelf,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["unknown_product_modal_open"])
+        self.assertFalse(Product.objects.filter(name="Produit Sans Dimensions").exists())
+        self.assertContains(response, 'name="unknown_product_length_cm"')
+        self.assertContains(response, 'name="unknown_product_width_cm"')
+        self.assertContains(response, 'name="unknown_product_height_cm"')
+        self.assertContains(response, 'name="unknown_product_weight_g"')
 
     def test_scan_pack_preparateur_create_unknown_product_rehydrates_selected_line(self):
         preparateur = self._create_preparateur_user()
@@ -1397,6 +1520,11 @@ class ScanShipmentsViewsTests(TestCase):
                     "unknown_product_barcode": "9988776655",
                     "unknown_product_pack_family": "MM",
                     "unknown_product_initial_quantity": "7",
+                    "unknown_product_brand": "Marque Test",
+                    "unknown_product_length_cm": "10.5",
+                    "unknown_product_width_cm": "4",
+                    "unknown_product_height_cm": "2",
+                    "unknown_product_weight_g": "250",
                     "unknown_product_location": str(location.id),
                     "unknown_product_location_warehouse": warehouse.name,
                     "unknown_product_location_zone": location.zone,
@@ -1410,6 +1538,14 @@ class ScanShipmentsViewsTests(TestCase):
         lot = ProductLot.objects.get(product=product)
         self.assertTrue(product.is_incomplete)
         self.assertEqual(product.default_location, location)
+        self.assertNotEqual(product.sku, "9988776655")
+        self.assertTrue(product.sku)
+        self.assertEqual(product.brand, "MARQUE TEST")
+        self.assertEqual(product.length_cm, Decimal("10.50"))
+        self.assertEqual(product.width_cm, Decimal("4.00"))
+        self.assertEqual(product.height_cm, Decimal("2.00"))
+        self.assertEqual(product.weight_g, 250)
+        self.assertEqual(product.volume_cm3, 84)
         self.assertEqual(lot.quantity_on_hand, 7)
         self.assertEqual(response.context["line_values"][0]["product_code"], product.sku)
         self.assertContains(response, product.sku)
@@ -1759,6 +1895,7 @@ class ScanShipmentsViewsTests(TestCase):
                                 {"length_cm": 40},
                                 2,
                                 [{"line": 1}, {"line": 2}],
+                                None,
                             ),
                         ):
                             with mock.patch(
@@ -1778,6 +1915,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["line_values"], [{"line": 1}, {"line": 2}])
         self.assertEqual(response.context_data["missing_defaults"], [])
         self.assertTrue(response.context_data["confirm_defaults"])
+        self.assertIsNone(response.context_data["forced_carton_count"])
         packing_result_mock.assert_called_once_with([10, 20])
 
     def test_scan_pack_post_returns_handler_response_when_available(self):
@@ -1820,6 +1958,7 @@ class ScanShipmentsViewsTests(TestCase):
             "line_errors": {"1": "invalid"},
             "missing_defaults": ["SKU-001"],
             "confirm_defaults": True,
+            "forced_carton_count": 3,
         }
         with mock.patch(
             "wms.views_scan_shipments.ScanPackForm",
@@ -1853,6 +1992,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["line_errors"], {"1": "invalid"})
         self.assertEqual(response.context_data["missing_defaults"], ["SKU-001"])
         self.assertTrue(response.context_data["confirm_defaults"])
+        self.assertEqual(response.context_data["forced_carton_count"], 3)
 
     def test_scan_shipment_create_get_builds_initial_line_values(self):
         fake_form = SimpleNamespace(initial={"carton_count": 2})

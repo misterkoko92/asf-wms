@@ -19,10 +19,12 @@ from .preparateur_orders import (
     ensure_preparateur_order_plan,
     get_preparateur_selected_order,
     mark_preparateur_plan_carton_ready,
+    rebuild_preparateur_order_plan,
     set_preparateur_order_plan,
     set_preparateur_selected_order,
 )
 from .scan_helpers import build_product_options
+from .scan_pack_helpers import parse_forced_carton_count
 from .scan_permissions import user_is_preparateur
 from .services import StockError
 from .view_permissions import scan_staff_required
@@ -205,6 +207,24 @@ def scan_preparateur_order_prepare(request):
     plan = ensure_preparateur_order_plan(request, order=order)
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+        if action == "update_carton_count":
+            try:
+                forced_carton_count = parse_forced_carton_count(
+                    request.POST.get("forced_carton_count")
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            else:
+                rebuild_preparateur_order_plan(
+                    request,
+                    order=order,
+                    forced_carton_count=forced_carton_count,
+                )
+                if forced_carton_count:
+                    messages.success(request, "Nombre de colis forcé mis à jour.")
+                else:
+                    messages.success(request, "Calcul automatique des colis restauré.")
+            return redirect("scan:scan_preparateur_order_prepare")
         if action == "mark_carton_ready":
             try:
                 carton_index = int(request.POST.get("carton_index") or 0)

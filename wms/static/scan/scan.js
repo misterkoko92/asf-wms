@@ -5,6 +5,7 @@
   const closeBtn = document.getElementById('scan-close');
   const scanTitle = document.getElementById('scan-modal-title');
   const captureBtn = document.getElementById('scan-capture');
+  const cameraFacingButtons = document.querySelectorAll('[data-scan-camera-facing]');
 
   let activeInput = null;
   let stream = null;
@@ -25,6 +26,7 @@
   let ocrScriptPromise = null;
   let packProductResolver = null;
   let productResolver = null;
+  let selectedCameraFacingMode = 'environment';
   const ZXING_SRC = '/static/scan/zxing.min.js';
   const OCR_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
   const OCR_WORKER_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
@@ -54,6 +56,58 @@
     if (statusEl) {
       statusEl.textContent = text;
     }
+  }
+
+  function getCameraVideoConstraints() {
+    return { facingMode: { ideal: selectedCameraFacingMode } };
+  }
+
+  function getCameraMediaConstraints() {
+    return {
+      video: getCameraVideoConstraints(),
+      audio: false
+    };
+  }
+
+  function syncCameraFacingControls() {
+    cameraFacingButtons.forEach(button => {
+      const isActive = button.dataset.scanCameraFacing === selectedCameraFacingMode;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  function restartScanWithSelectedCamera(previousMode, previousBarcodeInput, previousOcrInput) {
+    stopScan().then(() => {
+      if (previousMode === 'ocr' && previousOcrInput) {
+        startOcrScan(previousOcrInput);
+        return;
+      }
+      if (previousBarcodeInput) {
+        startScan(previousBarcodeInput);
+      }
+    });
+  }
+
+  function setupCameraFacingControls() {
+    if (!cameraFacingButtons.length) {
+      return;
+    }
+    syncCameraFacingControls();
+    cameraFacingButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const nextMode = button.dataset.scanCameraFacing || 'environment';
+        if (nextMode === selectedCameraFacingMode) {
+          return;
+        }
+        selectedCameraFacingMode = nextMode;
+        syncCameraFacingControls();
+        if (!overlay || !overlay.classList.contains('active')) {
+          return;
+        }
+        restartScanWithSelectedCamera(overlay.dataset.mode, activeInput, ocrActiveInput);
+      });
+    });
   }
 
   function wait(ms) {
@@ -256,6 +310,47 @@
     return sectionId;
   }
 
+  function addUniqueCodeCandidate(candidates, value) {
+    const candidate = (value || '').toString().trim().toLowerCase();
+    if (candidate && !candidates.includes(candidate)) {
+      candidates.push(candidate);
+    }
+  }
+
+  function addGtinCandidateVariants(candidates, gtin) {
+    addUniqueCodeCandidate(candidates, gtin);
+    if (gtin.length === 14 && gtin.startsWith('0')) {
+      addUniqueCodeCandidate(candidates, gtin.slice(1));
+    }
+  }
+
+  function extractUdiCandidateCodes(value) {
+    const raw = (value || '').toString().trim();
+    if (!raw) {
+      return [];
+    }
+    const candidates = [];
+    addUniqueCodeCandidate(candidates, raw);
+
+    Array.from(raw.matchAll(/\(01\)\s*(\d{14})/g)).forEach(match => {
+      addGtinCandidateVariants(candidates, match[1]);
+    });
+
+    let compact = raw.replace(/[\s\x1d]/g, '');
+    [']C1', ']d2', ']e0'].some(prefix => {
+      if (compact.toLowerCase().startsWith(prefix.toLowerCase())) {
+        compact = compact.slice(prefix.length);
+        return true;
+      }
+      return false;
+    });
+    Array.from(compact.matchAll(/(?:^|[^\d])01(\d{14})/g)).forEach(match => {
+      addGtinCandidateVariants(candidates, match[1]);
+    });
+
+    return candidates;
+  }
+
   function createProductMatcher(entries) {
     return value => {
       const raw = (value || '').trim();
@@ -264,28 +359,36 @@
       }
       const rawLower = raw.toLowerCase();
       const rawNorm = normalizeText(raw);
-      let match = entries.find(
-        product =>
-          product.nameLower === rawLower ||
-          (product.nameNorm && product.nameNorm === rawNorm)
-      );
-      if (match) {
-        return match;
+      const exactCodeFields = ['barcodeLower', 'eanLower'];
+      for (const codeField of exactCodeFields) {
+        const match = entries.find(
+          product => product[codeField] && product[codeField] === rawLower
+        );
+        if (match) {
+          return match;
+        }
       }
-      match = entries.find(
+      const udiCandidates = extractUdiCandidateCodes(raw);
+      for (const candidate of udiCandidates) {
+        for (const codeField of exactCodeFields) {
+          const match = entries.find(
+            product => product[codeField] && product[codeField] === candidate
+          );
+          if (match) {
+            return match;
+          }
+        }
+      }
+      let match = entries.find(
         product => product.skuLower && product.skuLower === rawLower
       );
       if (match) {
         return match;
       }
       match = entries.find(
-        product => product.barcodeLower && product.barcodeLower === rawLower
-      );
-      if (match) {
-        return match;
-      }
-      match = entries.find(
-        product => product.eanLower && product.eanLower === rawLower
+        product =>
+          product.nameLower === rawLower ||
+          (product.nameNorm && product.nameNorm === rawNorm)
       );
       if (match) {
         return match;
@@ -423,7 +526,7 @@
         zxingReader = new ZXing.BrowserMultiFormatReader();
         if (typeof zxingReader.decodeFromConstraints === 'function') {
           return zxingReader.decodeFromConstraints(
-            { audio: false, video: { facingMode: { ideal: 'environment' } } },
+            getCameraMediaConstraints(),
             video,
             callback
           );
@@ -458,10 +561,7 @@
       try {
         stream = await retryTransientCameraStart(
           () =>
-            navigator.mediaDevices.getUserMedia({
-              video: { facingMode: 'environment' },
-              audio: false
-            }),
+            navigator.mediaDevices.getUserMedia(getCameraMediaConstraints()),
           'Réactivation caméra...'
         );
       } catch (err) {
@@ -732,10 +832,7 @@
       return;
     }
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false
-      });
+      stream = await navigator.mediaDevices.getUserMedia(getCameraMediaConstraints());
     } catch (err) {
       setStatus('Accès caméra refusé.');
       await stopScan();
@@ -1427,14 +1524,12 @@
       const grid = document.createElement('div');
       grid.className = 'pack-line-grid';
 
-      const productField = document.createElement('div');
-      productField.className = 'pack-line-field';
-      const productLabel = document.createElement('label');
-      productLabel.textContent = 'Produit';
-      productField.appendChild(productLabel);
+      const searchField = document.createElement('div');
+      searchField.className = 'pack-line-field pack-line-search-field';
+      const searchLabel = document.createElement('label');
+      searchLabel.textContent = 'Rechercher un produit';
+      searchField.appendChild(searchLabel);
 
-      const productInline = document.createElement('div');
-      productInline.className = 'scan-inline';
       const productInput = document.createElement('select');
       productInput.id = `id_pack_line_${index}_product_code`;
       productInput.name = `line_${index}_product_code`;
@@ -1443,13 +1538,26 @@
       const filterInput = document.createElement('input');
       filterInput.type = 'text';
       filterInput.className = 'scan-select-filter';
-      filterInput.placeholder = 'Rechercher produit';
+      filterInput.placeholder = 'Rechercher un produit';
       filterInput.setAttribute('autocomplete', 'off');
+      searchField.appendChild(filterInput);
+      grid.appendChild(searchField);
 
-      const productStack = document.createElement('div');
-      productStack.className = 'scan-select-stack';
-      productStack.appendChild(filterInput);
-      productStack.appendChild(productInput);
+      const scanField = document.createElement('div');
+      scanField.className = 'pack-line-field pack-line-scan-field';
+      const scanBtn = document.createElement('button');
+      scanBtn.type = 'button';
+      scanBtn.className = 'scan-scan-btn btn btn-tertiary';
+      scanBtn.dataset.scanTarget = productInput.id;
+      scanBtn.textContent = 'Scanner un code barre / QR Code';
+      scanField.appendChild(scanBtn);
+      grid.appendChild(scanField);
+
+      const selectField = document.createElement('div');
+      selectField.className = 'pack-line-field pack-line-select-field';
+      const selectLabel = document.createElement('label');
+      selectLabel.textContent = 'Produit';
+      selectField.appendChild(selectLabel);
 
       const placeholder = document.createElement('option');
       placeholder.value = '';
@@ -1506,36 +1614,29 @@
         if (initialMatch && initialMatch.codeValue) {
           productInput.value = initialMatch.codeValue;
         } else {
-          productInput.value = value.product_code;
           if (productInput.value !== value.product_code) {
             const fallbackOption = document.createElement('option');
             fallbackOption.value = value.product_code;
             fallbackOption.textContent = value.product_code;
             productInput.appendChild(fallbackOption);
+          }
           productInput.value = value.product_code;
         }
       }
+      if (productInput.value) {
+        const initialSelectedProduct = findProduct(productInput.value);
+        filterInput.value = initialSelectedProduct
+          ? optionLabel(initialSelectedProduct)
+          : value.product_code || productInput.value;
       }
 
-      const scanBtn = document.createElement('button');
-      scanBtn.type = 'button';
-      scanBtn.className = 'scan-scan-btn';
-      scanBtn.dataset.scanTarget = productInput.id;
-      scanBtn.textContent = 'Scanner un code barre ou QR Code';
-
-      const actionWrap = document.createElement('div');
-      actionWrap.className = 'scan-inline-actions';
-      actionWrap.appendChild(scanBtn);
-
-      productInline.appendChild(productStack);
-      productInline.appendChild(actionWrap);
-      productField.appendChild(productInline);
-      grid.appendChild(productField);
+      selectField.appendChild(productInput);
+      grid.appendChild(selectField);
 
       const quantityField = document.createElement('div');
-      quantityField.className = 'pack-line-field';
+      quantityField.className = 'pack-line-field pack-line-quantity-field';
       const quantityLabel = document.createElement('label');
-      quantityLabel.textContent = 'Quantite';
+      quantityLabel.textContent = 'Quantité';
       const quantityInput = document.createElement('input');
       quantityInput.type = 'number';
       quantityInput.name = `line_${index}_quantity`;
@@ -1548,9 +1649,9 @@
       grid.appendChild(quantityField);
 
       const expiresOnField = document.createElement('div');
-      expiresOnField.className = 'pack-line-field';
+      expiresOnField.className = 'pack-line-field pack-line-expires-field';
       const expiresOnLabel = document.createElement('label');
-      expiresOnLabel.textContent = 'Date de peremption';
+      expiresOnLabel.textContent = 'Date de péremption';
       const expiresOnInput = document.createElement('input');
       expiresOnInput.type = 'date';
       expiresOnInput.name = `line_${index}_expires_on`;
@@ -1565,7 +1666,7 @@
       let familyStatus = null;
       if (preparateurMode) {
         familyField = document.createElement('div');
-        familyField.className = 'pack-line-field';
+        familyField.className = 'pack-line-field pack-line-family-field';
         const familyLabel = document.createElement('label');
         familyLabel.textContent = 'Type MM/CN';
         familySelect = document.createElement('select');
@@ -1640,9 +1741,7 @@
         }
         if (resolvedFamily) {
           familyField.style.display = 'none';
-          familyStatus.textContent = `Type detecte: ${resolvedFamily}`;
           familySelect.value = '';
-          quantityField.appendChild(familyStatus);
           return;
         }
         familyField.style.display = 'block';
@@ -1692,6 +1791,12 @@
       }
       container.dispatchEvent(
         new CustomEvent('wms:enhance-number-inputs', {
+          bubbles: true,
+          detail: { root: container }
+        })
+      );
+      container.dispatchEvent(
+        new CustomEvent('wms:enhance-date-inputs', {
           bubbles: true,
           detail: { root: container }
         })
@@ -4413,6 +4518,7 @@
   setupReceiptLines();
   setupTableTools();
   setupFaqEnhancements();
+  setupCameraFacingControls();
 
   const receivedOnInput = document.getElementById('id_received_on');
   if (receivedOnInput && !receivedOnInput.value) {

@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import Http404
@@ -346,6 +347,7 @@ def _render_pack_page(
     packing_result,
     missing_defaults,
     confirm_defaults,
+    forced_carton_count,
     extra_context=None,
 ):
     context = {
@@ -361,6 +363,7 @@ def _render_pack_page(
         "packing_result": packing_result,
         "missing_defaults": missing_defaults,
         "confirm_defaults": confirm_defaults,
+        "forced_carton_count": forced_carton_count,
         **_build_local_document_helper_context(request),
     }
     if extra_context:
@@ -389,6 +392,7 @@ def _build_pack_state_from_post(post_data):
         "line_errors": {},
         "missing_defaults": [],
         "confirm_defaults": bool(post_data.get("confirm_defaults")),
+        "forced_carton_count": post_data.get("forced_carton_count", ""),
     }
 
 
@@ -1149,6 +1153,8 @@ def scan_cartons_ready(request):
                 return redirect(
                     f"{reverse('scan:scan_cartons_view_bundle', args=['packing_lists'])}?carton_ids={carton_ids_value}"
                 )
+        if user_is_preparateur(request.user):
+            raise PermissionDenied
 
     response = handle_carton_status_update(request)
     if response:
@@ -1166,6 +1172,8 @@ def scan_cartons_ready(request):
     )
     if shipment_reference_filter:
         cartons_qs = cartons_qs.filter(shipment__reference__iexact=shipment_reference_filter)
+    if user_is_preparateur(request.user):
+        cartons_qs = cartons_qs.exclude(status=CartonStatus.SHIPPED)
     cartons = build_cartons_ready_rows(cartons_qs, carton_capacity_cm3=carton_capacity_cm3)
 
     return render(
@@ -1454,6 +1462,7 @@ def scan_pack(request):
                 packing_result=packing_result,
                 missing_defaults=pack_state["missing_defaults"],
                 confirm_defaults=pack_state["confirm_defaults"],
+                forced_carton_count=pack_state.get("forced_carton_count"),
                 extra_context=_build_preparateur_pack_extra_context(
                     request,
                     unknown_product_form=unknown_product_form,
@@ -1468,6 +1477,7 @@ def scan_pack(request):
         line_errors = pack_state["line_errors"]
         missing_defaults = pack_state.get("missing_defaults", [])
         confirm_defaults = pack_state.get("confirm_defaults", True)
+        forced_carton_count = pack_state.get("forced_carton_count")
         if response:
             return response
     else:
@@ -1476,6 +1486,7 @@ def scan_pack(request):
             carton_custom,
             line_count,
             line_values,
+            forced_carton_count,
         ) = build_pack_defaults(default_format)
         missing_defaults = []
         confirm_defaults = True
@@ -1492,6 +1503,7 @@ def scan_pack(request):
         packing_result=packing_result,
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
+        forced_carton_count=forced_carton_count,
         extra_context=_build_preparateur_pack_extra_context(request),
     )
 
@@ -1554,6 +1566,7 @@ def scan_carton_edit(request, carton_id):
             line_errors = pack_state["line_errors"]
             missing_defaults = pack_state.get("missing_defaults", [])
             confirm_defaults = pack_state.get("confirm_defaults", False)
+            forced_carton_count = pack_state.get("forced_carton_count")
             if response:
                 return response
         else:
@@ -1562,6 +1575,7 @@ def scan_carton_edit(request, carton_id):
                 carton_custom,
                 line_count,
                 line_values,
+                forced_carton_count,
             ) = build_pack_defaults(default_format, carton=editing_carton)
             missing_defaults = []
             confirm_defaults = False
@@ -1580,6 +1594,7 @@ def scan_carton_edit(request, carton_id):
         line_errors = {}
         missing_defaults = []
         confirm_defaults = False
+        forced_carton_count = None
 
     carton_summary = build_carton_ready_row(
         editing_carton,
@@ -1616,6 +1631,7 @@ def scan_carton_edit(request, carton_id):
         packing_result=packing_result,
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
+        forced_carton_count=forced_carton_count,
         extra_context={
             "active": ACTIVE_CARTONS_READY,
             "editing_carton": editing_carton,
