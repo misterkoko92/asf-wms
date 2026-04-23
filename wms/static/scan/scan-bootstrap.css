@@ -1,6 +1,12 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap");
 @import url("css/partials/ops.css");
 
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
 :root {
   --wms-font-heading-h1: "DM Sans";
   --wms-font-heading-h2: "DM Sans";
@@ -221,10 +227,13 @@ body.scan-bootstrap-enabled {
   background: var(--bg);
   height: 100dvh;
   overflow: hidden;
+  max-width: 100%;
+  overscroll-behavior-x: none;
 }
 
 .scan-bootstrap-enabled .scan-shell {
   width: min(var(--wms-container-max-width), 100%);
+  max-width: 100%;
   height: 100dvh;
   padding: clamp(14px, 1.8vw, 28px) clamp(12px, 1.8vw, 24px) clamp(22px, 2.4vw, 34px);
   display: grid;
@@ -632,6 +641,14 @@ body.scan-bootstrap-enabled {
   min-width: 0;
   min-height: 100%;
   overflow-x: hidden;
+  max-width: 100%;
+}
+
+.scan-bootstrap-enabled img,
+.scan-bootstrap-enabled svg,
+.scan-bootstrap-enabled canvas,
+.scan-bootstrap-enabled video {
+  max-width: 100%;
 }
 
 .scan-bootstrap-enabled .scan-header-actions {

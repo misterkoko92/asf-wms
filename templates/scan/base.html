@@ -297,7 +297,7 @@
         {% block extra_scripts %}{% endblock %}
         <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}?v=56")
+      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}?v=57")
         .then(function(registration) {
           if (registration.update) {
             registration.update();

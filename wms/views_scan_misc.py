@@ -17,12 +17,14 @@ ACTIVE_UI_LAB = "ui_lab"
 SHELL_CLASS_WIDE = "scan-shell-wide"
 SCAN_SW_ALLOWED_SCOPE = "/scan/"
 CACHE_CONTROL_NO_CACHE = "no-cache"
-SCAN_SERVICE_WORKER_VERSION = "56"
+SCAN_SERVICE_WORKER_VERSION = "57"
 
 SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v__VERSION__';
 const ASSETS = [
   '/static/scan/scan.css',
+  '/static/scan/scan-bootstrap.css',
   '/static/scan/scan.js',
+  '/static/scan/modules/core.js',
   '/static/scan/zxing.min.js',
   '/static/scan/manifest.json',
   '/static/scan/icon.png'
@@ -31,7 +33,9 @@ const ASSETS = [
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache =>
+      cache.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))
+    )
   );
 });
 
