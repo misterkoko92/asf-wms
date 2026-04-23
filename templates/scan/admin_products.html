@@ -15,8 +15,8 @@
     <h2 class="ui-comp-title">{% trans "Admin - Produit" %}</h2>
     <p class="scan-help ui-comp-note">
       {% blocktrans trimmed %}
-        Gestion des kits: créer, modifier, supprimer, attribuer des produits et quantités.
-        Les actions ouvrent les formulaires admin complets.
+        Gestion des kits et produits: créer, modifier, supprimer, attribuer des produits et quantités.
+        Les modifications détaillées ouvrent les formulaires admin complets.
       {% endblocktrans %}
     </p>
   </div>
@@ -83,7 +83,17 @@
               <td>
                 <div class="scan-inline scan-inline-gap ui-comp-actions">
                   {% ui_button label=edit_label href=row.edit_url variant="tertiary" extra_classes="scan-scan-btn" %}
-                  {% ui_button label=delete_label href=row.delete_url variant="danger" extra_classes="scan-scan-btn" %}
+                  {% if row.can_delete %}
+                    <form method="post" class="d-inline-flex">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ row.kit.id }}">
+                      <input type="hidden" name="q" value="{{ query }}">
+                      <button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">{{ delete_label }}</button>
+                    </form>
+                  {% else %}
+                    <button type="button" class="scan-scan-btn btn btn-secondary" disabled title="{{ row.reason }}">{{ delete_label }}</button>
+                    <span class="scan-help">{{ row.reason }}</span>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -92,6 +102,54 @@
       </table>
     {% else %}
       <p class="scan-help">{% trans "Aucun kit trouvé." %}</p>
+    {% endif %}
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3>{% blocktrans trimmed with count=product_rows|length|default:0 %}Produits disponibles ({{ count }}){% endblocktrans %}</h3>
+    {% if product_rows %}
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>{% trans "Produit" %}</th>
+            <th>{% trans "SKU" %}</th>
+            <th>{% trans "Statut suppression" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in product_rows %}
+            <tr>
+              <td>{{ row.product.name }}</td>
+              <td>{{ row.product.sku }}</td>
+              <td>
+                {% if row.can_delete %}
+                  <span class="scan-help">Libre</span>
+                {% else %}
+                  <span class="scan-help">{{ row.reason }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="scan-inline scan-inline-gap ui-comp-actions">
+                  {% ui_button label=edit_label href=row.edit_url variant="tertiary" extra_classes="scan-scan-btn" %}
+                  {% if row.can_delete %}
+                    <form method="post" class="d-inline-flex">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ row.product.id }}">
+                      <input type="hidden" name="q" value="{{ query }}">
+                      <button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">{{ delete_label }}</button>
+                    </form>
+                  {% else %}
+                    <button type="button" class="scan-scan-btn btn btn-secondary" disabled title="{{ row.reason }}">{{ delete_label }}</button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="scan-help">{% trans "Aucun produit trouvé." %}</p>
     {% endif %}
   </div>
 {% endblock %}

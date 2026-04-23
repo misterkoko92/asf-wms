@@ -439,11 +439,10 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'class="scan-inline scan-inline-gap ui-comp-actions"')
         self.assertContains(
             response,
-            '<a class="btn btn-danger scan-scan-btn" href="'
-            + reverse("admin:wms_product_delete", args=[kit.id])
-            + '">Supprimer</a>',
+            '<button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">Supprimer</button>',
             html=True,
         )
+        self.assertContains(response, f'name="product_id" value="{kit.id}"')
 
     def test_scan_out_keeps_scan_shortcuts_and_danger_action_contract(self):
         response = self.client.get(reverse("scan:scan_out"))
@@ -1242,6 +1241,23 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("setupCameraFacingControls();", scan_js_content)
         self.assertIn("data-scan-camera-facing", scan_js_content)
         self.assertIn("facingMode: { ideal: selectedCameraFacingMode }", scan_js_content)
+        self.assertIn("const previousMode = overlay.dataset.mode;", scan_js_content)
+        self.assertIn("const previousBarcodeInput = activeInput;", scan_js_content)
+        self.assertIn("const previousOcrInput = ocrActiveInput;", scan_js_content)
+        self.assertIn(
+            "restartScanWithSelectedCamera(previousMode, previousBarcodeInput, previousOcrInput);",
+            scan_js_content,
+        )
+
+    def test_scan_camera_restart_stops_zxing_controls_and_ignores_stale_callbacks(self):
+        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        scan_js_content = scan_js_path.read_text(encoding="utf-8")
+
+        self.assertIn("let scanSessionId = 0;", scan_js_content)
+        self.assertIn("let zxingControls = null;", scan_js_content)
+        self.assertIn("zxingControls.stop();", scan_js_content)
+        self.assertIn("const sessionId = ++scanSessionId;", scan_js_content)
+        self.assertIn("if (sessionId !== scanSessionId || !scanning) {", scan_js_content)
 
     def test_scan_pack_product_matcher_uses_barcode_ean_then_udi_candidates(self):
         scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
@@ -1290,6 +1306,33 @@ class ScanBootstrapUiTests(TestCase):
             "  overflow-y: auto;\n"
             "  overflow-x: hidden;\n"
             "  overscroll-behavior-x: none;",
+            css_content,
+        )
+
+    def test_scan_shared_css_blocks_page_level_horizontal_overflow(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "html {\n"
+            "  max-width: 100%;\n"
+            "  overflow-x: hidden;\n"
+            "  overscroll-behavior-x: none;\n"
+            "}",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-shell {\n"
+            "  width: min(var(--wms-container-max-width), 100%);\n"
+            "  max-width: 100%;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled img,\n"
+            ".scan-bootstrap-enabled svg,\n"
+            ".scan-bootstrap-enabled canvas,\n"
+            ".scan-bootstrap-enabled video {\n"
+            "  max-width: 100%;",
             css_content,
         )
 
@@ -2683,11 +2726,12 @@ class ScanBootstrapUiTests(TestCase):
         )
         self.assertContains(
             admin_products_response,
-            'class="btn btn-danger scan-scan-btn"',
+            '<button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">Supprimer</button>',
+            html=True,
         )
         self.assertContains(
             admin_products_response,
-            reverse("admin:wms_product_delete", args=[kit.id]),
+            f'name="product_id" value="{kit.id}"',
         )
 
         product_labels_response = self.client.get(reverse("scan:scan_product_labels"))

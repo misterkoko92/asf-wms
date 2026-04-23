@@ -55,6 +55,14 @@
               {% for document in carton_documents %}
                 <a class="btn btn-tertiary" href="{{ document.url }}" target="_blank" rel="noopener"{% if document.use_local_helper %} data-local-document-helper-link="1"{% endif %}>{{ document.label }}</a>
               {% endfor %}
+              {% if carton_can_edit %}
+                <form method="post" class="d-inline-flex">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_carton">
+                  <input type="hidden" name="carton_id" value="{{ editing_carton.id }}">
+                  <button type="submit" class="btn btn-danger">Supprimer le colis</button>
+                </form>
+              {% endif %}
             </div>
           </div>
 

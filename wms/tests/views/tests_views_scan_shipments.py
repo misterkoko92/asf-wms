@@ -981,6 +981,40 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'href="/scan/import/"')
         self.assertNotContains(response, 'id="pack-unknown-product-overlay"')
 
+    def test_scan_carton_edit_exposes_delete_action_for_editable_carton(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        carton = self._create_carton_with_item(
+            code="C-DELETE-UI-001",
+            shipment=shipment,
+            status=CartonStatus.ASSIGNED,
+        )
+
+        response = self.client.get(reverse("scan:scan_carton_edit", args=[carton.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="action" value="delete_carton"')
+        self.assertContains(response, f'name="carton_id" value="{carton.id}"')
+        self.assertContains(response, "Supprimer le colis")
+
+    def test_scan_carton_edit_delete_action_deletes_editable_carton(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        carton = self._create_carton_with_item(
+            code="C-DELETE-POST-001",
+            shipment=shipment,
+            status=CartonStatus.ASSIGNED,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_carton_edit", args=[carton.id]),
+            {
+                "action": "delete_carton",
+                "carton_id": str(carton.id),
+            },
+        )
+
+        self.assertRedirects(response, reverse("scan:scan_cartons_ready"))
+        self.assertFalse(Carton.objects.filter(pk=carton.id).exists())
+
     def test_scan_carton_edit_renders_read_only_fiche_when_shipment_is_planned(self):
         shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
         carton = Carton.objects.create(
@@ -1002,6 +1036,7 @@ class ScanShipmentsViewsTests(TestCase):
         )
         self.assertNotContains(response, 'id="carton-edit-panel"')
         self.assertNotContains(response, 'id="pack-lines"')
+        self.assertNotContains(response, 'name="action" value="delete_carton"')
 
     def test_scan_shipments_tracking_renders_rows_context(self):
         with mock.patch(
