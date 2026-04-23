@@ -24,7 +24,7 @@
               <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
               <td>
                 {% if doc.file and doc.scan_status == "clean" %}
-                  {% ui_button label=download_label href=doc.file.url variant="tertiary" size="sm" target="_blank" %}
+                  {% ui_button label=download_label href=doc.file.url variant="tertiary" size="sm" target="_blank" rel="noopener noreferrer" %}
                 {% elif doc.scan_status == "infected" %}
                   <span class="scan-help">{% trans "Bloqué (fichier suspect)." %}</span>
                 {% elif doc.file %}

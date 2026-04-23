@@ -38,8 +38,17 @@
         if (count >= maxRows) {
           return;
         }
-        const rowMarkup = rowTemplate.innerHTML.replace(/__INDEX__/g, String(count));
-        rowsContainer.insertAdjacentHTML("beforeend", rowMarkup);
+        const indexValue = String(count);
+        const fragment = rowTemplate.content.cloneNode(true);
+        fragment.querySelectorAll("[data-contact-row], [id], [name], [for]").forEach((element) => {
+          ["data-contact-row", "id", "name", "for"].forEach((attributeName) => {
+            const attributeValue = element.getAttribute(attributeName);
+            if (attributeValue) {
+              element.setAttribute(attributeName, attributeValue.replace(/__INDEX__/g, indexValue));
+            }
+          });
+        });
+        rowsContainer.appendChild(fragment);
         updateCount();
       });
 

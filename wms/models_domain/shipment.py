@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 
@@ -9,6 +10,7 @@ from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from ..document_scan import DocumentScanStatus
@@ -305,6 +307,7 @@ class ShipmentTrackingAccessGrant(models.Model):
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["user_id", "role", "id"]
@@ -328,6 +331,10 @@ class ShipmentTrackingAccessGrant(models.Model):
             ),
         ]
 
+    @property
+    def is_expired(self) -> bool:
+        return self.expires_at is not None and self.expires_at <= timezone.now()
+
     def __str__(self) -> str:
         target = self.contact or self.volunteer_profile
         return f"{self.user} - {self.role} - {target}"
@@ -346,6 +353,14 @@ class ShipmentTrackingAccessGrant(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        if self.expires_at is None:
+            ttl_days = getattr(settings, "SHIPMENT_TRACKING_ACCESS_GRANT_TTL_DAYS", 180)
+            try:
+                ttl_days = int(ttl_days)
+            except (TypeError, ValueError):
+                ttl_days = 180
+            if ttl_days > 0:
+                self.expires_at = timezone.now() + timedelta(days=ttl_days)
         self.full_clean()
         super().save(*args, **kwargs)
 

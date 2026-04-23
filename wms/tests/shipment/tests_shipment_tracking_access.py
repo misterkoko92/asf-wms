@@ -1,7 +1,9 @@
+from datetime import timedelta
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from contacts.models import Contact
 from wms.models import (
@@ -66,6 +68,30 @@ class ShipmentTrackingAccessGrantTests(TestCase):
         self.assertEqual(grant.contact, contact)
         self.assertIsNone(grant.volunteer_profile)
         self.assertEqual(grant.role, ShipmentTrackingAccessRole.SHIPPER)
+
+    @override_settings(SHIPMENT_TRACKING_ACCESS_GRANT_TTL_DAYS=14)
+    def test_tracking_access_grant_defaults_to_configured_expiration(self):
+        user = get_user_model().objects.create_user(
+            username="tracking-expiring",
+            email="tracking-expiring@example.com",
+            password=TEST_PASSWORD,
+        )
+        contact = Contact.objects.create(
+            name="Expiring Tracking Contact",
+            email="tracking-expiring@example.com",
+            is_active=True,
+        )
+
+        grant = ShipmentTrackingAccessGrant.objects.create(
+            user=user,
+            role=ShipmentTrackingAccessRole.SHIPPER,
+            contact=contact,
+            identity_status=ShipmentTrackingIdentityStatus.VERIFIED,
+        )
+
+        self.assertIsNotNone(grant.expires_at)
+        self.assertGreater(grant.expires_at, timezone.now() + timedelta(days=13))
+        self.assertLess(grant.expires_at, timezone.now() + timedelta(days=15))
 
     def test_create_tracking_access_grant_for_volunteer_profile(self):
         user = get_user_model().objects.create_user(
@@ -333,6 +359,22 @@ class ShipmentTrackingAccessGrantTests(TestCase):
             identity_status=ShipmentTrackingIdentityStatus.VERIFIED,
             is_active=False,
         )
+        expired_contact = Contact.objects.create(
+            name="Expired",
+            email="expired@example.com",
+            is_active=True,
+        )
+        expired_grant = ShipmentTrackingAccessGrant.objects.create(
+            user=get_user_model().objects.create_user(
+                username="tracking-expired-grant",
+                email="expired-grant@example.com",
+                password=TEST_PASSWORD,
+            ),
+            role=ShipmentTrackingAccessRole.CORRESPONDENT,
+            contact=expired_contact,
+            identity_status=ShipmentTrackingIdentityStatus.VERIFIED,
+            expires_at=timezone.now() - timedelta(minutes=1),
+        )
 
         self.assertEqual(resolve_tracking_identifier_from_grant(contact_grant), contact.asf_id)
         self.assertEqual(
@@ -378,6 +420,18 @@ class ShipmentTrackingAccessGrantTests(TestCase):
             ),
             contact_grant,
         )
+        self.assertIsNone(
+            resolve_tracking_access_grant_by_identifier(
+                role=ShipmentTrackingAccessRole.CORRESPONDENT,
+                identifier=expired_contact.asf_id,
+            )
+        )
+        self.assertIsNone(
+            resolve_tracking_access_grant_by_email(
+                role=ShipmentTrackingAccessRole.CORRESPONDENT,
+                email=expired_grant.user.email,
+            )
+        )
 
         request = SimpleNamespace(user=user, session={})
         self.assertIsNone(resolve_active_tracking_access_grant(request))
@@ -388,6 +442,8 @@ class ShipmentTrackingAccessGrantTests(TestCase):
         )
         self.assertEqual(resolve_active_tracking_access_grant(request), contact_grant)
         request.session[ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY] = inactive_grant.id
+        self.assertIsNone(resolve_active_tracking_access_grant(request))
+        request.session[ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY] = expired_grant.id
         self.assertIsNone(resolve_active_tracking_access_grant(request))
         activate_tracking_access_grant(request, grant=None)
         self.assertNotIn(ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY, request.session)

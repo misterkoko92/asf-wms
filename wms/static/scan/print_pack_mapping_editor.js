@@ -121,45 +121,114 @@
     const worksheetName = workbookMeta.worksheetNames[0] || "";
     const row = document.createElement("tr");
     row.className = "mapping-row";
-    row.innerHTML = `
-      <td class="mapping-index"></td>
-      <td><select name="mapping_worksheet" class="form-select form-select-sm mapping-worksheet" data-selected="${worksheetName}"></select></td>
-      <td><select name="mapping_column" class="form-select form-select-sm mapping-column" data-selected=""></select></td>
-      <td><select name="mapping_row" class="form-select form-select-sm mapping-row-number" data-selected=""></select></td>
-      <td><input type="text" class="form-control form-control-sm mapping-cell-ref" value="" readonly></td>
-      <td>${buildSourceSelectHtml()}</td>
-      <td>${buildTransformSelectHtml()}</td>
-      <td>
-        <select name="mapping_required" class="form-select form-select-sm">
-          <option value="0" selected>non</option>
-          <option value="1">oui</option>
-        </select>
-      </td>
-      <td><input type="number" name="mapping_sequence" class="form-control form-control-sm" value="" min="1" step="1"></td>
-      <td><span class="small text-muted mapping-merged-range">-</span></td>
-      <td><button type="button" class="btn btn-outline-danger btn-sm remove-mapping-row">Supprimer</button></td>
-    `;
+
+    const worksheetSelect = buildSelect(
+      "mapping_worksheet",
+      "form-select form-select-sm mapping-worksheet",
+    );
+    worksheetSelect.dataset.selected = worksheetName;
+
+    const columnSelect = buildSelect(
+      "mapping_column",
+      "form-select form-select-sm mapping-column",
+    );
+    const rowSelect = buildSelect(
+      "mapping_row",
+      "form-select form-select-sm mapping-row-number",
+    );
+
+    const cellRefInput = document.createElement("input");
+    cellRefInput.type = "text";
+    cellRefInput.className = "form-control form-control-sm mapping-cell-ref";
+    cellRefInput.value = "";
+    cellRefInput.readOnly = true;
+
+    const requiredSelect = buildSelect("mapping_required", "form-select form-select-sm");
+    requiredSelect.appendChild(buildOption("0", "non", true));
+    requiredSelect.appendChild(buildOption("1", "oui"));
+
+    const sequenceInput = document.createElement("input");
+    sequenceInput.type = "number";
+    sequenceInput.name = "mapping_sequence";
+    sequenceInput.className = "form-control form-control-sm";
+    sequenceInput.value = "";
+    sequenceInput.min = "1";
+    sequenceInput.step = "1";
+
+    const mergedRange = document.createElement("span");
+    mergedRange.className = "small text-muted mapping-merged-range";
+    mergedRange.textContent = "-";
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "btn btn-outline-danger btn-sm remove-mapping-row";
+    removeButton.textContent = "Supprimer";
+
+    appendCell(row, null, "mapping-index");
+    appendCell(row, worksheetSelect);
+    appendCell(row, columnSelect);
+    appendCell(row, rowSelect);
+    appendCell(row, cellRefInput);
+    appendCell(row, buildSourceSelectElement());
+    appendCell(row, buildTransformSelectElement());
+    appendCell(row, requiredSelect);
+    appendCell(row, sequenceInput);
+    appendCell(row, mergedRange);
+    appendCell(row, removeButton);
     return row;
   }
 
-  function buildSourceSelectHtml() {
+  function appendCell(row, child, className) {
+    const cell = document.createElement("td");
+    if (className) {
+      cell.className = className;
+    }
+    if (child) {
+      cell.appendChild(child);
+    }
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function buildSelect(name, className) {
+    const select = document.createElement("select");
+    select.name = name;
+    select.className = className;
+    return select;
+  }
+
+  function buildOption(value, text, selected) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    option.selected = Boolean(selected);
+    return option;
+  }
+
+  function buildSourceSelectElement() {
     const firstSourceSelect = document.querySelector("#mapping-rows select[name='mapping_source_key']");
     if (!firstSourceSelect) {
-      return '<select name="mapping_source_key" class="form-select form-select-sm"><option value="">-- Choisir --</option></select>';
+      const select = buildSelect("mapping_source_key", "form-select form-select-sm");
+      select.appendChild(buildOption("", "-- Choisir --"));
+      return select;
     }
     const clone = firstSourceSelect.cloneNode(true);
     clone.value = "";
-    return clone.outerHTML;
+    return clone;
   }
 
-  function buildTransformSelectHtml() {
+  function buildTransformSelectElement() {
     const firstTransformSelect = document.querySelector("#mapping-rows select[name='mapping_transform']");
     if (!firstTransformSelect) {
-      return '<select name="mapping_transform" class="form-select form-select-sm"><option value="" selected>none</option><option value="upper">upper</option><option value="date_fr">date_fr</option></select>';
+      const select = buildSelect("mapping_transform", "form-select form-select-sm");
+      select.appendChild(buildOption("", "none", true));
+      select.appendChild(buildOption("upper", "upper"));
+      select.appendChild(buildOption("date_fr", "date_fr"));
+      return select;
     }
     const clone = firstTransformSelect.cloneNode(true);
     clone.value = "";
-    return clone.outerHTML;
+    return clone;
   }
 
   function init() {

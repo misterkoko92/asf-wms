@@ -1,3 +1,6 @@
+import hmac
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase, override_settings
 from rest_framework.test import APIClient
@@ -28,6 +31,17 @@ class IntegrationPermissionTests(TestCase):
 
         with override_settings(INTEGRATION_API_KEY="  "):
             self.assertFalse(has_integration_key(request))
+
+    def test_has_integration_key_uses_constant_time_comparison(self):
+        request = self.factory.get(
+            "/",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+        )
+
+        with mock.patch("hmac.compare_digest", wraps=hmac.compare_digest) as compare_mock:
+            self.assertTrue(has_integration_key(request))
+
+        compare_mock.assert_called_once_with("test-key", "test-key")
 
     def test_product_endpoint_requires_auth_or_key(self):
         client = APIClient()

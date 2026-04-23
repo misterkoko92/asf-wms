@@ -180,6 +180,8 @@ Use it when you need to answer:
   and then log in before any tracking event can be recorded
 - lost-code recovery for shipment QR tracking uses role + email + escale and sends the existing
   ASF ID / role back by email without revealing whether an unknown email exists
+- QR tracking login and lost-code recovery are throttled, and restricted grants are ignored after
+  `expires_at`
 - no-identifier QR tracking creation creates a restricted `pending` identity and the matching
   pending review object (`PublicAccountRequest` or `VolunteerAccountRequest`) without granting
   broad portal / volunteer access before review approval

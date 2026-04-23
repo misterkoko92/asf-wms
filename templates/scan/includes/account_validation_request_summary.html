@@ -44,8 +44,7 @@
                     {% if document.file and document.scan_status == "clean" %}
                       <a class="scan-scan-btn btn btn-tertiary btn-sm"
                          href="{{ document.file.url }}"
-                         target="_blank"
-                         rel="noopener">{{ document.file.name }}</a>
+                         target="_blank" rel="noopener">{{ document.file.name }}</a>
                     {% elif document.scan_status == "infected" %}
                       <span class="scan-help">Bloqué (fichier suspect).</span>
                     {% elif document.scan_status == "error" %}
