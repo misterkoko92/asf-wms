@@ -11,8 +11,10 @@
   let stream = null;
   let detector = null;
   let zxingReader = null;
+  let zxingControls = null;
   let scanning = false;
   let scanStartInFlight = false;
+  let scanSessionId = 0;
   let activeScanTrigger = null;
   let ocrActiveInput = null;
   let ocrProducts = [];
@@ -100,12 +102,15 @@
         if (nextMode === selectedCameraFacingMode) {
           return;
         }
+        const previousMode = overlay.dataset.mode;
+        const previousBarcodeInput = activeInput;
+        const previousOcrInput = ocrActiveInput;
         selectedCameraFacingMode = nextMode;
         syncCameraFacingControls();
         if (!overlay || !overlay.classList.contains('active')) {
           return;
         }
-        restartScanWithSelectedCamera(overlay.dataset.mode, activeInput, ocrActiveInput);
+        restartScanWithSelectedCamera(previousMode, previousBarcodeInput, previousOcrInput);
       });
     });
   }
@@ -150,6 +155,14 @@
   }
 
   function resetZxingReader() {
+    if (zxingControls && typeof zxingControls.stop === 'function') {
+      try {
+        zxingControls.stop();
+      } catch (err) {
+        // Ignore ZXing stop errors.
+      }
+    }
+    zxingControls = null;
     if (!zxingReader) {
       return;
     }
@@ -419,6 +432,7 @@
   }
 
   async function stopScan() {
+    scanSessionId += 1;
     scanning = false;
     detector = null;
     scanStartInFlight = false;
@@ -433,8 +447,8 @@
     setScanMode('');
   }
 
-  async function detectLoop() {
-    if (!scanning || !detector || !video) {
+  async function detectLoop(sessionId) {
+    if (sessionId !== scanSessionId || !scanning || !detector || !video) {
       return;
     }
     try {
@@ -448,7 +462,7 @@
     } catch (err) {
       setStatus('Erreur scan: ' + err.message);
     }
-    requestAnimationFrame(detectLoop);
+    requestAnimationFrame(() => detectLoop(sessionId));
   }
 
   function loadScript(src) {
@@ -480,7 +494,7 @@
     setStatus('Code detecte: ' + code);
   }
 
-  async function startZXingScan() {
+  async function startZXingScan(sessionId) {
     let ZXing;
     try {
       setStatus('Chargement du scanner...');
@@ -494,6 +508,9 @@
       await stopScan();
       return;
     }
+    if (sessionId !== scanSessionId) {
+      return;
+    }
     if (!ZXing || !ZXing.BrowserMultiFormatReader) {
       alert('Scan camera non supporte. Utilisez un scanner ou saisissez le code.');
       await stopScan();
@@ -505,7 +522,7 @@
       overlay.classList.add('active');
     }
     const callback = (result, err) => {
-      if (!scanning) {
+      if (sessionId !== scanSessionId || !scanning) {
         return;
       }
       if (result) {
@@ -525,13 +542,15 @@
         }
         zxingReader = new ZXing.BrowserMultiFormatReader();
         if (typeof zxingReader.decodeFromConstraints === 'function') {
-          return zxingReader.decodeFromConstraints(
+          zxingControls = await zxingReader.decodeFromConstraints(
             getCameraMediaConstraints(),
             video,
             callback
           );
+          return zxingControls;
         }
-        return zxingReader.decodeFromVideoDevice(null, video, callback);
+        zxingControls = await zxingReader.decodeFromVideoDevice(null, video, callback);
+        return zxingControls;
       }, 'Réactivation caméra...');
     } catch (err) {
       await handleCameraStartFailure(err);
@@ -540,9 +559,10 @@
 
   async function startScan(input) {
     if (scanStartInFlight || scanning) {
-      return;
+      await stopScan();
     }
     scanStartInFlight = true;
+    const sessionId = ++scanSessionId;
     activeInput = input;
     setScanMode('barcode');
     setStatus('Chargement du scanner...');
@@ -577,11 +597,13 @@
       if (overlay) {
         overlay.classList.add('active');
       }
-      requestAnimationFrame(detectLoop);
+      requestAnimationFrame(() => detectLoop(sessionId));
     } else {
-      await startZXingScan();
+      await startZXingScan(sessionId);
     }
-    scanStartInFlight = false;
+    if (sessionId === scanSessionId) {
+      scanStartInFlight = false;
+    }
   }
 
   function ensureOcr() {
