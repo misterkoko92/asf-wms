@@ -439,11 +439,10 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'class="scan-inline scan-inline-gap ui-comp-actions"')
         self.assertContains(
             response,
-            '<a class="btn btn-danger scan-scan-btn" href="'
-            + reverse("admin:wms_product_delete", args=[kit.id])
-            + '">Supprimer</a>',
+            '<button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">Supprimer</button>',
             html=True,
         )
+        self.assertContains(response, f'name="product_id" value="{kit.id}"')
 
     def test_scan_out_keeps_scan_shortcuts_and_danger_action_contract(self):
         response = self.client.get(reverse("scan:scan_out"))
@@ -2683,11 +2682,12 @@ class ScanBootstrapUiTests(TestCase):
         )
         self.assertContains(
             admin_products_response,
-            'class="btn btn-danger scan-scan-btn"',
+            '<button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">Supprimer</button>',
+            html=True,
         )
         self.assertContains(
             admin_products_response,
-            reverse("admin:wms_product_delete", args=[kit.id]),
+            f'name="product_id" value="{kit.id}"',
         )
 
         product_labels_response = self.client.get(reverse("scan:scan_product_labels"))

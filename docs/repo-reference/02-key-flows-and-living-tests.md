@@ -130,7 +130,9 @@ Use it when you need to answer:
   `TEMP / RECEPTION / LISTING` when neither row-level nor product default location is available
 - listing import quantities stay additive: confirmed rows create receipt lines and stock entries;
   they do not overwrite existing stock quantities already present for the matched product
-- carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
+- carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`;
+  editable carton dossiers expose a guarded delete action that reuses the carton mutation handler
+  and restores stock through unpacking before removing the carton
 - preparateur-only login entry under `/scan/preparateur/`, including active bénévole selection,
   persistent single `Bonjour <prenom>` shell greeting, default recommendation of the most critical
   realizable order, grouped order choices, a `MAJ Stock` shortcut to `/scan/stock-update/`, and
@@ -150,6 +152,9 @@ Use it when you need to answer:
   intermediate visible carton steps, requires an editable shipment selection when operators jump
   directly to `Étiqueté`, exposes a `Tout sélectionner` control, and shows a multiline `Produits`
   column (`Nom x quantité`) instead of the former emplacement/remplissage/contenu trio
+- `/scan/admin/products/` exposes superuser deletion for kits and standalone active products,
+  while blocking products that are used as kit components and falling back to archive guidance when
+  protected stock/order/receipt/preference references prevent physical deletion
 - `/scan/pack/` and `/scan/carton/<id>/edit/` now expose the same guarded escape hatch for unknown
   products: when an operator enters a product missing from the catalog, the UI proposes leaving the
   current packing flow and opening `/scan/import/`; accepting this redirect intentionally drops the

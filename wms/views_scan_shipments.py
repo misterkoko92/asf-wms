@@ -1532,9 +1532,14 @@ def scan_carton_edit(request, carton_id):
         pk=carton_id,
     )
     carton_can_edit = _carton_is_editable(editing_carton)
+    action = (request.POST.get("action") or "").strip()
     if request.method == "POST" and not carton_can_edit:
         messages.error(request, _("Impossible de modifier ce colis."))
         return redirect("scan:scan_cartons_ready")
+    if request.method == "POST" and action == "delete_carton":
+        response = handle_carton_status_update(request)
+        if response:
+            return response
 
     form_initial = {}
     if request.method == "GET":

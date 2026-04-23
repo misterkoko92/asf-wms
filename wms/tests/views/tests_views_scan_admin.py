@@ -750,15 +750,78 @@ class ScanAdminViewTests(TestCase):
 
     def test_scan_admin_products_renders_kit_rows_and_admin_links(self):
         self.client.force_login(self.superuser)
+        standalone_product = Product.objects.create(
+            sku="SCAN-ADMIN-DELETE-ME",
+            name="Produit supprimable",
+            qr_code_image="qr_codes/scan_admin_delete_me.png",
+        )
         response = self.client.get(reverse("scan:scan_admin_products"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "admin_products")
         self.assertContains(response, reverse("admin:wms_product_changelist"))
         self.assertContains(response, reverse("admin:wms_product_add"))
         self.assertContains(response, reverse("admin:wms_product_change", args=[self.kit.id]))
-        self.assertContains(response, reverse("admin:wms_product_delete", args=[self.kit.id]))
+        self.assertContains(response, 'name="action" value="delete_product"')
+        self.assertContains(response, f'name="product_id" value="{self.kit.id}"')
+        self.assertContains(response, f'name="product_id" value="{standalone_product.id}"')
         self.assertContains(response, self.kit.name)
         self.assertContains(response, self.component.name)
+        self.assertContains(response, standalone_product.name)
+        self.assertContains(response, "Produit utilisé comme composant de kit")
+
+    def test_scan_admin_products_deletes_unused_kit_and_keeps_components(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_products"),
+            {
+                "action": "delete_product",
+                "product_id": str(self.kit.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Product.objects.filter(pk=self.kit.id).exists())
+        self.assertTrue(Product.objects.filter(pk=self.component.id).exists())
+        self.assertContains(response, "Produit supprimé.")
+
+    def test_scan_admin_products_deletes_unused_product(self):
+        self.client.force_login(self.superuser)
+        product = Product.objects.create(
+            sku="SCAN-ADMIN-DELETE-PRODUCT",
+            name="Produit sans lien",
+            qr_code_image="qr_codes/scan_admin_delete_product.png",
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_products"),
+            {
+                "action": "delete_product",
+                "product_id": str(product.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Product.objects.filter(pk=product.id).exists())
+        self.assertContains(response, "Produit supprimé.")
+
+    def test_scan_admin_products_blocks_product_used_as_kit_component(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_products"),
+            {
+                "action": "delete_product",
+                "product_id": str(self.component.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Product.objects.filter(pk=self.component.id).exists())
+        self.assertContains(response, "Produit utilisé comme composant de kit")
 
     def test_scan_admin_carton_formats_renders_formats_and_create_form(self):
         CartonFormat.objects.create(

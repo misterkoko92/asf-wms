@@ -67,6 +67,16 @@ Surfaces that already reuse these contracts:
 - custom admin templates
 - `templates/scan/ui_lab.html`
 
+Current shared shell contract:
+
+- scan, portal, planning, and bénévole shells load the shared scan bootstrap CSS and must block
+  page-level horizontal overflow on mobile; wide tables and dense product matrices keep any needed
+  horizontal scroll inside their local table wrapper instead of making the whole page wider than
+  the viewport
+- scan-camera controls must preserve the active scan/OCR target when switching front/rear cameras,
+  stop any live ZXing controls before restart, and ignore stale camera callbacks from earlier scan
+  sessions so a second scan can be launched without reloading the page
+
 Maintenance rule:
 
 - if a primitive changes semantics, update the UI Lab and bootstrap regression tests
@@ -651,6 +661,37 @@ Current contract:
 Maintenance rule:
 
 - if receipt conformity capture changes, keep the model field, form validation, handler persistence, and scan templates aligned in the same work
+
+### Scan Product And Carton Deletion Contract
+
+Primary runtime sources:
+
+- `wms/views_scan_shipments.py`
+- `wms/carton_handlers.py`
+- `wms/views_scan_admin.py`
+- `templates/scan/pack.html`
+- `templates/scan/admin_products.html`
+
+Current contract:
+
+- editable carton dossiers under `/scan/carton/<id>/edit/` expose `Supprimer le colis`
+- carton deletion must route through `handle_carton_status_update(action=delete_carton)` so
+  stocked carton contents are unpacked, stock is restored, and shipment ready state is resynced
+  before the `Carton` row is removed
+- locked cartons stay non-deletable through the same editability rules as carton editing:
+  shipped cartons, disputed shipments, and locked shipment statuses do not expose the action
+- `/scan/admin/products/` is the superuser Scan UI for deleting kits and standalone active
+  products; it keeps detailed edit links in Django admin but performs deletion through local
+  CSRF-protected POST actions
+- products used as `ProductKitItem.component` are blocked before deletion and the UI surfaces that
+  kit-component dependency instead of relying on database errors
+- products or kits protected by stock, receipt, order, recipient-preference, or other operational
+  references must not be force-deleted; the UI tells operators to archive them instead
+
+Maintenance rule:
+
+- if product, kit, carton, stock, or preference deletion semantics change, keep the Scan handlers,
+  templates, bootstrap UI tests, and this repo-reference section aligned in the same work
 - preserve the historical `unknown` state unless a dedicated migration explicitly backfills it for statistics
 
 ### Warehouse Preparation Create Contract

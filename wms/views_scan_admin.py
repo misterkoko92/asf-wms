@@ -5,6 +5,7 @@ from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q
+from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
 from django.utils.translation import get_language
@@ -87,9 +88,18 @@ ACTION_SAVE_RECIPIENT_PREFERENCE = "save_recipient_preference"
 ACTION_CREATE_RECIPIENT_PREFERENCE = "create_recipient_preference"
 ACTION_UPDATE_RECIPIENT_PREFERENCE = "update_recipient_preference"
 ACTION_DELETE_RECIPIENT_PREFERENCE = "delete_recipient_preference"
+ACTION_DELETE_PRODUCT = "delete_product"
 MESSAGE_RECIPIENT_PREFERENCE_ADDED = _("Préférence produit ajoutée.")
 MESSAGE_RECIPIENT_PREFERENCE_UPDATED = _("Préférence produit modifiée.")
 MESSAGE_RECIPIENT_PREFERENCE_DELETED = _("Préférence produit supprimée.")
+MESSAGE_PRODUCT_DELETED = _("Produit supprimé.")
+ERROR_PRODUCT_NOT_FOUND = _("Produit introuvable.")
+ERROR_PRODUCT_USED_AS_KIT_COMPONENT = _(
+    "Produit utilisé comme composant de kit: suppression impossible."
+)
+ERROR_PRODUCT_DELETE_PROTECTED = _(
+    "Produit déjà utilisé en stock, commande, réception ou préférence: archivez-le plutôt que de le supprimer."
+)
 ERROR_RECIPIENT_PRODUCT_REQUIRED = _("Produit requis.")
 ERROR_RECIPIENT_PRODUCT_QUANTITY_INVALID = _("Quantite cible invalide.")
 ERROR_RECIPIENT_PRODUCT_STATUS_INVALID = _("Statut produit invalide.")
@@ -118,6 +128,44 @@ def _parse_int(value):
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _build_admin_products_redirect_url(request):
+    query = (request.POST.get("q") or request.GET.get("q") or "").strip()
+    base_url = reverse("scan:scan_admin_products")
+    if not query:
+        return base_url
+    return f"{base_url}?{urlencode({'q': query})}"
+
+
+def _product_delete_guard(product):
+    if product.kit_components.exists():
+        return {
+            "can_delete": False,
+            "reason": ERROR_PRODUCT_USED_AS_KIT_COMPONENT,
+        }
+    return {
+        "can_delete": True,
+        "reason": "",
+    }
+
+
+def _handle_scan_admin_product_delete(request):
+    product_id = _parse_int(request.POST.get("product_id"))
+    product = Product.objects.filter(pk=product_id).first()
+    if product is None:
+        messages.error(request, ERROR_PRODUCT_NOT_FOUND)
+        return
+    guard = _product_delete_guard(product)
+    if not guard["can_delete"]:
+        messages.error(request, guard["reason"])
+        return
+    try:
+        product.delete()
+    except ProtectedError:
+        messages.error(request, ERROR_PRODUCT_DELETE_PROTECTED)
+        return
+    messages.success(request, MESSAGE_PRODUCT_DELETED)
 
 
 def _build_default_recipient_preference_form_data():
@@ -834,9 +882,17 @@ def scan_admin_recipient_organization_detail(request, recipient_organization_id)
 
 
 @scan_staff_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def scan_admin_products(request):
     _require_superuser(request)
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == ACTION_DELETE_PRODUCT:
+            _handle_scan_admin_product_delete(request)
+        else:
+            messages.error(request, _("Action produit non reconnue."))
+        return redirect(_build_admin_products_redirect_url(request))
+
     query = (request.GET.get("q") or "").strip()
     kits_qs = (
         Product.objects.filter(is_active=True, kit_items__isnull=False)
@@ -893,9 +949,30 @@ def scan_admin_products(request):
                 "flattened_lines": flattened_lines,
                 "has_cycle": kit.id in kit_cycle_ids,
                 "edit_url": reverse("admin:wms_product_change", args=[kit.id]),
-                "delete_url": reverse("admin:wms_product_delete", args=[kit.id]),
+                **_product_delete_guard(kit),
             }
         )
+
+    products_qs = (
+        Product.objects.filter(is_active=True, kit_items__isnull=True)
+        .distinct()
+        .order_by("name", "id")
+    )
+    if query:
+        products_qs = products_qs.filter(
+            Q(name__icontains=query)
+            | Q(sku__icontains=query)
+            | Q(barcode__icontains=query)
+            | Q(ean__icontains=query)
+        )
+    product_rows = [
+        {
+            "product": product,
+            "edit_url": reverse("admin:wms_product_change", args=[product.id]),
+            **_product_delete_guard(product),
+        }
+        for product in products_qs
+    ]
     return render(
         request,
         TEMPLATE_SCAN_ADMIN_PRODUCTS,
@@ -903,6 +980,7 @@ def scan_admin_products(request):
             "active": ACTIVE_SCAN_ADMIN_PRODUCTS,
             "query": query,
             "kit_rows": kit_rows,
+            "product_rows": product_rows,
             "products_admin_url": reverse("admin:wms_product_changelist"),
             "product_add_url": reverse("admin:wms_product_add"),
         },
