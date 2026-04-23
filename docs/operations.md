@@ -73,6 +73,17 @@ Security-related values (recommended in production):
 - `SECURE_HSTS_SECONDS=31536000`
 - `SECURE_HSTS_INCLUDE_SUBDOMAINS=true`
 - `SECURE_HSTS_PRELOAD=true`
+- `CSP_REPORT_ONLY_ENABLED=true` to emit the default report-only policy while CSP violations are
+  monitored before enforcement
+
+Monitoring values:
+
+- `SENTRY_DSN` (optional until the production Sentry project is created)
+- `SENTRY_ENVIRONMENT=production`
+- `SENTRY_RELEASE` (recommended: deployed revision or release tag)
+- `SENTRY_SAMPLE_RATE=1.0`
+- `SENTRY_TRACES_SAMPLE_RATE` (leave empty unless performance tracing is explicitly enabled)
+- `SENTRY_SEND_DEFAULT_PII=false`
 
 Mail and queue values:
 
@@ -88,8 +99,22 @@ Mail and queue values:
 Integration/security values:
 
 - `INTEGRATION_API_KEY` (required for API key-based integration access)
+- `DRF_USER_THROTTLE_RATE` (default `120/minute`)
+- `DRF_ANON_THROTTLE_RATE` (default `30/minute`)
 - `ACCOUNT_REQUEST_THROTTLE_SECONDS` (default `300`)
+- `SHIPMENT_TRACKING_ACCESS_LOGIN_THROTTLE_SECONDS` (default `60`)
+- `SHIPMENT_TRACKING_ACCESS_RECOVERY_THROTTLE_SECONDS` (default `300`)
+- `SHIPMENT_TRACKING_ACCESS_GRANT_TTL_DAYS` (default `180`; set `0` only with an
+  explicit accepted risk to create non-expiring new QR grants)
 - `PUBLIC_ORDER_THROTTLE_SECONDS` (default `300`)
+
+Frontend security values:
+
+- `CONTENT_SECURITY_POLICY_REPORT_ONLY` (optional override; leave unset to use the maintained
+  default report-only policy)
+- Stable third-party JS/CSS assets in templates must either be self-hosted or include SRI +
+  `crossorigin`.
+- New `target="_blank"` links/forms must include `rel` with `noopener`.
 
 ## 2) Pre-deploy checklist
 
@@ -470,6 +495,48 @@ Workflow transitions are emitted on logger `wms.workflow` as JSON messages:
 
 If your platform supports log filtering, filter by logger name `wms.workflow` and parse JSON fields (`event_type`, `shipment.reference`, `previous_status`, `new_status`).
 
+## 8.1) Monitoring and PRA baseline
+
+P1 operations target:
+
+- detect production errors before users have to report them;
+- prove a recent backup can be restored;
+- keep a written incident path for rollback, queues and communications.
+
+Initial RPO/RTO targets to validate:
+
+- RPO DB: 24 hours maximum data loss, backed by at least one daily MySQL dump.
+- RPO media: 24 hours maximum data loss, backed by a daily copy of `MEDIA_ROOT`.
+- RTO app rollback: 2 hours for reverting to the previous known-good revision.
+- RTO DB/media restore: 4 business hours for a small production dataset.
+
+External error tracking baseline:
+
+- Sentry is wired through `sentry-sdk[django]` and activates only when `SENTRY_DSN` is set.
+- The default configuration sends no default PII, does not send request bodies, disables local
+  variable capture, and redacts query strings plus common secret/token/header/cookie keys before
+  sending events.
+- Keep `SENTRY_TRACES_SAMPLE_RATE` empty unless performance tracing is explicitly needed and
+  reviewed for personal-data impact.
+- Run `python manage.py check_sentry_runtime --allow-missing` on normal deploy checks.
+- After configuring a production DSN, run `python manage.py check_sentry_runtime --send-test`
+  once and verify the event appears in the Sentry project.
+
+Monitoring source of truth when Sentry is not configured:
+
+- platform logs for unhandled 500 errors;
+- `/scan/dashboard/` for workflow, SLA, email queue and document scan queue signals;
+- `python manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0`;
+- `python manage.py process_email_queue --limit=100` and queue summaries;
+- release smoke checks from `docs/release_checklist.md`.
+
+Remaining blocker before closing P1-03:
+
+- configure the production `SENTRY_DSN` outside the repo or record an explicit accepted risk and
+  review date before wider portal exposure;
+- verify one test event in the external tracker;
+- record one successful DB/media restore drill.
+
 ## 9) Incident playbooks
 
 ### A) Queue backlog growing
@@ -515,7 +582,32 @@ If your platform supports log filtering, filter by logger name `wms.workflow` an
 4. If the signal is too noisy or too weak locally, switch to `/scan/settings/`, load preset `Incident SLA`, and compare preview counts before saving.
 5. Cross-check delayed shipments in `/scan/shipments-tracking/` and open litiges only when the SLA issue becomes a real exception case.
 
+### G) Unhandled errors or repeated 500s
+
+1. Confirm the failing route, timestamp, user action and last deployed revision.
+2. Check platform logs first, then recent application warnings if available.
+3. If an external monitor is enabled, check the latest event group and affected release.
+4. If the failing route is core (`/scan/`, `/portal/`, `/admin/`, shipment creation, email or document scan), rollback unless a targeted hotfix is faster and low risk.
+5. After rollback or hotfix, rerun the always-on smoke checks and verify queue health.
+
+### H) Restore drill failure
+
+1. Stop the drill and keep production untouched.
+2. Record the failing command, dump path, media path, target database and error.
+3. Verify credentials, disk space, dump completeness and Django migration state.
+4. Re-run against a fresh scratch database or local SQLite/MySQL target.
+5. If the drill still fails, treat backups as degraded and block non-emergency releases until a
+   successful restore is recorded.
+
 ## 10) Backup and restore basics
+
+Backup scope:
+
+- database dump;
+- `MEDIA_ROOT` documents and generated files;
+- environment variable inventory without secret values;
+- deployed git revision;
+- dependency files (`requirements.txt`, `requirements-dev.txt`, `uv.lock`).
 
 SQLite:
 
@@ -535,6 +627,37 @@ Restore MySQL:
 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p "$DB_NAME" < asf_wms.sql
 ```
 
+Media backup:
+
+```bash
+tar -czf asf-wms-media-backup.tgz media
+```
+
+Restore drill, monthly:
+
+1. Create a scratch database or local target that is not production.
+2. Restore the latest DB dump into that target.
+3. Restore media into a temporary `MEDIA_ROOT`.
+4. Point local env vars to the restored DB/media target.
+5. Run:
+
+```bash
+python manage.py migrate --noinput
+python manage.py check_referential_integrity
+python manage.py check --deploy --fail-level WARNING
+python manage.py check_document_scan_runtime --allow-noop
+python manage.py test api.tests.tests_ui_e2e_workflows --parallel 1
+```
+
+Evidence to record after each drill:
+
+- date and operator;
+- backup timestamp restored;
+- DB dump path or identifier;
+- media backup path or identifier;
+- deployed git revision used for the drill;
+- result, duration, blockers and follow-up actions.
+
 ## 11) Recurring maintenance
 
 Weekly:
@@ -542,12 +665,16 @@ Weekly:
 - Run full test + coverage and security checks.
 - Review open failed email events and oldest pending items.
 - Review failed/stale document scan queue events and backlog size.
+- Confirm latest production backup exists for DB and media.
 
 Monthly:
 
 - Refresh dependencies (`pip list --outdated`).
 - Re-run `pip-audit` and review vulnerabilities.
+- Run `python manage.py check_referential_integrity --report-only` and record any anomaly count
+  before deciding whether data repair is needed.
 - Run `python manage.py normalize_wms_text` if data normalization drift appears.
+- Run and record one restore drill from the latest DB/media backup.
 
 ## 12) Shipment and carton status rules
 
@@ -649,6 +776,10 @@ QR tracking access:
 - `/scan/shipment/track/<tracking_token>/` can be opened anonymously, but mutation requires a logged-in identity.
 - The QR gateway uses existing ASF IDs for contacts and volunteer IDs for volunteers, then redirects to the QR tracking login before the scan can continue.
 - Lost-code recovery requires role, email, and escale; matching identities receive the ASF ID, role, login link, password link, and tracking return link.
+- QR login/recovery throttles are controlled by `SHIPMENT_TRACKING_ACCESS_LOGIN_THROTTLE_SECONDS`
+  and `SHIPMENT_TRACKING_ACCESS_RECOVERY_THROTTLE_SECONDS`.
+- New QR grants expire after `SHIPMENT_TRACKING_ACCESS_GRANT_TTL_DAYS` days by default; expired
+  grants are ignored by login, recovery, session activation, and set-password activation.
 - Pending identity creation creates a restricted QR access grant plus a pending public or volunteer review request; approval remains handled by the existing review queues.
 - Correspondent and recipient receipt scans require a carton proof, either IATA-face photo or manual carton number when photo capture is impossible.
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db.models import Q
+from django.utils import timezone
 
 from .models import (
     ShipmentTrackingAccessGrant,
@@ -79,6 +80,15 @@ TRACKING_PENDING_ACCOUNT_FIELDS_BY_ROLE = {
         "escale_code",
     },
 }
+
+
+def _active_tracking_access_grants():
+    now = timezone.now()
+    return (
+        ShipmentTrackingAccessGrant.objects.filter(is_active=True)
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+        .select_related("contact", "volunteer_profile", "destination", "user")
+    )
 
 
 def resolve_tracking_identifier_from_grant(grant: ShipmentTrackingAccessGrant) -> str:
@@ -190,11 +200,7 @@ def find_active_tracking_access_grant(
 ):
     if user is None:
         return None
-    queryset = ShipmentTrackingAccessGrant.objects.filter(
-        user=user,
-        role=role,
-        is_active=True,
-    ).select_related("contact", "volunteer_profile", "destination", "user")
+    queryset = _active_tracking_access_grants().filter(user=user, role=role)
     if contact is not None:
         queryset = queryset.filter(contact=contact)
     if volunteer_profile is not None:
@@ -210,10 +216,7 @@ def resolve_tracking_access_grant_by_identifier(*, role: str, identifier: str):
     normalized_identifier = normalize_tracking_identifier(identifier)
     if not normalized_identifier:
         return None
-    queryset = ShipmentTrackingAccessGrant.objects.filter(
-        role=role,
-        is_active=True,
-    ).select_related("contact", "volunteer_profile", "destination", "user")
+    queryset = _active_tracking_access_grants().filter(role=role)
     if role == ShipmentTrackingAccessRole.VOLUNTEER:
         try:
             volunteer_id = int(normalized_identifier)
@@ -228,14 +231,19 @@ def resolve_tracking_access_grant_by_email(*, role: str, email: str):
     if not normalized_email:
         return None
     return (
-        ShipmentTrackingAccessGrant.objects.filter(
+        _active_tracking_access_grants()
+        .filter(
             role=role,
-            is_active=True,
             user__email__iexact=normalized_email,
         )
-        .select_related("contact", "volunteer_profile", "destination", "user")
         .first()
     )
+
+
+def resolve_active_tracking_access_grant_by_id(*, grant_id, user):
+    if not grant_id or user is None:
+        return None
+    return _active_tracking_access_grants().filter(id=grant_id, user=user).first()
 
 
 def activate_tracking_access_grant(request, *, grant: ShipmentTrackingAccessGrant | None) -> None:
@@ -252,15 +260,7 @@ def resolve_active_tracking_access_grant(request):
     grant_id = request.session.get(ACTIVE_SHIPMENT_TRACKING_GRANT_SESSION_KEY)
     if not grant_id:
         return None
-    return (
-        ShipmentTrackingAccessGrant.objects.filter(
-            id=grant_id,
-            user=user,
-            is_active=True,
-        )
-        .select_related("contact", "volunteer_profile", "destination", "user")
-        .first()
-    )
+    return resolve_active_tracking_access_grant_by_id(grant_id=grant_id, user=user)
 
 
 def resolve_shipment_contact_for_role(*, shipment, role: str):
@@ -277,6 +277,8 @@ def resolve_shipment_contact_for_role(*, shipment, role: str):
 
 def tracking_grant_matches_shipment(*, grant, shipment, role: str, identifier: str = "") -> bool:
     if grant is None or grant.role != role:
+        return False
+    if getattr(grant, "is_expired", False):
         return False
     if identifier and resolve_tracking_identifier_from_grant(
         grant

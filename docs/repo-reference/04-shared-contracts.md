@@ -74,8 +74,37 @@ Maintenance rule:
 - if the shared masthead history navigation changes, keep scan/portal/planning/benevole shells aligned in the same work
 - if a pattern is still local, do not prematurely promote it into a shared primitive
 
+### Frontend Security Contract
+
+Primary runtime sources:
+
+- `asf_wms/settings.py`
+- `wms/security_headers.py`
+- `templates/scan/`
+- `templates/portal/`
+- `templates/planning/`
+- `templates/benevole/`
+- `wms/static/scan/`
+
+Current contract:
+
+- responses include `Content-Security-Policy-Report-Only` by default; `CSP_REPORT_ONLY_ENABLED`
+  disables it only by explicit environment choice, and `CONTENT_SECURITY_POLICY_REPORT_ONLY`
+  overrides the maintained default policy
+- stable third-party JS/CSS assets must be self-hosted or include SRI plus `crossorigin`
+- new `target="_blank"` links or forms must include `rel` with `noopener`
+- user/server data must not be assembled into dynamic HTML strings when DOM APIs can express the
+  same change
+
+Maintenance rule:
+
+- if frontend assets, shared templates, CDN imports, or security headers change, keep
+  `wms/tests/core/tests_security_settings.py`, `docs/operations.md`, and
+  `docs/release_checklist.md` aligned in the same work
+
 Reference tests:
 
+- `wms/tests/core/tests_security_settings.py`
 - `wms/tests/views/tests_scan_bootstrap_ui.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/views/tests_views_planning.py`
@@ -1280,6 +1309,11 @@ Current contract:
 - after entering an identifier, users must authenticate through the QR tracking login flow before
   the scan can continue; the active restricted grant is stored in session and matched back to the
   requested shipment party
+- restricted QR grants are active only while `is_active=True` and not expired; new grants receive
+  `expires_at` from `SHIPMENT_TRACKING_ACCESS_GRANT_TTL_DAYS` and lookup/session helpers ignore
+  expired grants
+- QR login attempts are throttled by role + identifier + IP, and lost-code recovery is throttled by
+  role + email + tracking token + IP while keeping the generic response for unknown emails
 - lost-code recovery uses role + email + escale and keeps unknown emails indistinguishable from
   known emails while sending the ASF ID, role, login link, password link, and tracking return link
   for matching identities
@@ -1296,7 +1330,8 @@ Current contract:
 
 Maintenance rule:
 
-- if QR tracking identity, recovery, pending creation, proof, or role-to-status rules change,
+- if QR tracking identity, recovery/throttling, grant lifetime, pending creation, proof, or
+  role-to-status rules change,
   update the model/helper tests, form tests, access-view tests, scan-view tests, email tests, and
   this contract together
 - keep this flow on the legacy Django scan stack while the Next/React migration remains paused
@@ -1726,6 +1761,7 @@ Primary docs:
 - `docs/operations.md`
 - `docs/release_checklist.md`
 - `docs/security-dependencies.md`
+- `docs/policies/rgpd.md`
 
 Why they are shared contracts:
 
@@ -1736,3 +1772,14 @@ Maintenance rule:
 
 - if a critical user journey, queue behavior, or deployment-sensitive asset changes, check whether operations or release smoke wording must change too
 - if dependency security policy or automation changes, keep `docs/security-dependencies.md` and `docs/release_checklist.md` aligned
+- if a data integrity invariant changes, keep `wms/referential_integrity.py`,
+  `wms/management/commands/check_referential_integrity.py`, `wms/tests/management/`,
+  `docs/operations.md`, and `docs/release_checklist.md` aligned
+- if personal data, public/portal collection, documents, emails, exports, logs, or third-party
+  services change, keep `docs/policies/rgpd.md` and `docs/release_checklist.md` aligned
+- if monitoring, backup, restore drill, RPO/RTO, or incident response changes, keep
+  `docs/operations.md` and `docs/release_checklist.md` aligned
+- external error tracking is checked with `python manage.py check_sentry_runtime --allow-missing`;
+  after a DSN change, verify one `--send-test` event outside the repository
+- post-migration integrity is checked with `python manage.py check_referential_integrity`; monthly
+  maintenance can use `--report-only` to record anomalies without blocking the runbook session

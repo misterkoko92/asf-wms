@@ -36,7 +36,7 @@ STRUCTURAL_QUALITY_SCOPE ?= wms/application wms/events wms/jobs wms/parties wms/
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev sync sync-no-dev lock export-requirements deps-check install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright typecheck-structural ruff-structural bandit audit audit-soft security test test-fast test-smoke test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
+.PHONY: install install-dev sync sync-no-dev lock export-requirements deps-check install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright typecheck-structural ruff-structural bandit audit audit-soft security test test-fast test-smoke test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check sentry-runtime-check coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -162,6 +162,9 @@ scan-queue-stale:
 
 scan-queue-runtime-check:
 	$(PYTHON) manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0
+
+sentry-runtime-check:
+	$(PYTHON) manage.py check_sentry_runtime --allow-missing
 
 coverage: compilemessages
 	$(COVERAGE) erase

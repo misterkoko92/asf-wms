@@ -2,7 +2,8 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.test import RequestFactory, TestCase
+from django.core.cache import cache
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -23,6 +24,7 @@ TEST_PASSWORD = "QrAccess123!"  # pragma: allowlist secret
 
 class ShipmentTrackingAccessViewTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = get_user_model().objects.create_user(
             username="tracking-actor@example.com",
             email="tracking-actor@example.com",
@@ -140,6 +142,39 @@ class ShipmentTrackingAccessViewTests(TestCase):
         )
         self.assertEqual(response_invalid.status_code, 200)
         self.assertContains(response_invalid, "Identifiants invalides.")
+
+    @override_settings(SHIPMENT_TRACKING_ACCESS_LOGIN_THROTTLE_SECONDS=300)
+    def test_qr_access_login_post_throttles_repeated_invalid_attempts(self):
+        with mock.patch(
+            "wms.views_shipment_tracking_access.authenticate",
+            return_value=None,
+        ) as authenticate_mock:
+            first_response = self.client.post(
+                reverse("scan:scan_shipment_tracking_access_login"),
+                {
+                    "identifier": self.contact.asf_id,
+                    "password": "wrong-password",  # pragma: allowlist secret
+                    "role": ShipmentTrackingAccessRole.SHIPPER,
+                    "next": self.next_url,
+                },
+                REMOTE_ADDR="203.0.113.42",
+            )
+            second_response = self.client.post(
+                reverse("scan:scan_shipment_tracking_access_login"),
+                {
+                    "identifier": self.contact.asf_id,
+                    "password": "wrong-password",  # pragma: allowlist secret
+                    "role": ShipmentTrackingAccessRole.SHIPPER,
+                    "next": self.next_url,
+                },
+                REMOTE_ADDR="203.0.113.42",
+            )
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertContains(first_response, "Identifiants invalides.")
+        self.assertEqual(second_response.status_code, 200)
+        self.assertContains(second_response, "Trop de tentatives")
+        self.assertEqual(authenticate_mock.call_count, 1)
 
     def test_qr_access_internal_helpers_reject_unsafe_or_unmatched_inputs(self):
         request = self.factory.get(
@@ -307,6 +342,28 @@ class ShipmentTrackingAccessViewTests(TestCase):
             send_mock.call_args.kwargs["message"],
         )
 
+    @override_settings(SHIPMENT_TRACKING_ACCESS_RECOVERY_THROTTLE_SECONDS=300)
+    def test_qr_access_recovery_post_throttles_repeated_email_ip_token(self):
+        with mock.patch(
+            "wms.views_shipment_tracking_access.send_or_enqueue_email_safe",
+            return_value=True,
+        ) as send_mock:
+            for _ in range(2):
+                response = self.client.post(
+                    reverse("scan:scan_shipment_tracking_access_recovery"),
+                    {
+                        "email": self.user.email.upper(),
+                        "role": ShipmentTrackingAccessRole.SHIPPER,
+                        "escale_code": "CDG",
+                        "tracking_token": str(self.shipment.tracking_token),
+                    },
+                    REMOTE_ADDR="203.0.113.43",
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "Si votre email est reconnu")
+
+        send_mock.assert_called_once()
+
     def test_qr_access_recovery_post_creates_contact_grant_for_matching_party_email(self):
         recipient = Contact.objects.create(
             name="Recipient Tracking",
@@ -345,6 +402,11 @@ class ShipmentTrackingAccessViewTests(TestCase):
                 identity_status=ShipmentTrackingIdentityStatus.VERIFIED,
             ).exists()
         )
+        grant = ShipmentTrackingAccessGrant.objects.get(
+            role=ShipmentTrackingAccessRole.RECIPIENT,
+            contact=recipient,
+        )
+        self.assertIsNotNone(grant.expires_at)
         send_mock.assert_called_once()
         self.assertIn(recipient.asf_id, send_mock.call_args.kwargs["message"])
         self.assertIn("DKR", send_mock.call_args.kwargs["message"])

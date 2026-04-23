@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 
@@ -7,9 +8,12 @@ from django.test import TestCase
 
 class MakemigrationsCheckTests(TestCase):
     def test_makemigrations_check_dry_run_reports_no_changes(self):
+        env = os.environ.copy()
+        env.setdefault("DJANGO_SECRET_KEY", "test-" + ("x" * 60))
         result = subprocess.run(
             [sys.executable, "manage.py", "makemigrations", "--check", "--dry-run"],
             cwd=settings.BASE_DIR,
+            env=env,
             capture_output=True,
             text=True,
             check=False,

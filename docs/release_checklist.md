@@ -28,14 +28,29 @@ Fallback if `uv` is blocked locally:
 
 - [ ] Confirm production env vars are set (`DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, `SITE_BASE_URL`, security flags).
 - [ ] Validate env values against `.env.example` baseline.
+- [ ] Review `docs/policies/rgpd.md` for any release touching personal data, documents, exports, portal/public forms, emails, logs, or third-party services.
+- [ ] If visible legal text changed, review `docs/policies/confidentialite.md`, `docs/policies/cgu-portail.md`, `docs/policies/mentions-legales.md`, and `docs/policies/mentions-information-formulaires.md`.
+- [ ] Confirm every new personal-data flow has a documented finality, legal-basis assumption, retention rule, processor/transfer impact, and suppression/anonymization path.
+- [ ] Confirm visible legal texts are validated or explicitly risk-accepted when portal, public account creation, public orders, auth pages, or recipient/correspondent access changed.
+- [ ] Confirm the release does not add production personal data, real documents, secrets, or non-anonymized dumps to the repository, CI artifacts, or local audit artifacts intended for sharing.
 - [ ] Confirm mail provider env vars (`EMAIL_*` and/or `BREVO_*`).
 - [ ] Confirm document scan env vars (`DOCUMENT_SCAN_BACKEND=clamav`, `DOCUMENT_SCAN_CLAMAV_COMMAND`, queue timeout settings).
+- [ ] Confirm CSP report-only is enabled or explicitly risk-accepted for the environment.
 - [ ] Ensure ClamAV binary is available on host (`clamscan --version`).
 - [ ] Confirm `INTEGRATION_API_KEY` for integration endpoints.
+- [ ] Confirm API throttle rates (`DRF_USER_THROTTLE_RATE`, `DRF_ANON_THROTTLE_RATE`) and QR access throttles/TTL (`SHIPMENT_TRACKING_ACCESS_*`) are acceptable for the release.
 - [ ] Run `python manage.py check_planning_pdf_runtime` and confirm `backend=excel_desktop`, `status=ready`.
-- [ ] Confirm backup available (SQLite file or MySQL dump).
+- [ ] Confirm backup available (SQLite file or MySQL dump) and record the backup timestamp/path.
+- [ ] Confirm media backup available for `MEDIA_ROOT` and record the backup timestamp/path.
+- [ ] Confirm latest restore drill date/result, or record an explicit release risk if no successful drill exists yet.
+- [ ] Confirm RPO/RTO targets from `docs/operations.md` are still acceptable for this release.
+- [ ] Confirm monitoring path for this release: Sentry if `SENTRY_DSN` is configured, otherwise platform logs plus `/scan/dashboard/` and queue health checks.
+- [ ] Run `python manage.py check_sentry_runtime --allow-missing`.
+- [ ] If `SENTRY_DSN` was added or changed, run `python manage.py check_sentry_runtime --send-test` and confirm the event appears in Sentry.
+- [ ] Run `python manage.py check_referential_integrity` after migrations on the target data, or explicitly document any accepted anomaly before release.
 - [ ] If portal/contact/shipment-party scope changed, run `python manage.py rebuild_recipient_party_graph --dry-run` and review the reported grant/projection repair summary before deploy.
 - [ ] If scan frontend assets changed (`wms/static/scan/scan.js`, `wms/static/scan/scan.css`, manifest/icon), bump `CACHE_NAME` in `wms/views_scan_misc.py` (`wms-scan-vNN`).
+- [ ] If templates/frontend supply-chain scope changed, confirm `_blank` uses `rel`, CDN assets have SRI or are self-hosted, and dynamic HTML sinks are covered by tests.
 
 ## C) Deploy
 
@@ -73,7 +88,7 @@ Notes:
 - [ ] Run `python manage.py process_document_scan_queue --limit=100`
 - [ ] Check document scan queue health (pending/failed/stale processing counts)
 - [ ] Run `python manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0`
-- [ ] Verify no spike in app errors/log warnings
+- [ ] Verify no spike in app errors/log warnings or external monitoring events.
 
 ## E) Rollback criteria
 

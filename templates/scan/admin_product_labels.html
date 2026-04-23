@@ -56,7 +56,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form id="scan-product-print-form" method="post" action="{{ print_labels_url }}" target="_blank">
+    <form id="scan-product-print-form" method="post" action="{{ print_labels_url }}" target="_blank" rel="noopener noreferrer">
       {% csrf_token %}
       <input type="hidden" name="q" value="{{ query }}">
       <input type="hidden" name="selection_mode" value="{{ selection_mode }}">
