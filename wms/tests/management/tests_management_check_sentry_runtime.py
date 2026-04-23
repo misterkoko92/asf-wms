@@ -21,6 +21,14 @@ class CheckSentryRuntimeCommandTests(SimpleTestCase):
         with self.assertRaisesMessage(CommandError, "SENTRY_DSN n'est pas configure"):
             call_command("check_sentry_runtime")
 
+    @override_settings(SENTRY_DSN="https://public@example.invalid/1")
+    @mock.patch("wms.management.commands.check_sentry_runtime.importlib.util.find_spec")
+    def test_configured_dsn_requires_sentry_sdk_package(self, find_spec_mock):
+        find_spec_mock.return_value = None
+
+        with self.assertRaisesMessage(CommandError, "sentry-sdk"):
+            call_command("check_sentry_runtime")
+
     @override_settings(
         SENTRY_DSN="https://public@example.invalid/1",
         SENTRY_ENVIRONMENT="test",

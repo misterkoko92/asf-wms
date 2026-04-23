@@ -4,8 +4,17 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from unittest import mock
 
-from django.test import TestCase
+from django.core.exceptions import ImproperlyConfigured
+from django.http import HttpResponse
+from django.test import RequestFactory, TestCase, override_settings
+
+import asf_wms.settings as django_settings
+from wms.security_headers import (
+    CSP_REPORT_ONLY_HEADER,
+    ContentSecurityPolicyReportOnlyMiddleware,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALID_DJANGO_SETTING_VALUE = "test-" + ("x" * 60)
@@ -32,6 +41,87 @@ def _settings_env(**overrides: str) -> dict[str, str]:
 
 
 class SecuritySettingsTests(TestCase):
+    def test_env_parsing_helpers_handle_defaults_invalid_and_valid_values(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "TEST_INT": "7",
+                "TEST_BAD_INT": "seven",
+                "TEST_FLOAT": "0.25",
+                "TEST_BAD_FLOAT": "quarter",
+                "TEST_OPTIONAL_FLOAT": "0.5",
+                "TEST_BAD_OPTIONAL_FLOAT": "half",
+            },
+            clear=False,
+        ):
+            self.assertEqual(django_settings._env_int("TEST_MISSING_INT", 3), 3)
+            self.assertEqual(django_settings._env_int("TEST_INT", 3), 7)
+            self.assertEqual(django_settings._env_int("TEST_BAD_INT", 3), 3)
+            self.assertEqual(django_settings._env_float("TEST_MISSING_FLOAT", 1.0), 1.0)
+            self.assertEqual(django_settings._env_float("TEST_FLOAT", 1.0), 0.25)
+            self.assertEqual(django_settings._env_float("TEST_BAD_FLOAT", 1.0), 1.0)
+            self.assertIsNone(django_settings._env_optional_float("TEST_MISSING_OPTIONAL_FLOAT"))
+            self.assertEqual(
+                django_settings._env_optional_float("TEST_OPTIONAL_FLOAT"),
+                0.5,
+            )
+            self.assertIsNone(django_settings._env_optional_float("TEST_BAD_OPTIONAL_FLOAT"))
+
+    def test_secret_key_and_sentry_rate_helpers_cover_edges(self):
+        self.assertFalse(django_settings._is_secure_secret_key(""))
+        self.assertFalse(django_settings._is_secure_secret_key("django-insecure-" + ("x" * 60)))
+        self.assertFalse(django_settings._is_secure_secret_key("short"))
+        self.assertFalse(django_settings._is_secure_secret_key("x" * 64))
+        self.assertTrue(django_settings._is_secure_secret_key("test-" + ("abc123XYZ" * 7)))
+
+        django_settings._validate_sentry_rate("SENTRY_SAMPLE_RATE", None)
+        django_settings._validate_sentry_rate("SENTRY_SAMPLE_RATE", 0.0)
+        django_settings._validate_sentry_rate("SENTRY_SAMPLE_RATE", 1.0)
+        with self.assertRaisesMessage(ImproperlyConfigured, "SENTRY_SAMPLE_RATE"):
+            django_settings._validate_sentry_rate("SENTRY_SAMPLE_RATE", -0.1)
+
+    def test_sentry_before_send_redacts_nested_and_non_dict_request_values(self):
+        event = {
+            "request": {
+                "url": "https://example.test/scan/",
+                "headers": "raw-auth-token",
+                "cookies": {"sessionid": "cookie-value"},
+                "env": {
+                    "SAFE_VALUE": "visible",
+                    "AUTHORIZATION": "Bearer token",
+                },
+            },
+            "contexts": {
+                "runtime": {
+                    "token": "secret-token",  # pragma: allowlist secret
+                    "safe_list": ["visible", {"password": "hidden"}],  # pragma: allowlist secret
+                }
+            },
+        }
+
+        filtered = django_settings._sentry_before_send(event, {})
+
+        self.assertEqual(filtered["request"]["url"], "https://example.test/scan/")
+        self.assertEqual(filtered["request"]["headers"], django_settings._SENTRY_FILTERED)
+        self.assertEqual(
+            filtered["request"]["cookies"]["sessionid"],
+            django_settings._SENTRY_FILTERED,
+        )
+        self.assertEqual(filtered["request"]["env"]["SAFE_VALUE"], "visible")
+        self.assertEqual(
+            filtered["request"]["env"]["AUTHORIZATION"],
+            django_settings._SENTRY_FILTERED,
+        )
+        self.assertEqual(
+            filtered["contexts"]["runtime"]["token"],
+            django_settings._SENTRY_FILTERED,
+        )
+        self.assertEqual(filtered["contexts"]["runtime"]["safe_list"][0], "visible")
+        self.assertEqual(
+            filtered["contexts"]["runtime"]["safe_list"][1]["password"],
+            django_settings._SENTRY_FILTERED,
+        )
+
     def test_security_defaults_keep_strict_cookie_policy(self):
         command = (
             "import json; "
@@ -74,6 +164,14 @@ class SecuritySettingsTests(TestCase):
         self.assertIn("object-src 'none'", policy)
         self.assertIn("base-uri 'self'", policy)
         self.assertIn("frame-ancestors 'none'", policy)
+
+    @override_settings(CSP_REPORT_ONLY_ENABLED=False)
+    def test_csp_report_only_middleware_can_be_disabled(self):
+        middleware = ContentSecurityPolicyReportOnlyMiddleware(lambda request: HttpResponse("ok"))
+
+        response = middleware(RequestFactory().get("/"))
+
+        self.assertNotIn(CSP_REPORT_ONLY_HEADER, response)
 
     def test_noop_document_scan_backend_is_rejected_outside_tests_even_in_debug(self):
         result = subprocess.run(
