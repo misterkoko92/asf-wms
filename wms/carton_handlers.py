@@ -81,12 +81,26 @@ def _request_confirms_skipped_statuses(request):
     return (request.POST.get("confirm_skipped_statuses") or "").strip() == "1"
 
 
+def _request_confirms_preassigned_destination_mismatch(request):
+    return (request.POST.get("confirm_preassigned_destination_mismatch") or "").strip() == "1"
+
+
 def _assign_carton_to_shipment(carton, *, shipment):
     if shipment is None or carton.shipment_id:
         return False
     carton.shipment = shipment
     carton.preassigned_destination = None
     return True
+
+
+def _carton_preassignment_conflicts_with_shipment(carton, *, shipment):
+    if shipment is None:
+        return False
+    shipment_destination_id = getattr(shipment, "destination_id", None)
+    carton_destination_id = getattr(carton, "preassigned_destination_id", None)
+    if not shipment_destination_id or not carton_destination_id:
+        return False
+    return shipment_destination_id != carton_destination_id
 
 
 def _bulk_status_feedback(request, *, action, updated_count, ignored_count):
@@ -183,9 +197,12 @@ def handle_carton_status_update(request):
         "bulk_assign_cartons_shipment",
     }:
         confirms_skipped_statuses = _request_confirms_skipped_statuses(request)
+        confirms_preassigned_destination_mismatch = (
+            _request_confirms_preassigned_destination_mismatch(request)
+        )
         cartons = list(
             Carton.objects.filter(pk__in=request.POST.getlist("selected_carton_ids"))
-            .select_related("shipment")
+            .select_related("shipment", "preassigned_destination")
             .order_by("id")
         )
         target_shipment = None
@@ -204,6 +221,24 @@ def handle_carton_status_update(request):
                     ignored_count=len(cartons),
                 )
                 return redirect("scan:scan_cartons_ready")
+            if (
+                any(
+                    _carton_preassignment_conflicts_with_shipment(
+                        selected_carton, shipment=target_shipment
+                    )
+                    for selected_carton in cartons
+                )
+                and not confirms_preassigned_destination_mismatch
+            ):
+                if hasattr(request, "_messages"):
+                    messages.warning(
+                        request,
+                        _(
+                            "Certains colis sont pré-affectés à une autre destination. "
+                            "Confirmez ce changement avant de les affecter à l'expédition."
+                        ),
+                    )
+                return redirect("scan:scan_cartons_ready")
         touched_shipments = set()
         updated_count = 0
         target_status = _resolve_bulk_target_status(action)
@@ -220,11 +255,16 @@ def handle_carton_status_update(request):
                     or (requires_skip_confirmation and not confirms_skipped_statuses)
                 ):
                     continue
+                reason = "bulk_assign_shipment"
+                if _carton_preassignment_conflicts_with_shipment(
+                    selected_carton, shipment=target_shipment
+                ):
+                    reason = "bulk_assign_shipment_destination_override"
                 _assign_carton_to_shipment(selected_carton, shipment=target_shipment)
                 _set_bulk_carton_status(
                     selected_carton,
                     new_status=CartonStatus.ASSIGNED,
-                    reason="bulk_assign_shipment",
+                    reason=reason,
                     user=getattr(request, "user", None),
                     update_fields=["shipment", "preassigned_destination"],
                 )

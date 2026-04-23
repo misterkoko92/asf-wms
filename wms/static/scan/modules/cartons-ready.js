@@ -7,6 +7,9 @@
   const bulkActionSelect = root.querySelector('[name="bulk_action"]');
   const toolbarShipmentSelect = root.querySelector('[data-carton-toolbar-shipment-select="1"]');
   const confirmInput = root.querySelector('[data-carton-confirm-skipped-input="1"]');
+  const preassignmentConfirmInput = root.querySelector(
+    '[data-carton-preassignment-confirm-input="1"]'
+  );
   const selectAllCheckbox = root.querySelector('[data-carton-select-all="1"]');
   const overlay = root.querySelector('#carton-status-skip-confirmation-overlay');
   const message = root.querySelector('#carton-status-skip-confirmation-message');
@@ -15,6 +18,13 @@
   const shipmentField = root.querySelector('[data-carton-confirm-shipment-field="1"]');
   const shipmentSelect = root.querySelector('[data-carton-confirm-shipment-select="1"]');
   const shipmentError = root.querySelector('[data-carton-confirm-shipment-error="1"]');
+  const preassignmentOverlay = root.querySelector('#carton-preassignment-mismatch-overlay');
+  const preassignmentMessage = root.querySelector('#carton-preassignment-mismatch-message');
+  const preassignmentAcceptButton = root.querySelector(
+    '[data-carton-preassignment-accept="1"]'
+  );
+  const preassignmentRemoveButton = root.querySelector('[data-carton-preassignment-remove="1"]');
+  const preassignmentCancelButton = root.querySelector('[data-carton-preassignment-cancel="1"]');
 
   const visibleFlow = ['draft', 'picking', 'packed', 'assigned', 'labeled'];
   const visibleLabels = {
@@ -49,6 +59,15 @@
     selectAllCheckbox.disabled = checkboxes.length === 0;
     selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
     selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+  }
+
+  function clearConfirmationInputs() {
+    if (confirmInput) {
+      confirmInput.value = '';
+    }
+    if (preassignmentConfirmInput) {
+      preassignmentConfirmInput.value = '';
+    }
   }
 
   function resolveAction() {
@@ -125,16 +144,29 @@
     overlay.classList.toggle('active', visible);
   }
 
-  function resetConfirmationState() {
-    if (confirmInput) {
-      confirmInput.value = '';
+  function setPreassignmentOverlayVisible(visible) {
+    if (!preassignmentOverlay) {
+      return;
     }
+    preassignmentOverlay.hidden = !visible;
+    preassignmentOverlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    preassignmentOverlay.classList.toggle('active', visible);
+  }
+
+  function resetConfirmationState() {
     if (shipmentError) {
       shipmentError.classList.add('scan-hidden');
     }
   }
 
-  function openConfirmationModal({ action, targetStep, skippedLabels, selectedCheckboxes }) {
+  function openConfirmationModal({
+    action,
+    targetStep,
+    skippedLabels,
+    selectedCheckboxes,
+    onAccept,
+    onCancel
+  }) {
     if (!overlay || !message || !acceptButton || !cancelButton) {
       return false;
     }
@@ -192,11 +224,16 @@
         confirmInput.value = '1';
       }
       cleanup({ reset: false });
-      root.submit();
+      if (typeof onAccept === 'function') {
+        onAccept();
+      }
     };
 
     const handleCancel = () => {
       cleanup();
+      if (typeof onCancel === 'function') {
+        onCancel();
+      }
     };
 
     const handleOverlayClick = event => {
@@ -209,6 +246,126 @@
     cancelButton.addEventListener('click', handleCancel);
     overlay.addEventListener('click', handleOverlayClick);
     return true;
+  }
+
+  function getSelectedShipmentOption() {
+    if (!toolbarShipmentSelect) {
+      return null;
+    }
+    const shipmentId = (toolbarShipmentSelect.value || '').trim();
+    if (!shipmentId) {
+      return null;
+    }
+    return toolbarShipmentSelect.querySelector(`option[value="${shipmentId}"]`);
+  }
+
+  function getPreassignmentMismatches(selectedCheckboxes) {
+    const targetOption = getSelectedShipmentOption();
+    const shipmentDestinationId = targetOption
+      ? (targetOption.dataset.shipmentDestinationId || '').trim()
+      : '';
+    if (!shipmentDestinationId) {
+      return [];
+    }
+    return selectedCheckboxes.filter(checkbox => {
+      const cartonDestinationId = (checkbox.dataset.cartonPreassignedDestinationId || '').trim();
+      return Boolean(cartonDestinationId) && cartonDestinationId !== shipmentDestinationId;
+    });
+  }
+
+  function openPreassignmentMismatchModal({
+    mismatches,
+    onAccept,
+    onRemove,
+    onCancel
+  }) {
+    if (
+      !preassignmentOverlay ||
+      !preassignmentMessage ||
+      !preassignmentAcceptButton ||
+      !preassignmentRemoveButton ||
+      !preassignmentCancelButton
+    ) {
+      return false;
+    }
+
+    const targetOption = getSelectedShipmentOption();
+    const shipmentLabel = targetOption ? targetOption.textContent.trim() : '';
+    const cartonCodes = mismatches
+      .map(checkbox => (checkbox.dataset.cartonCode || '').trim())
+      .filter(Boolean);
+    const conflictCodes = cartonCodes.join(', ');
+    const plural = cartonCodes.length > 1;
+    preassignmentMessage.textContent =
+      `${plural ? 'Les colis' : 'Le colis'} ${conflictCodes} ` +
+      `${plural ? 'sont pré-affectés' : 'est pré-affecté'} à une autre destination ` +
+      `et ${plural ? 'vont être affectés' : 'va être affecté'} à ${shipmentLabel}.`;
+
+    setPreassignmentOverlayVisible(true);
+
+    const cleanup = () => {
+      preassignmentAcceptButton.removeEventListener('click', handleAccept);
+      preassignmentRemoveButton.removeEventListener('click', handleRemove);
+      preassignmentCancelButton.removeEventListener('click', handleCancel);
+      preassignmentOverlay.removeEventListener('click', handleOverlayClick);
+      setPreassignmentOverlayVisible(false);
+    };
+
+    const handleAccept = () => {
+      cleanup();
+      if (preassignmentConfirmInput) {
+        preassignmentConfirmInput.value = '1';
+      }
+      if (typeof onAccept === 'function') {
+        onAccept();
+      }
+    };
+
+    const handleRemove = () => {
+      cleanup();
+      mismatches.forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      updateSelectAllCheckboxState();
+      if (typeof onRemove === 'function') {
+        onRemove();
+      }
+    };
+
+    const handleCancel = () => {
+      cleanup();
+      clearConfirmationInputs();
+      if (typeof onCancel === 'function') {
+        onCancel();
+      }
+    };
+
+    const handleOverlayClick = event => {
+      if (event.target === preassignmentOverlay) {
+        handleCancel();
+      }
+    };
+
+    preassignmentAcceptButton.addEventListener('click', handleAccept);
+    preassignmentRemoveButton.addEventListener('click', handleRemove);
+    preassignmentCancelButton.addEventListener('click', handleCancel);
+    preassignmentOverlay.addEventListener('click', handleOverlayClick);
+    return true;
+  }
+
+  function continueAfterMismatchCheck({ action, targetStep, selectedCheckboxes, skippedLabels }) {
+    if (skippedLabels.length && (!confirmInput || confirmInput.value !== '1')) {
+      openConfirmationModal({
+        action,
+        targetStep,
+        skippedLabels,
+        selectedCheckboxes,
+        onAccept: () => root.submit(),
+        onCancel: () => clearConfirmationInputs()
+      });
+      return;
+    }
+    root.submit();
   }
 
   if (selectAllCheckbox) {
@@ -225,9 +382,22 @@
   }
 
   getAllCheckboxes().forEach(checkbox => {
-    checkbox.addEventListener('change', updateSelectAllCheckboxState);
+    checkbox.addEventListener('change', () => {
+      clearConfirmationInputs();
+      updateSelectAllCheckboxState();
+    });
   });
   updateSelectAllCheckboxState();
+
+  [bulkActionSelect, toolbarShipmentSelect].forEach(field => {
+    if (!field) {
+      return;
+    }
+    field.addEventListener('change', () => {
+      clearConfirmationInputs();
+      resetConfirmationState();
+    });
+  });
 
   root.addEventListener('submit', event => {
     const submitter = event.submitter;
@@ -248,17 +418,59 @@
       return;
     }
 
+    const mismatches =
+      action === 'bulk_assign_cartons_shipment' &&
+      (!preassignmentConfirmInput || preassignmentConfirmInput.value !== '1')
+        ? getPreassignmentMismatches(selectedCheckboxes)
+        : [];
+
     const skippedLabels = Array.from(
       new Set(
         selectedCheckboxes.flatMap(checkbox => getSkippedLabels(checkbox, targetStep))
       )
     );
 
-    if (!skippedLabels.length) {
+    if (!mismatches.length && !skippedLabels.length) {
       return;
     }
 
     event.preventDefault();
-    openConfirmationModal({ action, targetStep, skippedLabels, selectedCheckboxes });
+    if (mismatches.length) {
+      openPreassignmentMismatchModal({
+        mismatches,
+        onAccept: () =>
+          continueAfterMismatchCheck({
+            action,
+            targetStep,
+            selectedCheckboxes,
+            skippedLabels
+          }),
+        onRemove: () => {
+          const remainingSelection = getSelectedCheckboxes();
+          const remainingSkippedLabels = Array.from(
+            new Set(
+              remainingSelection.flatMap(checkbox => getSkippedLabels(checkbox, targetStep))
+            )
+          );
+          continueAfterMismatchCheck({
+            action,
+            targetStep,
+            selectedCheckboxes: remainingSelection,
+            skippedLabels: remainingSkippedLabels
+          });
+        },
+        onCancel: () => {}
+      });
+      return;
+    }
+
+    openConfirmationModal({
+      action,
+      targetStep,
+      skippedLabels,
+      selectedCheckboxes,
+      onAccept: () => root.submit(),
+      onCancel: () => clearConfirmationInputs()
+    });
   });
 })();

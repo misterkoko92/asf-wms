@@ -483,6 +483,77 @@ class CartonHandlersTests(TestCase):
         self.assertEqual(carton.shipment_id, target_shipment.id)
         self.assertEqual(carton.status, CartonStatus.ASSIGNED)
 
+    def test_bulk_assign_cartons_shipment_rejects_preassigned_destination_mismatch_without_confirmation(
+        self,
+    ):
+        preassigned_destination = self._create_destination("NKC")
+        target_destination = self._create_destination("BKO")
+        target_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination=target_destination,
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-MISMATCH",
+            status=CartonStatus.PACKED,
+            preassigned_destination=preassigned_destination,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_assign_cartons_shipment",
+                "bulk_shipment_id": str(target_shipment.id),
+                "selected_carton_ids": [str(carton.id)],
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertIsNone(carton.shipment_id)
+        self.assertEqual(carton.status, CartonStatus.PACKED)
+        self.assertEqual(carton.preassigned_destination_id, preassigned_destination.id)
+
+    def test_bulk_assign_cartons_shipment_allows_confirmed_preassigned_destination_mismatch(self):
+        preassigned_destination = self._create_destination("NKC")
+        target_destination = self._create_destination("BKO")
+        target_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination=target_destination,
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-BULK-MISMATCH-CONFIRMED",
+            status=CartonStatus.PACKED,
+            preassigned_destination=preassigned_destination,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "bulk_assign_cartons_shipment",
+                "bulk_shipment_id": str(target_shipment.id),
+                "selected_carton_ids": [str(carton.id)],
+                "confirm_preassigned_destination_mismatch": "1",
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.shipment_id, target_shipment.id)
+        self.assertEqual(carton.status, CartonStatus.ASSIGNED)
+        self.assertIsNone(carton.preassigned_destination_id)
+
     def test_bulk_mark_cartons_labeled_applies_confirmed_skipped_transition_with_assignment(self):
         destination = self._create_destination("NKC")
         target_shipment = Shipment.objects.create(

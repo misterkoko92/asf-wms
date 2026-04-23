@@ -329,7 +329,15 @@ def _build_carton_assignment_shipment_options():
             label = f"{label} - {destination_label}"
         if shipper_label:
             label = f"{label} - {shipper_label}"
-        options.append({"id": shipment.id, "label": label, "reference": shipment.reference})
+        options.append(
+            {
+                "id": shipment.id,
+                "label": label,
+                "reference": shipment.reference,
+                "destination_id": getattr(destination, "id", None),
+                "destination_code": getattr(destination, "iata_code", "") if destination else "",
+            }
+        )
     return options
 
 

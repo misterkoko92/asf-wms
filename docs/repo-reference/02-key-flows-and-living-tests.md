@@ -150,8 +150,10 @@ Use it when you need to answer:
   preparation
 - `/scan/cartons/` keeps checkbox-based bulk actions, now confirms any status jump that skips
   intermediate visible carton steps, requires an editable shipment selection when operators jump
-  directly to `Étiqueté`, exposes a `Tout sélectionner` control, and shows a multiline `Produits`
-  column (`Nom x quantité`) instead of the former emplacement/remplissage/contenu trio
+  directly to `Étiqueté`, warns before bulk shipment assignment when selected cartons are
+  pre-affectés to another destination, exposes a `Tout sélectionner` control, and shows a
+  multiline `Produits` column (`Nom x quantité`) instead of the former
+  emplacement/remplissage/contenu trio
 - `/scan/admin/products/` exposes superuser deletion for kits and standalone active products,
   while blocking products that are used as kit components and falling back to archive guidance when
   protected stock/order/receipt/preference references prevent physical deletion

@@ -944,6 +944,50 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, f'value="{shipment.id}"')
         self.assertContains(response, "260012 - NKC - Expéditeur")
 
+    def test_scan_cartons_ready_renders_preassignment_mismatch_modal_and_checkbox_metadata(self):
+        correspondent_org = Contact.objects.create(
+            name="Mismatch Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name="Mismatch Person",
+            contact_type=ContactType.PERSON,
+            first_name="Mismatch",
+            last_name="Person",
+            organization=correspondent_org,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        carton = self._create_carton_with_item(code="C-MISMATCH-UI")
+        carton.preassigned_destination = destination
+        carton.save(update_fields=["preassigned_destination"])
+
+        response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="carton-preassignment-mismatch-overlay"')
+        self.assertContains(response, 'id="carton-preassignment-mismatch-message"')
+        self.assertContains(response, 'name="confirm_preassigned_destination_mismatch"')
+        self.assertContains(
+            response,
+            f'data-carton-preassigned-destination-id="{destination.id}"',
+        )
+        self.assertContains(
+            response,
+            'data-carton-preassigned-destination-code="NKC"',
+        )
+        self.assertContains(
+            response,
+            f'data-carton-id="{carton.id}"',
+        )
+
     def test_scan_carton_edit_renders_carton_fiche_sections(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
         carton = Carton.objects.create(

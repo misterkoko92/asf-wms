@@ -67,6 +67,13 @@ def _build_shipment_reference(carton):
     return ""
 
 
+def _build_preassigned_destination_code(carton):
+    preassigned_destination = getattr(carton, "preassigned_destination", None)
+    if not preassigned_destination:
+        return ""
+    return (getattr(preassigned_destination, "iata_code", "") or "").strip()
+
+
 def _build_status_label(status_value):
     try:
         return CartonStatus(status_value).label
@@ -271,6 +278,8 @@ def build_carton_ready_row(carton, *, carton_capacity_cm3):
         "preparation_status_value": preparation_status_value,
         "is_assigned": is_assigned,
         "shipment_id": carton.shipment_id,
+        "preassigned_destination_id": getattr(carton, "preassigned_destination_id", None),
+        "preassigned_destination_code": _build_preassigned_destination_code(carton),
         "product_rows": product_rows,
         "can_toggle": (not is_assigned) and carton.status != CartonStatus.SHIPPED,
         "can_mark_labeled": is_assigned

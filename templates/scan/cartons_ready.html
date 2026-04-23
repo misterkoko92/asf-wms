@@ -33,6 +33,7 @@
       <form method="post" data-carton-bulk-root="1">
         {% csrf_token %}
         <input type="hidden" name="confirm_skipped_statuses" value="" data-carton-confirm-skipped-input="1">
+        <input type="hidden" name="confirm_preassigned_destination_mismatch" value="" data-carton-preassignment-confirm-input="1">
         <div id="carton-bulk-actions" class="scan-filter-actions d-flex flex-wrap gap-2 align-items-center mb-3">
           <span class="scan-help">{% trans "Actions groupées" %}</span>
           <button type="submit" name="bulk_document" value="packing_lists" class="scan-scan-btn btn btn-outline-secondary">
@@ -56,7 +57,13 @@
           >
             <option value="">{% trans "Choisir une expédition" %}</option>
             {% for shipment in editable_shipments %}
-              <option value="{{ shipment.id }}">{{ shipment.label }}</option>
+              <option
+                value="{{ shipment.id }}"
+                data-shipment-destination-id="{{ shipment.destination_id|default:'' }}"
+                data-shipment-destination-code="{{ shipment.destination_code|default:'' }}"
+              >
+                {{ shipment.label }}
+              </option>
             {% endfor %}
           </select>
           <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
@@ -100,6 +107,8 @@
                       data-carton-preparation-status="{{ carton.preparation_status_value|default:'' }}"
                       data-carton-assigned="{{ carton.is_assigned|yesno:'1,0' }}"
                       data-carton-shipment-id="{{ carton.shipment_id|default:'' }}"
+                      data-carton-preassigned-destination-id="{{ carton.preassigned_destination_id|default:'' }}"
+                      data-carton-preassigned-destination-code="{{ carton.preassigned_destination_code|default:'' }}"
                     >
                   </td>
                   <td class="scan-carton-code-col">{{ carton.code }}</td>
@@ -182,6 +191,48 @@
                 type="button"
                 class="scan-scan-btn btn btn-tertiary"
                 data-carton-confirm-cancel="1"
+              >
+                {% trans "Annuler" %}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="carton-preassignment-mismatch-overlay"
+          class="scan-choice-overlay"
+          aria-hidden="true"
+          hidden
+        >
+          <div
+            class="scan-choice-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="carton-preassignment-mismatch-title"
+          >
+            <div class="scan-choice-header">
+              <strong id="carton-preassignment-mismatch-title">{% trans "Conflit de destination" %}</strong>
+            </div>
+            <div class="scan-choice-status" id="carton-preassignment-mismatch-message"></div>
+            <div class="scan-choice-actions ui-comp-actions">
+              <button
+                type="button"
+                class="scan-submit scan-submit-inline btn btn-primary"
+                data-carton-preassignment-accept="1"
+              >
+                {% trans "Continuer quand même" %}
+              </button>
+              <button
+                type="button"
+                class="scan-scan-btn btn btn-warning"
+                data-carton-preassignment-remove="1"
+              >
+                {% trans "Retirer les colis en conflit" %}
+              </button>
+              <button
+                type="button"
+                class="scan-scan-btn btn btn-tertiary"
+                data-carton-preassignment-cancel="1"
               >
                 {% trans "Annuler" %}
               </button>
