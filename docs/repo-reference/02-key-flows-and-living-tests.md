@@ -133,8 +133,8 @@ Use it when you need to answer:
 - carton overview vs carton detail split under `/scan/cartons/` and `/scan/carton/<id>/edit/`
 - preparateur-only login entry under `/scan/preparateur/`, including active bénévole selection,
   persistent single `Bonjour <prenom>` shell greeting, default recommendation of the most critical
-  realizable order, grouped order choices, and the `Voir les colis` shortcut to all non-shipped
-  cartons
+  realizable order, grouped order choices, a `MAJ Stock` shortcut to `/scan/stock-update/`, and
+  the `Voir les colis` shortcut to all non-shipped cartons
 - preparateur order preparation plans use family-specific standard carton formats (`MM Standard` /
   `CN Standard`), allow a single-family forced carton count with warnings, and keep `Marquer prêt`
   tied to the selected order's shipment

@@ -18,6 +18,7 @@ PREPARATEUR_ALLOWED_SCAN_VIEWS = frozenset(
         "scan_cartons_picking",
         "scan_cartons_view_bundle",
         "scan_shipment_carton_document",
+        "scan_stock_update",
         "scan_preparation_parameter_set_config",
         "scan_preparation_run_list",
         "scan_preparation_run_create",

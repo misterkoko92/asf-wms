@@ -168,6 +168,7 @@ Primary runtime sources:
 
 - `templates/scan/includes/scan_sidebar_navigation.html`
 - `templates/scan/base.html`
+- `wms/scan_permissions.py`
 - `wms/views_scan_*.py` via their `active` context key
 
 Current contract:
@@ -197,6 +198,8 @@ Current contract:
   - it stores the selected volunteer in session key `preparateur_active_volunteer_id`
   - `Préparer une commande` redirects to `/scan/preparateur/orders/`
   - `Préparer des colis` clears the selected-order session and redirects to `/scan/pack/`
+  - `MAJ Stock` opens `/scan/stock-update/`, which stays available to preparateurs through the
+    scan permission whitelist
 - `/scan/preparateur/orders/` lists only approved orders that still have remaining lines to prepare
 - `/scan/preparateur/orders/prepare/` is the guided command-preparation workbench for the selected order:
   - it stores the generated picking plan in session key `preparateur_order_plan`

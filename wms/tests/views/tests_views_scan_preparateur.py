@@ -129,6 +129,20 @@ class ScanPreparateurHomeViewTests(TestCase):
         session = self.client.session
         self.assertEqual(session[PREPARATEUR_ACTIVE_VOLUNTEER_SESSION_KEY], self.bravo_bob.id)
 
+    def test_scan_preparateur_home_renders_stock_update_shortcut(self):
+        response = self.client.get(reverse("scan:scan_preparateur_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "MAJ Stock")
+        self.assertContains(response, 'id="scan-preparateur-home-stock-update"')
+        self.assertContains(response, f'href="{reverse("scan:scan_stock_update")}"')
+
+    def test_scan_preparateur_can_open_stock_update_page(self):
+        response = self.client.get(reverse("scan:scan_stock_update"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "scan/stock_update.html")
+
     def test_scan_preparateur_home_prepare_order_redirects_to_order_select_with_active_volunteer(
         self,
     ):
@@ -356,6 +370,9 @@ class ScanPreparateurSessionHelperTests(TestCase):
         self.assertTrue(is_scan_view_allowed_for_user(request))
 
         request.resolver_match = SimpleNamespace(url_name="scan_carton_document")
+        self.assertTrue(is_scan_view_allowed_for_user(request))
+
+        request.resolver_match = SimpleNamespace(url_name="scan_stock_update")
         self.assertTrue(is_scan_view_allowed_for_user(request))
 
         request.resolver_match = SimpleNamespace(url_name="scan_dashboard")
