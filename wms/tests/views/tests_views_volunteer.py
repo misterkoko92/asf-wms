@@ -313,10 +313,15 @@ class VolunteerProfileViewTests(TestCase):
         self.assertContains(response, 'id="volunteer-account-link"')
         self.assertContains(response, 'id="volunteer-logout-link"')
         self.assertNotContains(response, 'name="language"')
+        template_content = (
+            Path(settings.BASE_DIR) / "templates" / "benevole" / "base.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("includes/secondary_shell_masthead.html", template_content)
+        self.assertIn("includes/secondary_shell_offcanvas.html", template_content)
 
         content = response.content.decode()
         nav_match = re.search(
-            r'<nav id="volunteer-primary-nav"[^>]*>(.*?)</nav>',
+            r'<nav[^>]*id="volunteer-primary-nav"[^>]*>(.*?)</nav>',
             content,
             re.S,
         )

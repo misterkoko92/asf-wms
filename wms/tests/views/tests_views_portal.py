@@ -1175,11 +1175,37 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Filtrer produits")
         self.assertContains(response, "portal-filter-category-l1")
         self.assertContains(response, "Produits à l'unité")
+        self.assertContains(response, "Étape 1")
+        self.assertContains(response, "Étape 4")
+        self.assertContains(response, "Vérifier et envoyer")
         self.assertContains(
             response,
-            "Les stock indiqués dans ce tableau sont fictifs.",
+            "Le stock affiché reste indicatif pour le moment.",
         )
         self.assertContains(response, "colis prêts +")
+
+    def test_portal_order_create_post_keeps_progressive_steps_open_after_validation_error(self):
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            response = self.client.post(
+                self.order_create_url,
+                {
+                    "destination_id": str(self.destination.id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-fulfillment-step"[^>]*data-portal-order-step-hidden="0"',
+        )
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-review-step"[^>]*data-portal-order-step-hidden="0"',
+        )
 
     def test_portal_order_create_groups_destinations_by_recipient_availability(self):
         unavailable_destination = self._create_destination(city="Abidjan", country="Cote d'Ivoire")
@@ -1647,6 +1673,55 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             kwargs["destination_address"],
             "10 Rue C\nBat A\n69000 Lyon\nFrance",
         )
+
+    def test_portal_order_create_post_uses_shared_resolution_and_submission_use_cases(self):
+        line_items = [(self.product, 1)]
+        fake_order = SimpleNamespace(id=456)
+        destination_payload = {
+            "recipient_name": "Recipient Shared",
+            "recipient_contact": self.delivery_recipient.synced_contact,
+            "destination_city": self.destination.city,
+            "destination_country": self.destination.country,
+            "destination_address": "1 Rue Test\n75001 Paris\nFrance",
+        }
+
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            with mock.patch(
+                "wms.views_portal_orders.build_order_line_items",
+                return_value=(line_items, {}, {}),
+            ):
+                with mock.patch(
+                    "wms.views_portal_orders.resolve_portal_order_destination",
+                    create=True,
+                    return_value=(destination_payload, ""),
+                ) as resolve_destination:
+                    with mock.patch(
+                        "wms.views_portal_orders.shipment_link_for_recipient_contact",
+                        return_value=object(),
+                    ):
+                        with mock.patch(
+                            "wms.views_portal_orders.submit_portal_order",
+                            create=True,
+                            return_value=fake_order,
+                        ) as submit_order:
+                            with mock.patch(
+                                "wms.views_portal_orders.send_portal_order_notifications"
+                            ):
+                                response = self.client.post(
+                                    self.order_create_url,
+                                    {
+                                        "destination_id": str(self.destination.id),
+                                        "recipient_id": str(self.delivery_recipient.id),
+                                        "notes": "Shared path",
+                                    },
+                                )
+
+        self.assertEqual(response.status_code, 302)
+        resolve_destination.assert_called_once()
+        submit_order.assert_called_once()
 
     def test_portal_order_create_post_keeps_selected_destination_when_shared_structure_address_differs(
         self,
@@ -3916,6 +3991,95 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertTrue(contacts[0].is_administrative)
         self.assertEqual(contacts[1].email, "billing@example.com")
         self.assertTrue(contacts[1].is_billing)
+
+    def test_portal_account_updates_profile_via_shared_use_case(self):
+        with mock.patch(
+            "wms.views_portal_account.save_portal_account_profile",
+            create=True,
+        ) as save_profile:
+            response = self.client.post(
+                self.account_url,
+                {
+                    "action": "update_profile",
+                    "association_name": "Association Renamed",
+                    "association_email": "association-renamed@example.com",
+                    "association_phone": "0601020304",
+                    "address_line1": "10 Rue Update",
+                    "address_line2": "Batiment B",
+                    "postal_code": "75011",
+                    "city": "Paris",
+                    "country": "France",
+                    "contact_count": "1",
+                    "contact_0_title": "mr",
+                    "contact_0_last_name": "Durand",
+                    "contact_0_first_name": "Marc",
+                    "contact_0_phone": "0600000000",
+                    "contact_0_email": "admin@example.com",
+                    "contact_0_is_administrative": "1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        save_profile.assert_called_once()
+
+    def test_portal_account_update_profile_preserves_existing_contact_row_identity(self):
+        first_contact = AssociationPortalContact.objects.create(
+            profile=self.profile,
+            position=0,
+            title="mr",
+            last_name="Durand",
+            first_name="Marc",
+            phone="0600000000",
+            email="admin@example.com",
+            is_administrative=True,
+            is_active=True,
+        )
+        second_contact = AssociationPortalContact.objects.create(
+            profile=self.profile,
+            position=1,
+            title="mrs",
+            last_name="Martin",
+            first_name="Claire",
+            phone="0600000001",
+            email="billing@example.com",
+            is_billing=True,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "update_profile",
+                "association_name": self.profile.contact.name,
+                "association_email": self.profile.contact.email,
+                "association_phone": self.profile.contact.phone,
+                "address_line1": "1 Rue Test",
+                "address_line2": "",
+                "postal_code": "75001",
+                "city": "Paris",
+                "country": "France",
+                "contact_count": "2",
+                "contact_0_title": "mr",
+                "contact_0_last_name": "Durand",
+                "contact_0_first_name": "Marc",
+                "contact_0_phone": "0600000000",
+                "contact_0_email": "admin@example.com",
+                "contact_0_is_administrative": "1",
+                "contact_1_title": "mrs",
+                "contact_1_last_name": "Martin",
+                "contact_1_first_name": "Claire",
+                "contact_1_phone": "0600000099",
+                "contact_1_email": "billing@example.com",
+                "contact_1_is_billing": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        contacts = list(self.profile.portal_contacts.order_by("position", "id"))
+        self.assertEqual(
+            [contact.id for contact in contacts], [first_contact.id, second_contact.id]
+        )
+        self.assertEqual(contacts[1].phone, "0600000099")
 
     def test_portal_account_update_profile_requires_contact_type(self):
         response = self.client.post(

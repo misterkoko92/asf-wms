@@ -2604,6 +2604,51 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(created_order.lines.count(), 1)
         self.assertIsNotNone(created_order.shipment_id)
 
+    def test_ui_portal_order_create_uses_shared_resolution_and_submission_use_cases(self):
+        fake_order = Order.objects.create(
+            association_contact=self.association_contact,
+            shipper_name=self.association_contact.name,
+            shipper_contact=self.association_contact,
+            recipient_name="Recipient Shared",
+            recipient_contact=self.portal_recipient.synced_contact,
+            destination_address="1 Rue Shared",
+            destination_city=self.destination.city,
+            destination_country=self.destination.country,
+        )
+        destination_payload = {
+            "recipient_name": "Recipient Shared",
+            "recipient_contact": self.portal_recipient.synced_contact,
+            "destination_city": self.destination.city,
+            "destination_country": self.destination.country,
+            "destination_address": "1 Rue Shared",
+        }
+
+        with mock.patch(
+            "api.v1.ui_views.resolve_portal_order_destination",
+            create=True,
+            return_value=(destination_payload, ""),
+        ) as resolve_destination:
+            with mock.patch(
+                "api.v1.ui_views.submit_portal_order",
+                create=True,
+                return_value=fake_order,
+            ) as submit_order:
+                with mock.patch("api.v1.ui_views.send_portal_order_notifications"):
+                    response = self.portal_client.post(
+                        "/api/v1/ui/portal/orders/",
+                        {
+                            "destination_id": self.destination.id,
+                            "recipient_id": str(self.portal_recipient.id),
+                            "notes": "Besoin urgent",
+                            "lines": [{"product_id": self.product.id, "quantity": 2}],
+                        },
+                        format="json",
+                    )
+
+        self.assertEqual(response.status_code, 201)
+        resolve_destination.assert_called_once()
+        submit_order.assert_called_once()
+
     def test_ui_portal_order_create_rejects_invalid_destination(self):
         response = self.portal_client.post(
             "/api/v1/ui/portal/orders/",
@@ -2818,6 +2863,41 @@ class UiApiEndpointsTests(TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["account"]["association_name"], "Association UI API Updated")
         self.assertEqual(len(payload["account"]["portal_contacts"]), 1)
+
+    def test_ui_portal_account_patch_uses_shared_account_use_case(self):
+        with mock.patch(
+            "api.v1.ui_views.save_portal_account_profile",
+            create=True,
+        ) as save_profile:
+            response = self.portal_client.patch(
+                "/api/v1/ui/portal/account/",
+                {
+                    "association_name": "Association UI API Updated",
+                    "association_email": "new-assoc@example.org",
+                    "association_phone": "0203040506",
+                    "address_line1": "10 Rue Assoc",
+                    "address_line2": "",
+                    "postal_code": "69001",
+                    "city": "Lyon",
+                    "country": "France",
+                    "contacts": [
+                        {
+                            "title": AssociationContactTitle.MR,
+                            "last_name": "Admin",
+                            "first_name": "Portal",
+                            "phone": "0600000000",
+                            "email": "portal.admin@example.org",
+                            "is_administrative": True,
+                            "is_shipping": False,
+                            "is_billing": False,
+                        }
+                    ],
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        save_profile.assert_called_once()
 
     def test_ui_portal_account_patch_rejects_contact_without_type(self):
         response = self.portal_client.patch(

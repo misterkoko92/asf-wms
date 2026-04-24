@@ -3,7 +3,7 @@
   <div class="scan-field mb-0">
     <label class="form-label">{% trans "Produits à l'unité" %}</label>
     <p class="scan-help">
-      {% trans "Les stock indiqués dans ce tableau sont fictifs. Cette fonctionnalité sera bientôt activée pour afficher les stocks réels." %}
+      {% trans "Le stock affiché reste indicatif pour le moment." %}
     </p>
     <div class="portal-products-panel">
       <div class="scan-table-wrap portal-products-table-wrap">
@@ -55,12 +55,8 @@
       </div>
       <div class="portal-products-actions ui-comp-actions">
         <p class="scan-help">
-          {% trans "Total estimé" %}:
-          <span id="ready-carton-estimate-total">{{ total_selected_ready_cartons|default:0 }}</span>
-          {% trans "colis prêts +" %} <span id="carton-estimate-total">{% if total_estimated_cartons_to_prepare %}{{ total_estimated_cartons_to_prepare }}{% else %}0{% endif %}</span>
-          {% trans "carton(s) à préparer." %}
+          {% trans "Ajustez ici les quantités à préparer. Le récapitulatif final est consolidé à l'étape 4." %}
         </p>
-        <button type="submit" class="scan-submit btn btn-primary">{% trans "Envoyer la commande" %}</button>
       </div>
     </div>
   </div>

@@ -73,6 +73,12 @@ Current shared shell contract:
   page-level horizontal overflow on mobile; wide tables and dense product matrices keep any needed
   horizontal scroll inside their local table wrapper instead of making the whole page wider than
   the viewport
+- portal, planning, and bénévole secondary shells now reuse
+  `templates/includes/secondary_shell_masthead.html` and
+  `templates/includes/secondary_shell_offcanvas.html` instead of carrying three parallel masthead
+  and mobile-nav skeletons
+- planning keeps the legacy scan sidebar content, but the planning shell now injects that sidebar
+  through the shared secondary-shell offcanvas include rather than a one-off wrapper
 - scan-camera controls must preserve the active scan/OCR target when switching front/rear cameras,
   stop any live ZXing controls before restart, and ignore stale camera callbacks from earlier scan
   sessions so a second scan can be launched without reloading the page
@@ -82,6 +88,8 @@ Maintenance rule:
 - if a primitive changes semantics, update the UI Lab and bootstrap regression tests
 - if the shared select contract changes, keep `wms/view_utils.py`, Django form/widget sorting, and scan/portal/planning/benevole select templates aligned in the same work
 - if the shared masthead history navigation changes, keep scan/portal/planning/benevole shells aligned in the same work
+- if the portal/bénévole/planning secondary shell structure changes, update the shared include(s),
+  the three base templates, and their bootstrap/view tests in the same work
 - if a pattern is still local, do not prematurely promote it into a shared primitive
 
 ### Frontend Security Contract
@@ -827,6 +835,50 @@ Reference tests:
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
 
+### Portal Order-Create Workflow Contract
+
+Primary runtime sources:
+
+- `wms/views_portal_orders.py`
+- `templates/portal/order_create.html`
+- `templates/portal/includes/order_create_routing_card.html`
+- `templates/portal/includes/order_create_shipper_inbound_card.html`
+- `templates/portal/includes/order_create_ready_cartons_card.html`
+- `templates/portal/includes/order_create_ready_kits_card.html`
+- `templates/portal/includes/order_create_unit_products_card.html`
+- `templates/portal/includes/order_create_review_card.html`
+
+Current contract:
+
+- `/portal/orders/new/` is a progressive four-step flow:
+  `Choisir l'itinéraire` -> `Choisir la source des colis` -> `Composer la commande` ->
+  `Vérifier et envoyer`
+- the fulfillment and review steps stay hidden until both destination and recipient are selected,
+  but a server-side validation roundtrip with a valid route keeps those later steps open
+- the shipper-inbound checkbox remains the compatibility entrypoint for structure-prepared cartons;
+  pickup details still reopen automatically after pickup validation errors
+- warehouse-stock selection remains compatible with ready cartons, ready kits, and unit-product
+  lines; the UI simply stages those choices later in the flow instead of mixing everything in step 1
+- the unit-product stock copy is now intentionally demoted to an indicative note and should not
+  become the primary decision cue while real stock projection is still unavailable
+- the review card remains the only primary submit surface and mirrors destination, recipient, inbound
+  mode, selected ready cartons, and estimated cartons to prepare
+
+Maintenance rule:
+
+- if route-selection, inbound, ready-carton, or unit-product semantics change, keep
+  `wms/views_portal_orders.py`, the order-create includes, server-side portal tests, and optional
+  browser smoke tests aligned in the same work
+- if the review card totals or progressive-step visibility rules change, update both the template
+  markup and the inline order-create script in the same work
+
+Reference tests:
+
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/portal/tests_portal_order_inbound_flow.py`
+- `wms/tests/core/tests_ui_portal.py`
+
 ### V3.3 Legacy Scan Asset Facade Contract
 
 Primary runtime sources:
@@ -837,6 +889,7 @@ Primary runtime sources:
 - `wms/static/scan/scan.js`
 - `wms/static/scan/scan.css`
 - `wms/static/scan/scan-bootstrap.css`
+- `wms/static/scan/modules/table-tools.js`
 - `wms/static/scan/modules/`
 - `wms/static/scan/css/partials/`
 
@@ -844,15 +897,17 @@ Current V3.3 contract:
 
 - `scan.js`, `scan.css`, and `scan-bootstrap.css` remain the stable shared filenames consumed by scan, portal, planning, and public/auth surfaces
 - `templates/scan/base.html` keeps `scan.js` plus `scan/modules/core.js` as the shared scan script facade
+- `templates/scan/base.html` and `templates/portal/base.html` now preload `scan/modules/table-tools.js` before their page-specific table tooling so shared text normalization, sorting, and cell extraction do not fork again
 - page-local scan scripts now extend the shell through the `extra_scripts` block instead of growing `templates/scan/base.html` directly
 - `templates/portal/base.html` and `templates/planning/base.html` keep consuming the stable shared scan CSS entrypoints and expose the same extension block for future page-local scripts
-- the first V3.3 script slices now live in `wms/static/scan/modules/core.js`, `dashboard.js`, and `shipments.js`
+- the first V3.3 script slices now live in `wms/static/scan/modules/core.js`, `dashboard.js`, `shipments.js`, and `table-tools.js`
 - the first V3.3 style slices now live in `wms/static/scan/css/partials/foundation.css`, `ops.css`, and `auth-public.css`
 - when extracting more JS/CSS, prefer moving code behind these module/partial facades instead of changing the shared entrypoint filenames or inlining more asset tags into templates
 
 Maintenance rule:
 
 - keep `scan.js`, `scan.css`, and `scan-bootstrap.css` present unless the consuming templates and bootstrap regression tests move together
+- if scan and portal still share the same table sort/filter parsing semantics, keep the implementation in `wms/static/scan/modules/table-tools.js` and let page-local runtimes consume it instead of re-declaring helper copies
 - if a new page-local script is needed on scan, load it through `templates/scan/base.html`'s `extra_scripts` block instead of broadening the shared shell for every page
 - if portal or planning still depend on a shared scan stylesheet selector, do not move or rename that selector without checking their templates and bootstrap tests
 - when extracting styles, keep the stable entrypoint files as facades and move only clearly scoped concerns into `wms/static/scan/css/partials/`
@@ -1101,8 +1156,12 @@ Primary runtime sources:
 - `wms/artifacts/attachments.py`
 - `wms/artifacts/proofs.py`
 - `wms/application/planning_artifacts/use_cases.py`
+- `wms/print_artifact_delivery.py`
 - `wms/planning/exports.py`
 - `wms/planning/communication_actions.py`
+- `wms/admin.py`
+- `wms/views_print_docs.py`
+- `wms/views_print_labels.py`
 - `wms/print_pack_sync.py`
 - `wms/jobs/print_artifacts.py`
 
@@ -1114,12 +1173,15 @@ Current V3.3 contract:
 - `wms/application/planning_artifacts/use_cases.py` is now the application-facing entrypoint for helper payload composition that depends on planning artifact state
 - `wms/planning/communication_actions.py` remains a compatibility adapter and should not grow attachment-selection logic again
 - `wms/artifacts/proofs.py` now owns proof-path payloads for print artifact sync, including the canonical file name, relative directory, and OneDrive path
+- `wms/print_artifact_delivery.py` is now the shared delivery/runtime helper for PDF responses, XLSX fallback gating, and pack artifact generation reused by admin and legacy print views
+- `wms/admin.py`, `wms/views_print_docs.py`, and `wms/views_print_labels.py` remain compatibility adapters and should not grow independent pack-artifact response logic again
 - `wms/print_pack_sync.py` keeps transport and queue retry behavior, but should delegate proof-path construction to `wms/artifacts/proofs.py`
 - `process_print_artifact_queue(...)` now returns the legacy counters plus a `proof_sync` list, and `wms/jobs/print_artifacts.py` persists a bounded `proof_sync_preview` inside `OperationalJobRun.result_summary`
 
 Maintenance rule:
 
 - if planning workbook/PDF lifecycle, artifact health persistence, or communication attachment eligibility changes, update `wms/artifacts/planning.py` and `wms/artifacts/attachments.py` first, then keep planning adapters thin
+- if legacy pack PDF/XLSX response behavior changes, update `wms/print_artifact_delivery.py` first, then keep admin and print views as thin wrappers over that shared runtime
 - if print artifact sync path construction changes, update `wms/artifacts/proofs.py` first, then keep `wms/print_pack_sync.py` focused on transport/retry behavior
 - if print artifact job summaries change, update `wms/jobs/print_artifacts.py`, `wms/jobs/runtime_tracking.py`, ops docs, and this section together
 
@@ -1328,6 +1390,40 @@ Reference tests:
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/views/tests_views_portal.py`
 - `api/tests/tests_ui_endpoints.py`
+
+### Portal Shared Mutation Contract
+
+Primary runtime sources:
+
+- `wms/application/portal/account_use_cases.py`
+- `wms/application/portal/order_use_cases.py`
+- `wms/application/portal/recipient_resolution.py`
+- `wms/views_portal_account.py`
+- `wms/views_portal_orders.py`
+- `api/v1/ui_views.py`
+- `wms/portal_order_handlers.py`
+
+Current contract:
+
+- `save_portal_account_profile(...)` is the shared write path for portal account/profile changes across legacy HTML and `PATCH /api/v1/ui/portal/account/`
+- portal account writes must update `AssociationProfile`, notification email, and `AssociationPortalContact` rows without deleting and recreating the whole contact set on every edit
+- extra stored portal contact rows may be deactivated when a shorter contact list is submitted, but stable existing rows should be reused when the user keeps the same slots
+- `build_allowed_destination_ids_by_recipient(...)` and `resolve_portal_order_destination(...)` are the canonical destination-filtering and destination-resolution helpers for shipper order submission
+- `submit_portal_order(...)` is the shared shipper order submission entrypoint for legacy HTML and `POST /api/v1/ui/portal/orders/`
+- `wms/views_portal_orders.py` and `api/v1/ui_views.py` must stay thin over these shared helpers; do not reintroduce a second copy of recipient/contact/destination branching in adapters
+
+Maintenance rule:
+
+- if portal account fields or contact-slot semantics change, keep the HTML form, UI API payload mapping, shared account use case, and portal account tests aligned in the same work
+- if shipper destination rules or recipient/contact resolution change, update the shared resolution helpers first, then keep portal HTML, UI API, and shipment-party tests aligned in the same work
+- if portal order creation side effects change, update `submit_portal_order(...)` and `wms/portal_order_handlers.py` together instead of forking another adapter-specific mutation path
+
+Reference tests:
+
+- `wms/tests/views/tests_views_portal.py`
+- `api/tests/tests_ui_endpoints.py`
+- `api/tests/tests_ui_e2e_workflows.py`
+- `wms/tests/portal/tests_portal_shipment_parties.py`
 
 ### Shipment QR Tracking Access Contract
 

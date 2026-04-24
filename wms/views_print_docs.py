@@ -1,6 +1,5 @@
 from io import BytesIO
 
-from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
@@ -19,6 +18,11 @@ from .local_document_helper import (
 )
 from .models import Carton, CartonStatus, Shipment
 from .prepare_kits_helpers import _parse_carton_ids
+from .print_artifact_delivery import (
+    artifact_pdf_response,
+    generate_pack_xlsx_response,
+    is_xlsx_fallback_enabled,
+)
 from .print_context import (
     build_carton_contact_label_context,
     build_carton_document_context,
@@ -159,11 +163,7 @@ def _render_carton_document_with_layout(request, context):
 
 
 def _artifact_pdf_response(artifact):
-    filename = (artifact.pdf_file.name or "").split("/")[-1] or "document.pdf"
-    with artifact.pdf_file.open("rb") as pdf_stream:
-        response = FileResponse(BytesIO(pdf_stream.read()), content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{filename}"'
-    return response
+    return artifact_pdf_response(artifact, default_filename="document.pdf")
 
 
 def _generate_pack_pdf_response(request, *, pack_code, shipment=None, carton=None, variant=None):
@@ -178,17 +178,17 @@ def _generate_pack_pdf_response(request, *, pack_code, shipment=None, carton=Non
 
 
 def _is_xlsx_fallback_enabled():
-    return bool(getattr(settings, "PRINT_PACK_XLSX_FALLBACK_ENABLED", False))
+    return is_xlsx_fallback_enabled()
 
 
 def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, variant=None):
-    documents = render_pack_xlsx_documents(
+    return generate_pack_xlsx_response(
         pack_code=pack_code,
         shipment=shipment,
         carton=carton,
         variant=variant,
+        render_documents_fn=render_pack_xlsx_documents,
     )
-    return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
 
 
 def _render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, variant=None):

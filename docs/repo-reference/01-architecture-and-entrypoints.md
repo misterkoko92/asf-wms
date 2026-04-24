@@ -59,9 +59,10 @@ Practical rule:
   `wms/application/parties/use_cases.py`, while portal views still route through
   legacy compatibility wrappers where needed
 - the public package facades for these slices now live in `wms/application/__init__.py`,
-  `wms/application/parties/__init__.py`, `wms/events/__init__.py`, `wms/jobs/__init__.py`,
-  `wms/parties/__init__.py`, and `wms/artifacts/__init__.py`; use them when you need
-  the stable import surface rather than an internal module
+  `wms/application/portal/__init__.py`, `wms/application/parties/__init__.py`,
+  `wms/events/__init__.py`, `wms/jobs/__init__.py`, `wms/parties/__init__.py`, and
+  `wms/artifacts/__init__.py`; use them when you need the stable import surface rather
+  than an internal module
 - the first live V3.3 planning-artifact slice now exists through `wms/artifacts/planning.py`,
   `wms/artifacts/attachments.py`, `wms/artifacts/proofs.py`, and
   `wms/application/planning_artifacts/use_cases.py`, while `wms/planning/exports.py`,
@@ -96,9 +97,14 @@ Practical rule:
 
 - URL root: `wms/portal_urls.py`
 - Runtime modules: `wms/views_portal_auth.py`, `wms/views_portal_account.py`, `wms/views_portal_orders.py`, `wms/views_portal_billing.py`
+- Shared mutation/use-case sources: `wms/application/portal/account_use_cases.py`,
+  `wms/application/portal/order_use_cases.py`, `wms/application/portal/recipient_resolution.py`
 - Templates: `templates/portal/`
 - Static assets: `wms/static/portal/`
 - Auth/runtime note: `/portal/` is now active-scope based through `wms/portal_access.py`; the same shell can render a shipper cockpit or a recipient maintenance home depending on the active `PortalAccessGrant` or legacy fallback scope
+- HTML and UI API mutation note: portal account/profile updates and shipper order submission now
+  share the same application-layer mutation helpers; legacy views and `api/v1/ui_views.py`
+  remain delivery adapters and should stay thin
 
 ### Volunteer
 
@@ -125,6 +131,10 @@ Practical rule:
   - `wms/application/pilotage/pilotage_queries.py` is the shared composition source for the legacy pilotage cockpit and `GET /api/v1/ui/pilotage/`
   - `wms/application/portal/dashboard_queries.py` is the shared composition source for the legacy portal dashboard and `GET /api/v1/ui/portal/dashboard/`
   - `wms/application/planning/version_detail_queries.py` is the shared GET composition source for `planning/version_detail`
+- Current shared portal mutation sources:
+  - `wms/application/portal/account_use_cases.py` owns shared portal account/profile writes reused by the legacy portal HTML flow and `PATCH /api/v1/ui/portal/account/`
+  - `wms/application/portal/recipient_resolution.py` owns shared portal shipper destination resolution reused by the legacy portal HTML flow and `POST /api/v1/ui/portal/orders/`
+  - `wms/application/portal/order_use_cases.py` owns shared shipper order submission reused by the legacy portal HTML flow and `POST /api/v1/ui/portal/orders/`
 - Current V3.1 extracted policy sources:
   - `wms/policies/sla.py` owns shared SLA freshness and severity classification
   - `wms/policies/pilotage.py` owns planning-threshold normalization reused by runtime settings and pilotage previews

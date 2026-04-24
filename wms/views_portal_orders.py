@@ -6,13 +6,17 @@ from django.utils.dateparse import parse_date, parse_time
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
-from .application.parties.use_cases import resolve_portal_recipient_party_contact
 from .application.portal.dashboard_queries import (
     build_portal_dashboard_payload,
     build_recipient_scope_home_payload,
     decorate_portal_dashboard_order,
 )
-from .contact_labels import build_shipment_recipient_select_label
+from .application.portal.order_use_cases import submit_portal_order
+from .application.portal.recipient_resolution import (
+    PORTAL_RECIPIENT_SELF,
+    build_allowed_destination_ids_by_recipient,
+    resolve_portal_order_destination,
+)
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
 from .document_uploads import validate_document_upload
@@ -40,12 +44,9 @@ from .order_helpers import (
 )
 from .order_notifications import send_portal_order_notifications
 from .portal_helpers import (
-    build_destination_address,
     get_association_profile,
-    get_contact_address,
     get_default_carton_format,
 )
-from .portal_order_handlers import create_portal_order
 from .scan_helpers import build_product_selection_data
 from .scan_helpers import parse_int as parse_int_safe
 from .services import StockError
@@ -214,38 +215,11 @@ def _allowed_recipient_option_ids(*, selected_destination, allowed_destination_i
 
 
 def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
-    recipient_contact_by_id = {
-        recipient.id: resolve_portal_recipient_party_contact(recipient) for recipient in recipients
-    }
-    allowed_destination_ids_by_recipient = {str(recipient.id): set() for recipient in recipients}
-    shipper = shipment_shipper_from_contact(profile.contact)
-    if shipper is None:
-        return {
-            recipient_id: sorted(destination_ids)
-            for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
-        }
-
-    for destination in destinations:
-        for recipient in recipients:
-            if recipient.destination_id not in {destination.id, None}:
-                continue
-            recipient_contact = recipient_contact_by_id.get(recipient.id)
-            if recipient_contact is None:
-                continue
-            if (
-                shipment_link_for_recipient_contact(
-                    shipper=shipper,
-                    recipient_contact=recipient_contact,
-                    destination=destination,
-                )
-                is not None
-            ):
-                allowed_destination_ids_by_recipient[str(recipient.id)].add(destination.id)
-
-    return {
-        recipient_id: sorted(destination_ids)
-        for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
-    }
+    return build_allowed_destination_ids_by_recipient(
+        profile=profile,
+        recipients=recipients,
+        destinations=destinations,
+    )
 
 
 def _available_destination_ids(allowed_destination_ids_by_recipient):
@@ -510,105 +484,65 @@ def _validate_shipper_inbound(form_data, errors):
     return payload
 
 
-def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_destination):
-    recipient = (
-        AssociationRecipient.objects.filter(
-            id=recipient_id,
-            association_contact=profile.contact,
-        )
-        .select_related("destination")
-        .order_by("name")
-        .first()
-    )
-    if not recipient:
-        errors.append(ERROR_RECIPIENT_INVALID)
-        return {
-            "recipient_name": "",
-            "recipient_contact": None,
-            "destination_city": "",
-            "destination_country": DEFAULT_COUNTRY,
-            "destination_address": "",
-        }
-
-    if selected_destination and recipient.destination_id not in {
-        selected_destination.id,
-        None,
-    }:
-        errors.append(ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION)
-        return {
-            "recipient_name": "",
-            "recipient_contact": None,
-            "destination_city": selected_destination.city,
-            "destination_country": selected_destination.country or DEFAULT_COUNTRY,
-            "destination_address": "",
-        }
-
-    recipient_contact = resolve_portal_recipient_party_contact(recipient)
-    recipient_address = get_contact_address(recipient_contact) or get_contact_address(
-        getattr(recipient, "synced_contact", None)
-    )
-    resolved_destination = selected_destination or recipient.destination
-    destination_city = (
-        (resolved_destination.city if resolved_destination else "")
-        or recipient.city
-        or (recipient_address.city if recipient_address else "")
-    )
-    destination_country = (
-        (resolved_destination.country if resolved_destination else "")
-        or recipient.country
-        or (recipient_address.country if recipient_address else "")
-        or DEFAULT_COUNTRY
-    )
-    address_city = (
-        (recipient_address.city if recipient_address else "")
-        or recipient.city
-        or (resolved_destination.city if resolved_destination else "")
-    )
-    address_country = (
-        (recipient_address.country if recipient_address else "")
-        or recipient.country
-        or (resolved_destination.country if resolved_destination else "")
-        or DEFAULT_COUNTRY
-    )
-
-    recipient_name = (
-        build_shipment_recipient_select_label(
-            recipient_contact,
-            destination=recipient.destination,
-        )
-        if recipient_contact is not None
-        else recipient.get_shipment_party_display_name()
-    )
-
-    return {
-        "recipient_name": recipient_name,
-        "recipient_contact": recipient_contact,
-        "destination_city": destination_city,
-        "destination_country": destination_country,
-        "destination_address": build_destination_address(
-            line1=(recipient_address.address_line1 if recipient_address else "")
-            or recipient.address_line1,
-            line2=(recipient_address.address_line2 if recipient_address else "")
-            or recipient.address_line2,
-            postal_code=(recipient_address.postal_code if recipient_address else "")
-            or recipient.postal_code,
-            city=address_city,
-            country=address_country,
-        ),
-    }
-
-
 def _resolve_destination(profile, recipient_id, errors, *, selected_destination):
-    return _resolve_recipient_destination(
-        profile,
-        parse_int_safe(recipient_id),
-        errors,
+    resolved_recipient_id = recipient_id
+    if recipient_id != PORTAL_RECIPIENT_SELF:
+        resolved_recipient_id = parse_int_safe(recipient_id)
+    destination_payload, error = resolve_portal_order_destination(
+        profile=profile,
+        recipient_id=resolved_recipient_id,
         selected_destination=selected_destination,
     )
+    if not error:
+        return destination_payload
+
+    errors.append(error)
+    return {
+        "recipient_name": "",
+        "recipient_contact": None,
+        "destination_city": selected_destination.city if selected_destination else "",
+        "destination_country": (
+            (selected_destination.country or DEFAULT_COUNTRY)
+            if selected_destination
+            else DEFAULT_COUNTRY
+        ),
+        "destination_address": "",
+    }
 
 
 def _requires_recipient_binding(*, profile, recipient_contact) -> bool:
     return bool(recipient_contact and recipient_contact != profile.contact)
+
+
+def create_portal_order(
+    *,
+    user,
+    profile,
+    recipient_name,
+    recipient_contact,
+    destination_address,
+    destination_city,
+    destination_country,
+    notes,
+    line_items,
+    ready_carton_ids=None,
+    inbound_delivery_data=None,
+):
+    return submit_portal_order(
+        user=user,
+        profile=profile,
+        destination_payload={
+            "recipient_name": recipient_name,
+            "recipient_contact": recipient_contact,
+            "destination_address": destination_address,
+            "destination_city": destination_city,
+            "destination_country": destination_country,
+        },
+        notes=notes,
+        line_items=line_items,
+        ready_carton_ids=ready_carton_ids,
+        inbound_delivery_data=inbound_delivery_data,
+    )
 
 
 def _build_order_create_context(
@@ -678,6 +612,24 @@ def _build_order_create_context(
     category_filter_max_depth = max(
         [len(path) for paths in category_paths_by_row.values() for path in paths] or [0]
     )
+    selected_destination_id = (form_data.get("destination_id") or "").strip()
+    selected_recipient_id = (form_data.get("recipient_id") or "").strip()
+
+    def _find_option_label(options, selected_id):
+        for option in options:
+            if str(option.get("id") or "") == selected_id:
+                return option.get("label") or ""
+        return ""
+
+    route_ready = bool(selected_destination_id and selected_recipient_id)
+    selected_destination_label = _find_option_label(
+        [*destination_options, *disabled_destination_options],
+        selected_destination_id,
+    )
+    selected_recipient_label = _find_option_label(
+        recipient_options_all,
+        selected_recipient_id,
+    )
 
     return {
         "destination_options": destination_options,
@@ -700,6 +652,9 @@ def _build_order_create_context(
         "category_filter_max_depth": category_filter_max_depth,
         "carton_format": carton_data,
         "pickup_address_options": pickup_address_options,
+        "route_ready": route_ready,
+        "selected_destination_label": selected_destination_label,
+        "selected_recipient_label": selected_recipient_label,
     }
 
 

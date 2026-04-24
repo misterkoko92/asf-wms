@@ -1,12 +1,11 @@
 import re
-from io import BytesIO
 
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.http import FileResponse, Http404, HttpResponseBase
+from django.http import Http404, HttpResponseBase
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
@@ -49,15 +48,15 @@ from .local_document_helper import (
     get_local_helper_document_index,
     is_local_helper_job_request,
 )
-from .print_delivery import wants_browser_print
-from .print_pack_engine import (
-    PrintPackEngineError,
-    generate_pack,
-    render_pack_xlsx_documents,
+from .print_artifact_delivery import (
+    artifact_pdf_response,
+    generate_pack_xlsx_response,
+    is_xlsx_fallback_enabled,
+    try_generate_pack_artifact,
 )
-from .print_pack_graph import GraphPdfConversionError
+from .print_delivery import wants_browser_print
+from .print_pack_engine import generate_pack, render_pack_xlsx_documents
 from .print_pack_routing import resolve_carton_packing_pack, resolve_pack_request
-from .print_pack_xlsx import build_xlsx_fallback_response
 from .product_label_printing import (
     render_product_labels_response,
     render_product_qr_labels_response,
@@ -83,41 +82,30 @@ from .volunteer_account_request_handlers import (
 
 
 def _artifact_pdf_response(artifact):
-    filename = (artifact.pdf_file.name or "").split("/")[-1] or "document.pdf"
-    with artifact.pdf_file.open("rb") as pdf_stream:
-        response = FileResponse(BytesIO(pdf_stream.read()), content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{filename}"'
-    return response
+    return artifact_pdf_response(artifact, default_filename="document.pdf")
 
 
 def _is_xlsx_fallback_enabled():
-    return bool(getattr(settings, "PRINT_PACK_XLSX_FALLBACK_ENABLED", False))
+    return is_xlsx_fallback_enabled()
 
 
 def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, variant=None):
-    documents = render_pack_xlsx_documents(
+    return generate_pack_xlsx_response(
         pack_code=pack_code,
         shipment=shipment,
         carton=carton,
         variant=variant,
+        render_documents_fn=render_pack_xlsx_documents,
     )
-    return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
 
 
 def _try_generate_pack_artifact(*, fallback_renderer, **kwargs):
-    try:
-        return generate_pack(**kwargs)
-    except GraphPdfConversionError:
-        if _is_xlsx_fallback_enabled():
-            return _generate_pack_xlsx_response(
-                pack_code=kwargs.get("pack_code"),
-                shipment=kwargs.get("shipment"),
-                carton=kwargs.get("carton"),
-                variant=kwargs.get("variant"),
-            )
-        return fallback_renderer()
-    except PrintPackEngineError:
-        return fallback_renderer()
+    return try_generate_pack_artifact(
+        generate_pack_fn=generate_pack,
+        fallback_renderer=fallback_renderer,
+        xlsx_fallback_renderer=_generate_pack_xlsx_response,
+        **kwargs,
+    )
 
 
 class ProductKitItemInline(admin.TabularInline):

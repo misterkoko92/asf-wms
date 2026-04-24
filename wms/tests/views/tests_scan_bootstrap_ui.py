@@ -163,6 +163,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-bootstrap.css")
         self.assertContains(response, "scan/modules/core.js")
+        self.assertContains(response, "scan/modules/table-tools.js")
         self.assertContains(response, "bootstrap@5.3.3")
         self.assertContains(response, "family=DM+Sans")
         self.assertContains(response, "family=Nunito+Sans")

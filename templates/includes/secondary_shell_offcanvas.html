@@ -1,0 +1,138 @@
+{% load i18n %}
+{% if shell_variant == "planning" %}
+  <div
+    id="scan-sidebar-offcanvas"
+    class="offcanvas-lg offcanvas-start scan-sidebar-offcanvas"
+    tabindex="-1"
+    aria-labelledby="scan-sidebar-title"
+    data-secondary-shell-offcanvas="planning"
+  >
+    <div class="offcanvas-header d-lg-none">
+      <h2 id="scan-sidebar-title" class="offcanvas-title">{% trans "Navigation planning" %}</h2>
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="offcanvas"
+        data-bs-target="#scan-sidebar-offcanvas"
+        aria-label="{% trans "Fermer" %}"
+      ></button>
+    </div>
+    <div class="offcanvas-body">
+      {% include "scan/includes/scan_sidebar_navigation.html" %}
+    </div>
+  </div>
+{% elif shell_variant == "portal" %}
+  <div
+    id="portal-nav-offcanvas"
+    class="offcanvas offcanvas-start portal-nav-offcanvas"
+    tabindex="-1"
+    aria-labelledby="portal-nav-offcanvas-title"
+    data-secondary-shell-offcanvas="portal"
+  >
+    <div class="offcanvas-header">
+      <h2 id="portal-nav-offcanvas-title" class="offcanvas-title">{% trans "Navigation portail" %}</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{% trans "Fermer" %}"></button>
+    </div>
+    <div class="offcanvas-body">
+      <nav class="portal-offcanvas-nav" aria-label="{% trans "Navigation mobile du portail" %}">
+        {% if request.portal_scope.role == "recipient_admin" %}
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_dashboard' %} is-active{% endif %}"
+            href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-identity"
+          >
+            {% trans "Identité" %}
+          </a>
+          <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-contacts">
+            {% trans "Contacts" %}
+          </a>
+          <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-documents">
+            {% trans "Documents" %}
+          </a>
+          <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-preferences">
+            {% trans "Préférences" %}
+          </a>
+        {% else %}
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
+            href="{% url 'portal:portal_dashboard' %}"
+          >
+            {% trans "Commandes" %}
+          </a>
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_billing' or current == 'portal_billing_detail' %} is-active{% endif %}"
+            href="{% url 'portal:portal_billing' %}"
+          >
+            {% trans "Facturation" %}
+          </a>
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_recipients' %} is-active{% endif %}"
+            href="{% url 'portal:portal_recipients' %}"
+          >
+            {% trans "Destinataires" %}
+          </a>
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_account' %} is-active{% endif %}"
+            href="{% url 'portal:portal_account' %}"
+          >
+            {% trans "Compte" %}
+          </a>
+        {% endif %}
+      </nav>
+      {% if request.portal_scope.role == "shipper_admin" %}
+        <a
+          class="btn btn-primary portal-offcanvas-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
+          href="{% url 'portal:portal_order_create' %}"
+        >
+          {% trans "Nouvelle commande" %}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+{% elif request.user.is_authenticated %}
+  <div
+    id="volunteer-nav-offcanvas"
+    class="offcanvas offcanvas-start portal-nav-offcanvas"
+    tabindex="-1"
+    aria-labelledby="volunteer-nav-offcanvas-title"
+    data-secondary-shell-offcanvas="volunteer"
+  >
+    <div class="offcanvas-header">
+      <h2 id="volunteer-nav-offcanvas-title" class="offcanvas-title">{% trans "Navigation bénévole" %}</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{% trans "Fermer" %}"></button>
+    </div>
+    <div class="offcanvas-body">
+      <nav class="portal-offcanvas-nav" aria-label="{% trans "Navigation mobile bénévole" %}">
+        <a
+          class="portal-offcanvas-link{% if current == 'dashboard' %} is-active{% endif %}"
+          href="{% url 'volunteer:dashboard' %}"
+        >
+          {% trans "Accueil" %}
+        </a>
+        <a
+          class="portal-offcanvas-link{% if current == 'profile' %} is-active{% endif %}"
+          href="{% url 'volunteer:profile' %}"
+        >
+          {% trans "Profil" %}
+        </a>
+        <a
+          class="portal-offcanvas-link{% if current == 'constraints' %} is-active{% endif %}"
+          href="{% url 'volunteer:constraints' %}"
+        >
+          {% trans "Contraintes" %}
+        </a>
+        <a
+          class="portal-offcanvas-link{% if current == 'availability_list' or current == 'availability_create' or current == 'availability_edit' or current == 'availability_delete' %} is-active{% endif %}"
+          href="{% url 'volunteer:availability_list' %}"
+        >
+          {% trans "Disponibilites" %}
+        </a>
+        <a
+          class="portal-offcanvas-link{% if current == 'availability_recap' %} is-active{% endif %}"
+          href="{% url 'volunteer:availability_recap' %}"
+        >
+          {% trans "Recap" %}
+        </a>
+      </nav>
+    </div>
+  </div>
+{% endif %}
