@@ -149,6 +149,7 @@ class PortalBootstrapUiTests(TestCase):
         )
         self.assertContains(response, "scan-bootstrap.css")
         self.assertContains(response, "scan/modules/core.js")
+        self.assertContains(response, "scan/modules/table-tools.js")
         self.assertContains(response, "portal-bootstrap.css")
         self.assertContains(response, "portal-bootstrap-enabled")
         self.assertNotContains(response, 'id="portal-ui-toggle"')

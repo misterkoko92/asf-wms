@@ -18,6 +18,7 @@ from .application.parties.use_cases import (
     update_runtime_recipient_profile,
     upsert_recipient_structure_documents,
 )
+from .application.portal.account_use_cases import save_portal_account_profile
 from .application.portal.dashboard_queries import (
     build_recipient_scope_home_payload,
     build_runtime_recipient_profile_payload,
@@ -1096,102 +1097,6 @@ def _validate_profile_form_data(form_data):
     return errors
 
 
-def _sync_notification_emails_from_contacts(profile, rows):
-    emails = []
-    seen = set()
-    for row in rows:
-        value = (row.get("email") or "").strip()
-        if not value:
-            continue
-        normalized = value.lower()
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        emails.append(value)
-    profile.notification_emails = ",".join(emails)
-
-
-def _save_profile_updates(*, request, profile, form_data, contact_rows):
-    association = profile.contact
-    address = get_contact_address(association)
-
-    with transaction.atomic():
-        contact_updates = []
-        if association.name != form_data["association_name"]:
-            association.name = form_data["association_name"]
-            contact_updates.append("name")
-        if association.email != form_data["association_email"]:
-            association.email = form_data["association_email"]
-            contact_updates.append("email")
-        if association.phone != form_data["association_phone"]:
-            association.phone = form_data["association_phone"]
-            contact_updates.append("phone")
-        if contact_updates:
-            association.save(update_fields=contact_updates)
-
-        if not address:
-            address = association.addresses.create(
-                address_line1=form_data["address_line1"],
-                address_line2=form_data["address_line2"],
-                postal_code=form_data["postal_code"],
-                city=form_data["city"],
-                country=form_data["country"] or DEFAULT_COUNTRY,
-                phone=form_data["association_phone"],
-                email=form_data["association_email"],
-                is_default=True,
-            )
-        else:
-            address_updates = []
-            if address.address_line1 != form_data["address_line1"]:
-                address.address_line1 = form_data["address_line1"]
-                address_updates.append("address_line1")
-            if address.address_line2 != form_data["address_line2"]:
-                address.address_line2 = form_data["address_line2"]
-                address_updates.append("address_line2")
-            if address.postal_code != form_data["postal_code"]:
-                address.postal_code = form_data["postal_code"]
-                address_updates.append("postal_code")
-            if address.city != form_data["city"]:
-                address.city = form_data["city"]
-                address_updates.append("city")
-            country = form_data["country"] or DEFAULT_COUNTRY
-            if address.country != country:
-                address.country = country
-                address_updates.append("country")
-            if address.phone != form_data["association_phone"]:
-                address.phone = form_data["association_phone"]
-                address_updates.append("phone")
-            if address.email != form_data["association_email"]:
-                address.email = form_data["association_email"]
-                address_updates.append("email")
-            if address_updates:
-                address.save(update_fields=address_updates)
-
-        user = request.user
-        if form_data["association_email"] and user.email != form_data["association_email"]:
-            user.email = form_data["association_email"]
-            user.save(update_fields=["email"])
-
-        profile.portal_contacts.all().delete()
-        for index, row in enumerate(contact_rows):
-            AssociationPortalContact.objects.create(
-                profile=profile,
-                position=index,
-                title=row["title"],
-                last_name=row["last_name"],
-                first_name=row["first_name"],
-                phone=row["phone"],
-                email=row["email"],
-                is_administrative=row["is_administrative"],
-                is_shipping=row["is_shipping"],
-                is_billing=row["is_billing"],
-                is_active=True,
-            )
-
-        _sync_notification_emails_from_contacts(profile, contact_rows)
-        profile.save(update_fields=["notification_emails"])
-
-
 def _handle_account_document_uploads(request, association):
     created = 0
     for doc_type, _label in AccountDocumentType.choices:
@@ -1714,8 +1619,8 @@ def portal_account(request):
             account_form_errors = _validate_profile_form_data(profile_form_data)
             account_form_errors.extend(contact_errors)
             if not account_form_errors:
-                _save_profile_updates(
-                    request=request,
+                save_portal_account_profile(
+                    user=request.user,
                     profile=profile,
                     form_data=profile_form_data,
                     contact_rows=portal_contact_rows,

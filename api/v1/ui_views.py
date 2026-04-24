@@ -20,10 +20,17 @@ from wms.application.parties.use_cases import (
     update_runtime_recipient_profile,
 )
 from wms.application.pilotage.pilotage_queries import build_scan_pilotage_payload
+from wms.application.portal.account_use_cases import save_portal_account_profile
 from wms.application.portal.dashboard_queries import (
     build_portal_dashboard_payload,
     build_recipient_scope_home_payload,
     build_runtime_recipient_profile_payload,
+)
+from wms.application.portal.order_use_cases import submit_portal_order
+from wms.application.portal.recipient_resolution import (
+    PORTAL_DEFAULT_COUNTRY,
+    PORTAL_RECIPIENT_SELF,
+    resolve_portal_order_destination,
 )
 from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.carton_status_events import set_carton_status
@@ -68,12 +75,9 @@ from wms.models import (
 )
 from wms.order_notifications import send_portal_order_notifications
 from wms.portal_helpers import (
-    build_destination_address,
     get_association_profile,
     get_contact_address,
 )
-from wms.portal_order_handlers import create_portal_order
-from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from wms.runtime_settings import get_runtime_config
 from wms.scan_dashboard_destination_risk import build_destination_risk_snapshot
@@ -112,7 +116,6 @@ from wms.shipment_view_helpers import (
 )
 from wms.stock_view_helpers import build_stock_context
 from wms.upload_utils import ALLOWED_UPLOAD_EXTENSIONS
-from wms.views_portal_account import _save_profile_updates
 from wms.views_scan_shipments_support import (
     CLOSED_FILTER_EXCLUDE,
     _build_shipments_tracking_queryset,
@@ -617,10 +620,6 @@ def _allowed_carton_ids(*, shipment=None):
     return ids
 
 
-PORTAL_RECIPIENT_SELF = "self"
-PORTAL_DEFAULT_COUNTRY = "France"
-
-
 def _split_multi_values(value):
     raw = (value or "").replace("\n", ";").replace(",", ";")
     return [item.strip() for item in raw.split(";") if item.strip()]
@@ -636,75 +635,6 @@ def _validate_multi_emails(raw_value):
         except DjangoValidationError:
             invalid_values.append(value)
     return values, invalid_values
-
-
-def _portal_order_destination_payload(*, profile, recipient_id, selected_destination):
-    if recipient_id == PORTAL_RECIPIENT_SELF:
-        address = get_contact_address(profile.contact)
-        if not address:
-            return None, "Adresse association manquante."
-        return {
-            "recipient_name": profile.contact.name,
-            "recipient_contact": profile.contact,
-            "destination_city": selected_destination.city
-            if selected_destination
-            else (address.city or ""),
-            "destination_country": (
-                selected_destination.country
-                if selected_destination
-                else (address.country or PORTAL_DEFAULT_COUNTRY)
-            ),
-            "destination_address": build_destination_address(
-                line1=address.address_line1,
-                line2=address.address_line2,
-                postal_code=address.postal_code,
-                city=address.city,
-                country=address.country,
-            ),
-        }, ""
-
-    recipient = (
-        AssociationRecipient.objects.filter(
-            association_contact=profile.contact,
-            is_active=True,
-            pk=recipient_id,
-        )
-        .select_related("destination")
-        .first()
-    )
-    if recipient is None:
-        return None, "Destinataire invalide."
-    if selected_destination and recipient.destination_id not in {selected_destination.id, None}:
-        return None, "Destinataire non disponible pour cette destination."
-
-    recipient_contact = sync_association_recipient_to_contact(recipient)
-    return {
-        "recipient_name": recipient.get_display_name(),
-        "recipient_contact": recipient_contact,
-        "destination_city": (
-            selected_destination.city
-            if selected_destination
-            else (recipient.city or (recipient.destination.city if recipient.destination else ""))
-        ),
-        "destination_country": (
-            selected_destination.country
-            if selected_destination
-            else (
-                recipient.country
-                or (recipient.destination.country if recipient.destination else "")
-                or PORTAL_DEFAULT_COUNTRY
-            )
-        ),
-        "destination_address": build_destination_address(
-            line1=recipient.address_line1,
-            line2=recipient.address_line2,
-            postal_code=recipient.postal_code,
-            city=recipient.city or (recipient.destination.city if recipient.destination else ""),
-            country=recipient.country
-            or (recipient.destination.country if recipient.destination else "")
-            or PORTAL_DEFAULT_COUNTRY,
-        ),
-    }, ""
 
 
 def _portal_recipient_payload(validated_data, destination):
@@ -2272,7 +2202,7 @@ class UiPortalOrdersView(APIView):
                     field_errors={"recipient_id": ["Destinataire invalide."]},
                 )
 
-        destination_payload, destination_error = _portal_order_destination_payload(
+        destination_payload, destination_error = resolve_portal_order_destination(
             profile=profile,
             recipient_id=recipient_id,
             selected_destination=destination,
@@ -2308,14 +2238,10 @@ class UiPortalOrdersView(APIView):
         ]
 
         try:
-            order = create_portal_order(
+            order = submit_portal_order(
                 user=request.user,
                 profile=profile,
-                recipient_name=destination_payload["recipient_name"],
-                recipient_contact=destination_payload["recipient_contact"],
-                destination_address=destination_payload["destination_address"],
-                destination_city=destination_payload["destination_city"],
-                destination_country=destination_payload["destination_country"],
+                destination_payload=destination_payload,
                 notes=payload.get("notes", ""),
                 line_items=line_items,
             )
@@ -2774,8 +2700,8 @@ class UiPortalAccountView(APIView):
             "city": payload.get("city", ""),
             "country": payload.get("country", PORTAL_DEFAULT_COUNTRY) or PORTAL_DEFAULT_COUNTRY,
         }
-        _save_profile_updates(
-            request=request,
+        save_portal_account_profile(
+            user=request.user,
             profile=profile,
             form_data=form_data,
             contact_rows=contact_rows,
