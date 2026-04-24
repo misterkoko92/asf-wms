@@ -49,7 +49,7 @@ Fallback if `uv` is blocked locally:
 - [ ] If `SENTRY_DSN` was added or changed, run `python manage.py check_sentry_runtime --send-test` and confirm the event appears in Sentry.
 - [ ] Run `python manage.py check_referential_integrity` after migrations on the target data, or explicitly document any accepted anomaly before release.
 - [ ] If portal/contact/shipment-party scope changed, run `python manage.py rebuild_recipient_party_graph --dry-run` and review the reported grant/projection repair summary before deploy.
-- [ ] If scan frontend assets changed (`wms/static/scan/scan.js`, `wms/static/scan/scan.css`, `wms/static/scan/scan-bootstrap.css`, `wms/static/scan/modules/core.js`, manifest/icon), bump `CACHE_NAME` in `wms/views_scan_misc.py` (`wms-scan-vNN`).
+- [ ] If scan frontend assets changed (`wms/static/scan/scan.js`, `wms/static/scan/scan.css`, `wms/static/scan/scan-bootstrap.css`, `wms/static/scan/modules/core.js`, manifest/icon), bump both `SCAN_SERVICE_WORKER_VERSION` in `wms/views_scan_misc.py` (`wms-scan-vNN`) and the registration query string in `templates/scan/base.html`.
 - [ ] If templates/frontend supply-chain scope changed, confirm `_blank` uses `rel`, CDN assets have SRI or are self-hosted, and dynamic HTML sinks are covered by tests.
 
 ## C) Deploy

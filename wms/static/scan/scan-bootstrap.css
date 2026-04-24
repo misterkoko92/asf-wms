@@ -816,7 +816,7 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .ui-field-required-marker {
   display: inline-block;
   margin-left: 0.2rem;
-  color: var(--wms-color-danger-strong);
+  color: var(--wms-status-error-text);
   font-weight: 800;
   line-height: 1;
 }
@@ -1134,6 +1134,14 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .ui-date-input.is-fluid .ui-date-input-input {
   width: 100%;
+}
+
+.scan-bootstrap-enabled .ui-date-input-input::-webkit-calendar-picker-indicator,
+.scan-bootstrap-enabled input[type="date"].is-ui-date-input-enhanced::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  margin: 0;
 }
 
 .scan-bootstrap-enabled .ui-date-input-btn {

@@ -615,6 +615,29 @@ Reference tests:
 - `wms/tests/views/tests_views_planning.py`
 - `wms/tests/views/tests_views_volunteer.py`
 
+### Shared Scan Frontend Cache Contract
+
+Primary runtime sources:
+
+- `wms/views_scan_misc.py`
+- `templates/scan/base.html`
+- `docs/release_checklist.md`
+
+Current contract:
+
+- the legacy scan shell registers a versioned service worker URL under `/scan/service-worker.js?v=NN`
+- the served worker script uses the same version in `CACHE_NAME = wms-scan-vNN`
+- the scan service worker caches shared scan frontend assets, including `scan.css`, `scan-bootstrap.css`, `scan.js`, `modules/core.js`, the manifest, and the icon
+
+Maintenance rule:
+
+- if a shared scan frontend asset changes in a way that can leave users with stale styles or scripts, bump both `SCAN_SERVICE_WORKER_VERSION` in `wms/views_scan_misc.py` and the registration query string in `templates/scan/base.html` in the same work
+- do not rely on hard refresh instructions as the primary invalidation path for shared legacy frontend changes
+
+Reference tests:
+
+- `wms/tests/views/tests_views_scan_misc.py`
+
 ### Receipt Conformity Contract
 
 Primary runtime sources:

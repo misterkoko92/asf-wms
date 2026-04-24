@@ -125,3 +125,9 @@ For details, see `docs/policies/translation-paused.md` and `docs/policies/next-m
 - For every PR that changes user-visible behavior or workflow, add one entry to `wms/faq_changelog.py`.
 - Each entry must include the add date, the PR number, and a short business summary.
 - If the PR number is not known during implementation, fill it before merge.
+
+## Scan service worker bump policy
+
+- If a change updates shared scan frontend assets that can remain stale in browser caches, bump the scan service worker version in both `wms/views_scan_misc.py` and `templates/scan/base.html` in the same work.
+- Treat changes to `wms/static/scan/scan.css`, `wms/static/scan/scan-bootstrap.css`, `wms/static/scan/scan.js`, `wms/static/scan/modules/core.js`, `wms/static/scan/manifest.json`, or `wms/static/scan/icon.png` as bump candidates by default.
+- Shared style changes should be considered bump-required unless the stale cached asset is demonstrably harmless.

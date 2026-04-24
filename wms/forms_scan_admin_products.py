@@ -3,6 +3,14 @@ from django import forms
 from .models import Location, Product, ProductCategory, ProductTag
 
 
+def _append_widget_class(widget, css_class):
+    existing_class = widget.attrs.get("class", "").strip()
+    classes = [item for item in existing_class.split() if item]
+    if css_class not in classes:
+        classes.append(css_class)
+    widget.attrs["class"] = " ".join(classes)
+
+
 class ScanAdminProductForm(forms.ModelForm):
     class Meta:
         model = Product
@@ -42,14 +50,44 @@ class ScanAdminProductForm(forms.ModelForm):
             "notes": forms.Textarea(attrs={"rows": 3}),
         }
         labels = {
+            "sku": "SKU",
+            "name": "Nom",
+            "brand": "Marque",
+            "color": "Couleur",
+            "photo": "Photo",
+            "category": "Categorie",
+            "tags": "Tags",
+            "barcode": "Code-barres",
             "pu_ht": "PU HT",
             "tva": "TVA",
             "ean": "EAN",
             "default_location": "Emplacement par defaut",
+            "length_cm": "Longueur (cm)",
+            "width_cm": "Largeur (cm)",
+            "height_cm": "Hauteur (cm)",
+            "weight_g": "Poids (g)",
+            "volume_cm3": "Volume (cm3)",
+            "storage_conditions": "Conditions de stockage",
+            "perishable": "Perissable",
+            "quarantine_default": "Quarantaine par defaut",
+            "is_active": "Actif",
+            "notes": "Notes",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            widget = field.widget
+            if isinstance(widget, forms.CheckboxInput):
+                _append_widget_class(widget, "form-check-input")
+            elif isinstance(widget, forms.HiddenInput):
+                continue
+            elif isinstance(widget, forms.SelectMultiple):
+                _append_widget_class(widget, "form-select")
+            elif isinstance(widget, forms.Select):
+                _append_widget_class(widget, "form-select")
+            else:
+                _append_widget_class(widget, "form-control")
         self.fields["category"].queryset = ProductCategory.objects.select_related(
             "parent"
         ).order_by("name", "id")

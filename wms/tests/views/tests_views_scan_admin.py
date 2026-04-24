@@ -796,6 +796,35 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, self.component.name)
         self.assertContains(response, "Composition du kit")
 
+    def test_scan_admin_product_detail_uses_full_width_bootstrap_widget_classes(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_product_detail", args=[self.kit.id]))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertRegex(html, r'name="sku"[^>]*class="[^"]*\bform-control\b')
+        self.assertRegex(html, r'name="category"[^>]*class="[^"]*\bform-select\b')
+        self.assertNotRegex(html, r'name="category"[^>]*class="[^"]*\bui-select--')
+        self.assertRegex(html, r'name="default_location"[^>]*class="[^"]*\bform-select\b')
+        self.assertNotRegex(html, r'name="default_location"[^>]*class="[^"]*\bui-select--')
+        self.assertRegex(html, r'name="tags"[^>]*class="[^"]*\bform-select\b')
+        self.assertNotRegex(html, r'name="tags"[^>]*class="[^"]*\bui-select--')
+        self.assertRegex(html, r'name="notes"[^>]*class="[^"]*\bform-control\b')
+        self.assertRegex(html, r'name="is_active"[^>]*class="[^"]*\bform-check-input\b')
+        self.assertContains(response, 'class="ui-comp-form"')
+        self.assertContains(response, 'class="scan-filters row g-3"')
+        self.assertContains(response, 'class="scan-filters row g-3 align-items-end"')
+        self.assertNotContains(response, 'class="scan-filters ui-comp-form"')
+        self.assertIn('for="id_name">Nom', html)
+        self.assertIn('for="id_brand">Marque', html)
+        self.assertIn('for="id_color">Couleur', html)
+        self.assertIn('for="id_category">Categorie', html)
+        self.assertIn('for="id_default_location">Emplacement par defaut', html)
+        self.assertIn('for="id_storage_conditions">Conditions de stockage', html)
+        self.assertNotIn('for="id_name">Name', html)
+        self.assertNotIn('for="id_brand">Brand', html)
+
     def test_scan_admin_product_create_persists_product_without_admin(self):
         self.client.force_login(self.superuser)
 
