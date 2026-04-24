@@ -8,6 +8,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
+from .faq_changelog import build_scan_faq_change_log_entries
 from .view_permissions import scan_staff_required
 
 TEMPLATE_SCAN_FAQ = "scan/faq.html"
@@ -68,6 +69,7 @@ self.addEventListener('fetch', event => {
 def _build_faq_context():
     return {
         "active": ACTIVE_FAQ,
+        "faq_change_log_entries": build_scan_faq_change_log_entries(),
         "shell_class": SHELL_CLASS_WIDE,
     }
 

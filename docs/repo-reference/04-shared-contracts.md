@@ -274,13 +274,23 @@ Current contract:
 - warehouse-preparation screens under `/scan/preparation-runs/` must set `active="preparation_runs"` so the shared group expands and highlights correctly
 - the warehouse-preparation settings screen at `/scan/preparation-runs/settings/` uses the same
   `active="preparation_runs"` highlight and preparateur permission scope as the list/create/detail flow
-- the scan shell pending-recipient banner in `templates/scan/base.html` must link to
-  `/scan/contacts/validations/recipients/` for superusers; recipient validation no longer lives on
-  the contacts directory
+- the scan masthead pending-actions dropdown in `templates/scan/base.html` must stay visible while
+  unresolved operator queues remain open:
+  - pending orders to review (`Order.review_status = pending_validation`) link to
+    `/scan/orders-view/`
+  - pending account requests link to `/scan/account-validations/`
+  - pending recipient validations link to `/scan/contacts/validations/recipients/`
+  - the indicator is driven by unresolved counts, not by whether the user already opened the
+    dropdown or a related page
+- `/scan/faq/` now includes a Change Log section backed by `wms/faq_changelog.py`; each
+  user-visible PR must add one entry with date, PR number, and a short business summary
 
 Maintenance rule:
 
 - if a scan sidebar entry is added, removed, renamed, or moved between groups, update the shared include, the relevant scan view `active` keys, the bootstrap regression tests, and this repo-reference section in the same work
+- if a new scan action queue is added, update the context processor, the masthead dropdown, and
+  the scan bootstrap tests in the same work
+- if a PR changes a user-visible scan workflow, append the FAQ Change Log entry in the same PR
 - do not introduce page-local navigation copies for warehouse-preparation flows; the shared scan sidebar remains the operator entry point
 
 Reference tests:

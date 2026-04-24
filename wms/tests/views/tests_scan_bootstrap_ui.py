@@ -645,9 +645,29 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         utility_nav_html = self._scan_utility_nav_html(response)
         self.assertIn('id="scan-masthead-notifications"', utility_nav_html)
+        self.assertIn('id="scan-masthead-notifications-menu"', utility_nav_html)
         self.assertIn("/scan/contacts/validations/recipients/", utility_nav_html)
+        self.assertIn("Destinataires à valider", utility_nav_html)
         self.assertIn("ui-comp-count-badge", utility_nav_html)
         self.assertIn(">1</span>", utility_nav_html)
+
+    def test_scan_masthead_shows_pending_order_action_indicator(self):
+        self.client.force_login(self.staff_user)
+        Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association attente",
+            destination_address="3 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.PENDING,
+        )
+
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        utility_nav_html = self._scan_utility_nav_html(response)
+        self.assertIn('id="scan-masthead-notifications"', utility_nav_html)
+        self.assertIn("/scan/orders-view/", utility_nav_html)
+        self.assertIn("Commandes à valider", utility_nav_html)
 
     def test_scan_nav_orders_primary_sections_for_standard_staff(self):
         response = self.client.get(reverse("scan:scan_stock"))

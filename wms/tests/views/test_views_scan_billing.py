@@ -118,6 +118,15 @@ class ScanBillingViewTests(TestCase):
             ["EXP-SCAN-BILL-EDITOR"],
         )
 
+    def test_scan_billing_editor_get_prefills_exchange_rate_with_two_decimals(self):
+        self.client.force_login(self.billing_user)
+
+        response = self.client.get(reverse("scan:scan_billing_editor"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["draft_options_form"]["exchange_rate"].value(), "1.00")
+        self.assertContains(response, 'value="1.00"')
+
     def test_scan_billing_editor_post_builds_quote_draft(self):
         association_profile = self._create_association_profile(username="scan-billing-draft")
         BillingComputationProfile.objects.create(

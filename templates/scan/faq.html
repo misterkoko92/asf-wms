@@ -203,6 +203,21 @@
     </ul>
   </div>
 
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="foundations" data-faq-group-title="{% trans "Fondamentaux" %}">
+    <h2 class="ui-comp-title">Change Log</h2>
+    <p class="scan-help">
+      Historique synthétique des changements visibles côté métier. Chaque PR doit ajouter une entrée avec la date, le numéro de PR et un résumé court.
+    </p>
+    <ul>
+      {% for entry in faq_change_log_entries %}
+        <li>
+          <strong>{{ entry.date|date:"Y-m-d" }}</strong> · {{ entry.pr_label }}<br>
+          {{ entry.summary }}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="stock-prep" data-faq-group-title="{% trans "Stocks & préparation" %}">
     <h2 class="ui-comp-title">{% trans "Vue stock" %}</h2>
     <ul>
