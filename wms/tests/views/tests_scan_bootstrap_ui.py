@@ -1207,6 +1207,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("ui-date-input-btn-icon", core_content)
         self.assertNotIn('button.textContent = "Calendrier";', core_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-input {", css_content)
+        self.assertIn(
+            ".scan-bootstrap-enabled .ui-date-input-input::-webkit-calendar-picker-indicator,",
+            css_content,
+        )
+        self.assertIn("pointer-events: none;", css_content)
+        self.assertIn("opacity: 0;", css_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker {", css_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker-day.is-selected", css_content)
 
@@ -1220,6 +1226,8 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("wms:sync-required-markers", core_content)
         self.assertIn("ui-field-required-marker", core_content)
         self.assertIn(".scan-bootstrap-enabled .ui-field-required-marker {", css_content)
+        self.assertIn("color: var(--wms-status-error-text);", css_content)
+        self.assertNotIn("var(--wms-color-danger-strong)", css_content)
 
     def test_scan_pack_line_layout_splits_search_and_select_and_places_scan_on_first_row(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"

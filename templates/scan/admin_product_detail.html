@@ -39,7 +39,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
+    <form method="post" enctype="multipart/form-data" class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="save_product">
       <input type="hidden" name="kind" value="{{ requested_kind }}">
@@ -48,7 +48,7 @@
         <div class="scan-message error">{{ product_form.non_field_errors|join:", " }}</div>
       {% endif %}
 
-      <div class="row g-3">
+      <div class="scan-filters row g-3">
         <div class="scan-field col-12 col-md-4">
           {{ product_form.sku.label_tag }}
           {{ product_form.sku }}
@@ -301,10 +301,10 @@
           <p class="scan-help">{% trans "Aucun composant pour le moment." %}</p>
         {% endif %}
 
-        <form method="post" class="scan-filters ui-comp-form mt-3">
+        <form method="post" class="ui-comp-form mt-3">
           {% csrf_token %}
           <input type="hidden" name="action" value="save_kit_component">
-          <div class="row g-3 align-items-end">
+          <div class="scan-filters row g-3 align-items-end">
             <div class="scan-field col-12 col-lg-8">
               {{ kit_item_form.component.label_tag }}
               {{ kit_item_form.component }}
