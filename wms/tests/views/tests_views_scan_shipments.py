@@ -2111,6 +2111,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["context_key"], "value")
         self.assertEqual(response.context_data["active"], "shipment")
         self.assertEqual(response.context_data["helper_install"], helper_install)
+        self.assertEqual(response.context_data["forced_carton_count"], "")
         line_values_mock.assert_called_once_with(2)
 
     def test_scan_shipment_create_post_returns_handler_response_when_available(self):
@@ -2174,6 +2175,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["context_key"], "post")
         self.assertEqual(response.context_data["active"], "shipment")
         self.assertEqual(response.context_data["helper_install"], helper_install)
+        self.assertEqual(response.context_data["forced_carton_count"], "")
 
     def test_scan_shipment_create_exposes_preassigned_carton_metadata_and_confirmation_modal(
         self,
@@ -2201,6 +2203,17 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Ce colis est déjà affecté pour __EXPECTED__.")
         self.assertContains(response, "Valider")
         self.assertContains(response, "Refuser")
+
+    def test_scan_shipment_create_exposes_forced_carton_count_field(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="id_forced_carton_count"')
+        self.assertContains(response, "Nombre de colis forcé")
+        self.assertContains(
+            response,
+            "répartit uniquement les lignes produit créées ici sur le nombre de colis demandé",
+        )
 
     def test_scan_shipment_create_exposes_carton_source_labels(self):
         warehouse = Warehouse.objects.create(name="Shipment labels warehouse")
@@ -2277,6 +2290,11 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Imprimer étiquettes cartons")
         self.assertContains(response, "Étiquette contact")
         self.assertContains(response, "Voir les colis")
+        self.assertContains(response, "shipment-dossier-action--cartons")
+        self.assertContains(response, "shipment-dossier-action--tracking")
+        self.assertContains(response, "shipment-dossier-action--back")
+        self.assertContains(response, "shipment-dossier-action--edit")
+        self.assertContains(response, "shipment-dossier-action--close")
         self.assertContains(response, "Dernière MAJ :")
         self.assertContains(response, "Document ajouté")
         self.assertContains(response, 'id="shipment-dossier-primary-actions"')

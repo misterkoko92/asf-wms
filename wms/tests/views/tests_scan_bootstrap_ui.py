@@ -1241,6 +1241,9 @@ class ScanBootstrapUiTests(TestCase):
             ".scan-bootstrap-enabled .pack-line-expires-field {\n  grid-column: 10 / -1;",
             css_content,
         )
+        self.assertIn("pack-line-remove-btn", scan_js_content)
+        self.assertIn("removeButton.textContent = 'Retirer';", scan_js_content)
+        self.assertIn(".scan-bootstrap-enabled .pack-line-header {", css_content)
 
     def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
         response = self.client.get(reverse("scan:scan_pack"))
@@ -1658,6 +1661,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("separator.textContent = '------';", js_content)
         self.assertIn("Si l'expéditeur souhaité n'apparait pas ici", js_content)
         self.assertIn("Si le destinataire souhaité n'apparait pas ici", js_content)
+        self.assertIn("buildCartonGroupLabels", js_content)
+        self.assertIn("1. Compatibles · pré-affectés à", js_content)
+        self.assertIn("4. Incompatibles", js_content)
+        self.assertIn("shipment-line-group-note", js_content)
+        self.assertIn("option.style.fontWeight = '700';", js_content)
 
     def test_scan_shipment_create_js_marks_preassignment_overlay_active_when_visible(self):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"

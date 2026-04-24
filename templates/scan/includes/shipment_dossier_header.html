@@ -41,26 +41,29 @@
     <div id="shipment-dossier-actions" class="d-flex flex-column align-items-stretch align-items-lg-end gap-2">
       <div id="shipment-dossier-primary-actions" class="ui-comp-actions d-flex flex-wrap justify-content-lg-end gap-2">
         <a
-          class="scan-scan-btn btn btn-tertiary"
+          class="scan-scan-btn btn btn-tertiary shipment-dossier-action shipment-dossier-action--cartons"
           href="{% url 'scan:scan_cartons_ready' %}?shipment_reference={{ shipment.reference|urlencode }}"
         >
           Voir les colis
         </a>
         {% if can_edit %}
           <a
-            class="scan-scan-btn btn btn-primary"
+            class="scan-scan-btn btn btn-primary shipment-dossier-action shipment-dossier-action--edit"
             href="?mode=edit#shipment-dossier-edit-panel"
           >
             Modifier
           </a>
         {% endif %}
         <a
-          class="scan-scan-btn btn btn-tertiary"
+          class="scan-scan-btn btn btn-tertiary shipment-dossier-action shipment-dossier-action--tracking"
           href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to={{ tracking_return_to }}"
         >
           Ouvrir suivi
         </a>
-        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipments_ready' %}">
+        <a
+          class="scan-scan-btn btn btn-tertiary shipment-dossier-action shipment-dossier-action--back"
+          href="{% url 'scan:scan_shipments_ready' %}"
+        >
           Retour aux dossiers
         </a>
       </div>
@@ -71,7 +74,7 @@
             <input type="hidden" name="action" value="confirm_shipment_ready">
             <button
               type="submit"
-              class="scan-scan-btn btn btn-success"
+              class="scan-scan-btn btn btn-success shipment-dossier-action shipment-dossier-action--confirm"
             >
               Confirmer prêt
             </button>
@@ -80,7 +83,7 @@
         {% if is_closed %}
           <button
             type="button"
-            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-closed"
+            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn shipment-dossier-action shipment-dossier-action--close is-closed"
             disabled
           >
             Dossier clôturé
@@ -91,7 +94,7 @@
             <input type="hidden" name="action" value="close_shipment_case">
             <button
               type="submit"
-              class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"
+              class="scan-scan-btn btn btn-secondary scan-shipment-close-btn shipment-dossier-action shipment-dossier-action--close is-ready"
             >
               Clore le dossier
             </button>
@@ -99,7 +102,7 @@
         {% else %}
           <button
             type="button"
-            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-blocked"
+            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn shipment-dossier-action shipment-dossier-action--close is-blocked"
             onclick="window.alert('{{ close_inactive_message }}'); return false;"
           >
             Clore le dossier

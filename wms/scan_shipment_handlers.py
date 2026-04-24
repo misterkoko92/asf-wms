@@ -26,6 +26,7 @@ from .recipient_product_preferences import (
     recipient_has_explicit_refused_preferences,
 )
 from .scan_helpers import build_product_label
+from .scan_pack_helpers import build_forced_packing_bins, parse_forced_carton_count
 from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_helpers import (
@@ -85,6 +86,13 @@ def _is_save_draft_pack_action(request):
 
 def _is_create_pack_action(request):
     return (request.POST.get("action") or "").strip() == CREATE_PACK_ACTION
+
+
+def _parse_forced_carton_count_from_request(request):
+    try:
+        return parse_forced_carton_count(request.POST.get("forced_carton_count"))
+    except ValueError as exc:
+        raise StockError(str(exc)) from exc
 
 
 def _next_temp_shipment_reference():
@@ -181,6 +189,95 @@ def _request_actor(request):
     if hasattr(user, "is_authenticated") and not user.is_authenticated:
         return None
     return user
+
+
+def _warn_forced_carton_count(request, *, forced_carton_count, auto_count):
+    if not forced_carton_count:
+        return
+    if auto_count == forced_carton_count:
+        return
+    messages.warning(
+        request,
+        _("Nombre de colis forcé: %(forced)s au lieu de %(auto)s.")
+        % {"forced": forced_carton_count, "auto": auto_count},
+    )
+
+
+def _product_entry_key(product):
+    return getattr(product, "id", None) or product
+
+
+def _product_entry_label(product, *, fallback=""):
+    return getattr(product, "name", None) or fallback or str(product)
+
+
+def _pack_product_line_items(
+    *,
+    request,
+    shipment,
+    product_line_items,
+    forced_carton_count,
+    recipient_organization,
+    has_refused_preferences,
+    actor,
+    pack_product_entry,
+):
+    if not product_line_items:
+        return
+    forced_bins = None
+    if forced_carton_count:
+        forced_bins = build_forced_packing_bins(product_line_items, forced_carton_count)
+        if forced_bins:
+            _warn_forced_carton_count(
+                request,
+                forced_carton_count=len(forced_bins),
+                auto_count=len(product_line_items),
+            )
+    packing_bins = forced_bins or [
+        {
+            "items": {
+                _product_entry_key(item["product"]): {
+                    "product": item["product"],
+                    "quantity": item["quantity"],
+                    "expires_on": item.get("expires_on"),
+                    "line_item": item,
+                }
+            }
+        }
+        for item in product_line_items
+    ]
+
+    for bin_data in packing_bins:
+        carton = None
+        conflicts_by_product_id = {}
+        for entry in bin_data["items"].values():
+            line_item = entry.get("line_item") or {}
+            recipient_refusal_conflicts = []
+            if has_refused_preferences:
+                recipient_refusal_conflicts = _validate_recipient_refusal_conflicts_for_product(
+                    recipient_organization=recipient_organization,
+                    product=entry["product"],
+                    override_confirmed=line_item.get(
+                        "recipient_preference_override_confirmed",
+                        False,
+                    ),
+                )
+            carton = pack_product_entry(
+                entry=entry,
+                carton=carton,
+            )
+            if recipient_refusal_conflicts:
+                conflicts_by_product_id[_product_entry_key(entry["product"])] = (
+                    recipient_refusal_conflicts
+                )
+        for conflicts in conflicts_by_product_id.values():
+            _record_recipient_refusal_overrides(
+                shipment=shipment,
+                carton=carton,
+                recipient_organization=recipient_organization,
+                conflicts=conflicts,
+                user=actor,
+            )
 
 
 def _resolve_recipient_organization_for_selection(
@@ -415,6 +512,13 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
 
     create_pack = _is_create_pack_action(request)
     carton_count = 0 if create_pack else _get_carton_count(form, request)
+    try:
+        forced_carton_count = (
+            None if create_pack else _parse_forced_carton_count_from_request(request)
+        )
+    except StockError as exc:
+        forced_carton_count = None
+        form.add_error(None, str(exc))
     if carton_count > 0:
         line_values, line_items, line_errors = parse_shipment_lines(
             carton_count=carton_count,
@@ -424,7 +528,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
     else:
         line_values, line_items, line_errors = [], [], {}
     response = None
-    if form.is_valid() and not line_errors:
+    if form.is_valid() and not line_errors and not form.errors:
         try:
             with transaction.atomic():
                 destination = form.cleaned_data["destination"]
@@ -471,6 +575,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                     **party_payload,
                 )
                 if not create_pack:
+                    product_line_items = [item for item in line_items if "product" in item]
                     for item in line_items:
                         carton_id = item.get("carton_id")
                         if carton_id:
@@ -521,41 +626,24 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                                 conflicts=recipient_refusal_conflicts,
                                 user=actor,
                             )
-                        else:
-                            recipient_refusal_conflicts = []
-                            if has_refused_preferences:
-                                recipient_refusal_conflicts = (
-                                    _validate_recipient_refusal_conflicts_for_product(
-                                        recipient_organization=recipient_organization,
-                                        product=item["product"],
-                                        override_confirmed=item.get(
-                                            "recipient_preference_override_confirmed",
-                                            False,
-                                        ),
-                                    )
-                                )
-                            carton = pack_carton(
-                                user=request.user,
-                                product=item["product"],
-                                quantity=item["quantity"],
-                                carton=None,
-                                carton_code=None,
-                                shipment=shipment,
-                                display_expires_on=item.get("expires_on"),
-                            )
-                            set_carton_status(
-                                carton=carton,
-                                new_status=CartonStatus.ASSIGNED,
-                                reason="shipment_create_pack_assign",
-                                user=getattr(request, "user", None),
-                            )
-                            _record_recipient_refusal_overrides(
-                                shipment=shipment,
-                                carton=carton,
-                                recipient_organization=recipient_organization,
-                                conflicts=recipient_refusal_conflicts,
-                                user=actor,
-                            )
+                    _pack_product_line_items(
+                        request=request,
+                        shipment=shipment,
+                        product_line_items=product_line_items,
+                        forced_carton_count=forced_carton_count,
+                        recipient_organization=recipient_organization,
+                        has_refused_preferences=has_refused_preferences,
+                        actor=actor,
+                        pack_product_entry=lambda *, entry, carton: pack_carton(
+                            user=request.user,
+                            product=entry["product"],
+                            quantity=entry["quantity"],
+                            carton=carton,
+                            carton_code=None,
+                            shipment=shipment,
+                            display_expires_on=entry.get("expires_on"),
+                        ),
+                    )
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
@@ -578,13 +666,18 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
 
 def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
     carton_count = _get_carton_count(form, request)
+    try:
+        forced_carton_count = _parse_forced_carton_count_from_request(request)
+    except StockError as exc:
+        forced_carton_count = None
+        form.add_error(None, str(exc))
     line_values, line_items, line_errors = parse_shipment_lines(
         carton_count=carton_count,
         data=request.POST,
         allowed_carton_ids=allowed_carton_ids,
     )
     response = None
-    if form.is_valid() and not line_errors:
+    if form.is_valid() and not line_errors and not form.errors:
         try:
             shipment_status = getattr(shipment, "status", ShipmentStatus.DRAFT)
             if shipment_status in LOCKED_SHIPMENT_STATUSES:
@@ -667,6 +760,34 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                 carton_items_by_id = {
                     item["carton_id"]: item for item in line_items if "carton_id" in item
                 }
+                product_line_items = [item for item in line_items if "product" in item]
+                if related_order is not None:
+                    requested_quantities_by_product_id = {}
+                    requested_product_labels = {}
+                    for item in product_line_items:
+                        product_id = item["product"].id
+                        requested_quantities_by_product_id[product_id] = (
+                            requested_quantities_by_product_id.get(product_id, 0) + item["quantity"]
+                        )
+                        requested_product_labels[product_id] = _product_entry_label(item["product"])
+                    for (
+                        product_id,
+                        requested_quantity,
+                    ) in requested_quantities_by_product_id.items():
+                        order_line = order_lines_by_product.get(product_id)
+                        if order_line is None:
+                            raise StockError(_("Produit non présent dans la commande liée."))
+                        if requested_quantity > order_line.remaining_quantity:
+                            product_label = _product_entry_label(
+                                getattr(order_line, "product", None),
+                                fallback=requested_product_labels.get(product_id, ""),
+                            )
+                            raise StockError(
+                                _(
+                                    "%(product)s: quantité demandée supérieure au reliquat de la commande."
+                                )
+                                % {"product": product_label}
+                            )
                 cartons_to_remove = shipment.carton_set.exclude(id__in=selected_carton_ids)
                 for carton in cartons_to_remove:
                     if carton.status == CartonStatus.SHIPPED:
@@ -743,62 +864,35 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         user=actor,
                     )
 
-                for item in line_items:
-                    if "product" in item:
-                        recipient_refusal_conflicts = []
-                        if has_refused_preferences:
-                            recipient_refusal_conflicts = (
-                                _validate_recipient_refusal_conflicts_for_product(
-                                    recipient_organization=recipient_organization,
-                                    product=item["product"],
-                                    override_confirmed=item.get(
-                                        "recipient_preference_override_confirmed",
-                                        False,
-                                    ),
-                                )
-                            )
-                        if related_order is not None:
-                            order_line = order_lines_by_product.get(item["product"].id)
-                            if order_line is None:
-                                raise StockError(_("Produit non présent dans la commande liée."))
-                            if item["quantity"] > order_line.remaining_quantity:
-                                raise StockError(
-                                    _(
-                                        "%(product)s: quantité demandée supérieure au reliquat de la commande."
-                                    )
-                                    % {"product": item["product"].name}
-                                )
-                            carton = pack_carton_from_reserved(
-                                user=request.user,
-                                line=order_line,
-                                quantity=item["quantity"],
-                                carton=None,
-                                shipment=shipment,
-                                display_expires_on=item.get("expires_on"),
-                            )
-                        else:
-                            carton = pack_carton(
-                                user=request.user,
-                                product=item["product"],
-                                quantity=item["quantity"],
-                                carton=None,
-                                carton_code=None,
-                                shipment=shipment,
-                                display_expires_on=item.get("expires_on"),
-                            )
-                        set_carton_status(
+                _pack_product_line_items(
+                    request=request,
+                    shipment=shipment,
+                    product_line_items=product_line_items,
+                    forced_carton_count=forced_carton_count,
+                    recipient_organization=recipient_organization,
+                    has_refused_preferences=has_refused_preferences,
+                    actor=actor,
+                    pack_product_entry=lambda *, entry, carton: (
+                        pack_carton_from_reserved(
+                            user=request.user,
+                            line=order_lines_by_product[entry["product"].id],
+                            quantity=entry["quantity"],
                             carton=carton,
-                            new_status=CartonStatus.ASSIGNED,
-                            reason="shipment_edit_pack_assign",
-                            user=getattr(request, "user", None),
-                        )
-                        _record_recipient_refusal_overrides(
                             shipment=shipment,
-                            carton=carton,
-                            recipient_organization=recipient_organization,
-                            conflicts=recipient_refusal_conflicts,
-                            user=actor,
+                            display_expires_on=entry.get("expires_on"),
                         )
+                        if related_order is not None
+                        else pack_carton(
+                            user=request.user,
+                            product=entry["product"],
+                            quantity=entry["quantity"],
+                            carton=carton,
+                            carton_code=None,
+                            shipment=shipment,
+                            display_expires_on=entry.get("expires_on"),
+                        )
+                    ),
+                )
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,

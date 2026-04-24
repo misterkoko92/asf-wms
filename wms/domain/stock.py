@@ -44,7 +44,7 @@ class StockConsumeResult:
 
 
 CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<date>\d{8})-(?P<seq>\d+)$")
-LINEAR_CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<seq>\d{5})$")
+LINEAR_CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<seq>\d+)$")
 
 
 def _carton_date_str(carton):
@@ -156,7 +156,7 @@ def _next_linear_carton_sequence(type_code):
 
 
 def _format_linear_carton_code(type_code, sequence):
-    return f"{_normalize_carton_family(type_code)}-{sequence:05d}"
+    return f"{_normalize_carton_family(type_code)}-{int(sequence)}"
 
 
 def generate_carton_code(*, type_code=None, date_str=None) -> str:

@@ -1167,6 +1167,12 @@
     }
 
     const normalize = value => (value || '').toString().trim().toLowerCase();
+    const emptyPackLineValue = () => ({
+      product_code: '',
+      quantity: '',
+      expires_on: '',
+      pack_family_override: ''
+    });
     const parseNumber = value => {
       const parsed = parseFloat((value || '').toString().replace(',', '.'));
       return Number.isFinite(parsed) ? parsed : null;
@@ -1538,10 +1544,19 @@
       line.className = 'pack-line';
       line.dataset.lineIndex = String(index);
 
+      const header = document.createElement('div');
+      header.className = 'pack-line-header';
       const title = document.createElement('div');
       title.className = 'pack-line-title';
       title.textContent = `Produit ${index}`;
-      line.appendChild(title);
+      header.appendChild(title);
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'scan-scan-btn btn btn-outline-danger btn-sm pack-line-remove-btn';
+      removeButton.textContent = 'Retirer';
+      header.appendChild(removeButton);
+      line.appendChild(header);
 
       const grid = document.createElement('div');
       grid.className = 'pack-line-grid';
@@ -1795,16 +1810,26 @@
       quantityInput.addEventListener('input', updateAllLineMetrics);
       productInput.addEventListener('change', updateAllLineMetrics);
       updateFamilyControls();
+      removeButton.addEventListener('click', () => {
+        const currentValues = collectValues();
+        currentValues.splice(index - 1, 1);
+        lineErrors = {};
+        renderLines(Math.max(1, currentValues.length), currentValues);
+      });
 
       return line;
     };
 
-    const renderLines = count => {
+    const renderLines = (count, valuesOverride = null) => {
       const currentValues = collectValues();
-      const values = currentValues.length ? currentValues : lineValues;
+      const values = Array.isArray(valuesOverride)
+        ? valuesOverride
+        : currentValues.length
+          ? currentValues
+          : lineValues;
       container.innerHTML = '';
       for (let index = 1; index <= count; index += 1) {
-        const value = values[index - 1] || {};
+        const value = values[index - 1] || emptyPackLineValue();
         const errors = lineErrors[String(index)] || [];
         container.appendChild(buildLine(index, value, errors));
       }
@@ -1875,6 +1900,7 @@
     if (addButton) {
       addButton.addEventListener('click', () => {
         const nextCount = resolveCount((lineCountInput && lineCountInput.value) || initialCount) + 1;
+        lineErrors = {};
         renderLines(nextCount);
       });
     }
@@ -2418,26 +2444,89 @@
       incompatibles: 'Incompatible'
     };
 
-    const buildCartonOptionLabel = (carton, recipientPreferenceContext) => {
+    const buildCartonGroupLabels = recipientPreferenceContext => {
+      const destination =
+        destinationMap.get(String(recipientPreferenceContext?.destinationId || '')) || null;
+      const destinationLabel =
+        (destination && (destination.iata_code || destination.label || destination.city)) ||
+        'la destination';
+      return {
+        compatible_preassigned_selected: `1. Compatibles · pré-affectés à ${destinationLabel}`,
+        compatible_unassigned: '2. Compatibles · sans pré-affectation',
+        compatible_other_destination: '3. Compatibles · pré-affectés ailleurs',
+        incompatible: '4. Incompatibles'
+      };
+    };
+
+    const resolveCartonCompatibilityBucket = (carton, recipientPreferenceContext) => {
+      const recipientOrganizationId =
+        recipientPreferenceContext && recipientPreferenceContext.recipientOrganizationId;
+      if (!recipientOrganizationId) {
+        return '';
+      }
+      const compatibility =
+        carton.compatibility_by_recipient_organization_id &&
+        carton.compatibility_by_recipient_organization_id[String(recipientOrganizationId)];
+      return compatibility && compatibility.bucket ? compatibility.bucket : '';
+    };
+
+    const resolveCartonSelectionGroup = (carton, recipientPreferenceContext) => {
+      const compatibilityBucket = resolveCartonCompatibilityBucket(
+        carton,
+        recipientPreferenceContext
+      );
+      if (compatibilityBucket === 'incompatibles') {
+        return {
+          key: 'incompatible',
+          noteHtml: 'Groupe 4 · incompatible pour ce destinataire'
+        };
+      }
+      const destinationId = String(recipientPreferenceContext?.destinationId || '');
+      const preassignedDestinationId = String(carton.preassigned_destination_id || '');
+      if (preassignedDestinationId && destinationId && preassignedDestinationId === destinationId) {
+        return {
+          key: 'compatible_preassigned_selected',
+          noteHtml: 'Groupe 1 · compatible et déjà pré-affecté à cette destination'
+        };
+      }
+      if (!preassignedDestinationId) {
+        return {
+          key: 'compatible_unassigned',
+          noteHtml: 'Groupe 2 · compatible sans pré-affectation'
+        };
+      }
+      const otherDestinationIata = carton.preassigned_destination_iata || '';
+      return {
+        key: 'compatible_other_destination',
+        noteHtml: otherDestinationIata
+          ? `Groupe 3 · compatible mais pré-affecté à <strong>${otherDestinationIata}</strong>`
+          : 'Groupe 3 · compatible mais pré-affecté à une autre destination'
+      };
+    };
+
+    const buildCartonOptionLabel = (carton, recipientPreferenceContext, selectionGroup) => {
       const baseLabel = carton.weight_g
         ? `${carton.label || carton.code} (${carton.weight_g} g)`
         : carton.label || carton.code;
       const withSource = carton.source_label
         ? `${baseLabel} · ${carton.source_label}`
         : baseLabel;
-      const recipientOrganizationId =
-        recipientPreferenceContext && recipientPreferenceContext.recipientOrganizationId;
-      if (!recipientOrganizationId) {
-        return withSource;
-      }
-      const compatibility =
-        carton.compatibility_by_recipient_organization_id &&
-        carton.compatibility_by_recipient_organization_id[String(recipientOrganizationId)];
+      const compatibilityBucket = resolveCartonCompatibilityBucket(
+        carton,
+        recipientPreferenceContext
+      );
       const bucketLabel =
-        compatibility && compatibility.bucket
-          ? compatibilityBucketLabels[compatibility.bucket] || compatibility.bucket
+        compatibilityBucket
+          ? compatibilityBucketLabels[compatibilityBucket] || compatibilityBucket
           : '';
-      return bucketLabel ? `${withSource} [${bucketLabel}]` : withSource;
+      const mismatchDestinationLabel =
+        selectionGroup &&
+        selectionGroup.key === 'compatible_other_destination' &&
+        carton.preassigned_destination_iata
+          ? ` · ${carton.preassigned_destination_iata}`
+          : '';
+      const labelWithGroup = bucketLabel ? `${withSource} [${bucketLabel}]` : withSource;
+      return `${labelWithGroup}${mismatchDestinationLabel}`;
     };
 
     const getRecipientPreferenceContext = () => {
@@ -2458,20 +2547,77 @@
       };
     };
 
-    const updateCartonOptionLabels = () => {
+    const updateCartonGroupNote = line => {
+      const note = line.querySelector('.shipment-line-group-note');
+      const cartonSelect = line.querySelector('.shipment-line-carton');
+      if (!note || !cartonSelect || !cartonSelect.value) {
+        if (note) {
+          note.hidden = true;
+          note.innerHTML = '';
+        }
+        return;
+      }
+      const carton = cartonMap.get(String(cartonSelect.value));
+      if (!carton) {
+        note.hidden = true;
+        note.innerHTML = '';
+        return;
+      }
+      const selectionGroup = resolveCartonSelectionGroup(
+        carton,
+        getRecipientPreferenceContext()
+      );
+      note.innerHTML = selectionGroup.noteHtml || '';
+      note.hidden = !note.innerHTML;
+    };
+
+    const rebuildCartonSelectOptions = select => {
       const recipientPreferenceContext = getRecipientPreferenceContext();
-      container.querySelectorAll('.shipment-line-carton').forEach(select => {
-        Array.from(select.options).forEach(option => {
-          if (!option.value) {
-            return;
-          }
-          const carton = cartonMap.get(String(option.value));
-          if (!carton) {
-            return;
-          }
-          option.textContent = buildCartonOptionLabel(carton, recipientPreferenceContext);
-        });
+      const groupLabels = buildCartonGroupLabels(recipientPreferenceContext);
+      const selectedValue = select.value || '';
+      select.innerHTML = '';
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Entrer un produit ou choisir un colis prêt';
+      select.appendChild(defaultOption);
+
+      const groups = new Map();
+      cartons.forEach(carton => {
+        const selectionGroup = resolveCartonSelectionGroup(carton, recipientPreferenceContext);
+        let group = groups.get(selectionGroup.key);
+        if (!group) {
+          group = document.createElement('optgroup');
+          group.label = groupLabels[selectionGroup.key];
+          group.dataset.shipmentCartonGroup = selectionGroup.key;
+          groups.set(selectionGroup.key, group);
+          select.appendChild(group);
+        }
+        const option = document.createElement('option');
+        option.value = String(carton.id);
+        option.textContent = buildCartonOptionLabel(
+          carton,
+          recipientPreferenceContext,
+          selectionGroup
+        );
+        option.dataset.shipmentGroupKey = selectionGroup.key;
+        if (selectionGroup.key === 'compatible_other_destination') {
+          option.style.fontWeight = '700';
+        }
+        group.appendChild(option);
       });
+      select.value = selectedValue;
+    };
+
+    const updateCartonOptionLabels = () => {
+      container.querySelectorAll('.shipment-line').forEach(line => {
+        const select = line.querySelector('.shipment-line-carton');
+        if (!select) {
+          return;
+        }
+        rebuildCartonSelectOptions(select);
+        updateCartonGroupNote(line);
+      });
+      updateCartonAvailability();
     };
 
     const buildRecipientPreferenceCartonMessage = (carton, conflicts) => {
@@ -2512,19 +2658,7 @@
         const cartonSelect = document.createElement('select');
         cartonSelect.name = `line_${index}_carton_id`;
         cartonSelect.className = 'shipment-line-carton';
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = 'Entrer un produit ou choisir un colis pret';
-        cartonSelect.appendChild(defaultOption);
-        cartons.forEach(carton => {
-          const option = document.createElement('option');
-          option.value = String(carton.id);
-          option.textContent = buildCartonOptionLabel(
-            carton,
-            getRecipientPreferenceContext()
-          );
-          cartonSelect.appendChild(option);
-        });
+        rebuildCartonSelectOptions(cartonSelect);
         cartonSelect.value = lineValue.carton_id || '';
 
         const productInput = document.createElement('select');
@@ -2628,6 +2762,10 @@
           '<div>Quantite restante apres preparation: <span class="shipment-line-remaining">-</span></div>';
         grid.appendChild(metrics);
         line.appendChild(grid);
+        const cartonGroupNote = document.createElement('div');
+        cartonGroupNote.className = 'shipment-line-group-note';
+        cartonGroupNote.hidden = true;
+        line.appendChild(cartonGroupNote);
         line.appendChild(mismatchConfirmedInput);
         line.appendChild(preferenceOverrideConfirmedInput);
 
@@ -2643,6 +2781,7 @@
 
         cartonSelect.addEventListener('change', () => {
           syncLineState(line);
+          updateCartonGroupNote(line);
           updateTotalWeight();
           updateCartonAvailability();
           updateAllLineMetrics();
@@ -2667,6 +2806,7 @@
             cartonSelect.value = '';
           }
           syncLineState(line);
+          updateCartonGroupNote(line);
           updateTotalWeight();
           updateCartonAvailability();
           if (productInput.value) {
@@ -2682,6 +2822,7 @@
             cartonSelect.value = '';
           }
           syncLineState(line);
+          updateCartonGroupNote(line);
           updateTotalWeight();
           updateCartonAvailability();
           updateAllLineMetrics();
@@ -2691,12 +2832,14 @@
             cartonSelect.value = '';
           }
           syncLineState(line);
+          updateCartonGroupNote(line);
           updateTotalWeight();
           updateCartonAvailability();
           updateAllLineMetrics();
         });
 
         syncLineState(line);
+        updateCartonGroupNote(line);
         container.appendChild(line);
       }
       updateCartonAvailability();

@@ -450,6 +450,90 @@ class ScanShipmentHandlersTests(TestCase):
         sync_mock.assert_called_once_with(shipment)
         redirect_mock.assert_called_once_with("scan:scan_shipment_edit", shipment.id)
 
+    def test_handle_shipment_create_post_forced_carton_count_groups_product_lines(self):
+        request = self._request({"carton_count": "2", "forced_carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=2))
+        shipment = SimpleNamespace(reference="S-001", id=123)
+        product_a = SimpleNamespace(id=10, name="Produit A")
+        product_b = SimpleNamespace(id=11, name="Produit B")
+        created_carton = SimpleNamespace(id=501, status=CartonStatus.ASSIGNED)
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=(
+                [{"line": 1}, {"line": 2}],
+                [
+                    {"product": product_a, "quantity": 2},
+                    {"product": product_b, "quantity": 1},
+                ],
+                {},
+            ),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers.build_destination_label",
+                return_value="Paris - France",
+            ):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.Shipment.objects.create",
+                    return_value=shipment,
+                ):
+                    with mock.patch(
+                        "wms.scan_shipment_handlers.pack_carton",
+                        side_effect=[created_carton, created_carton],
+                    ) as pack_mock:
+                        with mock.patch(
+                            "wms.scan_shipment_handlers.messages.warning"
+                        ) as warning_mock:
+                            with mock.patch("wms.scan_shipment_handlers.sync_shipment_ready_state"):
+                                with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                                    with mock.patch(
+                                        "wms.scan_shipment_handlers.redirect",
+                                        return_value=SimpleNamespace(status_code=302, url="/next"),
+                                    ):
+                                        response, carton_count, line_values, line_errors = (
+                                            handle_shipment_create_post(
+                                                request,
+                                                form=form,
+                                                available_carton_ids=set(),
+                                            )
+                                        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(carton_count, 2)
+        self.assertEqual(line_values, [{"line": 1}, {"line": 2}])
+        self.assertEqual(line_errors, {})
+        self.assertEqual(pack_mock.call_count, 2)
+        self.assertIsNone(pack_mock.call_args_list[0].kwargs["carton"])
+        self.assertIs(pack_mock.call_args_list[1].kwargs["carton"], created_carton)
+        warning_mock.assert_called_once_with(request, "Nombre de colis forcé: 1 au lieu de 2.")
+
+    def test_handle_shipment_create_post_rejects_invalid_forced_carton_count(self):
+        request = self._request({"carton_count": "1", "forced_carton_count": "0"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=(
+                [{"carton_id": "", "product_code": "P-001", "quantity": "1"}],
+                [{"product": SimpleNamespace(id=1, name="Produit"), "quantity": 1}],
+                {},
+            ),
+        ):
+            response, carton_count, line_values, line_errors = handle_shipment_create_post(
+                request,
+                form=form,
+                available_carton_ids=set(),
+            )
+
+        self.assertIsNone(response)
+        self.assertEqual(carton_count, 1)
+        self.assertEqual(
+            line_values,
+            [{"carton_id": "", "product_code": "P-001", "quantity": "1"}],
+        )
+        self.assertEqual(line_errors, {})
+        self.assertIn((None, "Nombre de colis invalide."), form.errors)
+
     def test_handle_shipment_create_post_adds_form_error_on_unavailable_carton(self):
         request = self._request({"carton_count": "1"})
         form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))

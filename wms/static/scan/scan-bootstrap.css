@@ -1257,6 +1257,18 @@ body.scan-bootstrap-enabled {
   background: var(--scan-boot-surface);
 }
 
+.scan-bootstrap-enabled .pack-line-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.scan-bootstrap-enabled .pack-line-remove-btn {
+  white-space: nowrap;
+}
+
 .scan-bootstrap-enabled .pack-line-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -1294,6 +1306,20 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .pack-line-metrics {
   grid-column: 1 / -1;
+}
+
+.scan-bootstrap-enabled .shipment-line-group-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  color: var(--ds-text-soft);
+  font-size: var(--wms-font-size-small);
+}
+
+.scan-bootstrap-enabled .shipment-line-group-note strong {
+  color: var(--ds-text);
+  font-weight: 800;
 }
 
 .scan-bootstrap-enabled .pack-line-scan-field .scan-scan-btn {
@@ -1603,6 +1629,40 @@ body.scan-bootstrap-enabled {
   flex-wrap: wrap;
   gap: 0.55rem 0.75rem;
   align-items: flex-start;
+}
+
+.scan-bootstrap-enabled .shipment-dossier-action {
+  box-shadow: none;
+}
+
+.scan-bootstrap-enabled .shipment-dossier-action--cartons {
+  border-color: #b8cad2;
+  background: #f3f7f8;
+  color: #2c5961;
+}
+
+.scan-bootstrap-enabled .shipment-dossier-action--tracking {
+  border-color: #9bbfd1;
+  background: #eef6fb;
+  color: #1f5c81;
+}
+
+.scan-bootstrap-enabled .shipment-dossier-action--back {
+  border-color: #cfc7bb;
+  background: #f8f5ef;
+  color: #5d5548;
+}
+
+.scan-bootstrap-enabled .shipment-dossier-action--close.is-ready {
+  --bs-btn-bg: #f8e7c7;
+  --bs-btn-border-color: #d5aa56;
+  --bs-btn-color: #6c4b12;
+  --bs-btn-hover-bg: #f4ddb0;
+  --bs-btn-hover-border-color: #c7963f;
+  --bs-btn-hover-color: #5d400e;
+  --bs-btn-active-bg: #efcf97;
+  --bs-btn-active-border-color: #b88131;
+  --bs-btn-active-color: #4f350a;
 }
 
 .scan-bootstrap-enabled .scan-admin-contact-action-select {
