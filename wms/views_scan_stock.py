@@ -181,7 +181,11 @@ def _handle_scan_recipient_needs_post(request):
 
 @scan_staff_required
 def scan_stock(request):
-    return render(request, TEMPLATE_STOCK, build_stock_context(request))
+    return render(
+        request,
+        TEMPLATE_STOCK,
+        build_stock_context(request, default_include_zero=True),
+    )
 
 
 @scan_staff_required

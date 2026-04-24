@@ -165,6 +165,22 @@ class StockViewHelpersTests(TestCase):
         self.assertEqual([item.stock_total for item in products], [3, 0])
         self.assertTrue(context_include_zero["include_zero"])
 
+    def test_build_stock_context_can_default_include_zero_when_requested(self):
+        product_out_stock = self._create_product(
+            "SKU-DEFAULT-ZERO",
+            "Produit zero par defaut",
+            category=self.category_med,
+        )
+
+        request = self.factory.get("/scan/stock/", {"sort": "name"})
+        context = build_stock_context(request, default_include_zero=True)
+
+        self.assertTrue(context["include_zero"])
+        self.assertEqual(
+            [item.id for item in context["products"]],
+            [product_out_stock.id],
+        )
+
     def test_build_stock_context_filters_selected_category_subtree(self):
         category_root = ProductCategory.objects.create(name="Aid")
         category_level_2 = ProductCategory.objects.create(name="Kits", parent=category_root)
