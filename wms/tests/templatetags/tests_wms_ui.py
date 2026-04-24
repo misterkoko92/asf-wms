@@ -162,6 +162,25 @@ class WmsUiTemplateTagTests(SimpleTestCase):
         self.assertIn('<div class="text-danger small">Champ requis</div>', rendered)
         self.assertIn('<div class="text-danger small">Valeur &lt;unsafe&gt;</div>', rendered)
 
+    def test_ui_field_renders_required_marker_when_requested(self):
+        template = Template(
+            "{% load wms_ui %}"
+            "{% ui_field field_id='id_required_name' label='Nom' field_html=field_html required=True %}"
+        )
+
+        rendered = template.render(
+            Context(
+                {
+                    "field_html": mark_safe(
+                        '<input class="form-control" id="id_required_name" name="required_name" type="text" required>'
+                    ),
+                }
+            )
+        )
+
+        self.assertIn("ui-field-required-marker", rendered)
+        self.assertIn('aria-hidden="true"', rendered)
+
     def test_ui_status_badge_uses_shared_tone_resolution(self):
         template = Template(
             "{% load wms_ui %}"

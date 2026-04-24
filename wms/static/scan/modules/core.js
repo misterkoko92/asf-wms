@@ -254,6 +254,80 @@
     setupNumberInputs(root);
   });
 
+  function isRequiredField(field) {
+    if (!(field instanceof HTMLElement)) {
+      return false;
+    }
+    if (
+      field.matches('input[type="hidden"], button, [disabled]') ||
+      field.getAttribute("aria-hidden") === "true"
+    ) {
+      return false;
+    }
+    return field.required || field.getAttribute("aria-required") === "true";
+  }
+
+  function findRequiredMarkerLabel(field) {
+    if (!(field instanceof HTMLElement)) {
+      return null;
+    }
+    if (field.id) {
+      const explicitLabel = document.querySelector(`label[for="${CSS.escape(field.id)}"]`);
+      if (explicitLabel) {
+        return explicitLabel;
+      }
+    }
+    const wrappedLabel = field.closest("label");
+    if (wrappedLabel) {
+      return wrappedLabel.querySelector(".form-check-label") || wrappedLabel;
+    }
+    return null;
+  }
+
+  function getAutoRequiredMarker(label) {
+    return label.querySelector('.ui-field-required-marker[data-auto-required-marker="1"]');
+  }
+
+  function syncRequiredMarkerForField(field) {
+    const label = findRequiredMarkerLabel(field);
+    if (!label) {
+      return;
+    }
+    const hasManualMarker = !!label.querySelector(
+      '.ui-field-required-marker:not([data-auto-required-marker="1"]), [data-required-marker], [data-account-validation-required-marker]'
+    );
+    const autoMarker = getAutoRequiredMarker(label);
+    if (!isRequiredField(field) || hasManualMarker) {
+      if (autoMarker) {
+        autoMarker.remove();
+      }
+      return;
+    }
+    if (autoMarker) {
+      return;
+    }
+    const marker = document.createElement("span");
+    marker.className = "ui-field-required-marker";
+    marker.dataset.autoRequiredMarker = "1";
+    marker.setAttribute("aria-hidden", "true");
+    marker.textContent = "*";
+    label.appendChild(marker);
+  }
+
+  function syncRequiredMarkers(root = document) {
+    root.querySelectorAll("input, select, textarea").forEach(syncRequiredMarkerForField);
+  }
+
+  document.addEventListener("wms:sync-required-markers", event => {
+    const root =
+      event &&
+      event.detail &&
+      event.detail.root instanceof Element
+        ? event.detail.root
+        : document;
+    syncRequiredMarkers(root);
+  });
+
   function getOrAssignDateInputId(input) {
     if (!input.id) {
       dateInputCounter += 1;
@@ -492,10 +566,15 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = "ui-date-input-btn";
-    button.textContent = "Calendrier";
     button.setAttribute("aria-label", "Ouvrir le calendrier");
     button.setAttribute("data-ui-date-input-action", "open");
     button.setAttribute("data-ui-date-input-target", inputId);
+    const icon = document.createElement("span");
+    icon.className = "ui-date-input-btn-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML =
+      '<svg viewBox="0 0 16 16" focusable="false"><path d="M4.25 1.5a.75.75 0 0 1 .75.75V3h6V2.25a.75.75 0 0 1 1.5 0V3h.25A2.25 2.25 0 0 1 15 5.25v7.5A2.25 2.25 0 0 1 12.75 15h-9.5A2.25 2.25 0 0 1 1 12.75v-7.5A2.25 2.25 0 0 1 3.25 3h.25v-.75a.75.75 0 0 1 .75-.75Zm8.5 5h-9.5v6.25a.75.75 0 0 0 .75.75h8a.75.75 0 0 0 .75-.75V6.5Zm-.75-2h-8a.75.75 0 0 0-.75.75v.25h9.5v-.25a.75.75 0 0 0-.75-.75Z" /></svg>';
+    button.appendChild(icon);
 
     input.parentNode.insertBefore(wrapper, input);
     wrapper.appendChild(input);
@@ -633,5 +712,8 @@
 
   setupNumberInputs();
   setupDateInputs();
+  syncRequiredMarkers();
+  document.addEventListener("input", () => syncRequiredMarkers());
+  document.addEventListener("change", () => syncRequiredMarkers());
   setupLiveSync();
 })();

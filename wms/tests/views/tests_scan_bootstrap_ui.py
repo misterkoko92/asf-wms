@@ -1182,9 +1182,22 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("input.showPicker()", core_content)
         self.assertIn("data-ui-date-input-action", core_content)
         self.assertIn('input[type="date"]', core_content)
+        self.assertIn("ui-date-input-btn-icon", core_content)
+        self.assertNotIn('button.textContent = "Calendrier";', core_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-input {", css_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker {", css_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker-day.is-selected", css_content)
+
+    def test_shared_required_marker_contract_exposes_auto_sync_and_styles(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        core_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "modules" / "core.js"
+        core_content = core_path.read_text(encoding="utf-8")
+
+        self.assertIn("function syncRequiredMarkers(root = document) {", core_content)
+        self.assertIn("wms:sync-required-markers", core_content)
+        self.assertIn("ui-field-required-marker", core_content)
+        self.assertIn(".scan-bootstrap-enabled .ui-field-required-marker {", css_content)
 
     def test_scan_pack_line_layout_splits_search_and_select_and_places_scan_on_first_row(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
@@ -2020,13 +2033,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Valider tous les imports cochés")
         self.assertContains(response, "Annuler l'import")
 
-    def test_scan_stock_update_exposes_collapsed_stock_card_and_open_incomplete_cockpit(self):
+    def test_scan_stock_update_exposes_open_stock_card_and_open_incomplete_cockpit(self):
         response = self.client.get(reverse("scan:scan_stock_update"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-stock-update-toggle"')
         self.assertContains(response, 'data-bs-target="#scan-stock-update-collapse"')
-        self.assertContains(response, 'id="scan-stock-update-collapse"')
+        self.assertContains(response, 'id="scan-stock-update-collapse" class="collapse show"')
         self.assertContains(response, 'id="scan-stock-update-incomplete-products-card"')
         self.assertContains(response, 'id="scan-stock-update-incomplete-toggle"')
         self.assertContains(response, 'data-bs-target="#scan-stock-update-incomplete-collapse"')
@@ -2137,6 +2150,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(pallet_response, 'name="is_non_conform"')
         self.assertContains(pallet_response, 'class="form-check form-switch mb-0"')
         self.assertContains(pallet_response, ">Non conforme<")
+        pallet_html = pallet_response.content.decode("utf-8")
+        self.assertLess(
+            pallet_html.index('name="is_non_conform"'),
+            pallet_html.index('name="observation"'),
+        )
 
         association_response = self.client.get(reverse("scan:scan_receive_association"))
         self.assertEqual(association_response.status_code, 200)
@@ -2144,6 +2162,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(association_response, 'name="is_non_conform"')
         self.assertContains(association_response, 'class="form-check form-switch mb-0"')
         self.assertContains(association_response, ">Non conforme<")
+        association_html = association_response.content.decode("utf-8")
+        self.assertLess(
+            association_html.index('name="is_non_conform"'),
+            association_html.index('name="pickup_charge_comment"'),
+        )
 
     def test_scan_file_upload_surfaces_use_shared_file_input_component(self):
         self.client.force_login(self.superuser)
