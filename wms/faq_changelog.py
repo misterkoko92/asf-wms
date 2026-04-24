@@ -3,7 +3,7 @@ from datetime import date
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
         "date": date(2026, 4, 24),
-        "pr_number": None,
+        "pr_number": 179,
         "summary": (
             "Cockpit catalogue produits/kits, ajustements scan stock, réception, "
             "préparation, expédition, masthead et FAQ."
