@@ -2,8 +2,10 @@ import importlib
 import re
 import sys
 from io import BytesIO
+from pathlib import Path
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.http import FileResponse
@@ -392,6 +394,11 @@ class PlanningViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-sidebar-nav"')
         self.assertContains(response, reverse("planning:run_list"))
+        template_content = (
+            Path(settings.BASE_DIR) / "templates" / "planning" / "base.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("includes/secondary_shell_masthead.html", template_content)
+        self.assertIn("includes/secondary_shell_offcanvas.html", template_content)
 
     def test_planning_run_list_loads_shared_core_script(self):
         self.client.force_login(self.staff_user)

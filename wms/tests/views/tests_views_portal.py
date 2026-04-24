@@ -1175,11 +1175,37 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Filtrer produits")
         self.assertContains(response, "portal-filter-category-l1")
         self.assertContains(response, "Produits à l'unité")
+        self.assertContains(response, "Étape 1")
+        self.assertContains(response, "Étape 4")
+        self.assertContains(response, "Vérifier et envoyer")
         self.assertContains(
             response,
-            "Les stock indiqués dans ce tableau sont fictifs.",
+            "Le stock affiché reste indicatif pour le moment.",
         )
         self.assertContains(response, "colis prêts +")
+
+    def test_portal_order_create_post_keeps_progressive_steps_open_after_validation_error(self):
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            response = self.client.post(
+                self.order_create_url,
+                {
+                    "destination_id": str(self.destination.id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-fulfillment-step"[^>]*data-portal-order-step-hidden="0"',
+        )
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-review-step"[^>]*data-portal-order-step-hidden="0"',
+        )
 
     def test_portal_order_create_groups_destinations_by_recipient_availability(self):
         unavailable_destination = self._create_destination(city="Abidjan", country="Cote d'Ivoire")

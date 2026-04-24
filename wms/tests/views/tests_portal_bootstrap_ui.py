@@ -246,10 +246,17 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="portal-order-create-intro"')
         self.assertContains(response, 'id="portal-order-create-form"')
+        self.assertContains(response, 'id="portal-order-create-routing-step"')
+        self.assertContains(response, 'id="portal-order-create-source-step"')
+        self.assertContains(response, 'id="portal-order-create-fulfillment-step"')
+        self.assertContains(response, 'id="portal-order-create-review-step"')
         self.assertContains(response, 'id="portal-order-create-routing-card"')
+        self.assertContains(response, 'id="portal-order-create-shipper-inbound-card"')
         self.assertContains(response, 'id="portal-order-create-ready-cartons-card"')
         self.assertContains(response, 'id="portal-order-create-ready-kits-card"')
         self.assertContains(response, 'id="portal-order-create-unit-products-card"')
+        self.assertContains(response, 'id="portal-order-create-review-card"')
+        self.assertContains(response, 'id="portal-order-create-submit"')
         self.assertContains(response, 'id="portal-category-filters"')
         self.assertContains(response, 'id="portal-recipient-options-data"')
         self.assertContains(response, 'id="portal-product-data"')
@@ -259,6 +266,19 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "Kits disponibles")
         self.assertContains(response, "Produits à l'unité")
         self.assertContains(response, 'id="ready-carton-estimate-total"')
+
+    def test_portal_order_create_hides_late_steps_until_route_is_selected(self):
+        response = self.client.get(reverse("portal:portal_order_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-fulfillment-step"[^>]*data-portal-order-step-hidden="1"',
+        )
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-review-step"[^>]*data-portal-order-step-hidden="1"',
+        )
 
     def test_portal_order_create_collapses_shipper_inbound_sections_by_default(self):
         response = self.client.get(reverse("portal:portal_order_create"))
@@ -327,10 +347,15 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="portal-account-link"')
         self.assertContains(response, 'id="portal-logout-link"')
         self.assertNotContains(response, 'name="language"')
+        template_content = (
+            Path(settings.BASE_DIR) / "templates" / "portal" / "base.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("includes/secondary_shell_masthead.html", template_content)
+        self.assertIn("includes/secondary_shell_offcanvas.html", template_content)
 
         content = response.content.decode()
         nav_match = re.search(
-            r'<nav id="portal-primary-nav"[^>]*>(.*?)</nav>',
+            r'<nav[^>]*id="portal-primary-nav"[^>]*>(.*?)</nav>',
             content,
             re.S,
         )

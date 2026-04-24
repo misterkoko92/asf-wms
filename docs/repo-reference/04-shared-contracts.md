@@ -73,6 +73,12 @@ Current shared shell contract:
   page-level horizontal overflow on mobile; wide tables and dense product matrices keep any needed
   horizontal scroll inside their local table wrapper instead of making the whole page wider than
   the viewport
+- portal, planning, and bénévole secondary shells now reuse
+  `templates/includes/secondary_shell_masthead.html` and
+  `templates/includes/secondary_shell_offcanvas.html` instead of carrying three parallel masthead
+  and mobile-nav skeletons
+- planning keeps the legacy scan sidebar content, but the planning shell now injects that sidebar
+  through the shared secondary-shell offcanvas include rather than a one-off wrapper
 - scan-camera controls must preserve the active scan/OCR target when switching front/rear cameras,
   stop any live ZXing controls before restart, and ignore stale camera callbacks from earlier scan
   sessions so a second scan can be launched without reloading the page
@@ -82,6 +88,8 @@ Maintenance rule:
 - if a primitive changes semantics, update the UI Lab and bootstrap regression tests
 - if the shared select contract changes, keep `wms/view_utils.py`, Django form/widget sorting, and scan/portal/planning/benevole select templates aligned in the same work
 - if the shared masthead history navigation changes, keep scan/portal/planning/benevole shells aligned in the same work
+- if the portal/bénévole/planning secondary shell structure changes, update the shared include(s),
+  the three base templates, and their bootstrap/view tests in the same work
 - if a pattern is still local, do not prematurely promote it into a shared primitive
 
 ### Frontend Security Contract
@@ -826,6 +834,50 @@ Reference tests:
 - `api/tests/tests_ui_e2e_workflows.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
 - `wms/tests/portal/tests_portal_shipment_parties.py`
+
+### Portal Order-Create Workflow Contract
+
+Primary runtime sources:
+
+- `wms/views_portal_orders.py`
+- `templates/portal/order_create.html`
+- `templates/portal/includes/order_create_routing_card.html`
+- `templates/portal/includes/order_create_shipper_inbound_card.html`
+- `templates/portal/includes/order_create_ready_cartons_card.html`
+- `templates/portal/includes/order_create_ready_kits_card.html`
+- `templates/portal/includes/order_create_unit_products_card.html`
+- `templates/portal/includes/order_create_review_card.html`
+
+Current contract:
+
+- `/portal/orders/new/` is a progressive four-step flow:
+  `Choisir l'itinéraire` -> `Choisir la source des colis` -> `Composer la commande` ->
+  `Vérifier et envoyer`
+- the fulfillment and review steps stay hidden until both destination and recipient are selected,
+  but a server-side validation roundtrip with a valid route keeps those later steps open
+- the shipper-inbound checkbox remains the compatibility entrypoint for structure-prepared cartons;
+  pickup details still reopen automatically after pickup validation errors
+- warehouse-stock selection remains compatible with ready cartons, ready kits, and unit-product
+  lines; the UI simply stages those choices later in the flow instead of mixing everything in step 1
+- the unit-product stock copy is now intentionally demoted to an indicative note and should not
+  become the primary decision cue while real stock projection is still unavailable
+- the review card remains the only primary submit surface and mirrors destination, recipient, inbound
+  mode, selected ready cartons, and estimated cartons to prepare
+
+Maintenance rule:
+
+- if route-selection, inbound, ready-carton, or unit-product semantics change, keep
+  `wms/views_portal_orders.py`, the order-create includes, server-side portal tests, and optional
+  browser smoke tests aligned in the same work
+- if the review card totals or progressive-step visibility rules change, update both the template
+  markup and the inline order-create script in the same work
+
+Reference tests:
+
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/portal/tests_portal_order_inbound_flow.py`
+- `wms/tests/core/tests_ui_portal.py`
 
 ### V3.3 Legacy Scan Asset Facade Contract
 

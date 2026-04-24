@@ -1,5 +1,15 @@
 {% load i18n %}
 <div id="portal-order-create-shipper-inbound-card" class="scan-card portal-card card border-0 ui-comp-card">
+  <div class="d-flex flex-column gap-2 mb-3">
+    <div>
+      <p class="scan-help mb-1">{% trans "Étape 2" %}</p>
+      <h3 class="ui-comp-title mb-0">{% trans "Choisir la source des colis" %}</h3>
+    </div>
+    <p class="scan-help mb-0">
+      {% trans "Activez ce bloc si votre structure prépare déjà ses colis. Vous pourrez aussi compléter avec le stock ASF à l'étape suivante." %}
+    </p>
+  </div>
+
   <div class="scan-field">
     <div class="form-check">
       <input

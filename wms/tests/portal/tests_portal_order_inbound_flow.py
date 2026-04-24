@@ -157,6 +157,14 @@ class PortalOrderInboundFlowTests(PortalBaseTestCase):
             'id="portal-order-create-pickup-collapse" class="collapse show"',
             html=False,
         )
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-fulfillment-step"[^>]*data-portal-order-step-hidden="0"',
+        )
+        self.assertRegex(
+            response.content.decode(),
+            r'id="portal-order-create-review-step"[^>]*data-portal-order-step-hidden="0"',
+        )
 
     def test_portal_order_detail_allows_upload_before_approval(self):
         order = Order.objects.create(

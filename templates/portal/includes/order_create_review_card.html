@@ -1,0 +1,83 @@
+{% load i18n %}
+<div id="portal-order-create-review-card" class="scan-card portal-card card border-0 ui-comp-card">
+  <div class="d-flex flex-column gap-2">
+    <div>
+      <p class="scan-help mb-1">{% trans "Étape 4" %}</p>
+      <h3 class="ui-comp-title mb-0">{% trans "Vérifier et envoyer" %}</h3>
+    </div>
+    <p class="scan-help mb-0">
+      {% trans "Relisez la destination, le mode logistique choisi et le volume estimé avant l'envoi." %}
+    </p>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-md-6">
+      <div class="scan-field mb-0">
+        <label class="form-label">{% trans "Destination" %}</label>
+        <div
+          id="portal-order-create-summary-destination"
+          class="form-control"
+          data-empty-label="{% trans "À sélectionner" %}"
+        >
+          {{ selected_destination_label|default:"À sélectionner" }}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="scan-field mb-0">
+        <label class="form-label">{% trans "Destinataire" %}</label>
+        <div
+          id="portal-order-create-summary-recipient"
+          class="form-control"
+          data-empty-label="{% trans "À sélectionner" %}"
+        >
+          {{ selected_recipient_label|default:"À sélectionner" }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-md-4">
+      <div class="scan-field mb-0">
+        <label class="form-label">{% trans "Flux structure" %}</label>
+        <div id="portal-order-create-summary-inbound" class="form-control">
+          {% if form_data.has_shipper_inbound %}
+            {% trans "Colis préparés par la structure" %}
+          {% else %}
+            {% trans "Non" %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="scan-field mb-0">
+        <label class="form-label">{% trans "Colis prêts sélectionnés" %}</label>
+        <div id="portal-order-create-review-ready-total" class="form-control">
+          {{ total_selected_ready_cartons|default:0 }}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="scan-field mb-0">
+        <label class="form-label">{% trans "Cartons estimés à préparer" %}</label>
+        <div id="portal-order-create-review-carton-total" class="form-control">
+          {{ total_estimated_cartons_to_prepare|default:0 }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="portal-products-actions ui-comp-actions mt-3">
+    <p class="scan-help mb-0">
+      {% trans "Total estimé" %}:
+      <span id="ready-carton-estimate-total">{{ total_selected_ready_cartons|default:0 }}</span>
+      {% trans "colis prêts +" %}
+      <span id="carton-estimate-total">{% if total_estimated_cartons_to_prepare %}{{ total_estimated_cartons_to_prepare }}{% else %}0{% endif %}</span>
+      {% trans "carton(s) à préparer." %}
+    </p>
+    <button id="portal-order-create-submit" type="submit" class="scan-submit btn btn-primary">
+      {% trans "Envoyer la commande" %}
+    </button>
+  </div>
+</div>

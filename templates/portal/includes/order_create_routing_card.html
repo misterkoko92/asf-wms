@@ -8,6 +8,16 @@
     </div>
   {% endif %}
 
+  <div class="d-flex flex-column gap-2 mb-3">
+    <div>
+      <p class="scan-help mb-1">{% trans "Étape 1" %}</p>
+      <h3 class="ui-comp-title mb-0">{% trans "Choisir l'itinéraire" %}</h3>
+    </div>
+    <p class="scan-help mb-0">
+      {% trans "Sélectionnez d'abord la destination, puis le destinataire correspondant." %}
+    </p>
+  </div>
+
   <div class="scan-field">
     <label class="form-label" for="destination_id">{% trans "Destination" %}</label>
     <select class="form-select ui-select--lg" id="destination_id" name="destination_id" required>
@@ -55,23 +65,5 @@
   <div class="scan-field">
     <label class="form-label" for="notes">{% trans "Notes" %}</label>
     <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
-  </div>
-
-  <div class="scan-field">
-    <label class="form-label">{% trans "Filtrer produits" %}</label>
-    <div id="portal-category-filters" class="scan-filter-actions ui-comp-actions">
-      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l1" data-filter-level="0">
-        <option value="">{% trans "Toutes catégories" %}</option>
-      </select>
-      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
-        <option value="">{% trans "Toutes sous-catégories (L2)" %}</option>
-      </select>
-      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
-        <option value="">{% trans "Toutes sous-catégories (L3)" %}</option>
-      </select>
-      <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
-        <option value="">{% trans "Toutes sous-catégories (L4)" %}</option>
-      </select>
-    </div>
   </div>
 </div>

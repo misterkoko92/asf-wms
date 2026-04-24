@@ -8,11 +8,73 @@
 
   <form method="post" novalidate class="ui-comp-form" id="portal-order-create-form">
     {% csrf_token %}
-    {% include "portal/includes/order_create_routing_card.html" %}
-    {% include "portal/includes/order_create_shipper_inbound_card.html" %}
-    {% include "portal/includes/order_create_ready_cartons_card.html" %}
-    {% include "portal/includes/order_create_ready_kits_card.html" %}
-    {% include "portal/includes/order_create_unit_products_card.html" %}
+    <section
+      id="portal-order-create-routing-step"
+      class="portal-order-step"
+      data-portal-order-step="routing"
+      data-portal-order-step-hidden="0"
+    >
+      {% include "portal/includes/order_create_routing_card.html" %}
+    </section>
+
+    <section
+      id="portal-order-create-source-step"
+      class="portal-order-step"
+      data-portal-order-step="source"
+      data-portal-order-step-hidden="0"
+    >
+      {% include "portal/includes/order_create_shipper_inbound_card.html" %}
+    </section>
+
+    <section
+      id="portal-order-create-fulfillment-step"
+      data-portal-order-step-hidden="{% if route_ready %}0{% else %}1{% endif %}"
+      data-portal-order-step="fulfillment"
+      class="portal-order-step{% if not route_ready %} d-none{% endif %}"
+    >
+      <div class="scan-card portal-card card border-0 ui-comp-card">
+        <div class="d-flex flex-column gap-2">
+          <div>
+            <p class="scan-help mb-1">{% trans "Étape 3" %}</p>
+            <h3 class="ui-comp-title mb-0">{% trans "Composer la commande" %}</h3>
+          </div>
+          <p class="scan-help mb-0">
+            {% trans "Ajoutez des colis prêts, des kits ou des produits à préparer une fois l'itinéraire choisi." %}
+          </p>
+        </div>
+
+        <div class="scan-field mt-3 mb-0">
+          <label class="form-label">{% trans "Filtrer produits" %}</label>
+          <div id="portal-category-filters" class="scan-filter-actions ui-comp-actions">
+            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l1" data-filter-level="0">
+              <option value="">{% trans "Toutes catégories" %}</option>
+            </select>
+            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
+              <option value="">{% trans "Toutes sous-catégories (L2)" %}</option>
+            </select>
+            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
+              <option value="">{% trans "Toutes sous-catégories (L3)" %}</option>
+            </select>
+            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
+              <option value="">{% trans "Toutes sous-catégories (L4)" %}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {% include "portal/includes/order_create_ready_cartons_card.html" %}
+      {% include "portal/includes/order_create_ready_kits_card.html" %}
+      {% include "portal/includes/order_create_unit_products_card.html" %}
+    </section>
+
+    <section
+      id="portal-order-create-review-step"
+      data-portal-order-step-hidden="{% if route_ready %}0{% else %}1{% endif %}"
+      data-portal-order-step="review"
+      class="portal-order-step{% if not route_ready %} d-none{% endif %}"
+    >
+      {% include "portal/includes/order_create_review_card.html" %}
+    </section>
   </form>
 
   {{ recipient_options_all|json_script:"portal-recipient-options-data" }}
@@ -29,6 +91,13 @@
     (function() {
       const destinationSelect = document.getElementById('destination_id');
       const recipientSelect = document.getElementById('recipient_id');
+      const fulfillmentStep = document.getElementById('portal-order-create-fulfillment-step');
+      const reviewStep = document.getElementById('portal-order-create-review-step');
+      const reviewDestinationEl = document.getElementById('portal-order-create-summary-destination');
+      const reviewRecipientEl = document.getElementById('portal-order-create-summary-recipient');
+      const reviewInboundEl = document.getElementById('portal-order-create-summary-inbound');
+      const reviewReadyTotalEl = document.getElementById('portal-order-create-review-ready-total');
+      const reviewCartonTotalEl = document.getElementById('portal-order-create-review-carton-total');
       const recipientOptionsEl = document.getElementById('portal-recipient-options-data');
       let recipientOptions = [];
       try {
@@ -44,6 +113,35 @@
             sensitivity: 'base'
           })
         );
+      const setStepHidden = (element, isHidden) => {
+        if (!element) {
+          return;
+        }
+        element.classList.toggle('d-none', Boolean(isHidden));
+        element.setAttribute('data-portal-order-step-hidden', isHidden ? '1' : '0');
+      };
+      const setSummaryField = (element, value) => {
+        if (!element) {
+          return;
+        }
+        const nextValue = String(value || '').trim();
+        element.textContent = nextValue || element.dataset.emptyLabel || 'À sélectionner';
+      };
+      const getSelectedOptionLabel = select =>
+        select && select.selectedOptions && select.selectedOptions.length
+          ? String(select.selectedOptions[0].textContent || '').trim()
+          : '';
+      const syncProgressiveSteps = () => {
+        const routeReady = Boolean(
+          destinationSelect && recipientSelect &&
+          normalizeId(destinationSelect.value) &&
+          normalizeId(recipientSelect.value)
+        );
+        setStepHidden(fulfillmentStep, !routeReady);
+        setStepHidden(reviewStep, !routeReady);
+        setSummaryField(reviewDestinationEl, getSelectedOptionLabel(destinationSelect));
+        setSummaryField(reviewRecipientEl, getSelectedOptionLabel(recipientSelect));
+      };
       const renderRecipientOptions = () => {
         if (!destinationSelect || !recipientSelect) {
           return;
@@ -91,9 +189,11 @@
         } else {
           recipientSelect.value = '';
         }
+        syncProgressiveSteps();
       };
       if (destinationSelect && recipientSelect) {
         destinationSelect.addEventListener('change', renderRecipientOptions);
+        recipientSelect.addEventListener('change', syncProgressiveSteps);
         renderRecipientOptions();
       }
 
@@ -118,6 +218,11 @@
         const wantsPickup =
           hasInbound && arrivalModeSelect && arrivalModeSelect.value === 'pickup_requested';
         setCollapseState(pickupCollapse, wantsPickup);
+        if (reviewInboundEl) {
+          reviewInboundEl.textContent = hasInbound
+            ? 'Colis préparés par la structure'
+            : 'Non';
+        }
       };
 
       if (shipperInboundToggle) {
@@ -308,6 +413,12 @@
             readyTotal += qty;
           });
           readyTotalEl.textContent = String(readyTotal);
+          if (reviewReadyTotalEl) {
+            reviewReadyTotalEl.textContent = String(readyTotal);
+          }
+        }
+        if (reviewCartonTotalEl) {
+          reviewCartonTotalEl.textContent = String(total);
         }
       };
 
@@ -479,6 +590,7 @@
       });
       updateCategorySelects();
       applyCategoryFilter();
+      syncProgressiveSteps();
       updateTotals();
     })();
   </script>

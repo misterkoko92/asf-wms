@@ -612,6 +612,24 @@ def _build_order_create_context(
     category_filter_max_depth = max(
         [len(path) for paths in category_paths_by_row.values() for path in paths] or [0]
     )
+    selected_destination_id = (form_data.get("destination_id") or "").strip()
+    selected_recipient_id = (form_data.get("recipient_id") or "").strip()
+
+    def _find_option_label(options, selected_id):
+        for option in options:
+            if str(option.get("id") or "") == selected_id:
+                return option.get("label") or ""
+        return ""
+
+    route_ready = bool(selected_destination_id and selected_recipient_id)
+    selected_destination_label = _find_option_label(
+        [*destination_options, *disabled_destination_options],
+        selected_destination_id,
+    )
+    selected_recipient_label = _find_option_label(
+        recipient_options_all,
+        selected_recipient_id,
+    )
 
     return {
         "destination_options": destination_options,
@@ -634,6 +652,9 @@ def _build_order_create_context(
         "category_filter_max_depth": category_filter_max_depth,
         "carton_format": carton_data,
         "pickup_address_options": pickup_address_options,
+        "route_ready": route_ready,
+        "selected_destination_label": selected_destination_label,
+        "selected_recipient_label": selected_recipient_label,
     }
 
 
