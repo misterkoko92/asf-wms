@@ -401,8 +401,8 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(
             response,
             '<a class="scan-scan-btn btn btn-tertiary btn-sm" href="'
-            + reverse("admin:wms_product_change", args=[self.product.id])
-            + '" target="_blank" rel="noopener">Ouvrir</a>',
+            + reverse("scan:scan_admin_product_detail", args=[self.product.id])
+            + '">Ouvrir</a>',
             html=True,
         )
 
@@ -437,6 +437,8 @@ class ScanBootstrapUiTests(TestCase):
             + '">Réinitialiser</a>',
             html=True,
         )
+        self.assertContains(response, reverse("scan:scan_admin_product_create"))
+        self.assertContains(response, reverse("scan:scan_admin_product_detail", args=[kit.id]))
         self.assertContains(response, 'class="scan-inline scan-inline-gap ui-comp-actions"')
         self.assertContains(
             response,
@@ -643,9 +645,29 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         utility_nav_html = self._scan_utility_nav_html(response)
         self.assertIn('id="scan-masthead-notifications"', utility_nav_html)
+        self.assertIn('id="scan-masthead-notifications-menu"', utility_nav_html)
         self.assertIn("/scan/contacts/validations/recipients/", utility_nav_html)
+        self.assertIn("Destinataires à valider", utility_nav_html)
         self.assertIn("ui-comp-count-badge", utility_nav_html)
         self.assertIn(">1</span>", utility_nav_html)
+
+    def test_scan_masthead_shows_pending_order_action_indicator(self):
+        self.client.force_login(self.staff_user)
+        Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association attente",
+            destination_address="3 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.PENDING,
+        )
+
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        utility_nav_html = self._scan_utility_nav_html(response)
+        self.assertIn('id="scan-masthead-notifications"', utility_nav_html)
+        self.assertIn("/scan/orders-view/", utility_nav_html)
+        self.assertIn("Commandes à valider", utility_nav_html)
 
     def test_scan_nav_orders_primary_sections_for_standard_staff(self):
         response = self.client.get(reverse("scan:scan_stock"))
@@ -1182,9 +1204,22 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("input.showPicker()", core_content)
         self.assertIn("data-ui-date-input-action", core_content)
         self.assertIn('input[type="date"]', core_content)
+        self.assertIn("ui-date-input-btn-icon", core_content)
+        self.assertNotIn('button.textContent = "Calendrier";', core_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-input {", css_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker {", css_content)
         self.assertIn(".scan-bootstrap-enabled .ui-date-picker-day.is-selected", css_content)
+
+    def test_shared_required_marker_contract_exposes_auto_sync_and_styles(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        core_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "modules" / "core.js"
+        core_content = core_path.read_text(encoding="utf-8")
+
+        self.assertIn("function syncRequiredMarkers(root = document) {", core_content)
+        self.assertIn("wms:sync-required-markers", core_content)
+        self.assertIn("ui-field-required-marker", core_content)
+        self.assertIn(".scan-bootstrap-enabled .ui-field-required-marker {", css_content)
 
     def test_scan_pack_line_layout_splits_search_and_select_and_places_scan_on_first_row(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
@@ -1226,6 +1261,9 @@ class ScanBootstrapUiTests(TestCase):
             ".scan-bootstrap-enabled .pack-line-expires-field {\n  grid-column: 10 / -1;",
             css_content,
         )
+        self.assertIn("pack-line-remove-btn", scan_js_content)
+        self.assertIn("removeButton.textContent = 'Retirer';", scan_js_content)
+        self.assertIn(".scan-bootstrap-enabled .pack-line-header {", css_content)
 
     def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
         response = self.client.get(reverse("scan:scan_pack"))
@@ -1643,6 +1681,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("separator.textContent = '------';", js_content)
         self.assertIn("Si l'expéditeur souhaité n'apparait pas ici", js_content)
         self.assertIn("Si le destinataire souhaité n'apparait pas ici", js_content)
+        self.assertIn("buildCartonGroupLabels", js_content)
+        self.assertIn("1. Compatibles · pré-affectés à", js_content)
+        self.assertIn("4. Incompatibles", js_content)
+        self.assertIn("shipment-line-group-note", js_content)
+        self.assertIn("option.style.fontWeight = '700';", js_content)
 
     def test_scan_shipment_create_js_marks_preassignment_overlay_active_when_visible(self):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
@@ -2020,13 +2063,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Valider tous les imports cochés")
         self.assertContains(response, "Annuler l'import")
 
-    def test_scan_stock_update_exposes_collapsed_stock_card_and_open_incomplete_cockpit(self):
+    def test_scan_stock_update_exposes_open_stock_card_and_open_incomplete_cockpit(self):
         response = self.client.get(reverse("scan:scan_stock_update"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="scan-stock-update-toggle"')
         self.assertContains(response, 'data-bs-target="#scan-stock-update-collapse"')
-        self.assertContains(response, 'id="scan-stock-update-collapse"')
+        self.assertContains(response, 'id="scan-stock-update-collapse" class="collapse show"')
         self.assertContains(response, 'id="scan-stock-update-incomplete-products-card"')
         self.assertContains(response, 'id="scan-stock-update-incomplete-toggle"')
         self.assertContains(response, 'data-bs-target="#scan-stock-update-incomplete-collapse"')
@@ -2137,6 +2180,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(pallet_response, 'name="is_non_conform"')
         self.assertContains(pallet_response, 'class="form-check form-switch mb-0"')
         self.assertContains(pallet_response, ">Non conforme<")
+        pallet_html = pallet_response.content.decode("utf-8")
+        self.assertLess(
+            pallet_html.index('name="is_non_conform"'),
+            pallet_html.index('name="observation"'),
+        )
 
         association_response = self.client.get(reverse("scan:scan_receive_association"))
         self.assertEqual(association_response.status_code, 200)
@@ -2144,6 +2192,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(association_response, 'name="is_non_conform"')
         self.assertContains(association_response, 'class="form-check form-switch mb-0"')
         self.assertContains(association_response, ">Non conforme<")
+        association_html = association_response.content.decode("utf-8")
+        self.assertLess(
+            association_html.index('name="is_non_conform"'),
+            association_html.index('name="pickup_charge_comment"'),
+        )
 
     def test_scan_file_upload_surfaces_use_shared_file_input_component(self):
         self.client.force_login(self.superuser)

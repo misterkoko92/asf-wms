@@ -7,6 +7,7 @@ from contacts.models import Contact, ContactType
 from wms.forms_billing import (
     BillingAssociationPriceOverrideForm,
     BillingComputationProfileForm,
+    BillingServiceCatalogItemForm,
     ShipmentUnitEquivalenceRuleForm,
 )
 from wms.models import (
@@ -134,6 +135,52 @@ class BillingFormsTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("__all__", form.errors)
         self.assertFalse(BillingAssociationPriceOverride.objects.exists())
+
+    def test_service_catalog_form_marks_single_default_pickup_service(self):
+        existing_default = BillingServiceCatalogItem.objects.create(
+            label="Enlevement standard",
+            default_unit_price=Decimal("30.00"),
+            use_for_default_pickup_charge=True,
+        )
+        form = BillingServiceCatalogItemForm(
+            data={
+                "label": "Enlevement premium",
+                "description": "Transport prioritaire",
+                "service_type": "pickup",
+                "default_unit_price": "42.50",
+                "default_currency": "usd",
+                "display_order": 2,
+                "is_discount": "",
+                "use_for_default_pickup_charge": "on",
+                "is_active": "on",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        saved_service = form.save()
+
+        existing_default.refresh_from_db()
+        self.assertFalse(existing_default.use_for_default_pickup_charge)
+        self.assertTrue(saved_service.use_for_default_pickup_charge)
+        self.assertEqual(saved_service.default_currency, "USD")
+
+    def test_service_catalog_form_rejects_discount_as_default_pickup_service(self):
+        form = BillingServiceCatalogItemForm(
+            data={
+                "label": "Remise pickup",
+                "description": "",
+                "service_type": "pickup",
+                "default_unit_price": "10.00",
+                "default_currency": "EUR",
+                "display_order": 1,
+                "is_discount": "on",
+                "use_for_default_pickup_charge": "on",
+                "is_active": "on",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("is_discount", form.errors)
 
     def test_equivalence_rule_form_creates_category_specific_rule(self):
         root_category = ProductCategory.objects.create(name="MM")

@@ -12,6 +12,23 @@
     </p>
   </div>
 
+  <div class="scan-field">
+    <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis forcé" %}</label>
+    <input
+      id="id_forced_carton_count"
+      type="number"
+      name="forced_carton_count"
+      min="1"
+      step="1"
+      class="form-control"
+      value="{{ forced_carton_count|default:'' }}"
+      placeholder="{% trans "Auto" %}"
+    >
+    <p class="scan-help ui-comp-note">
+      {% trans "Optionnel : répartit uniquement les lignes produit créées ici sur le nombre de colis demandé. Les colis déjà préparés gardent leur propre comptage." %}
+    </p>
+  </div>
+
   <div class="shipment-lines" id="shipment-lines"></div>
 
   <div class="scan-field">

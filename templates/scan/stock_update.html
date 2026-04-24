@@ -21,13 +21,13 @@
         class="btn btn-tertiary btn-sm"
         data-bs-toggle="collapse"
         data-bs-target="#scan-stock-update-collapse"
-        aria-expanded="false"
+        aria-expanded="true"
         aria-controls="scan-stock-update-collapse"
       >
         {% trans "Afficher" %}
       </button>
     </div>
-    <div id="scan-stock-update-collapse" class="collapse">
+    <div id="scan-stock-update-collapse" class="collapse show">
       {% if create_form.non_field_errors %}
         <div class="scan-message error">{{ create_form.non_field_errors }}</div>
       {% endif %}

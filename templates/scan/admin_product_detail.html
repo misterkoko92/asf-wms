@@ -1,0 +1,369 @@
+{% extends "scan/base.html" %}
+{% load i18n wms_ui %}
+
+{% block title %}WMS Scan - {{ page_title }}{% endblock %}
+
+{% block content %}
+  {% translate "Retour au catalogue" as back_label %}
+  {% translate "Enregistrer la fiche" as save_label %}
+  {% translate "Générer le QR" as qr_label %}
+  {% translate "Imprimer étiquette" as print_label %}
+  {% translate "Imprimer QR" as print_qr_label %}
+  {% translate "Archiver" as archive_label %}
+  {% translate "Réactiver" as unarchive_label %}
+  {% translate "Supprimer" as delete_label %}
+  {% translate "Ajouter / mettre à jour le composant" as save_component_label %}
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-start">
+      <div>
+        <h2 class="ui-comp-title">{{ page_title }}</h2>
+        {% if product and product.pk %}
+          <p class="scan-help ui-comp-note mb-1">
+            SKU {{ product.sku }} · {% if detail_payload.is_kit or requested_kind == "kit" %}{% trans "Kit" %}{% else %}{% trans "Produit" %}{% endif %} · {% if product.is_active %}{% trans "Actif" %}{% else %}{% trans "Archivé" %}{% endif %}
+          </p>
+        {% else %}
+          <p class="scan-help ui-comp-note mb-1">
+            {% if requested_kind == "kit" %}
+              {% trans "Créez d'abord la fiche du kit, puis ajoutez sa composition." %}
+            {% else %}
+              {% trans "Créez une nouvelle fiche produit depuis ce cockpit." %}
+            {% endif %}
+          </p>
+        {% endif %}
+      </div>
+      <div class="ui-comp-actions">
+        {% ui_button label=back_label href=catalog_url variant="tertiary" extra_classes="scan-scan-btn" %}
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_product">
+      <input type="hidden" name="kind" value="{{ requested_kind }}">
+
+      {% if product_form.non_field_errors %}
+        <div class="scan-message error">{{ product_form.non_field_errors|join:", " }}</div>
+      {% endif %}
+
+      <div class="row g-3">
+        <div class="scan-field col-12 col-md-4">
+          {{ product_form.sku.label_tag }}
+          {{ product_form.sku }}
+          {% if product_form.sku.errors %}<div class="scan-message error">{{ product_form.sku.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-8">
+          {{ product_form.name.label_tag }}
+          {{ product_form.name }}
+          {% if product_form.name.errors %}<div class="scan-message error">{{ product_form.name.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.brand.label_tag }}
+          {{ product_form.brand }}
+          {% if product_form.brand.errors %}<div class="scan-message error">{{ product_form.brand.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.color.label_tag }}
+          {{ product_form.color }}
+          {% if product_form.color.errors %}<div class="scan-message error">{{ product_form.color.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.category.label_tag }}
+          {{ product_form.category }}
+          {% if product_form.category.errors %}<div class="scan-message error">{{ product_form.category.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.default_location.label_tag }}
+          {{ product_form.default_location }}
+          {% if product_form.default_location.errors %}<div class="scan-message error">{{ product_form.default_location.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="scan-field col-12 col-lg-6">
+          {{ product_form.tags.label_tag }}
+          {{ product_form.tags }}
+          {% if product_form.tags.errors %}<div class="scan-message error">{{ product_form.tags.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-lg-6">
+          {{ product_form.photo.label_tag }}
+          {{ product_form.photo }}
+          {% if product_form.photo.errors %}<div class="scan-message error">{{ product_form.photo.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="scan-field col-12 col-md-4">
+          {{ product_form.barcode.label_tag }}
+          {{ product_form.barcode }}
+          {% if product_form.barcode.errors %}<div class="scan-message error">{{ product_form.barcode.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          {{ product_form.ean.label_tag }}
+          {{ product_form.ean }}
+          {% if product_form.ean.errors %}<div class="scan-message error">{{ product_form.ean.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          {{ product_form.storage_conditions.label_tag }}
+          {{ product_form.storage_conditions }}
+          {% if product_form.storage_conditions.errors %}<div class="scan-message error">{{ product_form.storage_conditions.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.pu_ht.label_tag }}
+          {{ product_form.pu_ht }}
+          {% if product_form.pu_ht.errors %}<div class="scan-message error">{{ product_form.pu_ht.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.tva.label_tag }}
+          {{ product_form.tva }}
+          {% if product_form.tva.errors %}<div class="scan-message error">{{ product_form.tva.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="scan-admin-product-pu-ttc">{% trans "PU TTC" %}</label>
+          <input
+            id="scan-admin-product-pu-ttc"
+            class="form-control"
+            type="text"
+            value="{% if product and product.pu_ttc is not None %}{{ product.pu_ttc }}{% else %}-{% endif %}"
+            disabled
+          >
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.is_active.label_tag }}
+          {{ product_form.is_active }}
+          {% if product_form.is_active.errors %}<div class="scan-message error">{{ product_form.is_active.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.length_cm.label_tag }}
+          {{ product_form.length_cm }}
+          {% if product_form.length_cm.errors %}<div class="scan-message error">{{ product_form.length_cm.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.width_cm.label_tag }}
+          {{ product_form.width_cm }}
+          {% if product_form.width_cm.errors %}<div class="scan-message error">{{ product_form.width_cm.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.height_cm.label_tag }}
+          {{ product_form.height_cm }}
+          {% if product_form.height_cm.errors %}<div class="scan-message error">{{ product_form.height_cm.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          {{ product_form.weight_g.label_tag }}
+          {{ product_form.weight_g }}
+          {% if product_form.weight_g.errors %}<div class="scan-message error">{{ product_form.weight_g.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="scan-field col-12 col-md-4">
+          {{ product_form.volume_cm3.label_tag }}
+          {{ product_form.volume_cm3 }}
+          {% if product_form.volume_cm3.errors %}<div class="scan-message error">{{ product_form.volume_cm3.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ product_form.perishable.id_for_label }}">{{ product_form.perishable.label }}</label>
+          {{ product_form.perishable }}
+          {% if product_form.perishable.errors %}<div class="scan-message error">{{ product_form.perishable.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ product_form.quarantine_default.id_for_label }}">{{ product_form.quarantine_default.label }}</label>
+          {{ product_form.quarantine_default }}
+          {% if product_form.quarantine_default.errors %}<div class="scan-message error">{{ product_form.quarantine_default.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="scan-field col-12">
+          {{ product_form.notes.label_tag }}
+          {{ product_form.notes }}
+          {% if product_form.notes.errors %}<div class="scan-message error">{{ product_form.notes.errors|join:", " }}</div>{% endif %}
+        </div>
+      </div>
+
+      <div class="scan-filter-actions ui-comp-actions mt-3">
+        {% ui_button label=save_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
+      </div>
+    </form>
+  </div>
+
+  {% if product and product.pk %}
+    <div class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">{% trans "Pilotage" %}</h3>
+      <div class="row g-3 align-items-start">
+        <div class="col-12 col-lg-4">
+          <div class="scan-help ui-comp-note">
+            {% trans "Stock disponible" %}: {{ detail_payload.total_on_hand }}<br>
+            {% trans "Stock réservé" %}: {{ detail_payload.total_reserved }}<br>
+            {% trans "Références lot affichées" %}: {{ detail_payload.product_lots|length }}<br>
+            {% trans "Utilisé dans des kits" %}: {{ detail_payload.usage_counts.kit_components }}<br>
+            {% trans "Préférences destinataires" %}: {{ detail_payload.usage_counts.product_preferences }}<br>
+            {% trans "Lignes commande" %}: {{ detail_payload.usage_counts.order_lines }}<br>
+            {% trans "Lignes réception" %}: {{ detail_payload.usage_counts.receipt_lines }}
+          </div>
+        </div>
+        <div class="col-12 col-lg-8">
+          <div class="ui-comp-actions d-flex flex-wrap gap-2">
+            <form method="post" class="d-inline-flex">
+              {% csrf_token %}
+              <button type="submit" name="action" value="generate_product_qr" class="scan-scan-btn btn btn-tertiary">{{ qr_label }}</button>
+            </form>
+            <form method="post" class="d-inline-flex">
+              {% csrf_token %}
+              <button type="submit" name="action" value="print_product_labels" class="scan-scan-btn btn btn-tertiary">{{ print_label }}</button>
+            </form>
+            <form method="post" class="d-inline-flex">
+              {% csrf_token %}
+              <button type="submit" name="action" value="print_product_qr_labels" class="scan-scan-btn btn btn-tertiary">{{ print_qr_label }}</button>
+            </form>
+            <form method="post" class="d-inline-flex">
+              {% csrf_token %}
+              {% if product.is_active %}
+                <button type="submit" name="action" value="archive_product" class="scan-scan-btn btn btn-warning">{{ archive_label }}</button>
+              {% else %}
+                <button type="submit" name="action" value="unarchive_product" class="scan-scan-btn btn btn-success">{{ unarchive_label }}</button>
+              {% endif %}
+            </form>
+            {% if can_delete_product %}
+              <form method="post" class="d-inline-flex">
+                {% csrf_token %}
+                <button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">{{ delete_label }}</button>
+              </form>
+            {% else %}
+              <button type="button" class="scan-scan-btn btn btn-secondary" disabled title="{{ delete_block_reason }}">{{ delete_label }}</button>
+            {% endif %}
+          </div>
+          {% if delete_block_reason %}
+            <p class="scan-help mt-3 mb-0">{{ delete_block_reason }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="row g-3 mt-2">
+        <div class="col-12 col-lg-6">
+          <h4 class="ui-comp-title">{% trans "Photo" %}</h4>
+          {% if product.photo %}
+            <img src="{{ product.photo.url }}" alt="{{ product.name }}" class="img-fluid rounded border">
+          {% else %}
+            <p class="scan-help mb-0">{% trans "Aucune photo." %}</p>
+          {% endif %}
+        </div>
+        <div class="col-12 col-lg-6">
+          <h4 class="ui-comp-title">{% trans "QR code" %}</h4>
+          {% if product.qr_code_image %}
+            <img src="{{ product.qr_code_image.url }}" alt="QR {{ product.sku }}" class="img-fluid rounded border">
+          {% else %}
+            <p class="scan-help mb-0">{% trans "Aucun QR généré." %}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if detail_payload.is_kit or requested_kind == "kit" %}
+      <div class="scan-card card border-0 ui-comp-card">
+        <h3 class="ui-comp-title">{% trans "Composition du kit" %}</h3>
+        {% if kit_item_form.non_field_errors %}
+          <div class="scan-message error">{{ kit_item_form.non_field_errors|join:", " }}</div>
+        {% endif %}
+
+        {% if detail_payload.kit_items %}
+          <table class="scan-table">
+            <thead>
+              <tr>
+                <th>{% trans "Composant" %}</th>
+                <th>{% trans "Quantité" %}</th>
+                <th>{% trans "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in detail_payload.kit_items %}
+                <tr>
+                  <td>{{ item.component.name }}<br><span class="scan-help">{{ item.component.sku }}</span></td>
+                  <td>
+                    <form method="post" class="d-flex gap-2 align-items-center">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="save_kit_component">
+                      <input type="hidden" name="component" value="{{ item.component.id }}">
+                      <input type="number" class="form-control" style="max-width: 7rem;" name="quantity" min="1" value="{{ item.quantity }}">
+                      <button type="submit" class="scan-scan-btn btn btn-tertiary btn-sm">{% trans "Mettre à jour" %}</button>
+                    </form>
+                  </td>
+                  <td>
+                    <form method="post" class="d-inline-flex">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_kit_component">
+                      <input type="hidden" name="kit_item_id" value="{{ item.id }}">
+                      <button type="submit" class="scan-scan-btn btn btn-danger btn-sm">{% trans "Retirer" %}</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="scan-help">{% trans "Aucun composant pour le moment." %}</p>
+        {% endif %}
+
+        <form method="post" class="scan-filters ui-comp-form mt-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_kit_component">
+          <div class="row g-3 align-items-end">
+            <div class="scan-field col-12 col-lg-8">
+              {{ kit_item_form.component.label_tag }}
+              {{ kit_item_form.component }}
+              {% if kit_item_form.component.errors %}<div class="scan-message error">{{ kit_item_form.component.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="scan-field col-12 col-md-3 col-lg-2">
+              {{ kit_item_form.quantity.label_tag }}
+              {{ kit_item_form.quantity }}
+              {% if kit_item_form.quantity.errors %}<div class="scan-message error">{{ kit_item_form.quantity.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="col-12 col-md-3 col-lg-2">
+              <button type="submit" class="scan-submit btn btn-primary w-100">{{ save_component_label }}</button>
+            </div>
+          </div>
+        </form>
+
+        <div class="mt-3">
+          <h4 class="ui-comp-title">{% trans "Composition déployée" %}</h4>
+          {% if detail_payload.has_cycle %}
+            <p class="scan-help">{% trans "Cycle détecté dans la composition du kit." %}</p>
+          {% elif detail_payload.flattened_lines %}
+            <ul class="mb-0">
+              {% for line in detail_payload.flattened_lines %}
+                <li>{{ line.component_name }} · {{ line.quantity }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="scan-help mb-0">{% trans "Aucune composition déployée disponible." %}</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">{% trans "Lots et stock" %}</h3>
+      {% if detail_payload.product_lots %}
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>{% trans "Lot" %}</th>
+              <th>{% trans "Disponible" %}</th>
+              <th>{% trans "Réservé" %}</th>
+              <th>{% trans "Emplacement" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lot in detail_payload.product_lots %}
+              <tr>
+                <td>{{ lot.lot_code|default:"-" }}</td>
+                <td>{{ lot.quantity_on_hand }}</td>
+                <td>{{ lot.quantity_reserved }}</td>
+                <td>{{ lot.location|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="scan-help mb-0">{% trans "Aucun lot en stock pour ce produit." %}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

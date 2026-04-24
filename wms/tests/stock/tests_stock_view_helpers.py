@@ -9,7 +9,7 @@ from wms.models import (
     StockMovement,
     Warehouse,
 )
-from wms.stock_view_helpers import build_stock_context
+from wms.stock_view_helpers import STOCK_PAGE_SIZE, build_stock_context
 
 
 class StockViewHelpersTests(TestCase):
@@ -164,6 +164,43 @@ class StockViewHelpersTests(TestCase):
         )
         self.assertEqual([item.stock_total for item in products], [3, 0])
         self.assertTrue(context_include_zero["include_zero"])
+
+    def test_build_stock_context_can_default_include_zero_when_requested(self):
+        product_out_stock = self._create_product(
+            "SKU-DEFAULT-ZERO",
+            "Produit zero par defaut",
+            category=self.category_med,
+        )
+
+        request = self.factory.get("/scan/stock/", {"sort": "name"})
+        context = build_stock_context(request, default_include_zero=True)
+
+        self.assertTrue(context["include_zero"])
+        self.assertEqual(
+            [item.id for item in context["products"]],
+            [product_out_stock.id],
+        )
+
+    def test_build_stock_context_builds_prev_and_next_urls_without_stale_page_one_param(self):
+        for index in range(STOCK_PAGE_SIZE * 2 + 5):
+            product = self._create_product(
+                f"SKU-PAGE-{index:03d}",
+                f"Produit page {index:03d}",
+                category=self.category_med,
+            )
+            ProductLot.objects.create(
+                product=product,
+                location=self.location_a,
+                quantity_on_hand=1,
+                quantity_reserved=0,
+            )
+
+        request = self.factory.get("/scan/stock/", {"sort": "name", "page": "2"})
+        context = build_stock_context(request)
+
+        self.assertEqual(context["products_page"].number, 2)
+        self.assertEqual(context["products_page_prev_url"], "?sort=name")
+        self.assertEqual(context["products_page_next_url"], "?sort=name&page=3")
 
     def test_build_stock_context_filters_selected_category_subtree(self):
         category_root = ProductCategory.objects.create(name="Aid")

@@ -50,14 +50,6 @@
       {% endfor %}
     </div>
 
-    <div class="scan-field scan-receive-pallet-field scan-receive-pallet-observation-field col-12">
-      <label class="form-label" for="{{ create_form.observation.id_for_label }}">{{ create_form.observation.label }}</label>
-      {{ create_form.observation }}
-      {% for error in create_form.observation.errors %}
-        <div class="scan-message error">{{ error }}</div>
-      {% endfor %}
-    </div>
-
     <div class="scan-field scan-receive-pallet-field scan-receive-pallet-conformity-field col-12 col-lg-2">
       <label class="form-check form-switch mb-0">
         <input
@@ -71,6 +63,14 @@
         <span class="form-check-label">{{ create_form.is_non_conform.label }}</span>
       </label>
       {% for error in create_form.is_non_conform.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-pallet-field scan-receive-pallet-observation-field col-12">
+      <label class="form-label" for="{{ create_form.observation.id_for_label }}">{{ create_form.observation.label }}</label>
+      {{ create_form.observation }}
+      {% for error in create_form.observation.errors %}
         <div class="scan-message error">{{ error }}</div>
       {% endfor %}
     </div>

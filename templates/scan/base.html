@@ -111,15 +111,33 @@
                                title="{% trans "FAQ" %}">
                                 <span aria-hidden="true">?</span>
                             </a>
-                            {% if request.user.is_superuser and not request.scan_is_preparateur and admin_pending_recipient_validations %}
-                                <a id="scan-masthead-notifications"
-                                   href="{% url 'scan:scan_recipient_validation_list' %}"
-                                   class="btn btn-warning btn-sm scan-utility-link scan-utility-icon-link scan-utility-count-link"
-                                   aria-label="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
-                                   title="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}">
-                                    <span aria-hidden="true">&#128276;</span>
-                                    <span class="badge text-bg-light ui-comp-count-badge">{{ admin_pending_recipient_validations }}</span>
-                                </a>
+                            {% if scan_pending_actions_total %}
+                                <div class="dropdown">
+                                    <button id="scan-masthead-notifications"
+                                            class="btn btn-warning btn-sm dropdown-toggle scan-utility-link scan-utility-icon-link scan-utility-count-link"
+                                            type="button"
+                                            data-bs-toggle="dropdown"
+                                            aria-expanded="false"
+                                            aria-label="{% blocktrans with pending_count=scan_pending_actions_total %}Actions en attente : {{ pending_count }}{% endblocktrans %}"
+                                            title="{% blocktrans with pending_count=scan_pending_actions_total %}Actions en attente : {{ pending_count }}{% endblocktrans %}">
+                                        <span aria-hidden="true">&#128276;</span>
+                                        <span class="badge text-bg-light ui-comp-count-badge">{{ scan_pending_actions_total }}</span>
+                                    </button>
+                                    <ul id="scan-masthead-notifications-menu" class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <h6 class="dropdown-header">{% trans "Actions en attente" %}</h6>
+                                        </li>
+                                        {% for item in scan_pending_action_items %}
+                                            <li>
+                                                <a class="dropdown-item d-flex align-items-center justify-content-between gap-3"
+                                                   href="{{ item.url }}">
+                                                    <span>{{ item.label }}</span>
+                                                    <span class="badge text-bg-warning">{{ item.count }}</span>
+                                                </a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
                             {% endif %}
                             {% if request.user.is_superuser and not request.scan_is_preparateur %}
                                 <div class="dropdown">

@@ -49,6 +49,7 @@
         </select>
       </div>
       <div class="scan-field scan-stock-switch-field col-12 col-md-6 col-lg-5 d-flex align-items-end">
+        <input type="hidden" name="include_zero" value="0">
         {% ui_switch name="include_zero" id="id_include_zero" label=include_zero_label checked=include_zero wide=True extra_classes="mt-2" %}
       </div>
 
@@ -125,8 +126,7 @@
                   <td class="text-end">
                     <a
                       class="scan-scan-btn btn btn-tertiary btn-sm"
-                      href="{% url 'admin:wms_product_change' product.id %}"
-                      target="_blank" rel="noopener"
+                      href="{% url 'scan:scan_admin_product_detail' product.id %}"
                     >
                       {% trans "Ouvrir" %}
                     </a>

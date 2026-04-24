@@ -570,6 +570,20 @@ class ScanStockViewsTests(TestCase):
         self.assertNotContains(response, "Ajouter catégorie")
         self.assertNotContains(response, "Ajouter entrepôt")
 
+    def test_scan_stock_includes_zero_stock_products_by_default(self):
+        zero_stock_product = Product.objects.create(
+            sku="STOCK-ZERO-001",
+            name="Produit stock zero",
+            default_location=self.location,
+            qr_code_image="qr_codes/stock_zero.png",
+        )
+
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["include_zero"])
+        self.assertContains(response, zero_stock_product.name)
+
     def test_scan_stock_hides_product_open_action_for_non_superuser(self):
         response = self.client.get(reverse("scan:scan_stock"))
 

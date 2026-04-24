@@ -469,6 +469,7 @@ def _render_shipment_form(
     form,
     support,
     carton_count,
+    forced_carton_count,
     line_values,
     line_errors,
     active,
@@ -488,6 +489,7 @@ def _render_shipment_form(
         correspondent_contacts_json=support["correspondent_contacts_json"],
     )
     context["active"] = active
+    context["forced_carton_count"] = forced_carton_count
     context.update(_build_local_document_helper_context(request))
     if extra_context:
         context.update(extra_context)
@@ -1684,6 +1686,7 @@ def scan_shipment_create(request):
     support = _build_shipment_form_support()
     line_errors = {}
     line_values = []
+    forced_carton_count = (request.POST.get("forced_carton_count") or "").strip()
 
     if request.method == "POST":
         response, carton_count, line_values, line_errors = handle_shipment_create_post(
@@ -1694,6 +1697,7 @@ def scan_shipment_create(request):
         if response:
             return response
     else:
+        forced_carton_count = (request.GET.get("forced_carton_count") or "").strip()
         form_initial = getattr(form, "initial", {})
         carton_count = int(initial.get("carton_count", form_initial.get("carton_count", 0)) or 0)
         if request.GET:
@@ -1706,6 +1710,7 @@ def scan_shipment_create(request):
         form=form,
         support=support,
         carton_count=carton_count,
+        forced_carton_count=forced_carton_count,
         line_values=line_values,
         line_errors=line_errors,
         active=ACTIVE_SHIPMENT,
@@ -1806,6 +1811,7 @@ def scan_shipment_edit(request, shipment_id):
     )
     line_errors = {}
     line_values = []
+    forced_carton_count = (request.POST.get("forced_carton_count") or "").strip()
 
     if request.method == "POST":
         response, carton_count, line_values, line_errors = handle_shipment_edit_post(
@@ -1817,6 +1823,7 @@ def scan_shipment_edit(request, shipment_id):
         if response:
             return response
     else:
+        forced_carton_count = ""
         carton_count = initial["carton_count"]
         line_values = build_shipment_edit_line_values(
             assigned_cartons,
@@ -1829,6 +1836,7 @@ def scan_shipment_edit(request, shipment_id):
         form=form,
         support=support,
         carton_count=carton_count,
+        forced_carton_count=forced_carton_count,
         line_values=line_values,
         line_errors=line_errors,
         active=ACTIVE_SHIPMENTS_DOSSIERS,

@@ -12,6 +12,7 @@ from contacts.capabilities import (
 )
 from contacts.models import Contact, ContactType
 
+from .billing_service_defaults import get_default_pickup_charge_service
 from .contact_labels import (
     build_contact_select_label,
     build_shipment_contact_select_label,
@@ -617,6 +618,7 @@ class ScanReceiptAssociationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        default_pickup_service = get_default_pickup_charge_service()
         self.fields["source_contact"].queryset = active_shipment_shipper_organizations()
         self.fields["carrier_contact"].queryset = _active_transporter_organizations()
         self.fields["source_contact"].label_from_instance = _contact_label
@@ -636,13 +638,32 @@ class ScanReceiptAssociationForm(forms.Form):
         _select_single_choice(self.fields["source_contact"])
         _select_single_choice(self.fields["inbound_delivery_order"])
         _select_single_choice(self.fields["carrier_contact"])
+        if not self.is_bound and default_pickup_service is not None:
+            if self.initial.get("pickup_charge_amount") in {None, ""}:
+                self.initial["pickup_charge_amount"] = default_pickup_service.default_unit_price
+                self.fields[
+                    "pickup_charge_amount"
+                ].initial = default_pickup_service.default_unit_price
+            if not (self.initial.get("pickup_charge_currency") or "").strip():
+                self.initial["pickup_charge_currency"] = default_pickup_service.default_currency
+                self.fields[
+                    "pickup_charge_currency"
+                ].initial = default_pickup_service.default_currency
 
     def clean_pickup_charge_currency(self):
-        value = (self.cleaned_data.get("pickup_charge_currency") or "").strip().upper()
-        return value or "EUR"
+        return (self.cleaned_data.get("pickup_charge_currency") or "").strip().upper()
 
     def clean(self):
         cleaned = super().clean()
+        default_pickup_service = get_default_pickup_charge_service()
+        if cleaned.get("pickup_charge_amount") in {None, ""} and default_pickup_service is not None:
+            cleaned["pickup_charge_amount"] = default_pickup_service.default_unit_price
+        if not cleaned.get("pickup_charge_currency"):
+            cleaned["pickup_charge_currency"] = (
+                default_pickup_service.default_currency
+                if default_pickup_service is not None
+                else "EUR"
+            )
         _add_non_conform_observation_error(
             cleaned,
             self,

@@ -119,3 +119,9 @@ For details, see `docs/policies/translation-paused.md` and `docs/policies/next-m
 - When working on a ticket, use `docs/repo-reference/03-impact-map.md` to decide whether a change should propagate to other screens, APIs, docs, smoke checks, or shared contracts.
 - Before declaring work complete, re-check the relevant impact-map and shared-contract sections to confirm whether any repo-reference docs also need an update.
 - If a change modifies a critical route, flow, shared UI contract, shipment-party rule, smoke rule, or named reference test, update the relevant file(s) under `docs/repo-reference/` in the same work.
+
+## FAQ Change Log policy
+
+- For every PR that changes user-visible behavior or workflow, add one entry to `wms/faq_changelog.py`.
+- Each entry must include the add date, the PR number, and a short business summary.
+- If the PR number is not known during implementation, fill it before merge.

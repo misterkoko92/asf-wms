@@ -22,13 +22,18 @@ def _parse_bool_query_param(value):
     return (value or "").strip().lower() in {"1", "true", "on", "yes", "oui"}
 
 
-def build_stock_context(request):
+def build_stock_context(request, *, default_include_zero=False):
     query = (request.GET.get("q") or "").strip()
     category_id = (request.GET.get("category") or "").strip()
     warehouse_id = (request.GET.get("warehouse") or "").strip()
     sort = (request.GET.get("sort") or "name").strip()
     page_number = (request.GET.get("page") or "1").strip()
-    include_zero = _parse_bool_query_param(request.GET.get("include_zero"))
+    include_zero_param = request.GET.get("include_zero")
+    include_zero = (
+        default_include_zero
+        if include_zero_param is None
+        else _parse_bool_query_param(include_zero_param)
+    )
     category_filter_context = build_category_filter_context(selected_category_id=category_id)
 
     products = Product.objects.filter(is_active=True).select_related("category")

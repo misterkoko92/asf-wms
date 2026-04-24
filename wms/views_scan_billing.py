@@ -196,7 +196,7 @@ def _initial_exchange_rate_value(request, exchange_rate_resolution):
     if normalized_exchange_rate:
         return normalized_exchange_rate
     if exchange_rate_resolution.rate is not None:
-        return format(exchange_rate_resolution.rate, "f")
+        return format(exchange_rate_resolution.rate, ".2f")
     return ""
 
 

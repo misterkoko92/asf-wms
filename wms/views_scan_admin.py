@@ -27,12 +27,14 @@ from .admin_contacts_crud import (
 )
 from .application.parties.use_cases import save_recipient_product_preference
 from .forms_scan_admin_carton_formats import CartonFormatCrudForm
+from .forms_scan_admin_products import ScanAdminKitItemForm, ScanAdminProductForm
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import (
     CartonFormat,
     Destination,
     PortalAccessGrant,
     Product,
+    ProductKitItem,
     RecipientProductPreference,
     RecipientProductPreferencePeriodUnit,
     RecipientProductPreferenceSource,
@@ -77,6 +79,7 @@ TEMPLATE_SCAN_CONTACT_ROLES = "scan/contact_roles.html"
 TEMPLATE_SCAN_ADMIN_RECIPIENT_ORGANIZATION_DETAIL = "scan/admin_recipient_organization_detail.html"
 TEMPLATE_SCAN_ADMIN_CARTON_FORMATS = "scan/admin_carton_formats.html"
 TEMPLATE_SCAN_ADMIN_PRODUCTS = "scan/admin_products.html"
+TEMPLATE_SCAN_ADMIN_PRODUCT_DETAIL = "scan/admin_product_detail.html"
 TEMPLATE_SCAN_PRODUCT_LABELS = "scan/admin_product_labels.html"
 ACTIVE_SCAN_ADMIN_CONTACTS = "admin_contacts"
 ACTIVE_SCAN_CONTACT_ROLES = "contacts_roles"
@@ -89,6 +92,14 @@ ACTION_CREATE_RECIPIENT_PREFERENCE = "create_recipient_preference"
 ACTION_UPDATE_RECIPIENT_PREFERENCE = "update_recipient_preference"
 ACTION_DELETE_RECIPIENT_PREFERENCE = "delete_recipient_preference"
 ACTION_DELETE_PRODUCT = "delete_product"
+ACTION_SAVE_PRODUCT = "save_product"
+ACTION_SAVE_KIT_COMPONENT = "save_kit_component"
+ACTION_DELETE_KIT_COMPONENT = "delete_kit_component"
+ACTION_GENERATE_PRODUCT_QR = "generate_product_qr"
+ACTION_ARCHIVE_PRODUCT = "archive_product"
+ACTION_UNARCHIVE_PRODUCT = "unarchive_product"
+ACTION_PRINT_PRODUCT_LABELS = "print_product_labels"
+ACTION_PRINT_PRODUCT_QR_LABELS = "print_product_qr_labels"
 MESSAGE_RECIPIENT_PREFERENCE_ADDED = _("Préférence produit ajoutée.")
 MESSAGE_RECIPIENT_PREFERENCE_UPDATED = _("Préférence produit modifiée.")
 MESSAGE_RECIPIENT_PREFERENCE_DELETED = _("Préférence produit supprimée.")
@@ -105,6 +116,14 @@ ERROR_RECIPIENT_PRODUCT_QUANTITY_INVALID = _("Quantite cible invalide.")
 ERROR_RECIPIENT_PRODUCT_STATUS_INVALID = _("Statut produit invalide.")
 ERROR_RECIPIENT_PRODUCT_PERIOD_INVALID = _("Periode invalide.")
 ERROR_RECIPIENT_PREFERENCE_NOT_FOUND = _("Préférence produit introuvable.")
+PRODUCT_STATUS_FILTER_ACTIVE = "active"
+PRODUCT_STATUS_FILTER_ARCHIVED = "archived"
+PRODUCT_STATUS_FILTER_ALL = "all"
+PRODUCT_STATUS_FILTER_VALUES = {
+    PRODUCT_STATUS_FILTER_ACTIVE,
+    PRODUCT_STATUS_FILTER_ARCHIVED,
+    PRODUCT_STATUS_FILTER_ALL,
+}
 
 CONTACT_FILTER_ALL = "all"
 CONTACT_FILTER_CHOICES = (
@@ -132,10 +151,122 @@ def _parse_int(value):
 
 def _build_admin_products_redirect_url(request):
     query = (request.POST.get("q") or request.GET.get("q") or "").strip()
+    status = _normalize_product_status_filter(
+        request.POST.get("status") or request.GET.get("status")
+    )
     base_url = reverse("scan:scan_admin_products")
-    if not query:
+    params = {}
+    if query:
+        params["q"] = query
+    if status != PRODUCT_STATUS_FILTER_ACTIVE:
+        params["status"] = status
+    if not params:
         return base_url
-    return f"{base_url}?{urlencode({'q': query})}"
+    return f"{base_url}?{urlencode(params)}"
+
+
+def _normalize_product_status_filter(value):
+    normalized = (value or "").strip().lower()
+    if normalized in PRODUCT_STATUS_FILTER_VALUES:
+        return normalized
+    return PRODUCT_STATUS_FILTER_ACTIVE
+
+
+def _build_scan_admin_product_detail_url(product_id):
+    return reverse("scan:scan_admin_product_detail", args=[product_id])
+
+
+def _flattened_component_lines(product):
+    if not product.pk or not product.kit_items.exists():
+        return [], False
+    try:
+        flattened_quantities = get_unit_component_quantities(product)
+    except KitCycleError:
+        return [], True
+    component_name_by_id = dict(
+        Product.objects.filter(id__in=flattened_quantities.keys()).values_list("id", "name")
+    )
+    lines = [
+        {
+            "component_id": component_id,
+            "component_name": component_name_by_id.get(component_id, "-"),
+            "quantity": quantity,
+        }
+        for component_id, quantity in sorted(
+            flattened_quantities.items(),
+            key=lambda pair: ((component_name_by_id.get(pair[0]) or "").lower(), pair[0]),
+        )
+        if quantity > 0
+    ]
+    return lines, False
+
+
+def _product_detail_payload(product):
+    product_lots_qs = product.productlot_set.select_related(
+        "location", "location__warehouse"
+    ).order_by("-quantity_on_hand", "id")
+    kit_items = list(
+        ProductKitItem.objects.filter(kit=product)
+        .select_related("component")
+        .order_by("component__name", "component_id")
+    )
+    flattened_lines, has_cycle = _flattened_component_lines(product)
+    total_on_hand = sum(lot.quantity_on_hand or 0 for lot in product_lots_qs)
+    total_reserved = sum(lot.quantity_reserved or 0 for lot in product_lots_qs)
+    product_lots = list(product_lots_qs[:8])
+    return {
+        "is_kit": bool(kit_items),
+        "kit_items": kit_items,
+        "flattened_lines": flattened_lines,
+        "has_cycle": has_cycle,
+        "product_lots": product_lots,
+        "total_on_hand": total_on_hand,
+        "total_reserved": total_reserved,
+        "usage_counts": {
+            "kit_components": product.kit_components.count(),
+            "product_preferences": product.recipient_preferences.count(),
+            "order_lines": product.orderline_set.count(),
+            "receipt_lines": product.receiptline_set.count(),
+        },
+    }
+
+
+def _save_scan_admin_kit_component(*, request, product):
+    form = ScanAdminKitItemForm(request.POST, kit=product)
+    if not form.is_valid():
+        return form, None
+    component = form.cleaned_data["component"]
+    quantity = form.cleaned_data["quantity"]
+    item = ProductKitItem.objects.filter(kit=product, component=component).first()
+    if item is None:
+        item = ProductKitItem(kit=product, component=component)
+    item.quantity = quantity
+    try:
+        item.full_clean()
+    except ValidationError as error:
+        form.add_error(None, "; ".join(_flatten_validation_error_messages(error)))
+        return form, None
+    item.save()
+    messages.success(
+        request,
+        _("Composition du kit mise a jour pour %(product)s.") % {"product": component.name},
+    )
+    return form, redirect(_build_scan_admin_product_detail_url(product.id))
+
+
+def _delete_scan_admin_kit_component(*, request, product):
+    kit_item_id = _parse_int(request.POST.get("kit_item_id"))
+    kit_item = ProductKitItem.objects.filter(pk=kit_item_id, kit=product).first()
+    if kit_item is None:
+        messages.error(request, _("Composant de kit introuvable."))
+        return redirect(_build_scan_admin_product_detail_url(product.id))
+    component_name = kit_item.component.name
+    kit_item.delete()
+    messages.success(
+        request,
+        _("Composant %(product)s retire du kit.") % {"product": component_name},
+    )
+    return redirect(_build_scan_admin_product_detail_url(product.id))
 
 
 def _product_delete_guard(product):
@@ -894,12 +1025,14 @@ def scan_admin_products(request):
         return redirect(_build_admin_products_redirect_url(request))
 
     query = (request.GET.get("q") or "").strip()
-    kits_qs = (
-        Product.objects.filter(is_active=True, kit_items__isnull=False)
-        .prefetch_related("kit_items__component")
-        .distinct()
-        .order_by("name", "id")
-    )
+    status = _normalize_product_status_filter(request.GET.get("status"))
+    base_qs = Product.objects.prefetch_related("kit_items__component").order_by("name", "id")
+    if status == PRODUCT_STATUS_FILTER_ACTIVE:
+        base_qs = base_qs.filter(is_active=True)
+    elif status == PRODUCT_STATUS_FILTER_ARCHIVED:
+        base_qs = base_qs.filter(is_active=False)
+
+    kits_qs = base_qs.filter(kit_items__isnull=False).distinct()
     if query:
         kits_qs = kits_qs.filter(
             Q(name__icontains=query)
@@ -948,16 +1081,12 @@ def scan_admin_products(request):
                 "direct_lines": direct_lines,
                 "flattened_lines": flattened_lines,
                 "has_cycle": kit.id in kit_cycle_ids,
-                "edit_url": reverse("admin:wms_product_change", args=[kit.id]),
+                "open_url": _build_scan_admin_product_detail_url(kit.id),
                 **_product_delete_guard(kit),
             }
         )
 
-    products_qs = (
-        Product.objects.filter(is_active=True, kit_items__isnull=True)
-        .distinct()
-        .order_by("name", "id")
-    )
+    products_qs = base_qs.filter(kit_items__isnull=True).distinct()
     if query:
         products_qs = products_qs.filter(
             Q(name__icontains=query)
@@ -968,7 +1097,8 @@ def scan_admin_products(request):
     product_rows = [
         {
             "product": product,
-            "edit_url": reverse("admin:wms_product_change", args=[product.id]),
+            "open_url": _build_scan_admin_product_detail_url(product.id),
+            "component_usage_count": product.kit_components.count(),
             **_product_delete_guard(product),
         }
         for product in products_qs
@@ -979,12 +1109,182 @@ def scan_admin_products(request):
         {
             "active": ACTIVE_SCAN_ADMIN_PRODUCTS,
             "query": query,
+            "status": status,
+            "status_choices": [
+                (PRODUCT_STATUS_FILTER_ACTIVE, _("Actifs")),
+                (PRODUCT_STATUS_FILTER_ARCHIVED, _("Archives")),
+                (PRODUCT_STATUS_FILTER_ALL, _("Tous")),
+            ],
             "kit_rows": kit_rows,
             "product_rows": product_rows,
-            "products_admin_url": reverse("admin:wms_product_changelist"),
-            "product_add_url": reverse("admin:wms_product_add"),
+            "product_create_url": f'{reverse("scan:scan_admin_product_create")}?kind=product',
+            "kit_create_url": f'{reverse("scan:scan_admin_product_create")}?kind=kit',
         },
     )
+
+
+def _normalized_product_kind(raw_value):
+    return "kit" if (raw_value or "").strip().lower() == "kit" else "product"
+
+
+def _build_admin_product_detail_context(
+    *,
+    request,
+    product,
+    requested_kind,
+    product_form,
+    kit_item_form,
+):
+    detail_payload = (
+        _product_detail_payload(product)
+        if product is not None and product.pk
+        else {
+            "is_kit": requested_kind == "kit",
+            "kit_items": [],
+            "flattened_lines": [],
+            "has_cycle": False,
+            "product_lots": [],
+            "total_on_hand": 0,
+            "total_reserved": 0,
+            "usage_counts": {
+                "kit_components": 0,
+                "product_preferences": 0,
+                "order_lines": 0,
+                "receipt_lines": 0,
+            },
+        }
+    )
+    page_title = (
+        _("Nouveau kit")
+        if product is None or not product.pk
+        else product.name
+        if detail_payload["is_kit"]
+        else product.name
+    )
+    if product is None or not product.pk:
+        page_title = _("Nouveau kit") if requested_kind == "kit" else _("Nouveau produit")
+    can_delete_payload = (
+        _product_delete_guard(product)
+        if product is not None and product.pk
+        else {"can_delete": False, "reason": ""}
+    )
+    return {
+        "active": ACTIVE_SCAN_ADMIN_PRODUCTS,
+        "product": product,
+        "product_form": product_form,
+        "kit_item_form": kit_item_form,
+        "page_title": page_title,
+        "requested_kind": requested_kind,
+        "detail_payload": detail_payload,
+        "catalog_url": reverse("scan:scan_admin_products"),
+        "can_delete_product": can_delete_payload["can_delete"],
+        "delete_block_reason": can_delete_payload["reason"],
+    }
+
+
+def _scan_admin_product_editor(request, *, product=None):
+    _require_superuser(request)
+    requested_kind = _normalized_product_kind(request.POST.get("kind") or request.GET.get("kind"))
+    is_create = product is None
+    instance = product if product is not None else Product(is_active=True)
+    product_form = ScanAdminProductForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=instance,
+    )
+    kit_item_form = ScanAdminKitItemForm(kit=product)
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == ACTION_SAVE_PRODUCT:
+            product_form = ScanAdminProductForm(
+                request.POST,
+                request.FILES or None,
+                instance=instance,
+            )
+            if product_form.is_valid():
+                saved_product = product_form.save()
+                success_message = (
+                    _("Kit enregistre. Ajoutez maintenant les composants.")
+                    if is_create and requested_kind == "kit"
+                    else _("Produit enregistre.")
+                    if is_create
+                    else _("Produit mis a jour.")
+                )
+                messages.success(request, success_message)
+                redirect_url = _build_scan_admin_product_detail_url(saved_product.id)
+                if requested_kind == "kit":
+                    redirect_url = f"{redirect_url}?kind=kit"
+                return redirect(redirect_url)
+        elif not is_create and action == ACTION_SAVE_KIT_COMPONENT:
+            kit_item_form, response = _save_scan_admin_kit_component(
+                request=request, product=product
+            )
+            if response is not None:
+                return response
+        elif not is_create and action == ACTION_DELETE_KIT_COMPONENT:
+            return _delete_scan_admin_kit_component(request=request, product=product)
+        elif not is_create and action == ACTION_GENERATE_PRODUCT_QR:
+            product.generate_qr_code()
+            product.save(update_fields=["qr_code_image"])
+            messages.success(request, _("QR code regenere."))
+            return redirect(_build_scan_admin_product_detail_url(product.id))
+        elif not is_create and action == ACTION_ARCHIVE_PRODUCT:
+            product.is_active = False
+            product.save(update_fields=["is_active"])
+            messages.success(request, _("Produit archive."))
+            return redirect(_build_scan_admin_product_detail_url(product.id))
+        elif not is_create and action == ACTION_UNARCHIVE_PRODUCT:
+            product.is_active = True
+            product.save(update_fields=["is_active"])
+            messages.success(request, _("Produit reactive."))
+            return redirect(_build_scan_admin_product_detail_url(product.id))
+        elif not is_create and action == ACTION_DELETE_PRODUCT:
+            guard = _product_delete_guard(product)
+            if not guard["can_delete"]:
+                messages.error(request, guard["reason"])
+            else:
+                try:
+                    product.delete()
+                except ProtectedError:
+                    messages.error(request, ERROR_PRODUCT_DELETE_PROTECTED)
+                else:
+                    messages.success(request, MESSAGE_PRODUCT_DELETED)
+                    return redirect(reverse("scan:scan_admin_products"))
+        elif not is_create and action == ACTION_PRINT_PRODUCT_LABELS:
+            return render_product_labels_response(request, Product.objects.filter(pk=product.id))
+        elif not is_create and action == ACTION_PRINT_PRODUCT_QR_LABELS:
+            return render_product_qr_labels_response(request, Product.objects.filter(pk=product.id))
+        else:
+            messages.error(request, _("Action produit non reconnue."))
+
+    return render(
+        request,
+        TEMPLATE_SCAN_ADMIN_PRODUCT_DETAIL,
+        _build_admin_product_detail_context(
+            request=request,
+            product=product,
+            requested_kind=requested_kind,
+            product_form=product_form,
+            kit_item_form=kit_item_form,
+        ),
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_admin_product_create(request):
+    return _scan_admin_product_editor(request)
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_admin_product_detail(request, product_id):
+    product = get_object_or_404(
+        Product.objects.prefetch_related("tags", "kit_items__component"),
+        pk=product_id,
+    )
+    return _scan_admin_product_editor(request, product=product)
 
 
 @scan_staff_required

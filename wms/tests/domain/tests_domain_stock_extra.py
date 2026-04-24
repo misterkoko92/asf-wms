@@ -189,9 +189,9 @@ class DomainStockExtraTests(TestCase):
             self.assertEqual(_next_carton_sequence("20260101"), 1)
 
     def test_generate_carton_code_uses_independent_linear_family_sequences(self):
-        self.assertEqual(generate_carton_code(type_code="MM"), "MM-00001")
-        self.assertEqual(generate_carton_code(type_code="MM"), "MM-00002")
-        self.assertEqual(generate_carton_code(type_code="CN"), "CN-00001")
+        self.assertEqual(generate_carton_code(type_code="MM"), "MM-1")
+        self.assertEqual(generate_carton_code(type_code="MM"), "MM-2")
+        self.assertEqual(generate_carton_code(type_code="CN"), "CN-1")
 
     def test_carton_models_expose_preassignment_and_manual_expiry_fields(self):
         carton_field_names = {field.name for field in Carton._meta.get_fields()}
@@ -546,13 +546,13 @@ class DomainStockExtraTests(TestCase):
         self.assertEqual(non_auto.code, "CUSTOM-CODE")
 
     def test_ensure_carton_code_rewrites_linear_auto_code_to_requested_family(self):
-        carton = Carton.objects.create(code="XX-00001", status=CartonStatus.DRAFT)
-        Carton.objects.create(code="MM-00001", status=CartonStatus.DRAFT)
+        carton = Carton.objects.create(code="XX-1", status=CartonStatus.DRAFT)
+        Carton.objects.create(code="MM-1", status=CartonStatus.DRAFT)
 
         ensure_carton_code(carton, type_code="MM")
 
         carton.refresh_from_db()
-        self.assertEqual(carton.code, "MM-00002")
+        self.assertEqual(carton.code, "MM-2")
 
     def test_ensure_carton_code_replaces_legacy_code_and_handles_collision(self):
         legacy_carton = Carton.objects.create(code="C-LEGACY", status=CartonStatus.DRAFT)

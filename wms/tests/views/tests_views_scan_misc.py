@@ -17,6 +17,7 @@ class ScanMiscViewsTests(TestCase):
         response = self.client.get(reverse("scan:scan_faq"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "faq")
+        self.assertIn("faq_change_log_entries", response.context)
         self.assertEqual(response.context["shell_class"], "scan-shell-wide")
 
     def test_scan_faq_includes_summary_container(self):
@@ -60,6 +61,17 @@ class ScanMiscViewsTests(TestCase):
         self.assertContains(response, "Administration & support")
         self.assertContains(response, "Créer une expédition avec des colis déjà préparés")
         self.assertContains(response, "Créer une expédition sans colis préparés")
+
+    def test_scan_faq_exposes_structured_change_log_section(self):
+        response = self.client.get(reverse("scan:scan_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Change Log")
+        first_entry = response.context["faq_change_log_entries"][0]
+        self.assertIn("date", first_entry)
+        self.assertIn("pr_number", first_entry)
+        self.assertIn("summary", first_entry)
+        self.assertContains(response, first_entry["summary"])
 
     def test_scan_ui_lab_renders_template(self):
         response = self.client.get(reverse("scan:scan_ui_lab"))

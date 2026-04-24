@@ -1,4 +1,5 @@
 from django.db.utils import OperationalError, ProgrammingError
+from django.urls import reverse
 
 from .billing_permissions import user_can_access_billing_scan, user_can_manage_billing_admin
 from .design_tokens import (
@@ -7,6 +8,8 @@ from .design_tokens import (
     normalize_priority_one_tokens,
 )
 from .models import (
+    Order,
+    OrderReviewStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     ShipmentRecipientOrganization,
@@ -91,22 +94,58 @@ def admin_notifications(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return {}
+    pending_action_items = []
     pending_account_requests = 0
     pending_recipient_validations = 0
+    pending_orders_to_review = 0
+    if user.is_staff:
+        pending_orders_to_review = Order.objects.filter(
+            review_status=OrderReviewStatus.PENDING
+        ).count()
+        if pending_orders_to_review:
+            pending_action_items.append(
+                {
+                    "key": "orders",
+                    "label": "Commandes à valider",
+                    "count": pending_orders_to_review,
+                    "url": reverse("scan:scan_orders_view"),
+                }
+            )
     if user_can_review_account_requests(user):
         pending_account_requests = PublicAccountRequest.objects.filter(
             status=PublicAccountRequestStatus.PENDING
         ).count()
+        if pending_account_requests:
+            pending_action_items.append(
+                {
+                    "key": "account_requests",
+                    "label": "Demandes de compte à valider",
+                    "count": pending_account_requests,
+                    "url": reverse("scan:scan_account_validation_list"),
+                }
+            )
     if user.is_superuser:
         pending_recipient_validations = ShipmentRecipientOrganization.objects.filter(
             validation_status=ShipmentValidationStatus.PENDING,
             is_active=True,
         ).count()
-    if not pending_account_requests and not pending_recipient_validations:
+        if pending_recipient_validations:
+            pending_action_items.append(
+                {
+                    "key": "recipient_validations",
+                    "label": "Destinataires à valider",
+                    "count": pending_recipient_validations,
+                    "url": reverse("scan:scan_recipient_validation_list"),
+                }
+            )
+    if not pending_action_items:
         return {}
     return {
+        "admin_pending_orders_to_review": pending_orders_to_review,
         "admin_pending_account_requests": pending_account_requests,
         "admin_pending_recipient_validations": pending_recipient_validations,
+        "scan_pending_action_items": pending_action_items,
+        "scan_pending_actions_total": sum(item["count"] for item in pending_action_items),
     }
 
 

@@ -274,6 +274,16 @@ urlpatterns = [
         name="scan_admin_recipient_organization_detail",
     ),
     path("admin/products/", views.scan_admin_products, name="scan_admin_products"),
+    path(
+        "admin/products/create/",
+        views.scan_admin_product_create,
+        name="scan_admin_product_create",
+    ),
+    path(
+        "admin/products/<int:product_id>/",
+        views.scan_admin_product_detail,
+        name="scan_admin_product_detail",
+    ),
     path("product-labels/", views.scan_product_labels, name="scan_product_labels"),
     path(
         "product-labels/print-labels/",

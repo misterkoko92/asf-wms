@@ -174,13 +174,20 @@
           {% if service_form.display_order.errors %}<div class="scan-help">{{ service_form.display_order.errors|join:", " }}</div>{% endif %}
         </div>
       </div>
-      <div class="billing-toggle-grid billing-toggle-grid--2">
+      <div class="billing-toggle-grid billing-toggle-grid--3">
         <div class="billing-toggle">
           <label class="billing-toggle__label" for="{{ service_form.is_discount.id_for_label }}">
             {{ service_form.is_discount.label }}
           </label>
           <div class="billing-toggle__control">{{ service_form.is_discount }}</div>
           {% if service_form.is_discount.errors %}<div class="scan-help">{{ service_form.is_discount.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="billing-toggle">
+          <label class="billing-toggle__label" for="{{ service_form.use_for_default_pickup_charge.id_for_label }}">
+            {{ service_form.use_for_default_pickup_charge.label }}
+          </label>
+          <div class="billing-toggle__control">{{ service_form.use_for_default_pickup_charge }}</div>
+          {% if service_form.use_for_default_pickup_charge.errors %}<div class="scan-help">{{ service_form.use_for_default_pickup_charge.errors|join:", " }}</div>{% endif %}
         </div>
         <div class="billing-toggle">
           <label class="billing-toggle__label" for="{{ service_form.is_active.id_for_label }}">
@@ -209,6 +216,7 @@
             <th>Type</th>
             <th>Prix</th>
             <th>Devise</th>
+            <th>D&eacute;faut enl&egrave;vement</th>
             <th>Statut</th>
           </tr>
         </thead>
@@ -219,6 +227,7 @@
               <td>{% if service.service_type %}{{ service.service_type }}{% else %}-{% endif %}</td>
               <td>{{ service.default_unit_price }}</td>
               <td>{{ service.default_currency }}</td>
+              <td>{% if service.use_for_default_pickup_charge %}Oui{% else %}-{% endif %}</td>
               <td>{% if service.is_active %}Actif{% else %}Inactif{% endif %}</td>
             </tr>
           {% endfor %}

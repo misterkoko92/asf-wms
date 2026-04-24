@@ -1,12 +1,15 @@
+from datetime import date
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
 from wms.billing_document_handlers import create_billing_draft, issue_billing_document
+from wms.billing_exchange_rates import ExchangeRateResolution
 from wms.billing_permissions import BILLING_STAFF_GROUP_NAME
 from wms.models import (
     AssociationProfile,
@@ -23,10 +26,18 @@ from wms.models import (
     ShipmentStatus,
     ShipmentUnitEquivalenceRule,
 )
+from wms.views_scan_billing import (
+    ACTION_BUILD_DRAFT,
+    _build_draft_options_form,
+    _initial_exchange_rate_value,
+    _resolved_period,
+    _selected_instance_from_query,
+)
 
 
 class ScanBillingViewTests(TestCase):
     def setUp(self):
+        self.factory = RequestFactory()
         self.staff_user = get_user_model().objects.create_user(
             username="scan-billing-staff",
             is_staff=True,
@@ -117,6 +128,104 @@ class ScanBillingViewTests(TestCase):
             [row.reference for row in response.context["candidate_rows"]],
             ["EXP-SCAN-BILL-EDITOR"],
         )
+
+    def test_scan_billing_editor_get_prefills_exchange_rate_with_two_decimals(self):
+        self.client.force_login(self.billing_user)
+
+        response = self.client.get(reverse("scan:scan_billing_editor"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["draft_options_form"]["exchange_rate"].value(), "1.00")
+        self.assertContains(response, 'value="1.00"')
+
+    def test_initial_exchange_rate_value_returns_empty_without_manual_or_resolved_rate(self):
+        request = self.factory.get(reverse("scan:scan_billing_editor"))
+        resolution = ExchangeRateResolution(
+            document_currency="XOF",
+            base_currency="EUR",
+            rate=None,
+            provider_name=None,
+            as_of_date=None,
+            requires_manual_entry=True,
+        )
+
+        self.assertEqual(_initial_exchange_rate_value(request, resolution), "")
+
+    def test_build_draft_options_form_rehydrates_initial_currency_and_rate_on_post(self):
+        request = self.factory.post(
+            reverse("scan:scan_billing_editor"),
+            {
+                "action": ACTION_BUILD_DRAFT,
+                "currency": "",
+                "exchange_rate": "",
+            },
+        )
+        resolution = ExchangeRateResolution(
+            document_currency="USD",
+            base_currency="EUR",
+            rate=Decimal("1.234500"),
+            provider_name="ECB",
+            as_of_date=date(2026, 4, 24),
+            requires_manual_entry=False,
+        )
+
+        form = _build_draft_options_form(
+            request=request,
+            action=ACTION_BUILD_DRAFT,
+            selected_currency="USD",
+            exchange_rate_resolution=resolution,
+        )
+
+        self.assertTrue(form.is_bound)
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form["currency"].value(), "USD")
+        self.assertEqual(form["exchange_rate"].value(), "1.23")
+
+    def test_build_draft_options_form_uses_initial_values_on_get(self):
+        request = self.factory.get(reverse("scan:scan_billing_editor"))
+        resolution = ExchangeRateResolution(
+            document_currency="CHF",
+            base_currency="EUR",
+            rate=Decimal("1.110000"),
+            provider_name="ECB",
+            as_of_date=date(2026, 4, 24),
+            requires_manual_entry=False,
+        )
+
+        form = _build_draft_options_form(
+            request=request,
+            action=ACTION_BUILD_DRAFT,
+            selected_currency="CHF",
+            exchange_rate_resolution=resolution,
+        )
+
+        self.assertFalse(form.is_bound)
+        self.assertEqual(form.initial["currency"], "CHF")
+        self.assertEqual(form.initial["exchange_rate"], "1.11")
+
+    def test_selected_instance_from_query_returns_matching_object(self):
+        service = BillingServiceCatalogItem.objects.create(
+            label="Enlevement",
+            service_type="pickup",
+            default_unit_price=Decimal("45.00"),
+        )
+        request = self.factory.get("/scan/billing/settings/", {"edit_service": str(service.id)})
+
+        selected = _selected_instance_from_query(
+            request,
+            query_key="edit_service",
+            model=BillingServiceCatalogItem,
+        )
+
+        self.assertEqual(selected, service)
+
+    def test_resolved_period_returns_tuple_when_only_start_date_is_set(self):
+        request = self.factory.get(
+            reverse("scan:scan_billing_editor"),
+            {"period_start": "2026-04-01"},
+        )
+
+        self.assertEqual(_resolved_period(request), (date(2026, 4, 1), None))
 
     def test_scan_billing_editor_post_builds_quote_draft(self):
         association_profile = self._create_association_profile(username="scan-billing-draft")
@@ -216,6 +325,59 @@ class ScanBillingViewTests(TestCase):
         draft_document = response.context["draft_document"]
         self.assertEqual(draft_document.currency, "XOF")
         self.assertEqual(draft_document.exchange_rate, Decimal("655.957000"))
+
+    def test_scan_billing_editor_requires_manual_rate_when_provider_has_none(self):
+        association_profile = self._create_association_profile(username="scan-billing-manual-rate")
+        BillingComputationProfile.objects.create(
+            code="scan-billing-manual-rate-default",
+            label="Scan Billing Manual Rate Default",
+            is_default_for_shipment_only=True,
+        )
+        shipment = self._create_shipped_shipment(
+            association_profile=association_profile,
+            reference="EXP-SCAN-BILL-MANUAL-RATE",
+        )
+        self.client.force_login(self.billing_user)
+
+        with mock.patch(
+            "wms.views_scan_billing.resolve_exchange_rate",
+            return_value=ExchangeRateResolution(
+                document_currency="XOF",
+                base_currency="EUR",
+                rate=None,
+                provider_name=None,
+                as_of_date=None,
+                requires_manual_entry=True,
+            ),
+        ):
+            response = self.client.post(
+                reverse("scan:scan_billing_editor"),
+                {
+                    "action": "build_draft",
+                    "association_profile": association_profile.id,
+                    "kind": BillingDocumentKind.QUOTE,
+                    "shipment_ids": [shipment.id],
+                    "currency": "XOF",
+                    "exchange_rate": "",
+                    "manual_label": "Enlevement",
+                    "manual_amount": "12.50",
+                    "manual_description": "Test pickup",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context["draft_document"])
+        self.assertContains(response, "Le taux de change doit etre renseigne.")
+        self.assertEqual(
+            response.context["draft_options_form"].errors["exchange_rate"],
+            ["Saisissez manuellement un taux de change pour cette devise."],
+        )
+        self.assertFalse(
+            BillingDocument.objects.filter(
+                association_profile=association_profile,
+                currency="XOF",
+            ).exists()
+        )
 
     def test_scan_billing_editor_post_records_payment_for_issued_invoice(self):
         association_profile = self._create_association_profile(username="scan-billing-payment")
@@ -330,6 +492,17 @@ class ScanBillingViewTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.context["active"], active)
 
+    def test_scan_billing_editor_falls_back_to_quote_when_kind_is_unknown(self):
+        self.client.force_login(self.billing_user)
+
+        response = self.client.get(
+            reverse("scan:scan_billing_editor"),
+            {"kind": "unknown"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_kind"], BillingDocumentKind.QUOTE)
+
     def test_scan_billing_routes_redirect_anonymous_to_admin_login(self):
         response = self.client.get(reverse("scan:scan_billing_editor"))
         self.assertEqual(response.status_code, 302)
@@ -412,6 +585,7 @@ class ScanBillingViewTests(TestCase):
                 "default_currency": "EUR",
                 "display_order": 3,
                 "is_discount": "",
+                "use_for_default_pickup_charge": "on",
                 "is_active": "on",
             },
         )
@@ -420,6 +594,37 @@ class ScanBillingViewTests(TestCase):
         service.refresh_from_db()
         self.assertEqual(service.label, "Export declaration premium")
         self.assertEqual(service.default_unit_price, Decimal("55.00"))
+        self.assertTrue(service.use_for_default_pickup_charge)
+
+    def test_scan_billing_settings_keeps_single_default_pickup_service(self):
+        existing_default = BillingServiceCatalogItem.objects.create(
+            label="Enlevement standard",
+            default_unit_price=Decimal("30.00"),
+            use_for_default_pickup_charge=True,
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_settings"),
+            {
+                "action": "save_service",
+                "label": "Enlevement premium",
+                "description": "Transport prioritaire",
+                "service_type": "pickup",
+                "default_unit_price": "42.00",
+                "default_currency": "CHF",
+                "display_order": 4,
+                "is_discount": "",
+                "use_for_default_pickup_charge": "on",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        existing_default.refresh_from_db()
+        new_default = BillingServiceCatalogItem.objects.get(label="Enlevement premium")
+        self.assertFalse(existing_default.use_for_default_pickup_charge)
+        self.assertTrue(new_default.use_for_default_pickup_charge)
 
     def test_scan_billing_settings_creates_association_price_override(self):
         association_profile = self._create_association_profile()
@@ -507,6 +712,7 @@ class ScanBillingViewTests(TestCase):
         self.assertContains(response, "Shipment standard")
         self.assertContains(response, "Pickup")
         self.assertContains(response, association_profile.contact.name)
+        self.assertContains(response, "D&eacute;faut enl&egrave;vement")
         self.assertContains(response, "save_profile")
         self.assertContains(response, "save_service")
         self.assertContains(response, "save_override")
@@ -525,8 +731,19 @@ class ScanBillingViewTests(TestCase):
         self.assertContains(response, 'class="billing-grid billing-grid--7"')
         self.assertContains(response, 'class="billing-grid billing-grid--6"')
         self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--4"')
-        self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--2"')
+        self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--3"')
         self.assertContains(response, 'class="scan-field billing-field billing-field--full"')
+
+    def test_scan_billing_settings_post_unknown_action_shows_error(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_settings"),
+            {"action": "unknown"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Action de facturation inconnue.")
 
     def test_scan_billing_equivalence_creates_category_rule(self):
         root_category = ProductCategory.objects.create(name="MM")
@@ -643,6 +860,17 @@ class ScanBillingViewTests(TestCase):
             response,
             'data-help-text="Departage les regles a specificite egale. Plus la valeur est petite, plus la regle est prioritaire."',
         )
+
+    def test_scan_billing_equivalence_post_unknown_action_shows_error(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_equivalence"),
+            {"action": "unknown"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Action d&#x27;equivalence inconnue.")
 
     def test_scan_billing_editor_page_reorders_currency_and_manual_sections(self):
         self.client.force_login(self.superuser)
