@@ -9,6 +9,7 @@ from django.urls import reverse
 from contacts.models import Contact, ContactCapability, ContactCapabilityType, ContactType
 from wms.forms import ScanReceiptAssociationForm
 from wms.models import (
+    BillingServiceCatalogItem,
     Carton,
     CartonSourceKind,
     Order,
@@ -105,6 +106,46 @@ class AssociationReceiptBillingFieldsTests(TestCase):
         self.assertEqual(form.cleaned_data["pickup_charge_currency"], "CHF")
         self.assertEqual(form.cleaned_data["pickup_charge_comment"], "Collecte refacturee.")
         self.assertEqual(form.cleaned_data["pickup_charge_proof"].name, "pickup-proof.pdf")
+
+    def test_scan_receipt_association_form_defaults_pickup_billing_fields_from_service_catalog(
+        self,
+    ):
+        BillingServiceCatalogItem.objects.create(
+            label="Enlevement standard",
+            service_type="pickup",
+            default_unit_price=Decimal("37.50"),
+            default_currency="CHF",
+            use_for_default_pickup_charge=True,
+        )
+        form = ScanReceiptAssociationForm()
+
+        self.assertEqual(form["pickup_charge_amount"].value(), Decimal("37.50"))
+        self.assertEqual(form["pickup_charge_currency"].value(), "CHF")
+
+    def test_scan_receipt_association_form_uses_default_pickup_service_when_fields_blank(self):
+        BillingServiceCatalogItem.objects.create(
+            label="Enlevement standard",
+            service_type="pickup",
+            default_unit_price=Decimal("41.00"),
+            default_currency="USD",
+            use_for_default_pickup_charge=True,
+        )
+        form = ScanReceiptAssociationForm(
+            data={
+                "received_on": "2026-03-07",
+                "carton_count": 4,
+                "hors_format_count": 0,
+                "source_contact": self.source_contact.id,
+                "carrier_contact": self.carrier_contact.id,
+                "pickup_charge_amount": "",
+                "pickup_charge_currency": "",
+                "pickup_charge_comment": "",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["pickup_charge_amount"], Decimal("41.00"))
+        self.assertEqual(form.cleaned_data["pickup_charge_currency"], "USD")
 
     def test_scan_receive_association_persists_pickup_billing_fields(self):
         uploaded = SimpleUploadedFile(

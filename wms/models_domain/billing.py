@@ -204,6 +204,7 @@ class BillingServiceCatalogItem(models.Model):
     )
     default_currency = models.CharField(max_length=3, default="EUR")
     is_discount = models.BooleanField(default=False)
+    use_for_default_pickup_charge = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveIntegerField(default=0)
 

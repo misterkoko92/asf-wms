@@ -123,6 +123,7 @@ class BillingServiceCatalogItemForm(forms.ModelForm):
             "default_unit_price",
             "default_currency",
             "is_discount",
+            "use_for_default_pickup_charge",
             "is_active",
             "display_order",
         )
@@ -133,6 +134,7 @@ class BillingServiceCatalogItemForm(forms.ModelForm):
             "default_unit_price": "Prix unitaire",
             "default_currency": "Devise",
             "is_discount": "Ligne de remise",
+            "use_for_default_pickup_charge": "Valeur par defaut pour les enlèvements",
             "is_active": "Actif",
             "display_order": "Ordre affichage",
         }
@@ -144,6 +146,30 @@ class BillingServiceCatalogItemForm(forms.ModelForm):
 
     def clean_default_currency(self):
         return (self.cleaned_data.get("default_currency") or "EUR").upper()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("use_for_default_pickup_charge") and cleaned_data.get("is_discount"):
+            self.add_error(
+                "is_discount",
+                "Le service par defaut enlèvement ne peut pas etre une remise.",
+            )
+        if cleaned_data.get("use_for_default_pickup_charge") and not cleaned_data.get("is_active"):
+            self.add_error(
+                "is_active",
+                "Le service par defaut enlèvement doit rester actif.",
+            )
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            if instance.use_for_default_pickup_charge:
+                BillingServiceCatalogItem.objects.exclude(pk=instance.pk).filter(
+                    use_for_default_pickup_charge=True
+                ).update(use_for_default_pickup_charge=False)
+        return instance
 
 
 class BillingAssociationPriceOverrideForm(forms.ModelForm):

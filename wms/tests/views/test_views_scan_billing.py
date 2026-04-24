@@ -412,6 +412,7 @@ class ScanBillingViewTests(TestCase):
                 "default_currency": "EUR",
                 "display_order": 3,
                 "is_discount": "",
+                "use_for_default_pickup_charge": "on",
                 "is_active": "on",
             },
         )
@@ -420,6 +421,37 @@ class ScanBillingViewTests(TestCase):
         service.refresh_from_db()
         self.assertEqual(service.label, "Export declaration premium")
         self.assertEqual(service.default_unit_price, Decimal("55.00"))
+        self.assertTrue(service.use_for_default_pickup_charge)
+
+    def test_scan_billing_settings_keeps_single_default_pickup_service(self):
+        existing_default = BillingServiceCatalogItem.objects.create(
+            label="Enlevement standard",
+            default_unit_price=Decimal("30.00"),
+            use_for_default_pickup_charge=True,
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_settings"),
+            {
+                "action": "save_service",
+                "label": "Enlevement premium",
+                "description": "Transport prioritaire",
+                "service_type": "pickup",
+                "default_unit_price": "42.00",
+                "default_currency": "CHF",
+                "display_order": 4,
+                "is_discount": "",
+                "use_for_default_pickup_charge": "on",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        existing_default.refresh_from_db()
+        new_default = BillingServiceCatalogItem.objects.get(label="Enlevement premium")
+        self.assertFalse(existing_default.use_for_default_pickup_charge)
+        self.assertTrue(new_default.use_for_default_pickup_charge)
 
     def test_scan_billing_settings_creates_association_price_override(self):
         association_profile = self._create_association_profile()
@@ -507,6 +539,7 @@ class ScanBillingViewTests(TestCase):
         self.assertContains(response, "Shipment standard")
         self.assertContains(response, "Pickup")
         self.assertContains(response, association_profile.contact.name)
+        self.assertContains(response, "D&eacute;faut enl&egrave;vement")
         self.assertContains(response, "save_profile")
         self.assertContains(response, "save_service")
         self.assertContains(response, "save_override")
@@ -525,7 +558,7 @@ class ScanBillingViewTests(TestCase):
         self.assertContains(response, 'class="billing-grid billing-grid--7"')
         self.assertContains(response, 'class="billing-grid billing-grid--6"')
         self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--4"')
-        self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--2"')
+        self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--3"')
         self.assertContains(response, 'class="scan-field billing-field billing-field--full"')
 
     def test_scan_billing_equivalence_creates_category_rule(self):
