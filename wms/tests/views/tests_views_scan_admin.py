@@ -150,6 +150,7 @@ class ScanAdminViewTests(TestCase):
             "scan:scan_admin_contacts",
             "scan:scan_admin_carton_formats",
             "scan:scan_admin_products",
+            "scan:scan_admin_product_create",
             "scan:scan_admin_design",
             "scan:scan_product_labels",
         ):
@@ -158,18 +159,30 @@ class ScanAdminViewTests(TestCase):
                 self.assertEqual(response.status_code, 302)
                 self.assertIn("/admin/login/", response.url)
 
+        detail_response = self.client.get(
+            reverse("scan:scan_admin_product_detail", args=[self.kit.id])
+        )
+        self.assertEqual(detail_response.status_code, 302)
+        self.assertIn("/admin/login/", detail_response.url)
+
     def test_scan_admin_views_require_superuser(self):
         self.client.force_login(self.staff_user)
         for route_name in (
             "scan:scan_admin_contacts",
             "scan:scan_admin_carton_formats",
             "scan:scan_admin_products",
+            "scan:scan_admin_product_create",
             "scan:scan_admin_design",
             "scan:scan_product_labels",
         ):
             with self.subTest(route_name=route_name):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 403)
+
+        detail_response = self.client.get(
+            reverse("scan:scan_admin_product_detail", args=[self.kit.id])
+        )
+        self.assertEqual(detail_response.status_code, 403)
 
     def test_scan_admin_contacts_renders_admin_management_links(self):
         self.client.force_login(self.superuser)
@@ -748,7 +761,7 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Action de contact non reconnue.")
 
-    def test_scan_admin_products_renders_kit_rows_and_admin_links(self):
+    def test_scan_admin_products_renders_catalog_links(self):
         self.client.force_login(self.superuser)
         standalone_product = Product.objects.create(
             sku="SCAN-ADMIN-DELETE-ME",
@@ -758,9 +771,8 @@ class ScanAdminViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_admin_products"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "admin_products")
-        self.assertContains(response, reverse("admin:wms_product_changelist"))
-        self.assertContains(response, reverse("admin:wms_product_add"))
-        self.assertContains(response, reverse("admin:wms_product_change", args=[self.kit.id]))
+        self.assertContains(response, reverse("scan:scan_admin_product_create"))
+        self.assertContains(response, reverse("scan:scan_admin_product_detail", args=[self.kit.id]))
         self.assertContains(response, 'name="action" value="delete_product"')
         self.assertContains(response, f'name="product_id" value="{self.kit.id}"')
         self.assertContains(response, f'name="product_id" value="{standalone_product.id}"')
@@ -768,6 +780,85 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, self.component.name)
         self.assertContains(response, standalone_product.name)
         self.assertContains(response, "Produit utilisé comme composant de kit")
+        self.assertNotContains(response, reverse("admin:wms_product_change", args=[self.kit.id]))
+
+    def test_scan_admin_product_detail_renders_product_and_kit_forms(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_product_detail", args=[self.kit.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active"], "admin_products")
+        self.assertContains(response, self.kit.name)
+        self.assertContains(response, self.kit.sku)
+        self.assertContains(response, 'name="action" value="save_product"')
+        self.assertContains(response, 'name="action" value="save_kit_component"')
+        self.assertContains(response, self.component.name)
+        self.assertContains(response, "Composition du kit")
+
+    def test_scan_admin_product_create_persists_product_without_admin(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_product_create"),
+            {
+                "action": "save_product",
+                "kind": "product",
+                "sku": "SCAN-CATALOG-CREATE",
+                "name": "Produit cockpit",
+                "brand": "asf",
+                "color": "Bleu",
+                "category": "",
+                "tags": [],
+                "barcode": "BC-CREATE-001",
+                "ean": "EAN-CREATE-001",
+                "pu_ht": "12.50",
+                "tva": "0.055",
+                "default_location": "",
+                "length_cm": "",
+                "width_cm": "",
+                "height_cm": "",
+                "weight_g": "",
+                "volume_cm3": "",
+                "storage_conditions": "Sec",
+                "perishable": "",
+                "quarantine_default": "",
+                "is_active": "on",
+                "notes": "Cree depuis le cockpit",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        product = Product.objects.get(sku="SCAN-CATALOG-CREATE")
+        self.assertEqual(product.name, "Produit Cockpit")
+        self.assertEqual(product.brand, "ASF")
+        self.assertTrue(
+            response.url.endswith(reverse("scan:scan_admin_product_detail", args=[product.id]))
+        )
+
+    def test_scan_admin_product_detail_updates_kit_component(self):
+        self.client.force_login(self.superuser)
+        second_component = Product.objects.create(
+            sku="SCAN-ADMIN-COMP-2",
+            name="Bandage",
+            qr_code_image="qr_codes/scan_admin_comp_2.png",
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_product_detail", args=[self.kit.id]),
+            {
+                "action": "save_kit_component",
+                "component": str(second_component.id),
+                "quantity": "2",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            ProductKitItem.objects.filter(
+                kit=self.kit, component=second_component, quantity=2
+            ).exists()
+        )
 
     def test_scan_admin_products_deletes_unused_kit_and_keeps_components(self):
         self.client.force_login(self.superuser)

@@ -10,6 +10,8 @@ from .views_scan_account_validations import (
 from .views_scan_admin import (
     scan_admin_carton_formats,
     scan_admin_contacts,
+    scan_admin_product_create,
+    scan_admin_product_detail,
     scan_admin_products,
     scan_admin_recipient_organization_detail,
     scan_contacts_roles,
@@ -146,6 +148,8 @@ SCAN_FLOW_EXPORTS = (
     "scan_contacts_roles",
     "scan_admin_recipient_organization_detail",
     "scan_admin_products",
+    "scan_admin_product_create",
+    "scan_admin_product_detail",
     "scan_product_labels",
     "scan_product_labels_print_labels",
     "scan_product_labels_print_qr",

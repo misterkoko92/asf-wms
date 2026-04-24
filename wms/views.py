@@ -53,6 +53,8 @@ from .views_scan import (
     scan_admin_carton_formats,
     scan_admin_contacts,
     scan_admin_design,
+    scan_admin_product_create,
+    scan_admin_product_detail,
     scan_admin_products,
     scan_admin_recipient_organization_detail,
     scan_billing_editor,

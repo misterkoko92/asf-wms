@@ -126,8 +126,7 @@
                   <td class="text-end">
                     <a
                       class="scan-scan-btn btn btn-tertiary btn-sm"
-                      href="{% url 'admin:wms_product_change' product.id %}"
-                      target="_blank" rel="noopener"
+                      href="{% url 'scan:scan_admin_product_detail' product.id %}"
                     >
                       {% trans "Ouvrir" %}
                     </a>

@@ -401,8 +401,8 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(
             response,
             '<a class="scan-scan-btn btn btn-tertiary btn-sm" href="'
-            + reverse("admin:wms_product_change", args=[self.product.id])
-            + '" target="_blank" rel="noopener">Ouvrir</a>',
+            + reverse("scan:scan_admin_product_detail", args=[self.product.id])
+            + '">Ouvrir</a>',
             html=True,
         )
 
@@ -437,6 +437,8 @@ class ScanBootstrapUiTests(TestCase):
             + '">Réinitialiser</a>',
             html=True,
         )
+        self.assertContains(response, reverse("scan:scan_admin_product_create"))
+        self.assertContains(response, reverse("scan:scan_admin_product_detail", args=[kit.id]))
         self.assertContains(response, 'class="scan-inline scan-inline-gap ui-comp-actions"')
         self.assertContains(
             response,
