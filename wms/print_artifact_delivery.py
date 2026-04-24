@@ -27,6 +27,7 @@ def generate_pack_xlsx_response(
     carton=None,
     variant=None,
     render_documents_fn=render_pack_xlsx_documents,
+    build_response_fn=build_xlsx_fallback_response,
 ):
     documents = render_documents_fn(
         pack_code=pack_code,
@@ -34,7 +35,7 @@ def generate_pack_xlsx_response(
         carton=carton,
         variant=variant,
     )
-    return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
+    return build_response_fn(documents=documents, pack_code=pack_code)
 
 
 def try_generate_pack_artifact(

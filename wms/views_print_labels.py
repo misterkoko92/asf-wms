@@ -24,6 +24,7 @@ from .print_pack_engine import (
 )
 from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import resolve_shipment_labels_pack, resolve_single_label_pack
+from .print_pack_xlsx import build_xlsx_fallback_response
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .shipment_view_helpers import render_shipment_labels
 from .view_permissions import scan_staff_required
@@ -118,6 +119,7 @@ def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, varia
         carton=carton,
         variant=variant,
         render_documents_fn=render_pack_xlsx_documents,
+        build_response_fn=build_xlsx_fallback_response,
     )
 
 
