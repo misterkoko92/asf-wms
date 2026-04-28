@@ -203,6 +203,7 @@ Surfaces that reuse these contracts:
 - Responses include `Content-Security-Policy-Report-Only` by default.
 - `CSP_REPORT_ONLY_ENABLED` disables it only by explicit environment choice.
 - `CONTENT_SECURITY_POLICY_REPORT_ONLY` overrides maintained default policy.
+- Default `connect-src` allows same-origin requests, Nominatim address lookup, and the local helper endpoint `http://127.0.0.1:38555`.
 - Stable third-party JS/CSS assets must be self-hosted or include SRI plus `crossorigin`.
 - Dormant OCR paths must fail closed; future OCR activation must not load engine, worker, WASM, or language assets from a CDN.
 - New `target="_blank"` links/forms must include `rel` with `noopener`.

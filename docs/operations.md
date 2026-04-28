@@ -113,6 +113,8 @@ Frontend security values:
 
 - `CONTENT_SECURITY_POLICY_REPORT_ONLY` (optional override; leave unset to use the maintained
   default report-only policy)
+- The maintained default `connect-src` includes `http://127.0.0.1:38555` for the local
+  document/planning helper. If the helper origin changes, update the CSP override and tests.
 - Stable third-party JS/CSS assets in templates must either be self-hosted or include SRI +
   `crossorigin`.
 - New `target="_blank"` links/forms must include `rel` with `noopener`.
