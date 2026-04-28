@@ -73,7 +73,8 @@ Surfaces that reuse these contracts:
 - Wide tables and dense matrices keep horizontal scroll inside local wrappers.
 - Portal, planning, and benevole secondary shells reuse shared secondary-shell masthead/offcanvas includes.
 - Planning keeps legacy scan sidebar content but injects it through shared secondary-shell offcanvas.
-- Scan-camera controls must preserve active scan/OCR target when switching cameras, stop live ZXing controls before restart, and ignore stale callbacks.
+- Scan-camera controls must preserve active scan targets when switching cameras, stop live ZXing controls before restart, and ignore stale callbacks.
+- OCR activation is disabled until OCR engine assets are self-hosted and covered by CSP, cache, and regression-test updates.
 
 ### Maintenance rule
 
@@ -203,6 +204,7 @@ Surfaces that reuse these contracts:
 - `CSP_REPORT_ONLY_ENABLED` disables it only by explicit environment choice.
 - `CONTENT_SECURITY_POLICY_REPORT_ONLY` overrides maintained default policy.
 - Stable third-party JS/CSS assets must be self-hosted or include SRI plus `crossorigin`.
+- Dormant OCR paths must fail closed; future OCR activation must not load engine, worker, WASM, or language assets from a CDN.
 - New `target="_blank"` links/forms must include `rel` with `noopener`.
 - User/server data must not be assembled into dynamic HTML strings when DOM APIs can express the same change.
 

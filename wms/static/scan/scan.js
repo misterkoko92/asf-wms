@@ -25,16 +25,11 @@
   let ocrRetryBtn = null;
   let ocrCancelBtn = null;
   let ocrSessionId = 0;
-  let ocrScriptPromise = null;
   let packProductResolver = null;
   let productResolver = null;
   let selectedCameraFacingMode = 'environment';
   const ZXING_SRC = '/static/scan/zxing.min.js';
-  const OCR_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-  const OCR_WORKER_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
-  const OCR_CORE_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js';
-  const OCR_LANG_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js-data@5.0.0';
-  const OCR_LANG = 'fra';
+  const OCR_DISABLED_MESSAGE = 'OCR indisponible. Utilisez la saisie manuelle.';
   const CAMERA_RETRY_DELAYS_MS = [160, 320, 640];
   const CAMERA_RETRYABLE_ERROR_NAMES = new Set(['AbortError', 'NotReadableError', 'TrackStartError']);
   const CAMERA_PERMISSION_ERROR_NAMES = new Set([
@@ -606,16 +601,6 @@
     }
   }
 
-  function ensureOcr() {
-    if (window.Tesseract && window.Tesseract.recognize) {
-      return Promise.resolve(window.Tesseract);
-    }
-    if (!ocrScriptPromise) {
-      ocrScriptPromise = loadScript(OCR_SRC).then(() => window.Tesseract);
-    }
-    return ocrScriptPromise;
-  }
-
   function setOcrProducts(products) {
     ocrProducts = Array.isArray(products) ? products : [];
   }
@@ -782,91 +767,24 @@
     return canvas;
   }
 
-  async function runOcrCapture(canvas) {
+  async function runOcrCapture() {
     const sessionId = (ocrSessionId += 1);
     openOcrOverlay();
-    setOcrOverlayStatus('OCR en cours...');
+    setOcrOverlayStatus(OCR_DISABLED_MESSAGE);
     setOcrOverlayRaw('');
     if (ocrListEl) {
       ocrListEl.innerHTML = '';
     }
-    try {
-      const Tesseract = await ensureOcr();
-      if (!Tesseract || !Tesseract.recognize) {
-        throw new Error('OCR indisponible');
-      }
-      const result = await Tesseract.recognize(canvas, OCR_LANG, {
-        workerPath: OCR_WORKER_SRC,
-        corePath: OCR_CORE_SRC,
-        langPath: OCR_LANG_PATH,
-        logger: info => {
-          if (sessionId !== ocrSessionId) {
-            return;
-          }
-          if (!info || !info.status) {
-            return;
-          }
-          if (info.status === 'recognizing text') {
-            const progress = info.progress ? Math.round(info.progress * 100) : null;
-            setOcrOverlayStatus(
-              progress ? `OCR en cours... ${progress}%` : 'OCR en cours...'
-            );
-          } else if (info.status === 'loading tesseract core') {
-            setOcrOverlayStatus('Chargement OCR...');
-          } else if (info.status === 'loading language traineddata') {
-            setOcrOverlayStatus('Chargement langue OCR...');
-          }
-        }
-      });
-      if (sessionId !== ocrSessionId) {
-        return;
-      }
-      const rawText = result && result.data ? result.data.text || '' : '';
-      const cleaned = rawText.replace(/\s+/g, ' ').trim();
-      setOcrOverlayRaw(cleaned);
-      const matches = buildOcrMatches(cleaned);
-      if (!matches.length) {
-        setOcrOverlayStatus('Aucun produit correspondant trouve.');
-        return;
-      }
-      setOcrOverlayStatus('Selectionnez le produit correspondant.');
-      renderOcrMatches(matches);
-    } catch (err) {
-      if (sessionId !== ocrSessionId) {
-        return;
-      }
-      setOcrOverlayStatus('OCR impossible: ' + (err.message || 'erreur'));
+    if (sessionId !== ocrSessionId) {
+      return;
     }
   }
 
-  async function startOcrScan(input) {
-    if (!ocrProducts.length) {
-      alert('OCR indisponible: aucune liste produit chargee.');
-      return;
-    }
-    ocrActiveInput = input;
+  async function startOcrScan() {
+    ocrActiveInput = null;
     await stopScan();
-    setScanMode('ocr');
-    setStatus('Cadrez le nom du produit puis cliquez sur Capturer texte.');
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('OCR camera non supporte. Utilisez la saisie manuelle.');
-      await stopScan();
-      return;
-    }
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(getCameraMediaConstraints());
-    } catch (err) {
-      setStatus('Accès caméra refusé.');
-      await stopScan();
-      return;
-    }
-    if (video) {
-      video.srcObject = stream;
-      await video.play();
-    }
-    if (overlay) {
-      overlay.classList.add('active');
-    }
+    setStatus(OCR_DISABLED_MESSAGE);
+    alert(OCR_DISABLED_MESSAGE);
   }
 
   function setupProductDatalist() {
@@ -4588,16 +4506,11 @@
       if (!ocrActiveInput) {
         return;
       }
-      const frame = captureOcrFrame();
-      if (!frame) {
-        setStatus('Capture impossible.');
-        return;
-      }
       captureBtn.disabled = true;
-      setStatus('Capture en cours...');
+      setStatus(OCR_DISABLED_MESSAGE);
       await stopScan();
       try {
-        await runOcrCapture(frame);
+        await runOcrCapture();
       } finally {
         captureBtn.disabled = false;
       }

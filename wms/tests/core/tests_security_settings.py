@@ -165,6 +165,26 @@ class SecuritySettingsTests(TestCase):
         self.assertIn("base-uri 'self'", policy)
         self.assertIn("frame-ancestors 'none'", policy)
 
+    def test_csp_report_only_does_not_allow_dormant_ocr_cdn_capabilities(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        policy = response["Content-Security-Policy-Report-Only"]
+        self.assertIn("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", policy)
+        self.assertIn(
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+            policy,
+        )
+        self.assertIn("font-src 'self' https://fonts.gstatic.com data:", policy)
+        self.assertIn("connect-src 'self' https://nominatim.openstreetmap.org", policy)
+        self.assertIn("worker-src 'self' blob:", policy)
+        self.assertNotIn("'wasm-unsafe-eval'", policy)
+        self.assertNotIn(
+            "connect-src 'self' https://nominatim.openstreetmap.org https://cdn.jsdelivr.net",
+            policy,
+        )
+        self.assertNotIn("worker-src 'self' blob: https://cdn.jsdelivr.net", policy)
+
     @override_settings(CSP_REPORT_ONLY_ENABLED=False)
     def test_csp_report_only_middleware_can_be_disabled(self):
         middleware = ContentSecurityPolicyReportOnlyMiddleware(lambda request: HttpResponse("ok"))
@@ -282,6 +302,21 @@ class SecuritySettingsTests(TestCase):
                 tag = match.group(0)
                 if "integrity=" not in tag or "crossorigin=" not in tag:
                     offenders.append(f"{path.relative_to(REPO_ROOT)}: {tag[:160]}")
+
+        self.assertEqual(offenders, [])
+
+    def test_static_javascript_does_not_ship_tesseract_cdn_loader(self):
+        forbidden_sources = [
+            "cdn.jsdelivr.net/npm/" + "tesseract",
+            "tesseract.js" + "-core",
+            "tesseract.js" + "-data",
+        ]
+        offenders = []
+        for path in (REPO_ROOT / "wms/static").rglob("*.js"):
+            text = path.read_text(encoding="utf-8")
+            for forbidden_source in forbidden_sources:
+                if forbidden_source in text:
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}: {forbidden_source}")
 
         self.assertEqual(offenders, [])
 

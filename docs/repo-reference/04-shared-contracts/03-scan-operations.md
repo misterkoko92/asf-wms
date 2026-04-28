@@ -94,7 +94,8 @@ Read this file when touching scan lists, sidebar navigation, preparateur flows, 
 - Product card layout stays three-row.
 - Free-pack supports forced carton count with warnings.
 - Camera-facing choice maps rear/front to `environment`/`user`.
-- Barcode/OCR flows reuse selected camera mode.
+- Barcode flows reuse selected camera mode.
+- OCR is currently disabled and must fail closed unless future work self-hosts OCR assets and updates CSP, cache, and regression tests.
 - Unknown product opens modal; SKU auto-generates; preparateur-created products are incomplete and notify reviewers.
 
 ### Maintenance rule
