@@ -3,7 +3,7 @@ from datetime import date
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
         "date": date(2026, 4, 28),
-        "pr_number": None,
+        "pr_number": 184,
         "summary": (
             "Nouveau flux préparateur Rangement avec scan produit, récap batch, "
             "mise à jour de stock et création de produit inconnu."
