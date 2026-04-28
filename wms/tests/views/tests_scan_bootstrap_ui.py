@@ -2434,10 +2434,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(ui_lab_response, "ui-comp-card")
         self.assertContains(ui_lab_response, "ui-comp-title")
         self.assertContains(ui_lab_response, "ui-comp-form")
-        self.assertContains(
-            ui_lab_response,
-            "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css",
-        )
+        tabler_icons_ref = "@tabler/" + "icons-webfont"
+        tabler_icon_class_prefix = "ti " + "ti-"
+        self.assertNotContains(ui_lab_response, tabler_icons_ref)
+        self.assertNotContains(ui_lab_response, "@latest")
+        self.assertNotContains(ui_lab_response, tabler_icon_class_prefix)
         self.assertContains(ui_lab_response, "ui-lab-stat-card")
         self.assertContains(ui_lab_response, "ui-lab-activity-item")
         self.assertContains(ui_lab_response, "ui-comp-toolbar")
