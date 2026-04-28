@@ -1,14 +1,18 @@
 # Migration Benev/Classique vers Next React statique
 
-## Etat actuel (2026-02-25)
+> Statut 2026-04-28: chantier historique en pause. La politique active est
+> `docs/policies/next-migration-paused.md`; ne pas reprendre ces plans sans
+> demande explicite.
+
+## Etat historique (2026-02-25)
 
 - `P0`: termine
 - `P1`: termine
-- `P2`: en cours (backend API avance + branchement front partiel)
-- `P3`: en cours (parite stricte en construction)
+- `P2`: partiellement realise avant pause (backend API avance + branchement front partiel)
+- `P3`: partiellement realise avant pause (parite stricte incomplete)
 - `P4+`: non demarre
 
-Capacites utilisables des maintenant (dev):
+Capacites documentees a cette date (dev):
 
 - ecrans Next: `/app/scan/dashboard/`, `/app/scan/stock/`, `/app/scan/cartons/`, `/app/scan/shipment-create/`, `/app/scan/shipments-ready/`, `/app/scan/shipments-tracking/`, `/app/scan/shipment-documents/`, `/app/scan/templates/`, `/app/portal/dashboard/`
 - API UI: stock, expedition, tracking, cloture, portal mutations, documents/labels, templates
@@ -32,17 +36,17 @@ Niveau de maturite:
 - route `shipments-tracking` branchee en live API avec filtres semaine/clos + table suivi + actions tracking/cloture + labels tracking/cloture metier (sans `Shipment ID`, terminologie `suivi`) + options de statuts en labels metier (sans libelles anglais),
 - route `shipments-tracking` alignee sur les etats visuels de cloture (closable/bloque/deja clos),
 - route `shipment-create` alignee sur les filtres de contacts par destination + sections progressives sans auto-selection + message d'absence expediteur + masquage de la zone creation colis/produit tant que selections incompletes + options select et labels de champs affiches en libelles metier (sans `id -`, sans suffixe `ID`, sans `Shipment ID` sur tracking/cloture, terminologie `suivi`, options de statuts suivi en labels metier, champ `Code produit`, message de succes `Expedition #`),
-- parite ecran stricte Next vs Benev/Classique encore en cours.
+- parite ecran stricte Next vs Benev/Classique encore incomplete au moment de la pause.
 
-## Objectif
-Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **statique**, tout en gardant Django/PythonAnywhere comme backend principal, avec ces règles:
+## Objectif historique
+Ce dossier explorait la bascule de l'interface `Benev + Classique` vers un frontend Next/React **statique**, tout en gardant Django/PythonAnywhere comme backend principal, avec ces règles:
 
-- **Copie conforme intégrale** (fonctionnelle et visuelle) en priorité.
+- **Copie conforme intégrale** (fonctionnelle et visuelle) comme priorité du chantier historique.
 - **Aucune régression métier**.
 - **Aucune interruption**: l'interface actuelle reste disponible en permanence.
 - **Migration parallèle**: nouveau front sous préfixe dédié + feature flag utilisateur.
 
-## Décisions validées
+## Décisions historiques
 
 - Frontend: Next.js + React, build statique.
 - Backend: Django existant (logique métier, auth, PDF, règles).
@@ -74,7 +78,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 
 - `docs/next-react-static-migration/p1_phase1_report_2026-02-22.md`
 
-## Livrables Phase 2 (en cours)
+## Livrables Phase 2 (historiques, partiels)
 
 - `docs/next-react-static-migration/p2_phase2_increment1_2026-02-22.md`
 - `docs/next-react-static-migration/p2_phase2_increment2_2026-02-22.md`
@@ -89,7 +93,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p2_phase2_increment11_2026-02-25.md`
 - `docs/next-react-static-migration/2026-02-23_p2_e2e_suite_increment5.md`
 
-## Livrables Phase 3 (en cours)
+## Livrables Phase 3 (historiques, partiels)
 
 - `docs/next-react-static-migration/p3_phase3_increment1_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment2_2026-02-25.md`
@@ -123,13 +127,17 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment30_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment31_2026-02-25.md`
 
-## Prochaine cible
+## Ancienne prochaine cible
+
+Ces cibles ne sont pas actives tant que la migration Next/React reste pausee.
 
 - finaliser la parite stricte des 3 ecrans prioritaires (dashboard, stock, creation expedition),
 - completer les ecrans portal restants,
 - lancer un pilote A/B avec KPI.
 
-## Ordre d'exécution recommandé
+## Ancien ordre d'exécution recommandé
+
+A ne pas executer sans reprise explicite du scope Next/React.
 
 1. Phase parité stricte (100% Benev/Classique).
 2. Bascule limitée à un groupe pilote.

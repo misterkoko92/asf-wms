@@ -1,8 +1,10 @@
 # Native Django I18n Migration Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> Historical note 2026-04-28: this plan belongs to the paused translation
+> scope. Do not execute it unless the current request explicitly resumes
+> translation work; see `docs/policies/translation-paused.md`.
 
-**Goal:** Migrer tout le legacy Django vers une i18n native FR/EN et supprimer le middleware de traduction runtime sans perdre la couverture anglaise.
+**Historical goal:** Migrer tout le legacy Django vers une i18n native FR/EN et supprimer le middleware de traduction runtime sans perdre la couverture anglaise.
 
 **Architecture:** Garder le legacy Django comme seule surface en scope, introduire un vrai catalogue `locale/`, convertir progressivement templates et messages Python vers `trans` / `gettext`, puis retirer le middleware runtime une fois que les tests EN passent sans lui. Le travail avance par vagues courtes: fondation, pages publiques, portail, scan, admin, emails/print, puis retrait final.
 
@@ -10,9 +12,9 @@
 
 ---
 
-Skill refs during execution: `@superpowers:test-driven-development`, `@superpowers:systematic-debugging`, `@superpowers:verification-before-completion`, `@superpowers:requesting-code-review`, `@superpowers:using-git-worktrees`.
+Historical skill refs during execution: `@superpowers:test-driven-development`, `@superpowers:systematic-debugging`, `@superpowers:verification-before-completion`, `@superpowers:requesting-code-review`, `@superpowers:using-git-worktrees`.
 
-### Task 1: Poser la fondation i18n native et rendre le middleware coupable desactive
+### Historical Task 1: Poser la fondation i18n native et rendre le middleware coupable desactive
 
 **Files:**
 - Modify: `asf_wms/settings.py`
@@ -82,7 +84,7 @@ git add asf_wms/settings.py wms/middleware_runtime_translation.py wms/tests/view
 git commit -m "feat(i18n): add native locale foundation and middleware flag"
 ```
 
-### Task 2: Migrer la coquille partagee et les pages publiques d'authentification
+### Historical Task 2: Migrer la coquille partagee et les pages publiques d'authentification
 
 **Files:**
 - Modify: `templates/includes/language_switch.html`
@@ -151,7 +153,7 @@ git add templates/includes/language_switch.html templates/portal/login.html temp
 git commit -m "feat(i18n): migrate public auth and shared entry pages"
 ```
 
-### Task 3: Migrer le portail association en i18n native
+### Historical Task 3: Migrer le portail association en i18n native
 
 **Files:**
 - Modify: `templates/portal/base.html`
@@ -220,7 +222,7 @@ git add templates/portal/base.html templates/portal/dashboard.html templates/por
 git commit -m "feat(i18n): migrate legacy portal pages and messages"
 ```
 
-### Task 4: Migrer la reception et les formulaires scan les plus visibles
+### Historical Task 4: Migrer la reception et les formulaires scan les plus visibles
 
 **Files:**
 - Modify: `templates/scan/receive.html`
@@ -292,7 +294,7 @@ git add templates/scan/receive.html templates/scan/receive_pallet.html templates
 git commit -m "feat(i18n): migrate legacy receiving flows"
 ```
 
-### Task 5: Migrer stock, commandes et preparation legacy scan
+### Historical Task 5: Migrer stock, commandes et preparation legacy scan
 
 **Files:**
 - Modify: `templates/scan/stock.html`
@@ -362,7 +364,7 @@ git add templates/scan/stock.html templates/scan/stock_update.html templates/sca
 git commit -m "feat(i18n): migrate legacy stock and order scan flows"
 ```
 
-### Task 6: Migrer expeditions, dashboard, FAQ et settings scan
+### Historical Task 6: Migrer expeditions, dashboard, FAQ et settings scan
 
 **Files:**
 - Modify: `templates/scan/base.html`
@@ -435,7 +437,7 @@ git add templates/scan/base.html templates/scan/dashboard.html templates/scan/sh
 git commit -m "feat(i18n): migrate legacy shipment and scan shell pages"
 ```
 
-### Task 7: Migrer l'admin custom et les messages back-office
+### Historical Task 7: Migrer l'admin custom et les messages back-office
 
 **Files:**
 - Modify: `templates/admin/base_site.html`
@@ -498,7 +500,7 @@ git add templates/admin/base_site.html templates/admin/wms/organization_roles_re
 git commit -m "feat(i18n): migrate legacy admin surfaces"
 ```
 
-### Task 8: Migrer emails et documents d'impression
+### Historical Task 8: Migrer emails et documents d'impression
 
 **Files:**
 - Modify: `templates/emails/account_request_admin_notification.txt`
@@ -585,7 +587,7 @@ git add templates/emails templates/print wms/emailing.py wms/order_notifications
 git commit -m "feat(i18n): migrate legacy emails and print templates"
 ```
 
-### Task 9: Ajouter un audit automatise des chaines visibles encore non internationalisees
+### Historical Task 9: Ajouter un audit automatise des chaines visibles encore non internationalisees
 
 **Files:**
 - Create: `wms/management/commands/audit_i18n_strings.py`
@@ -634,7 +636,7 @@ git add wms/management/commands/audit_i18n_strings.py wms/tests/management/tests
 git commit -m "feat(i18n): add untranslated string audit command"
 ```
 
-### Task 10: Basculer les tests EN sans middleware puis supprimer le runtime translation legacy
+### Historical Task 10: Basculer les tests EN sans middleware puis supprimer le runtime translation legacy
 
 **Files:**
 - Modify: `asf_wms/settings.py`

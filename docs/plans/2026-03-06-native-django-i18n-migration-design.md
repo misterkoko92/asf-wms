@@ -1,5 +1,9 @@
 # Migration i18n Django native (legacy) - Design
 
+> Statut 2026-04-28: chantier historique en pause. La politique active est
+> `docs/policies/translation-paused.md`; ne pas reprendre ce plan sans demande
+> explicite.
+
 ## Contexte
 
 Le site legacy Django expose aujourd'hui un selecteur FR/EN, mais l'anglais repose en grande partie sur le middleware [wms/middleware_runtime_translation.py](/Users/EdouardGonnu/asf-wms/wms/middleware_runtime_translation.py), qui remplace des fragments HTML a la volee.
@@ -12,9 +16,9 @@ Ce mecanisme a permis une premiere couverture rapide, mais il cree un anglais ar
 
 Le depot n'a pas encore de vrai catalogue [`locale/`](/Users/EdouardGonnu/asf-wms/locale) et utilise tres peu les primitives natives Django (`{% trans %}`, `{% blocktrans %}`, `gettext`, `gettext_lazy`) en dehors de la configuration langue dans [asf_wms/settings.py](/Users/EdouardGonnu/asf-wms/asf_wms/settings.py).
 
-## Objectif
+## Objectif historique
 
-Obtenir un site legacy Django 100% traduit proprement en anglais, avec:
+Ce plan visait a obtenir un site legacy Django 100% traduit proprement en anglais, avec:
 - une i18n Django native sur toutes les pages HTML legacy,
 - des messages de formulaires, erreurs, notifications et emails egalement nativement internationalises,
 - un glossaire metier unique et coherent,
@@ -31,7 +35,7 @@ Exclus:
 - tout le scope pause Next/React (`frontend-next/`, [`wms/views_next_frontend.py`](/Users/EdouardGonnu/asf-wms/wms/views_next_frontend.py), [`wms/ui_mode.py`](/Users/EdouardGonnu/asf-wms/wms/ui_mode.py), tests Next associes),
 - execution de migration front hors stack legacy.
 
-## Decisions validees
+## Decisions historiques
 
 - Cible retenue: vraie i18n Django native, pas d'amelioration cosmetique du middleware runtime.
 - Langue source conservee: francais.
@@ -39,7 +43,7 @@ Exclus:
 - Migration par vagues courtes, testables et reversibles.
 - Le middleware runtime reste uniquement comme filet transitoire et doit etre retirable a tout moment via setting.
 
-## Architecture cible
+## Architecture cible historique
 
 ### 1. Source de verite des textes
 
@@ -86,7 +90,9 @@ Les termes critiques doivent etre harmonises une seule fois et relus metier:
 
 La regle est simple: une notion metier ne doit pas etre traduite differemment selon la page sans justification explicite.
 
-## Migration par vagues
+## Migration par vagues historique
+
+Ces vagues ne sont pas actives tant que le scope traduction reste pause.
 
 ### Vague 1. Fondation i18n
 
@@ -224,7 +230,7 @@ Mitigation:
 5. Retirer l'entree middleware de [asf_wms/settings.py](/Users/EdouardGonnu/asf-wms/asf_wms/settings.py).
 6. Supprimer [wms/middleware_runtime_translation.py](/Users/EdouardGonnu/asf-wms/wms/middleware_runtime_translation.py) et les tests devenus sans objet.
 
-## Critere de sortie
+## Critere de sortie historique
 
 Le chantier est termine quand:
 - 100% des pages legacy visibles par l'utilisateur rendent un anglais naturel,
