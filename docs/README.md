@@ -2,15 +2,21 @@
 
 Use this index as the entry point for project documentation.
 
-Last functional alignment update: **February 19, 2026**.
+Last full repo audit update: **April 22, 2026**.
 
 ## Product and scope
 
 - `docs/mvp_spec.md`: current functional scope and business rules (cartons, shipments, tracking, disputes, draft flow).
-- `docs/audit_2026-02-19.md`: global repository audit (quality, security, flows, risks, phased improvement plan, V2 options).
+- `docs/audit_2026-04-22_full_repo.md`: latest full repository audit.
+- `docs/audit_2026-02-19.md`: historical global repository audit (quality, security, flows, risks, phased improvement plan, V2 options).
 - `docs/backlog.md`: roadmap with delivered baseline and next priorities.
 - `docs/deferred-follow-ups.md`: explicit follow-ups intentionally deferred during active implementation or product decisions.
 - `docs/phases_0_3_recap.md`: consolidated summary of delivered phases 0, 1, 2 and 3.
+
+## Agent guidance
+
+- `docs/agent/prompts.md`: prompt runtime and standard workflow for agents.
+- `docs/agent/playbooks.md`: task-specific execution playbooks for agents.
 
 ## Repository reference
 

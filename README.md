@@ -14,7 +14,7 @@ WMS for catalog, lot-based stock, cartons, shipments, and shipment tracking.
 - Dedicated tracking board at `scan/shipments-tracking/` with weekly planned filter and case closure (`closed_at`, `closed_by`).
 
 ## Local setup
-- Python 3.11 or 3.12 recommended (Django 4.2 LTS)
+- Python 3.11 or 3.12 recommended (Django 5.2.x baseline)
 - `uv` is the recommended local workflow; `requirements*.txt` remain compatibility exports
 - `mysqlclient` needs native build prerequisites (`pkg-config` and MySQL/MariaDB client development libraries) on a clean machine
 - Run migrations and create admin user
@@ -127,7 +127,10 @@ DOCUMENT_SCAN_BACKEND=noop python manage.py check_document_scan_runtime --allow-
 ## Docs
 - Index: `docs/README.md`
 - Repository reference: `docs/repo-reference/README.md`
-- Global audit (2026-02-19): `docs/audit_2026-02-19.md`
+- Agent prompt runtime: `docs/agent/prompts.md`
+- Agent playbooks: `docs/agent/playbooks.md`
+- Latest full repo audit (2026-04-22): `docs/audit_2026-04-22_full_repo.md`
+- Historical global audit (2026-02-19): `docs/audit_2026-02-19.md`
 - MVP spec: `docs/mvp_spec.md`
 - Backlog: `docs/backlog.md`
 - Operations runbook: `docs/operations.md`
@@ -150,7 +153,6 @@ DOCUMENT_SCAN_BACKEND=noop python manage.py check_document_scan_runtime --allow-
 ```bash
 python manage.py import_products docs/import/products_template.csv
 python manage.py import_products docs/import/products_template.csv --update
-python manage.py import_products docs/import/products_template.xlsx
 ```
 Notes:
 - `sku` can be empty on import; it will be auto-generated.
