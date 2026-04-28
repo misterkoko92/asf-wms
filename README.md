@@ -125,6 +125,8 @@ DOCUMENT_SCAN_BACKEND=noop python manage.py check_document_scan_runtime --allow-
 ```
 
 ## Docs
+- Agent governance starts with `AGENTS.md`.
+- Detailed repository governance: `docs/repo-reference/README.md`.
 - Index: `docs/README.md`
 - Repository reference: `docs/repo-reference/README.md`
 - Agent prompt runtime: `docs/agent/prompts.md`

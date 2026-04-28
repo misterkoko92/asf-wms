@@ -15,6 +15,8 @@ Last full repo audit update: **April 22, 2026**.
 
 ## Agent guidance
 
+- Start with `AGENTS.md` before repo work.
+- Use `docs/repo-reference/README.md` for detailed repository governance, impact maps, and shared contracts.
 - `docs/agent/prompts.md`: prompt runtime and standard workflow for agents.
 - `docs/agent/playbooks.md`: task-specific execution playbooks for agents.
 
