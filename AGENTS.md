@@ -93,6 +93,18 @@ Never assume a local file is isolated.
 
 ---
 
+## Codex Git Workflow
+
+- Do not create commits without explicit user approval.
+- Before committing, show a concise summary of intended changes and the proposed commit message.
+- Stage only the files intentionally included in the requested commit.
+- Commit staged files only.
+- If there are no meaningful changes, do not create empty or cosmetic commits.
+- Use concise conventional-style commit messages unless the user provides another format.
+- After committing, show the commit hash, committed files, and `git status --short`.
+
+---
+
 ## Production Reality Rule
 
 Current production constraints matter.
@@ -143,6 +155,28 @@ Use extra caution when touching:
 - notifications
 - shared templates and assets
 - data migrations
+
+---
+
+## Documentation Drift Control
+
+Every implementation task must include a documentation impact check before completion.
+
+If documentation is impacted, update the minimum relevant docs in the same work.
+
+If documentation is not impacted, explicitly state:
+
+`No documentation update required.`
+
+Before stating that, verify the change did not alter:
+
+- user-visible behavior
+- core workflows or critical routes
+- roles, permissions, or access rules
+- shared contracts or service boundaries
+- data model, field meaning, or business rules
+- operational, deployment, or security expectations
+- agent governance or repo-reference guidance
 
 ---
 

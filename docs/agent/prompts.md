@@ -122,6 +122,62 @@ Before declaring done:
 
 ---
 
+## Documentation Drift Prompts
+
+### Lightweight Documentation Drift Audit
+
+Use when recent commits may have changed behavior, workflows, contracts, or governance.
+
+```text
+Use repository governance rules from AGENTS.md before acting.
+
+Perform a lightweight documentation drift audit for the recent commit range: <range>.
+Compare changed behavior, workflows, contracts, permissions, routes, and operational expectations against affected docs.
+Do not modify files.
+
+Output:
+- summary
+- findings by severity
+- affected docs
+- recommended smallest safe fixes
+- files reviewed
+```
+
+### Full Documentation Drift Audit
+
+Use before release, after large documentation refactors, or when the user requests a broad audit.
+
+```text
+Use repository governance rules from AGENTS.md before acting.
+
+Perform a full documentation drift audit.
+Review AGENTS.md, docs/agent/*, docs/repo-reference/**, docs/policies/**, README.md, docs/README.md, and docs indexes.
+Check contradictions, stale references, broken links, missing files, duplicate guidance, unclear escalation rules, and mismatch with repository structure.
+Do not modify files.
+
+Output:
+- executive summary
+- findings by severity
+- recommended fix plan
+- files reviewed
+```
+
+### Apply Approved Documentation Drift Fixes
+
+Use only after audit findings are approved.
+
+```text
+Use repository governance rules from AGENTS.md before acting.
+
+Apply only the approved documentation drift fixes listed below: <approved findings>.
+Do not change application code or dependencies.
+Use minimal edits and avoid broad rewrites.
+After edits, show changed files, summarize fixes, run a documentation-only diff review, and propose a commit message.
+Do not commit until explicitly approved.
+```
+
+---
+
 ## Final Rule
 
 If unsure, choose the safer smaller reversible path.

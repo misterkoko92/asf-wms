@@ -34,6 +34,45 @@ If the task expands unexpectedly, stop and re-scope.
 
 ---
 
+# Task Type: Documentation Drift Audit
+
+Goal:
+
+- verify that repository documentation still matches recent code, governance, and workflow reality
+
+This playbook is user-triggered or event-triggered only. It does not imply automatic recurrence, persistent agent memory, or background monitoring.
+
+Triggers:
+
+- after a series of commits
+- after a major feature or workflow change
+- after changes to roles, permissions, shared contracts, or architecture
+- before release
+- after large documentation refactors
+- whenever the user requests a drift audit
+
+Modes:
+
+- lightweight audit: compare recent commits against affected docs and report missing or stale updates
+- full audit: review `AGENTS.md`, `docs/agent/*`, `docs/repo-reference/**`, `docs/policies/**`, README files, and docs indexes
+
+Execution pattern:
+
+1. Identify the commit range or documentation scope.
+2. Read the relevant governance rules first.
+3. Compare changed behavior, contracts, or workflows against affected docs.
+4. Check for broken links, missing referenced files, stale names, and conflicting rules.
+5. Report findings by severity with exact files.
+6. Do not apply fixes unless the user explicitly requests remediation.
+
+Proof:
+
+- `git diff` or `git log` for the selected range
+- targeted link/path checks for referenced docs
+- direct review of relevant docs
+
+---
+
 # Task Type: Bug Fix
 
 Goal:
