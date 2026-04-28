@@ -5,10 +5,12 @@ on:
     paths:
       - ".github/workflows/skills-ci.yml"
       - "audits/audit.config.yaml"
+      - "skills/**"
   pull_request:
     paths:
       - ".github/workflows/skills-ci.yml"
       - "audits/audit.config.yaml"
+      - "skills/**"
   workflow_dispatch:
 
 permissions:
@@ -30,6 +32,61 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyyaml
+
+      - name: Validate versioned repo skills
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          root = Path("skills")
+          errors = []
+
+          if not root.is_dir():
+              errors.append("skills/ directory is missing")
+          else:
+              skill_dirs = sorted(path for path in root.iterdir() if path.is_dir())
+              if not skill_dirs:
+                  errors.append("skills/ must contain at least one skill directory")
+
+              for directory in sorted(path for path in root.rglob("*") if path.is_dir()):
+                  if not any(directory.iterdir()):
+                      errors.append(f"{directory} is empty")
+
+              for skill_dir in skill_dirs:
+                  skill_file = skill_dir / "SKILL.md"
+                  if not skill_file.is_file():
+                      errors.append(f"{skill_dir} is missing SKILL.md")
+                      continue
+
+                  content = skill_file.read_text(encoding="utf-8").splitlines()
+                  if not content or content[0] != "---":
+                      errors.append(f"{skill_file} must start with YAML front matter")
+                      continue
+
+                  try:
+                      closing_index = content[1:].index("---") + 1
+                  except ValueError:
+                      errors.append(f"{skill_file} front matter is not closed")
+                      continue
+
+                  front_matter = content[1:closing_index]
+                  keys = {
+                      line.split(":", 1)[0].strip()
+                      for line in front_matter
+                      if ":" in line and not line.lstrip().startswith("#")
+                  }
+                  for required_key in ("name", "description"):
+                      if required_key not in keys:
+                          errors.append(f"{skill_file} front matter is missing {required_key}")
+
+          if errors:
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
+
+          print("Versioned repo skills structure is valid.")
+          PY
 
       - name: Validate local Codex skills (if available)
         run: |

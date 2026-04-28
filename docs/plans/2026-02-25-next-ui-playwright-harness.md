@@ -1,8 +1,10 @@
 # Next UI Playwright Harness Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> Historical note 2026-04-28: this plan belongs to the paused Next/React
+> migration scope. Do not execute it unless the current request explicitly
+> resumes Next/React work; see `docs/policies/next-migration-paused.md`.
 
-**Goal:** Add a real browser E2E harness for `/app/*` routes to start closing P2 migration test debt.
+**Historical goal:** Add a real browser E2E harness for `/app/*` routes to start closing P2 migration test debt.
 
 **Architecture:** Reuse the existing Python Playwright strategy already present in `wms/tests/core/tests_ui.py` (`StaticLiveServerTestCase` + authenticated session cookie injection). Add a dedicated Next test class focused on browser smoke interactions for scan and portal routes, gated by env flags to keep default CI stable. Update migration docs to reference the new harness and run command.
 
@@ -10,7 +12,7 @@
 
 ---
 
-### Task 1: Add Next Browser E2E Tests
+### Historical Task 1: Add Next Browser E2E Tests
 
 **Files:**
 - Modify: `wms/tests/core/tests_ui.py`
@@ -57,7 +59,7 @@ git add wms/tests/core/tests_ui.py
 git commit -m "test: add Playwright smoke harness for Next app routes"
 ```
 
-### Task 2: Add Execution Entry Point
+### Historical Task 2: Add Execution Entry Point
 
 **Files:**
 - Modify: `Makefile`
@@ -99,7 +101,7 @@ git add Makefile
 git commit -m "build: add make target for Next Playwright UI tests"
 ```
 
-### Task 3: Update Migration Documentation
+### Historical Task 3: Update Migration Documentation
 
 **Files:**
 - Modify: `docs/next-react-static-migration/03_matrice_parite_benev_classique.md`
