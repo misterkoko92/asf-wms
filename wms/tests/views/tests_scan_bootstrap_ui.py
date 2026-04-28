@@ -1330,12 +1330,35 @@ class ScanBootstrapUiTests(TestCase):
         css_content = css_path.read_text(encoding="utf-8")
 
         self.assertIn(
-            ".scan-bootstrap-enabled .scan-body {\n"
+            ".scan-bootstrap-enabled .scan-shell {\n"
+            "  width: 100%;\n"
+            "  max-width: min(100%, var(--wms-container-max-width));\n"
+            "  min-width: 0;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-workspace {\n"
+            "  display: block;\n"
+            "  width: 100%;\n"
+            "  max-width: 100%;\n"
+            "  min-width: 0;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-table-wrap {\n"
+            "  border: 1px solid var(--wms-table-border-color);\n"
+            "  border-radius: var(--wms-table-radius);\n"
+            "  box-shadow: none;\n"
+            "  width: 100%;\n"
+            "  max-width: 100%;\n"
             "  min-width: 0;\n"
-            "  min-height: 0;\n"
-            "  overflow-y: auto;\n"
-            "  overflow-x: hidden;\n"
-            "  overscroll-behavior-x: none;",
+            "  overflow-x: auto;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-table.table {\n"
+            "  margin-bottom: 0;\n"
+            "  min-width: var(--wms-table-min-width);",
             css_content,
         )
 
