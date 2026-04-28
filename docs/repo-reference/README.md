@@ -1,88 +1,292 @@
 # Repository Reference
 
-This directory is the canonical maintenance entry point for the repo.
+This directory is the canonical maintenance entry point for the repository.
 
-Use it to re-enter the codebase quickly before a change, and again before closing the work to check propagation, shared contracts, and docs drift.
+Use it to re-enter the codebase quickly, understand propagation risk before a change, and verify cross-surface impact before merge.
 
-## Read This At The Start Of A Ticket
+It is designed for:
 
-1. `docs/repo-reference/00-product-context.md` — mission, utilisateurs, volume réel, contraintes (read first)
-2. `docs/repo-reference/01-architecture-and-entrypoints.md`
-3. `docs/repo-reference/02-key-flows-and-living-tests.md`
-4. `docs/repo-reference/03-impact-map.md`
-5. `docs/repo-reference/04-shared-contracts.md`
+- maintainers
+- new contributors
+- AI coding agents
+- future you after context loss
 
-If the change is very local, read `00` and `01` then jump directly to the relevant sections in `02` and `03`.
+> Last updated: 2026-04-27
 
-## What This Reference Covers
+---
 
-- global repository entry points
-- runtime architecture and file clusters
-- critical end-to-end and partial flows
-- cross-cutting impact propagation
-- shared contracts reused across multiple screens or surfaces
-- the reference tests and docs that should move with the code
+# Purpose
 
-## What This Reference Is Not
+This reference exists because the repository contains:
 
-This is a synthesis layer.
+- multiple business surfaces (`/scan/`, `/portal/`, `/planning/`, `/benevole/`, APIs)
+- legacy and newer architectural layers
+- shared contracts reused in many places
+- operational workflows where regressions are costly
+- hidden coupling not always obvious from local files
 
-It does not replace:
+Reading only the touched file is often insufficient.
 
-- runtime code
-- living tests
-- operational runbooks
-- functional specs
-- historical implementation plans
+This directory helps recover the real system map fast.
 
-When this reference and runtime code disagree, runtime code wins. Then update this reference.
+---
 
-## Source Hierarchy
+# Start Here
 
-Read sources in this order:
+## Standard reading order
 
-1. runtime entry points: `asf_wms/urls.py`, `wms/scan_urls.py`, `wms/portal_urls.py`, `wms/volunteer_urls.py`, `wms/planning_urls.py`, `api/v1/urls.py`
-2. runtime orchestration: `wms/views.py`, `wms/views_*`, `*_handlers.py`, `wms/services.py`, `wms/signals.py`
-3. data and contracts: `wms/models.py`, `wms/models_domain/*`, shared template tags, templates, static assets
-4. living tests: `api/tests/`, `wms/tests/`, `contacts/tests/`
-5. docs: `docs/mvp_spec.md`, `docs/audit_2026-02-19.md`, `docs/operations.md`, `docs/release_checklist.md`, targeted matrices
+1. `00-product-context.md`
+2. `01-architecture-and-entrypoints.md`
+3. `02-key-flows-and-living-tests.md`
+4. `03-impact-map.md`
+5. `04-shared-contracts.md`
 
-## Current Working Constraints
+---
 
-- Legacy Django is the active delivery surface.
-- Next/React migration files remain paused by default and are intentionally out of this reference unless a ticket explicitly re-opens them.
-- Translation parity work is also paused by default and is not part of the routine maintenance flow covered here.
+# Fast Reading Modes
 
-## Fast Maintenance Loop
+## If the task is very local
 
-At the start of a change:
+Read:
 
-1. identify the main surface: `scan`, `portal`, `benevole`, `planning`, `api`, `admin`, `print`, `emailing`
-2. open the URL module and the matching view/handler cluster
-3. check `03-impact-map.md` for propagation candidates
-4. check `04-shared-contracts.md` if the change touches cross-screen behavior
-5. run or inspect the closest living reference tests from `02-key-flows-and-living-tests.md`
+1. `00-product-context.md`
+2. `01-architecture-and-entrypoints.md`
 
-Before closing the change:
+Then jump to the relevant section in:
 
-1. re-read the relevant impact-map section
-2. update docs if a rule, route, contract, or smoke changed
-3. verify that the reference tests still describe the real contract
-4. if an important follow-up was explicitly deferred, record it in `docs/deferred-follow-ups.md`
+- `02-key-flows-and-living-tests.md`
+- `03-impact-map.md`
 
-## Update This Reference When
+## If the task changes business behavior
 
-- a route, endpoint, or entry point changes
-- a business workflow order changes
-- a shared UI primitive or contract changes
-- a portal/contact synchronization rule changes
-- a release smoke or operations rule changes
-- a referenced test file is renamed, split, or removed
+Read all files in order.
 
-## Files In This Directory
+## If the task changes UI used by operators
 
-- `00-product-context.md`: mission, utilisateurs, volume réel, déploiement, contraintes — le *pourquoi* du projet
-- `01-architecture-and-entrypoints.md`: where the app starts and how the layers fit together
-- `02-key-flows-and-living-tests.md`: the critical business flows and the tests that currently embody them
-- `03-impact-map.md`: change propagation checklist for recurring maintenance work
-- `04-shared-contracts.md`: shared UI and cross-surface contracts that are easy to forget
+Read especially:
+
+- `00-product-context.md`
+- `02-key-flows-and-living-tests.md`
+- `04-shared-contracts.md`
+
+## If the task changes models / permissions / portal scopes
+
+Read especially:
+
+- `01-architecture-and-entrypoints.md`
+- `03-impact-map.md`
+- `04-shared-contracts.md`
+
+---
+
+# What Each File Does
+
+## `00-product-context.md`
+
+Explains:
+
+- mission
+- users
+- production reality
+- constraints
+- what must be protected
+
+Read first.
+
+---
+
+## `01-architecture-and-entrypoints.md`
+
+Explains:
+
+- URL entrypoints
+- runtime structure
+- main modules
+- where logic tends to live
+- where to start reading code
+
+Use when locating implementation ownership.
+
+---
+
+## `02-key-flows-and-living-tests.md`
+
+Explains:
+
+- critical workflows
+- real user journeys
+- test files that document intended behavior
+
+Use when changing flows.
+
+---
+
+## `03-impact-map.md`
+
+Explains:
+
+- common propagation paths
+- if X changes, what else usually moves
+- where regressions often hide
+
+Use before coding and before merge.
+
+---
+
+## `04-shared-contracts.md`
+
+Explains:
+
+- reusable cross-surface contracts
+- shared UI semantics
+- data invariants
+- compatibility boundaries
+
+Use before changing anything reused in several places.
+
+---
+
+# How To Use During A Ticket
+
+## Before coding
+
+Ask:
+
+- what surface is touched?
+- what other surfaces depend on it?
+- does a shared contract exist?
+- what tests should move too?
+
+Then read the relevant reference sections.
+
+---
+
+## During coding
+
+Use the reference to:
+
+- avoid duplicate logic
+- find canonical helpers
+- respect contracts
+- detect forgotten propagation
+
+---
+
+## Before merge
+
+Re-read relevant sections and ask:
+
+- docs drift?
+- tests drift?
+- permission drift?
+- UI drift?
+- naming drift?
+- hidden consumers forgotten?
+
+---
+
+# Source Hierarchy
+
+When sources disagree, trust them in this order:
+
+1. Runtime code
+2. Tests proving intended behavior
+3. Operational docs
+4. Repository reference summaries
+
+This directory is a guide, not the source of truth.
+
+If runtime changed, update this reference.
+
+---
+
+# Rules For Contributors
+
+## Good use
+
+- update relevant sections when architecture changes
+- update test references when renamed
+- add newly discovered coupling
+- simplify wording when clearer
+
+## Bad use
+
+- duplicate full code behavior line by line
+- write historical essays
+- document temporary branches
+- let stale sections accumulate
+
+---
+
+# Writing Standard
+
+Prefer:
+
+- concise facts
+- stable truths
+- propagation guidance
+- canonical ownership hints
+- test references
+
+Avoid:
+
+- speculation
+- implementation noise
+- subjective opinions
+- obsolete migration details
+
+---
+
+# For AI Coding Agents
+
+Before major edits:
+
+1. Read `00`
+2. Read relevant architecture sections
+3. Read impact map
+4. Read shared contracts
+5. Then modify code
+
+Before finalizing:
+
+1. Re-check propagation
+2. Re-check tests
+3. Re-check docs drift
+
+Never assume a local file is isolated.
+
+---
+
+# Signals That You Should Read More First
+
+Stop and read more reference docs if you notice:
+
+- duplicated logic
+- multiple similar views
+- surprising tests failing
+- permissions behaving strangely
+- portal + scan touching same data
+- templates sharing includes
+- old helper names with newer wrappers
+
+These usually indicate hidden contracts.
+
+---
+
+# Maintenance Cadence
+
+Update this directory when:
+
+- architecture ownership changes
+- critical workflows move
+- major tests renamed
+- new shared contracts emerge
+- repeated regressions reveal hidden coupling
+
+---
+
+# Final Principle
+
+Move fast only after understanding what is connected.
+
+This directory exists to make that understanding fast.

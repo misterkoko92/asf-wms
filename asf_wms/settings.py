@@ -221,12 +221,12 @@ CSP_REPORT_ONLY_ENABLED = _env_bool("CSP_REPORT_ONLY_ENABLED", True)
 CONTENT_SECURITY_POLICY_REPORT_ONLY = os.environ.get(
     "CONTENT_SECURITY_POLICY_REPORT_ONLY",
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
-    "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; "
+    "font-src 'self' https://fonts.gstatic.com data:; "
     "img-src 'self' data: blob:; "
-    "connect-src 'self' https://nominatim.openstreetmap.org https://cdn.jsdelivr.net; "
-    "worker-src 'self' blob: https://cdn.jsdelivr.net; "
+    "connect-src 'self' https://nominatim.openstreetmap.org http://127.0.0.1:38555; "
+    "worker-src 'self' blob:; "
     "object-src 'none'; "
     "base-uri 'self'; "
     "frame-ancestors 'none'; "

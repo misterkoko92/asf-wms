@@ -139,6 +139,7 @@
         tempForm.method = "post";
         tempForm.action = targetUrl;
         tempForm.target = "_blank";
+        tempForm.setAttribute("rel", "noopener noreferrer");
         tempForm.style.display = "none";
 
         const formData = new FormData(form);

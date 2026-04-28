@@ -165,6 +165,36 @@ class SecuritySettingsTests(TestCase):
         self.assertIn("base-uri 'self'", policy)
         self.assertIn("frame-ancestors 'none'", policy)
 
+    def test_csp_report_only_does_not_allow_dormant_ocr_cdn_capabilities(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        policy = response["Content-Security-Policy-Report-Only"]
+        self.assertIn("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", policy)
+        self.assertIn(
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+            policy,
+        )
+        self.assertIn("font-src 'self' https://fonts.gstatic.com data:", policy)
+        self.assertIn("connect-src 'self' https://nominatim.openstreetmap.org", policy)
+        self.assertIn("worker-src 'self' blob:", policy)
+        self.assertNotIn("'wasm-unsafe-eval'", policy)
+        self.assertNotIn(
+            "connect-src 'self' https://nominatim.openstreetmap.org https://cdn.jsdelivr.net",
+            policy,
+        )
+        self.assertNotIn("worker-src 'self' blob: https://cdn.jsdelivr.net", policy)
+
+    def test_csp_report_only_allows_documented_local_helper_origin(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        policy = response["Content-Security-Policy-Report-Only"]
+        self.assertIn(
+            "connect-src 'self' https://nominatim.openstreetmap.org http://127.0.0.1:38555",
+            policy,
+        )
+
     @override_settings(CSP_REPORT_ONLY_ENABLED=False)
     def test_csp_report_only_middleware_can_be_disabled(self):
         middleware = ContentSecurityPolicyReportOnlyMiddleware(lambda request: HttpResponse("ok"))
@@ -270,6 +300,29 @@ class SecuritySettingsTests(TestCase):
 
         self.assertEqual(offenders, [])
 
+    def test_dynamic_blank_forms_set_noopener(self):
+        offenders = []
+        target_assignment = re.compile(
+            r"\b(?P<name>[A-Za-z_$][\w$]*)\.target\s*=\s*[\"']_blank[\"']"
+        )
+        for path in (REPO_ROOT / "templates").rglob("*.html"):
+            text = path.read_text(encoding="utf-8")
+            for match in target_assignment.finditer(text):
+                name = re.escape(match.group("name"))
+                following_script = text[match.start() : text.find("</script>", match.start())]
+                if "</script>" not in text[match.start() :]:
+                    following_script = text[match.start() :]
+                rel_assignment = re.search(
+                    rf"\b{name}\.(?:rel\s*=\s*[\"'][^\"']*\bnoopener\b|setAttribute\(\s*[\"']rel[\"']\s*,\s*[\"'][^\"']*\bnoopener\b)",
+                    following_script,
+                    re.IGNORECASE,
+                )
+                if not rel_assignment:
+                    line = text.count("\n", 0, match.start()) + 1
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}:{line}: {match.group(0)}")
+
+        self.assertEqual(offenders, [])
+
     def test_bootstrap_cdn_assets_use_sri(self):
         offenders = []
         bootstrap_pattern = re.compile(
@@ -282,6 +335,21 @@ class SecuritySettingsTests(TestCase):
                 tag = match.group(0)
                 if "integrity=" not in tag or "crossorigin=" not in tag:
                     offenders.append(f"{path.relative_to(REPO_ROOT)}: {tag[:160]}")
+
+        self.assertEqual(offenders, [])
+
+    def test_static_javascript_does_not_ship_tesseract_cdn_loader(self):
+        forbidden_sources = [
+            "cdn.jsdelivr.net/npm/" + "tesseract",
+            "tesseract.js" + "-core",
+            "tesseract.js" + "-data",
+        ]
+        offenders = []
+        for path in (REPO_ROOT / "wms/static").rglob("*.js"):
+            text = path.read_text(encoding="utf-8")
+            for forbidden_source in forbidden_sources:
+                if forbidden_source in text:
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}: {forbidden_source}")
 
         self.assertEqual(offenders, [])
 

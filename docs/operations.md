@@ -31,7 +31,8 @@ Tooling roles:
 - `SKIP=<hook-id> git commit ...` is acceptable only as a temporary local escape hatch while fixing a false positive; do not remove the hook from CI without investigation.
 - Keep `mypy` as the release gate even if `pyright` becomes noisy.
 
-Reference audit: `docs/audit_2026-02-19.md`.
+Latest full repo audit: `docs/audit_2026-04-22_full_repo.md`.
+Historical reference audit: `docs/audit_2026-02-19.md`.
 
 Current priority from the audit:
 
@@ -112,6 +113,8 @@ Frontend security values:
 
 - `CONTENT_SECURITY_POLICY_REPORT_ONLY` (optional override; leave unset to use the maintained
   default report-only policy)
+- The maintained default `connect-src` includes `http://127.0.0.1:38555` for the local
+  document/planning helper. If the helper origin changes, update the CSP override and tests.
 - Stable third-party JS/CSS assets in templates must either be self-hosted or include SRI +
   `crossorigin`.
 - New `target="_blank"` links/forms must include `rel` with `noopener`.
@@ -248,7 +251,7 @@ Interpretation:
 - `excel_not_installed` means the workbook can still generate, but PDF generation is not production-ready
 - `excel_automation_unavailable` means the Excel automation bridge itself is missing or unusable
 
-### 3.0) Tooling rollback
+### 3.1) Tooling rollback
 
 If the standardized Python tooling blocks a release or hotfix:
 
@@ -257,7 +260,7 @@ If the standardized Python tooling blocks a release or hotfix:
 3. If a local `pre-commit` hook is a false positive, bypass it temporarily with `SKIP=<hook-id> git commit ...` and fix the hook or baseline immediately after.
 4. If dependency artifacts drift, regenerate with `make export-requirements` from the committed `uv.lock`.
 
-### 3.0) UI Bootstrap par défaut
+### 3.2) UI Bootstrap par défaut
 
 L’UI Django charge Bootstrap en permanence sur les surfaces scan, portail, accueil et admin personnalisées.
 
@@ -732,7 +735,7 @@ Monthly:
 - Resolving dispute resets shipment to `packed` ("Pret"), allowing replanning.
 - If shipment had reached shipped/received stages, shipped cartons are reset back to `labeled`.
 
-## 12) Shipment creation contact scoping rules
+## 13) Shipment creation contact scoping rules
 
 Rules implemented in the "Créer une expédition" form:
 
@@ -756,7 +759,7 @@ Additional contact governance:
 - Shipment authorization is governed by the dedicated shipment-party registry.
 - The contact backbone remains `contacts.Contact`; shipment-specific eligibility lives in `ShipmentShipper`, `ShipmentRecipientOrganization`, `ShipmentRecipientContact`, `ShipmentShipperRecipientLink`, and `ShipmentAuthorizedRecipientContact`.
 
-## 13) Tracking board and case closure
+## 14) Tracking board and case closure
 
 `/scan/shipments-tracking/` shows shipments in:
 

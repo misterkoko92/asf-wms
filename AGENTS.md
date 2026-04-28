@@ -1,133 +1,209 @@
-# Agent Guardrails (asf-wms)
+# AGENTS.md — ASF-WMS
 
-## GitHub network access policy
+## Prime Directive
 
-- By default, do not assume GitHub network access outside the sandbox is authorized for the current thread.
-- At the beginning of each new thread, before any substantial work starts, explicitly ask whether GitHub-related commands should be allowed outside the sandbox for that thread.
-- In the same question, explicitly ask whether the authorization applies only to the work directly related to the current request, or should remain in effect until explicit revocation.
-- This per-thread question is mandatory at least once in every new thread, even if a broader or previously remembered authorization may already exist.
-- Until the user answers for the current thread, avoid starting work that depends on GitHub network access outside the sandbox.
+Do not break ASF operations to improve the software.
 
-### Commands covered by this policy
+ASF-WMS is a real production system supporting humanitarian logistics.
+Operational continuity, data integrity, workflow reliability, and user trust are more important than technical elegance.
 
-- `git push`
-- `git pull`
-- `git fetch`
-- `git ls-remote`
-- `gh pr create`
-- `gh pr view`
-- `gh pr checks`
-- Any similar `gh` command or GitHub API/network operation that requires access outside the sandbox
+---
 
-### Default behavior after the answer
+## Mission
 
-- If the user authorizes only the current request, use escalated GitHub network access only for work directly tied to that request.
-- If the user authorizes until explicit revocation, treat that as a standing preference, but still re-ask at least once at the start of each new thread before substantial work begins.
-- If the user does not authorize GitHub network access for the current thread, continue with sandbox-safe work and stop before any blocked GitHub network step.
+ASF-WMS serves two parallel goals through one shared codebase:
 
-### Recommended persistent command prefixes
+1. Operate and improve the real ASF logistics system.
+2. Progressively shape reusable capabilities for future organizations.
 
-- Safe to keep broadly authorized for routine work:
-  - `["git", "add"]`
-  - `["git", "commit"]`
-  - `["git", "push"]`
-  - `["git", "pull"]`
-  - `["git", "fetch"]`
-  - `["git", "switch"]`
-  - `["gh", "pr"]`
-  - `["gh", "run"]`
-  - `["gh", "workflow"]`
-  - `["gh", "api"]`
-  - `["gh", "auth", "status"]`
-- Keep only if regularly needed, otherwise authorize case by case:
-  - `["gh", "auth", "login"]`
-  - `["gh", "pr", "merge"]`
-  - `["git", "checkout", "-b"]`
-  - `["git", "branch", "-d"]`
-- Avoid broad persistent authorization for:
-  - `["gh"]`
-  - `["git"]`
-  - `["git", "push", "--force"]`
-  - `["git", "reset"]`
-  - `["git", "rebase"]`
-  - wide shell wrappers such as `["/bin/zsh", "-lc"]`
+Do not create permanent ASF/product forks.
 
-### Clarification on repeated approvals
+---
 
-- A user authorization for the thread and a sandbox/tool approval are separate layers.
-- "Authorized until explicit revocation" means the repo policy question does not need to be re-negotiated again in the same thread.
-- The desktop/tooling layer may still ask for approval when the exact command prefix is not already authorized, when a command is wrapped differently, or when the action falls outside existing sandbox allowances.
+## Priority Order
 
-## Scope policy: Translation paused
+When tradeoffs exist, prefer:
 
-- By default, exclude French / English translation scope from analysis, planning, code changes, tests, and verification.
-- Keep the visible product language selector hidden unless the user explicitly asks to resume translation work.
-- Treat translation pause as applying to legacy Django UI, public pages, auth pages, emails, print templates, docs, and translation-specific test coverage.
+1. Production safety
+2. Data integrity
+3. Workflow reliability
+4. Security
+5. Speed for frequent users
+6. Maintainability
+7. Reduce founder dependency
+8. Productization readiness
+9. Technical elegance
 
-### Paused scope (do not touch by default)
+---
 
-- `templates/includes/language_switch.html`
-- `templates/includes/language_switch_short.html`
-- `locale/`
-- `wms/tests/views/tests_i18n_language_switch.py`
-- `wms/tests/management/tests_management_audit_i18n_strings.py`
-- Any `docs/plans/*i18n*`, `docs/plans/*translation*`, or explicit FR/EN parity work items
+## Execution Style
 
-### Default behavior for future requests
+Prefer:
 
-- Do not add or update FR/EN parity work unless the user explicitly asks for it.
-- Do not add translation-focused tests or verification steps by default.
-- Ignore English-copy regressions unless the current request explicitly re-opens translation scope.
-- Prefer default-language legacy Django behavior for routine delivery work.
+- small reversible changes
+- clear ownership
+- tests near risk
+- incremental refactors
+- pragmatic improvements
+- explicit contracts
 
-### Override rule
+Avoid:
 
-- Only include paused translation scope when the user explicitly asks in the current prompt.
-- When override is used, limit changes strictly to the requested translation work.
+- big-bang rewrites
+- speculative architecture
+- behavior drift without tests
+- accidental UX friction
+- exposing real ASF data
+- hidden coupling growth
 
-## Scope policy: Next/React migration paused
+---
 
-- By default, all work must stay on the legacy Django stack (`scan/`, `portal/`, `templates/`, `wms/` legacy views/handlers).
-- Exclude Next/React migration scope from analysis, planning, code changes, refactors, and tests unless the user explicitly asks for it.
-- "Explicitly asks" means the request clearly mentions integrating Next/React or touching paused Next migration scope.
+## Change Classification
 
-### Paused scope (do not touch by default)
+Before acting, classify the request:
 
-- `frontend-next/`
-- `wms/views_next_frontend.py`
-- `wms/ui_mode.py`
-- `wms/tests/views/tests_views_next_frontend.py`
-- Any `docs/plans/*next*` migration execution items
+- A. ASF operational need
+- B. Generic reusable capability
+- C. Organization configuration
+- D. ASF-specific extension
+- E. Legacy debt reduction
+- F. Experimental feature
 
-### Default behavior for future requests
+Prefer solutions that satisfy A+B or A+C when reasonable.
 
-- Ignore paused Next scope even if it appears related.
-- Prefer legacy routes and logic for equivalent functionality.
-- If a task could be solved in both stacks, choose legacy Django implementation.
+---
 
-### Override rule
+## Repository Navigation Rule
 
-- Only include paused Next scope when the user explicitly requests it in the current prompt.
-- When override is used, limit changes strictly to what was requested.
+Before substantial work, read:
 
-For details, see `docs/policies/translation-paused.md` and `docs/policies/next-migration-paused.md`.
+1. `docs/repo-reference/README.md`
+2. Relevant linked sections
+3. `docs/policies/agent-guardrails.md`
 
-## Repository reference policy
+Use the repository reference to understand:
 
-- Before substantial analysis, planning, or implementation work on the repo, read `docs/repo-reference/README.md` plus the relevant sections it points to.
-- Treat `docs/repo-reference/README.md` as the canonical maintenance entry point for repo architecture, key flows, propagation checks, and shared contracts.
-- When working on a ticket, use `docs/repo-reference/03-impact-map.md` to decide whether a change should propagate to other screens, APIs, docs, smoke checks, or shared contracts.
-- Before declaring work complete, re-check the relevant impact-map and shared-contract sections to confirm whether any repo-reference docs also need an update.
-- If a change modifies a critical route, flow, shared UI contract, shipment-party rule, smoke rule, or named reference test, update the relevant file(s) under `docs/repo-reference/` in the same work.
+- architecture ownership
+- critical flows
+- propagation risk
+- shared contracts
+- reference tests
 
-## FAQ Change Log policy
+Never assume a local file is isolated.
 
-- For every PR that changes user-visible behavior or workflow, add one entry to `wms/faq_changelog.py`.
-- Each entry must include the add date, the PR number, and a short business summary.
-- If the PR number is not known during implementation, fill it before merge.
+---
 
-## Scan service worker bump policy
+## Codex Git Workflow
 
-- If a change updates shared scan frontend assets that can remain stale in browser caches, bump the scan service worker version in both `wms/views_scan_misc.py` and `templates/scan/base.html` in the same work.
-- Treat changes to `wms/static/scan/scan.css`, `wms/static/scan/scan-bootstrap.css`, `wms/static/scan/scan.js`, `wms/static/scan/modules/core.js`, `wms/static/scan/manifest.json`, or `wms/static/scan/icon.png` as bump candidates by default.
-- Shared style changes should be considered bump-required unless the stale cached asset is demonstrably harmless.
+- Do not create commits without explicit user approval.
+- Before committing, show a concise summary of intended changes and the proposed commit message.
+- Stage only the files intentionally included in the requested commit.
+- Commit staged files only.
+- If there are no meaningful changes, do not create empty or cosmetic commits.
+- Use concise conventional-style commit messages unless the user provides another format.
+- After committing, show the commit hash, committed files, and `git status --short`.
+
+---
+
+## Production Reality Rule
+
+Current production constraints matter.
+
+Prefer solutions that work well with modest infrastructure, legacy Django flows, and low-maintenance operations.
+
+Do not introduce heavy platform assumptions unless explicitly requested.
+
+---
+
+## User Reality Rule
+
+Warehouse and operations users optimize for:
+
+- speed
+- clarity
+- low friction
+- reliability
+
+Back-office users optimize for:
+
+- truth
+- traceability
+- exports
+- coordination
+
+External partners optimize for:
+
+- trust
+- simplicity
+- visibility
+
+Respect the real user before idealized UX theory.
+
+---
+
+## Sensitive Zones
+
+Use extra caution when touching:
+
+- stock logic
+- cartons / packing
+- shipment statuses
+- planning eligibility
+- permissions
+- portal scopes
+- document generation
+- notifications
+- shared templates and assets
+- data migrations
+
+---
+
+## Documentation Drift Control
+
+Every implementation task must include a documentation impact check before completion.
+
+If documentation is impacted, update the minimum relevant docs in the same work.
+
+If documentation is not impacted, explicitly state:
+
+`No documentation update required.`
+
+Before stating that, verify the change did not alter:
+
+- user-visible behavior
+- core workflows or critical routes
+- roles, permissions, or access rules
+- shared contracts or service boundaries
+- data model, field meaning, or business rules
+- operational, deployment, or security expectations
+- agent governance or repo-reference guidance
+
+---
+
+## Completion Rule
+
+Before declaring work complete, re-check:
+
+- propagation impact
+- tests
+- docs drift
+- permissions
+- user-visible behavior
+- operational safety
+
+---
+
+## If Unsure
+
+1. Read more context
+2. Preserve behavior
+3. Choose the smallest safe path
+4. Ask before risky actions
+
+---
+
+## Final Principle
+
+This software exists to move humanitarian aid efficiently and safely.
+
+Every change should remain aligned with that purpose.

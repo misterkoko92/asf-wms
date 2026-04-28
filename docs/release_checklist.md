@@ -35,7 +35,7 @@ Fallback if `uv` is blocked locally:
 - [ ] Confirm the release does not add production personal data, real documents, secrets, or non-anonymized dumps to the repository, CI artifacts, or local audit artifacts intended for sharing.
 - [ ] Confirm mail provider env vars (`EMAIL_*` and/or `BREVO_*`).
 - [ ] Confirm document scan env vars (`DOCUMENT_SCAN_BACKEND=clamav`, `DOCUMENT_SCAN_CLAMAV_COMMAND`, queue timeout settings).
-- [ ] Confirm CSP report-only is enabled or explicitly risk-accepted for the environment.
+- [ ] Confirm CSP report-only is enabled or explicitly risk-accepted for the environment, including the local helper `connect-src` origin when helper workflows are in scope.
 - [ ] Ensure ClamAV binary is available on host (`clamscan --version`).
 - [ ] Confirm `INTEGRATION_API_KEY` for integration endpoints.
 - [ ] Confirm API throttle rates (`DRF_USER_THROTTLE_RATE`, `DRF_ANON_THROTTLE_RATE`) and QR access throttles/TTL (`SHIPMENT_TRACKING_ACCESS_*`) are acceptable for the release.
