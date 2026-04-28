@@ -1,6 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap");
 @import url("css/partials/ops.css");
 
+/*
+ * Defensive page guard only: responsive contracts below keep oversized content
+ * inside local scroll/wrap containers instead of relying on clipped body scroll.
+ */
 html {
   max-width: 100%;
   overflow-x: hidden;
@@ -232,8 +236,10 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-shell {
-  width: min(var(--wms-container-max-width), 100%);
-  max-width: 100%;
+  width: 100%;
+  max-width: min(100%, var(--wms-container-max-width));
+  min-width: 0;
+  box-sizing: border-box;
   height: 100dvh;
   padding: clamp(14px, 1.8vw, 28px) clamp(12px, 1.8vw, 24px) clamp(22px, 2.4vw, 34px);
   display: grid;
@@ -243,6 +249,9 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-header {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--scan-boot-border-strong);
   border-radius: 0.9rem;
   background: var(--scan-boot-surface);
@@ -501,6 +510,9 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-workspace {
   display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -629,6 +641,8 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-body {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
@@ -638,6 +652,7 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-main {
+  width: 100%;
   min-width: 0;
   min-height: 100%;
   overflow-x: hidden;
@@ -1466,11 +1481,16 @@ body.scan-bootstrap-enabled {
   border: 1px solid var(--wms-table-border-color);
   border-radius: var(--wms-table-radius);
   box-shadow: none;
-  min-width: min(100%, var(--wms-table-min-width));
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .scan-bootstrap-enabled .scan-table.table {
   margin-bottom: 0;
+  min-width: var(--wms-table-min-width);
   --bs-table-bg: var(--wms-table-row-bg);
   --bs-table-hover-bg: var(--wms-table-row-hover-bg);
 }
@@ -1607,6 +1627,22 @@ body.scan-bootstrap-enabled {
   padding: 0.85rem;
   margin-bottom: 0.75rem;
   box-shadow: none;
+}
+
+.scan-bootstrap-enabled .scan-card,
+.scan-bootstrap-enabled .portal-card,
+.scan-bootstrap-enabled .ui-comp-card,
+.scan-bootstrap-enabled .ui-comp-panel,
+.scan-bootstrap-enabled .scan-kpi-card,
+.scan-bootstrap-enabled .scan-field,
+.scan-bootstrap-enabled .scan-filter-actions,
+.scan-bootstrap-enabled .ui-comp-actions,
+.scan-bootstrap-enabled .ui-comp-status-pill,
+.scan-bootstrap-enabled .portal-badge,
+.scan-bootstrap-enabled .badge {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .scan-bootstrap-enabled .ui-comp-note {
