@@ -1,0 +1,436 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - {% trans "Rangement" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-column gap-2 mb-4">
+      <h2 class="ui-comp-title mb-0">{% trans "Rangement" %}</h2>
+      <p class="scan-help ui-comp-note mb-0">
+        {% trans "Scanner jusqu'à 5 produits. Le stock est ajouté quand un emplacement est défini." %}
+      </p>
+    </div>
+
+    <form method="post" class="ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="scan_product">
+      <div class="row g-3 align-items-end">
+        <div class="scan-field col-12 col-lg-7">
+          <label class="form-label" for="id_rangement_product_code">{% trans "Produit" %}</label>
+          <div class="scan-inline">
+            <input
+              type="text"
+              id="id_rangement_product_code"
+              name="product_code"
+              class="form-control"
+              list="rangement-product-options"
+              autocomplete="off"
+              required
+            >
+            <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_rangement_product_code">{% trans "Scan" %}</button>
+          </div>
+        </div>
+        <div class="scan-field col-12 col-md-4 col-lg-2">
+          <label class="form-label" for="id_rangement_quantity">{% trans "Quantité" %}</label>
+          <input
+            type="number"
+            id="id_rangement_quantity"
+            name="quantity"
+            class="form-control"
+            min="1"
+            step="1"
+            value="1"
+          >
+        </div>
+        <div class="scan-field col-12 col-md-8 col-lg-3">
+          <button type="submit" class="btn btn-primary w-100">{% trans "Ajouter au rangement" %}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="ui-comp-title mb-0">{% trans "Récap rangement" %}</h2>
+      <form method="post" class="m-0">
+        {% csrf_token %}
+        <button
+          type="submit"
+          name="action"
+          value="finish_batch"
+          class="btn btn-tertiary"
+          {% if not rangement_batch %}disabled{% endif %}
+        >
+          {% trans "Terminer le rangement" %}
+        </button>
+      </form>
+    </div>
+
+    {% if rangement_batch %}
+      <div class="table-responsive">
+        <table class="table scan-table align-middle">
+          <thead>
+            <tr>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Quantité" %}</th>
+              <th>{% trans "Emplacement" %}</th>
+              <th>{% trans "Stock" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in rangement_batch %}
+              <tr>
+                <td>
+                  <strong>{{ item.name }}</strong>
+                  {% if item.sku %}<div class="ui-comp-note">{{ item.sku }}</div>{% endif %}
+                </td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.location_label }}</td>
+                <td>{{ item.stock_status_label }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help ui-comp-note mb-0">{% trans "Aucun produit scanné." %}</p>
+    {% endif %}
+  </div>
+
+  <datalist id="rangement-product-options">
+    {% for product in products_json|slice:":40" %}
+      <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
+    {% endfor %}
+  </datalist>
+
+  {{ location_data|json_script:"pack-location-data" }}
+
+  <div id="pack-unknown-product-modal"
+       class="modal fade"
+       tabindex="-1"
+       aria-labelledby="pack-unknown-product-modal-title"
+       aria-hidden="true"
+       data-open-on-load="{% if unknown_product_modal_open %}1{% else %}0{% endif %}">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <form method="post" class="modal-content">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h3 id="pack-unknown-product-modal-title" class="modal-title h5 mb-0">{% trans "Ajouter un nouveau produit" %}</h3>
+          <button type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"
+                  aria-label="{% trans "Fermer" %}"></button>
+        </div>
+        <div class="modal-body">
+          {% if unknown_product_form.non_field_errors %}
+            <div class="scan-message error">{{ unknown_product_form.non_field_errors }}</div>
+          {% endif %}
+          <input type="hidden"
+                 name="{{ unknown_product_form.unknown_product_line_index.html_name }}"
+                 id="{{ unknown_product_form.unknown_product_line_index.id_for_label }}"
+                 value="{{ unknown_product_form.unknown_product_line_index.value|default:'0' }}">
+          <input type="hidden"
+                 name="{{ unknown_product_form.unknown_product_source_code.html_name }}"
+                 id="{{ unknown_product_form.unknown_product_source_code.id_for_label }}"
+                 value="{{ unknown_product_form.unknown_product_source_code.value|default:unknown_product_source_code }}">
+          <input type="hidden"
+                 name="{{ unknown_product_form.unknown_product_location.html_name }}"
+                 id="{{ unknown_product_form.unknown_product_location.id_for_label }}"
+                 value="{{ unknown_product_form.unknown_product_location.value|default:'' }}">
+          <div class="scan-help ui-comp-note mb-3">
+            {% trans "Code scanné" %}: <strong id="pack-unknown-product-source-display">{{ unknown_product_form.unknown_product_source_code.value|default:unknown_product_source_code|default:"-" }}</strong>
+          </div>
+          <div class="scan-help ui-comp-note mb-3">
+            {% trans "Pour les CN, merci de noter le volume du produit (exemple : Sondalis Energy Fibre 500ML)" %}
+          </div>
+          <div class="row g-3">
+            <div class="col-12 col-md-8">
+              <label class="form-label" for="id_unknown_product_name">{% trans "Nom du produit" %}</label>
+              <input type="text"
+                     name="unknown_product_name"
+                     id="id_unknown_product_name"
+                     class="form-control"
+                     value="{{ unknown_product_form.unknown_product_name.value|default:'' }}"
+                     required>
+              {% for error in unknown_product_form.unknown_product_name.errors %}
+                <div class="scan-message error">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_brand">{% trans "Marque" %}</label>
+              <input type="text"
+                     name="unknown_product_brand"
+                     id="id_unknown_product_brand"
+                     class="form-control"
+                     value="{{ unknown_product_form.unknown_product_brand.value|default:'' }}">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_pack_family">{% trans "Famille MM/CN" %}</label>
+              <select name="unknown_product_pack_family"
+                      id="id_unknown_product_pack_family"
+                      class="form-select"
+                      required>
+                <option value="">{% trans "Choisir" %}</option>
+                <option value="MM" {% if unknown_product_form.unknown_product_pack_family.value == "MM" %}selected{% endif %}>MM</option>
+                <option value="CN" {% if unknown_product_form.unknown_product_pack_family.value == "CN" %}selected{% endif %}>CN</option>
+              </select>
+              {% for error in unknown_product_form.unknown_product_pack_family.errors %}
+                <div class="scan-message error">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_barcode">Barcode</label>
+              <input type="text"
+                     name="unknown_product_barcode"
+                     id="id_unknown_product_barcode"
+                     class="form-control"
+                     value="{{ unknown_product_form.unknown_product_barcode.value|default:unknown_product_source_code }}">
+              {% for error in unknown_product_form.unknown_product_barcode.errors %}
+                <div class="scan-message error">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_ean">EAN</label>
+              <input type="text"
+                     name="unknown_product_ean"
+                     id="id_unknown_product_ean"
+                     class="form-control"
+                     value="{{ unknown_product_form.unknown_product_ean.value|default:'' }}">
+              {% for error in unknown_product_form.unknown_product_ean.errors %}
+                <div class="scan-message error">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label" for="id_unknown_product_length_cm">{% trans "Longueur (cm)" %}</label>
+              <input type="number"
+                     name="unknown_product_length_cm"
+                     id="id_unknown_product_length_cm"
+                     class="form-control"
+                     min="0.01"
+                     step="0.01"
+                     value="{{ unknown_product_form.unknown_product_length_cm.value|default:'' }}"
+                     required>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label" for="id_unknown_product_width_cm">{% trans "Largeur (cm)" %}</label>
+              <input type="number"
+                     name="unknown_product_width_cm"
+                     id="id_unknown_product_width_cm"
+                     class="form-control"
+                     min="0.01"
+                     step="0.01"
+                     value="{{ unknown_product_form.unknown_product_width_cm.value|default:'' }}"
+                     required>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label" for="id_unknown_product_height_cm">{% trans "Hauteur (cm)" %}</label>
+              <input type="number"
+                     name="unknown_product_height_cm"
+                     id="id_unknown_product_height_cm"
+                     class="form-control"
+                     min="0.01"
+                     step="0.01"
+                     value="{{ unknown_product_form.unknown_product_height_cm.value|default:'' }}"
+                     required>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label" for="id_unknown_product_weight_g">{% trans "Poids (g)" %}</label>
+              <input type="number"
+                     name="unknown_product_weight_g"
+                     id="id_unknown_product_weight_g"
+                     class="form-control"
+                     min="1"
+                     step="1"
+                     value="{{ unknown_product_form.unknown_product_weight_g.value|default:'' }}"
+                     required>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_initial_quantity">{% trans "Quantité initiale" %}</label>
+              <input type="number"
+                     name="unknown_product_initial_quantity"
+                     id="id_unknown_product_initial_quantity"
+                     class="form-control"
+                     min="1"
+                     step="1"
+                     value="{{ unknown_product_form.unknown_product_initial_quantity.value|default:'1' }}"
+                     required>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_lot_code">{% trans "Lot" %}</label>
+              <input type="text"
+                     name="unknown_product_lot_code"
+                     id="id_unknown_product_lot_code"
+                     class="form-control"
+                     value="{{ unknown_product_form.unknown_product_lot_code.value|default:'' }}">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_expires_on">{% trans "Date péremption" %}</label>
+              <input type="date"
+                     name="unknown_product_expires_on"
+                     id="id_unknown_product_expires_on"
+                     class="form-control"
+                     value="{{ unknown_product_form.unknown_product_expires_on.value|default:'' }}">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="id_unknown_product_location_warehouse">{% trans "Entrepôt" %}</label>
+              <select name="unknown_product_location_warehouse"
+                      id="id_unknown_product_location_warehouse"
+                      class="form-select"
+                      data-location-level="warehouse"
+                      data-selected="{{ unknown_product_form.unknown_product_location_warehouse.value|default:'' }}"
+                      required></select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_location_zone">{% trans "Zone" %}</label>
+              <select name="unknown_product_location_zone"
+                      id="id_unknown_product_location_zone"
+                      class="form-select"
+                      data-location-level="zone"
+                      data-selected="{{ unknown_product_form.unknown_product_location_zone.value|default:'' }}"
+                      required></select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_location_aisle">{% trans "Allée" %}</label>
+              <select name="unknown_product_location_aisle"
+                      id="id_unknown_product_location_aisle"
+                      class="form-select"
+                      data-location-level="aisle"
+                      data-selected="{{ unknown_product_form.unknown_product_location_aisle.value|default:'' }}"
+                      required></select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="id_unknown_product_location_shelf">{% trans "Étagère" %}</label>
+              <select name="unknown_product_location_shelf"
+                      id="id_unknown_product_location_shelf"
+                      class="form-select"
+                      data-location-level="shelf"
+                      data-selected="{{ unknown_product_form.unknown_product_location_shelf.value|default:'' }}"
+                      required></select>
+              {% for error in unknown_product_form.unknown_product_location.errors %}
+                <div class="scan-message error">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="id_unknown_product_notes">{% trans "Notes" %}</label>
+              <textarea name="unknown_product_notes"
+                        id="id_unknown_product_notes"
+                        class="form-control"
+                        rows="3">{{ unknown_product_form.unknown_product_notes.value|default:'' }}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit"
+                  class="btn btn-tertiary"
+                  name="action"
+                  value="finish_batch">{% trans "Terminer" %}</button>
+          <button type="submit"
+                  class="btn btn-primary"
+                  name="action"
+                  value="create_unknown_product">{% trans "Créer le produit" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const modal = document.getElementById('pack-unknown-product-modal');
+      const locationDataEl = document.getElementById('pack-location-data');
+      const locationInput = document.getElementById('id_unknown_product_location');
+      const warehouseSelect = document.getElementById('id_unknown_product_location_warehouse');
+      const zoneSelect = document.getElementById('id_unknown_product_location_zone');
+      const aisleSelect = document.getElementById('id_unknown_product_location_aisle');
+      const shelfSelect = document.getElementById('id_unknown_product_location_shelf');
+      if (!modal || !locationDataEl || !locationInput || !warehouseSelect || !zoneSelect || !aisleSelect || !shelfSelect) {
+        return;
+      }
+      let locations = [];
+      try {
+        locations = JSON.parse(locationDataEl.textContent || '[]');
+      } catch (err) {
+        locations = [];
+      }
+      const uniqueValues = values => Array.from(new Set(values.filter(value => !!value)));
+      const setOptions = (select, values, selectedValue) => {
+        const nextSelected = values.includes(selectedValue) ? selectedValue : '';
+        select.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Choisir';
+        select.appendChild(placeholder);
+        values.forEach(value => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+        select.value = nextSelected;
+      };
+      const refreshSelectors = () => {
+        const selectedWarehouse = warehouseSelect.value || warehouseSelect.dataset.selected || '';
+        setOptions(warehouseSelect, uniqueValues(locations.map(location => location.warehouse || '')), selectedWarehouse);
+        warehouseSelect.dataset.selected = '';
+
+        const selectedZone = zoneSelect.value || zoneSelect.dataset.selected || '';
+        setOptions(
+          zoneSelect,
+          uniqueValues(locations.filter(location => !warehouseSelect.value || location.warehouse === warehouseSelect.value).map(location => location.zone || '')),
+          selectedZone
+        );
+        zoneSelect.dataset.selected = '';
+
+        const selectedAisle = aisleSelect.value || aisleSelect.dataset.selected || '';
+        setOptions(
+          aisleSelect,
+          uniqueValues(locations.filter(location => {
+            if (warehouseSelect.value && location.warehouse !== warehouseSelect.value) {
+              return false;
+            }
+            if (zoneSelect.value && location.zone !== zoneSelect.value) {
+              return false;
+            }
+            return true;
+          }).map(location => location.aisle || '')),
+          selectedAisle
+        );
+        aisleSelect.dataset.selected = '';
+
+        const selectedShelf = shelfSelect.value || shelfSelect.dataset.selected || '';
+        setOptions(
+          shelfSelect,
+          uniqueValues(locations.filter(location => {
+            if (warehouseSelect.value && location.warehouse !== warehouseSelect.value) {
+              return false;
+            }
+            if (zoneSelect.value && location.zone !== zoneSelect.value) {
+              return false;
+            }
+            if (aisleSelect.value && location.aisle !== aisleSelect.value) {
+              return false;
+            }
+            return true;
+          }).map(location => location.shelf || '')),
+          selectedShelf
+        );
+        shelfSelect.dataset.selected = '';
+
+        const selectedLocation = locations.find(location => (
+          location.warehouse === warehouseSelect.value &&
+          location.zone === zoneSelect.value &&
+          location.aisle === aisleSelect.value &&
+          location.shelf === shelfSelect.value
+        ));
+        locationInput.value = selectedLocation ? String(selectedLocation.id) : '';
+      };
+      [warehouseSelect, zoneSelect, aisleSelect, shelfSelect].forEach(select => {
+        select.addEventListener('change', refreshSelectors);
+      });
+      refreshSelectors();
+      if (modal.dataset.openOnLoad === '1' && window.bootstrap && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(modal).show();
+      }
+    })();
+  </script>
+{% endblock %}

@@ -14,6 +14,14 @@ For sensitive zones, completion rules, and repository-reference update policy, s
 - `AGENTS.md`
 - `docs/policies/agent-guardrails.md`
 
+For the three most common task types, use the dedicated templates instead of this file:
+
+- Add a feature → `docs/agent/feature-prompt.md`
+- Fix a bug → `docs/agent/bugfix-prompt.md`
+- Review a PR → `docs/agent/pr-review-prompt.md`
+
+For documentation drift audits, use the prompts in `docs/agent/prompts.md` § Documentation Drift Prompts.
+
 ---
 
 # Universal Execution Loop
@@ -31,82 +39,6 @@ For nearly every task:
 9. Summarize impact, risk, and next steps.
 
 If the task expands unexpectedly, stop and re-scope.
-
----
-
-# Task Type: Documentation Drift Audit
-
-Goal:
-
-- verify that repository documentation still matches recent code, governance, and workflow reality
-
-This playbook is user-triggered or event-triggered only. It does not imply automatic recurrence, persistent agent memory, or background monitoring.
-
-Triggers:
-
-- after a series of commits
-- after a major feature or workflow change
-- after changes to roles, permissions, shared contracts, or architecture
-- before release
-- after large documentation refactors
-- whenever the user requests a drift audit
-
-Modes:
-
-- lightweight audit: compare recent commits against affected docs and report missing or stale updates
-- full audit: review `AGENTS.md`, `docs/agent/*`, `docs/repo-reference/**`, `docs/policies/**`, README files, and docs indexes
-
-Execution pattern:
-
-1. Identify the commit range or documentation scope.
-2. Read the relevant governance rules first.
-3. Compare changed behavior, contracts, or workflows against affected docs.
-4. Check for broken links, missing referenced files, stale names, and conflicting rules.
-5. Report findings by severity with exact files.
-6. Do not apply fixes unless the user explicitly requests remediation.
-
-Proof:
-
-- `git diff` or `git log` for the selected range
-- targeted link/path checks for referenced docs
-- direct review of relevant docs
-
----
-
-# Task Type: Bug Fix
-
-Goal:
-
-- restore expected behavior with minimal blast radius
-
-Read first:
-
-- failing traceback or failing test
-- relevant route / view / service
-- related shared contract if one exists
-
-Execution pattern:
-
-1. Reproduce.
-2. Locate root cause, not only symptom.
-3. Patch minimally.
-4. Add regression test.
-5. Verify no adjacent breakage.
-
-Proof:
-
-- targeted tests
-- optional route smoke test
-
-Avoid:
-
-- opportunistic refactor during urgent fixes
-- changing unrelated behavior
-
-Stop and ask human if:
-
-- expected behavior is ambiguous
-- bug reveals a business-rule conflict
 
 ---
 
@@ -177,43 +109,6 @@ Avoid:
 Stop and ask human if:
 
 - hidden coupling appears across domains
-
----
-
-# Task Type: Add Feature
-
-Goal:
-
-- ship the smallest useful version safely
-
-Read first:
-
-- related workflow docs
-- nearest existing implementation
-- adjacent tests
-
-Execution pattern:
-
-1. Define user-visible outcome.
-2. Reuse existing models and flows when possible.
-3. Add minimal UI.
-4. Add happy-path and guardrail tests.
-5. Update docs if behavior changed.
-
-Proof:
-
-- targeted tests
-- smoke journey
-
-Avoid:
-
-- speculative abstraction
-- parallel second system
-
-Stop and ask human if:
-
-- feature changes business semantics
-- touches several sensitive zones at once
 
 ---
 

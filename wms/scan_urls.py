@@ -131,6 +131,11 @@ urlpatterns = [
         views.scan_preparateur_pack_start,
         name="scan_preparateur_pack_start",
     ),
+    path(
+        "preparateur/rangement/",
+        views.scan_preparateur_rangement,
+        name="scan_preparateur_rangement",
+    ),
     path("pack/", views.scan_pack, name="scan_pack"),
     path("carton/<int:carton_id>/edit/", views.scan_carton_edit, name="scan_carton_edit"),
     path("shipment/", views.scan_shipment_create, name="scan_shipment_create"),

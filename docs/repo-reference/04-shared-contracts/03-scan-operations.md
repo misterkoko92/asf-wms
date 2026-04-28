@@ -89,6 +89,7 @@ Read this file when touching scan lists, sidebar navigation, preparateur flows, 
 - Active volunteer session key: `preparateur_active_volunteer_id`.
 - Selected order session key: `preparateur_selected_order_id`.
 - Picking plan session key: `preparateur_order_plan`.
+- Rangement batch session key: `preparateur_rangement_batch`.
 - Planned carton becomes real only when `Marquer prêt` is clicked.
 - `/scan/pack/` preserves linked shipment reference through hidden shipment field when active.
 - Product card layout stays three-row.
@@ -97,10 +98,11 @@ Read this file when touching scan lists, sidebar navigation, preparateur flows, 
 - Barcode flows reuse selected camera mode.
 - OCR is currently disabled and must fail closed unless future work self-hosts OCR assets and updates CSP, cache, and regression tests.
 - Unknown product opens modal; SKU auto-generates; preparateur-created products are incomplete and notify reviewers.
+- `/scan/preparateur/rangement/` caps each batch at five distinct products, merges duplicate scans by increasing quantity, uses product default location for stock intake, leaves no stock entry when location is missing, and reuses the preparateur unknown-product creation modal when a scan cannot be resolved.
 
 ### Maintenance rule
 
-- If preparateur pack flow changes, keep session helper, order selection, workbench, pack template, unknown-product JS, pack handlers, notifications, tests, and this section aligned.
+- If preparateur pack or rangement flow changes, keep session helper, order selection, workbench/rangement template, unknown-product JS/modal behavior, pack/rangement handlers, notifications, tests, and this section aligned.
 
 ---
 

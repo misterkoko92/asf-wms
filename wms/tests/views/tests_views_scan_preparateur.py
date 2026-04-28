@@ -1,6 +1,8 @@
 import re
 from datetime import date, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
+from unittest import mock
 from urllib.parse import urlencode
 
 from django.contrib.auth import get_user_model
@@ -10,12 +12,15 @@ from django.urls import reverse
 
 from wms.models import (
     Location,
+    MovementType,
     Order,
     OrderReviewStatus,
     OrderStatus,
     Product,
+    ProductCategory,
     ProductLot,
     ProductLotStatus,
+    StockMovement,
     VolunteerProfile,
     Warehouse,
 )
@@ -142,6 +147,331 @@ class ScanPreparateurHomeViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "scan/stock_update.html")
+
+    def test_scan_preparateur_home_renders_rangement_action(self):
+        response = self.client.get(reverse("scan:scan_preparateur_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rangement")
+        self.assertContains(response, 'id="scan-preparateur-home-rangement"')
+
+    def test_scan_preparateur_home_rangement_requires_active_volunteer(self):
+        response = self.client.post(
+            reverse("scan:scan_preparateur_home"),
+            {"action": "rangement"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_home"))
+
+    def test_scan_preparateur_home_rangement_redirects_with_active_volunteer(self):
+        self._set_active_volunteer(self.alpha_alice)
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_home"),
+            {"action": "rangement"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_rangement"))
+
+    def test_scan_preparateur_can_open_rangement_page(self):
+        response = self.client.get(reverse("scan:scan_preparateur_rangement"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "scan/preparateur_rangement.html")
+        self.assertContains(response, "Rangement")
+        self.assertContains(response, 'data-scan-target="id_rangement_product_code"')
+
+    def test_scan_preparateur_rangement_known_product_updates_stock_and_recap(self):
+        warehouse = Warehouse.objects.create(name="Rangement warehouse", code="RANG")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            sku="RANG-001",
+            name="Produit rangement",
+            barcode="BAR-RANG-001",
+            default_location=location,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "scan_product",
+                "product_code": "BAR-RANG-001",
+                "quantity": "3",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Produit Rangement")
+        self.assertContains(response, "Rangement warehouse A-01-001")
+        lot = ProductLot.objects.get(product=product)
+        self.assertEqual(lot.quantity_on_hand, 3)
+        self.assertEqual(lot.location, location)
+        movement = StockMovement.objects.get(product=product)
+        self.assertEqual(movement.movement_type, MovementType.IN)
+        self.assertEqual(movement.quantity, 3)
+        self.assertEqual(movement.to_location, location)
+
+    def test_scan_preparateur_rangement_duplicate_scan_merges_recap_and_stock(self):
+        warehouse = Warehouse.objects.create(name="Rangement duplicate", code="RANGD")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="B",
+            aisle="02",
+            shelf="002",
+        )
+        product = Product.objects.create(
+            sku="RANG-002",
+            name="Produit doublon",
+            barcode="BAR-RANG-002",
+            default_location=location,
+        )
+
+        url = reverse("scan:scan_preparateur_rangement")
+        self.client.post(
+            url, {"action": "scan_product", "product_code": product.sku, "quantity": "2"}
+        )
+        response = self.client.post(
+            url,
+            {"action": "scan_product", "product_code": product.barcode, "quantity": "4"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        batch = response.context["rangement_batch"]
+        self.assertEqual(len(batch), 1)
+        self.assertEqual(batch[0]["quantity"], 6)
+        self.assertEqual(
+            sum(lot.quantity_on_hand for lot in ProductLot.objects.filter(product=product)),
+            6,
+        )
+
+    def test_scan_preparateur_rangement_missing_location_does_not_create_stock(self):
+        Product.objects.create(
+            sku="RANG-NOLOC",
+            name="Produit sans emplacement",
+            barcode="BAR-RANG-NOLOC",
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "scan_product",
+                "product_code": "BAR-RANG-NOLOC",
+                "quantity": "2",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Produit Sans Emplacement")
+        self.assertContains(response, "Pas d&#x27;emplacement défini, demander conseil")
+        self.assertEqual(ProductLot.objects.count(), 0)
+
+    def test_scan_preparateur_rangement_limits_batch_to_five_distinct_products(self):
+        warehouse = Warehouse.objects.create(name="Rangement limit", code="RANGL")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="C",
+            aisle="03",
+            shelf="003",
+        )
+        url = reverse("scan:scan_preparateur_rangement")
+        for index in range(5):
+            Product.objects.create(
+                sku=f"RANG-LIM-{index}",
+                name=f"Produit limite {index}",
+                barcode=f"BAR-RANG-LIM-{index}",
+                default_location=location,
+            )
+            self.client.post(
+                url,
+                {
+                    "action": "scan_product",
+                    "product_code": f"BAR-RANG-LIM-{index}",
+                    "quantity": "1",
+                },
+            )
+        overflow = Product.objects.create(
+            sku="RANG-LIM-OVER",
+            name="Produit limite overflow",
+            barcode="BAR-RANG-LIM-OVER",
+            default_location=location,
+        )
+
+        response = self.client.post(
+            url,
+            {
+                "action": "scan_product",
+                "product_code": overflow.barcode,
+                "quantity": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Batch limité à 5 produits.")
+        self.assertEqual(len(response.context["rangement_batch"]), 5)
+        self.assertFalse(ProductLot.objects.filter(product=overflow).exists())
+
+    def test_scan_preparateur_rangement_unknown_product_opens_modal_with_recap(self):
+        warehouse = Warehouse.objects.create(name="Rangement unknown", code="RANGU")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="D",
+            aisle="04",
+            shelf="004",
+        )
+        known = Product.objects.create(
+            sku="RANG-KNOWN",
+            name="Produit déjà scanné",
+            barcode="BAR-RANG-KNOWN",
+            default_location=location,
+        )
+        url = reverse("scan:scan_preparateur_rangement")
+        self.client.post(
+            url,
+            {"action": "scan_product", "product_code": known.barcode, "quantity": "2"},
+        )
+
+        response = self.client.post(
+            url,
+            {"action": "scan_product", "product_code": "UNKNOWN-RANG", "quantity": "4"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["unknown_product_modal_open"])
+        self.assertContains(response, "Produit Déjà Scanné")
+        self.assertContains(response, "UNKNOWN-RANG")
+        self.assertContains(response, 'id="pack-unknown-product-modal"')
+        self.assertContains(response, 'value="finish_batch"')
+        self.assertContains(response, 'value="create_unknown_product"')
+        self.assertEqual(ProductLot.objects.filter(product__name="UNKNOWN-RANG").count(), 0)
+
+    def test_scan_preparateur_rangement_create_unknown_product_adds_stock_and_recap(self):
+        warehouse = Warehouse.objects.create(name="Rangement create", code="RANGC")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="E",
+            aisle="05",
+            shelf="005",
+        )
+        ProductCategory.objects.create(name="MM")
+
+        with mock.patch("wms.pack_handlers.notify_preparateur_product_review_needed"):
+            response = self.client.post(
+                reverse("scan:scan_preparateur_rangement"),
+                {
+                    "action": "create_unknown_product",
+                    "unknown_product_line_index": "0",
+                    "unknown_product_source_code": "BAR-RANG-NEW",
+                    "unknown_product_name": "Produit rangement nouveau",
+                    "unknown_product_barcode": "BAR-RANG-NEW",
+                    "unknown_product_pack_family": "MM",
+                    "unknown_product_initial_quantity": "5",
+                    "unknown_product_brand": "Marque Rangement",
+                    "unknown_product_length_cm": "10.5",
+                    "unknown_product_width_cm": "4",
+                    "unknown_product_height_cm": "2",
+                    "unknown_product_weight_g": "250",
+                    "unknown_product_location": str(location.id),
+                    "unknown_product_location_warehouse": warehouse.name,
+                    "unknown_product_location_zone": location.zone,
+                    "unknown_product_location_aisle": location.aisle,
+                    "unknown_product_location_shelf": location.shelf,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        product = Product.objects.get(barcode="BAR-RANG-NEW")
+        lot = ProductLot.objects.get(product=product)
+        self.assertTrue(product.is_incomplete)
+        self.assertEqual(product.default_location, location)
+        self.assertEqual(product.brand, "MARQUE RANGEMENT")
+        self.assertEqual(product.length_cm, Decimal("10.50"))
+        self.assertEqual(lot.quantity_on_hand, 5)
+        self.assertContains(response, product.sku)
+        self.assertContains(response, "Rangement create E-05-005")
+
+    def test_scan_preparateur_rangement_create_unknown_product_respects_batch_limit(self):
+        warehouse = Warehouse.objects.create(name="Rangement full unknown", code="RANGFU")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="F",
+            aisle="06",
+            shelf="006",
+        )
+        ProductCategory.objects.create(name="MM")
+        session = self.client.session
+        session["preparateur_rangement_batch"] = [
+            {
+                "product_id": index + 1,
+                "name": f"Produit plein {index}",
+                "sku": f"FULL-{index}",
+                "quantity": 1,
+                "location_label": "Rangement full unknown F-06-006",
+                "stock_updated": True,
+                "stock_status_label": "Stock ajouté",
+            }
+            for index in range(5)
+        ]
+        session.save()
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "create_unknown_product",
+                "unknown_product_line_index": "0",
+                "unknown_product_source_code": "BAR-RANG-FULL-NEW",
+                "unknown_product_name": "Produit rangement plein",
+                "unknown_product_barcode": "BAR-RANG-FULL-NEW",
+                "unknown_product_pack_family": "MM",
+                "unknown_product_initial_quantity": "5",
+                "unknown_product_brand": "Marque Rangement",
+                "unknown_product_length_cm": "10.5",
+                "unknown_product_width_cm": "4",
+                "unknown_product_height_cm": "2",
+                "unknown_product_weight_g": "250",
+                "unknown_product_location": str(location.id),
+                "unknown_product_location_warehouse": warehouse.name,
+                "unknown_product_location_zone": location.zone,
+                "unknown_product_location_aisle": location.aisle,
+                "unknown_product_location_shelf": location.shelf,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["unknown_product_modal_open"])
+        self.assertContains(response, "Batch limité à 5 produits.")
+        self.assertFalse(Product.objects.filter(barcode="BAR-RANG-FULL-NEW").exists())
+        self.assertFalse(ProductLot.objects.exists())
+        self.assertEqual(len(response.context["rangement_batch"]), 5)
+
+    def test_scan_preparateur_rangement_finish_clears_batch_and_returns_home(self):
+        session = self.client.session
+        session["preparateur_rangement_batch"] = [
+            {
+                "product_id": 123,
+                "name": "Produit terminé",
+                "sku": "DONE",
+                "quantity": 1,
+                "location_label": "A-01-001",
+                "stock_updated": True,
+            }
+        ]
+        session.save()
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {"action": "finish_batch"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_home"))
+        self.assertNotIn("preparateur_rangement_batch", self.client.session)
 
     def test_scan_preparateur_home_prepare_order_redirects_to_order_select_with_active_volunteer(
         self,

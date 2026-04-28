@@ -55,6 +55,16 @@
         >
           {% trans "Préparer des colis" %}
         </button>
+        <button
+          type="submit"
+          id="scan-preparateur-home-rangement"
+          name="action"
+          value="rangement"
+          class="btn btn-tertiary btn-lg"
+          {% if not has_active_volunteer %}disabled{% endif %}
+        >
+          {% trans "Rangement" %}
+        </button>
         <a
           id="scan-preparateur-home-stock-update"
           href="{% url 'scan:scan_stock_update' %}"
