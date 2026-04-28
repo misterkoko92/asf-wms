@@ -42,7 +42,11 @@ from .views_scan_orders import (
     scan_preparateur_order_select,
 )
 from .views_scan_pilotage import scan_pilotage
-from .views_scan_preparateur import scan_preparateur_home, scan_preparateur_pack_start
+from .views_scan_preparateur import (
+    scan_preparateur_home,
+    scan_preparateur_pack_start,
+    scan_preparateur_rangement,
+)
 from .views_scan_preparation import (
     scan_preparation_parameter_set_config,
     scan_preparation_run_create,
@@ -130,6 +134,7 @@ SCAN_FLOW_EXPORTS = (
     "scan_prepare_kits",
     "scan_prepare_kits_picking",
     "scan_preparateur_pack_start",
+    "scan_preparateur_rangement",
     "scan_pack",
     "scan_preparateur_last_carton",
     "scan_carton_edit",
