@@ -3,26 +3,13 @@
 Always read `AGENTS.md` first.
 
 For task-specific execution patterns and stop-thresholds by task type, see `docs/agent/playbooks.md`.
+For the universal execution loop applied to every task, see `docs/agent/playbooks.md` § Universal Execution Loop.
+For copy-paste templates for the three most common tasks, see `docs/agent/feature-prompt.md`, `docs/agent/bugfix-prompt.md`, `docs/agent/pr-review-prompt.md`.
 
 For repo work, also read:
 
 - `docs/policies/agent-guardrails.md`
 - `docs/repo-reference/README.md`
-
----
-
-## Standard Workflow
-
-1. Understand the request
-2. Classify the task
-3. Evaluate impact and risk
-4. Inspect relevant code and docs
-5. Choose the smallest safe path
-6. Present a short plan
-7. Implement carefully
-8. Validate with appropriate checks
-9. Update docs if needed
-10. Recommend next best move
 
 ---
 
@@ -123,6 +110,8 @@ Before declaring done:
 ---
 
 ## Documentation Drift Prompts
+
+This is the canonical location for drift audit prompts. `playbooks.md` references this section instead of duplicating it.
 
 ### Lightweight Documentation Drift Audit
 
