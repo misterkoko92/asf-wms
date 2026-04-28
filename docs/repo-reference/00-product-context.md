@@ -1,149 +1,343 @@
 # Product Context (asf-wms)
 
-Lis ce document en premier avant toute intervention significative. Il décrit la raison d'être du projet, ses utilisateurs, son état réel en production et ses contraintes. Les autres fichiers de `docs/repo-reference/` décrivent le *comment* technique ; celui-ci décrit le *pourquoi* et le *pour qui*.
+Read this file first before any significant intervention.
 
-> Dernière mise à jour : 2026-04-21
+This document explains **why the system exists**, **who depends on it**, **what production reality looks like**, and **which constraints matter more than technical elegance**.
 
-## Mission et domaine
+The other files in `docs/repo-reference/` explain mainly the technical *how*.
+This file explains the operational *why*.
 
-- **Association** : ASF (Aviation Sans Frontières — branche Messagerie Médicale, `messmed`)
-- **Activité** : expédition de colis humanitaires internationaux, essentiellement médicaux
-  - ~90 % de matériel médical
-  - ~10 % incluent des médicaments (contexte pharmaceutique sensible)
-- **Deux types d'usage** :
-  1. Expéditions au nom d'ASF
-  2. Service offert à d'autres associations qui utilisent la plateforme pour leurs propres expéditions
-- **Bénéficiaires finaux** : associations humanitaires partenaires et leurs bénéficiaires dans les pays d'arrivée
-- **Cadre réglementaire** :
-  - **Douanes France** (export)
-  - **Douanes pays destinataire** (import, variable selon le pays)
-  - **RGPD** (données personnelles de contacts, bénévoles, destinataires)
-  - **Médicaments** : réglementation pharmaceutique possible sur certaines expéditions
+> Last updated: 2026-04-27
 
-## Production
+---
 
-- **URL** : https://messmed.pythonanywhere.com/
-- **Hébergement** : PythonAnywhere, **offre gratuite**
-  - Contrainte : 1 seul processus web, pas de worker séparé, CPU throttlé, disque 512 Mo
-  - Tâches de fond via `scheduled tasks` PythonAnywhere (commandes management en polling)
-- **Base de données** : MySQL fourni par PythonAnywhere (taille inconnue, estimée petite)
-- **Media files** : filesystem local PythonAnywhere
-- **Pas d'environnement de staging** — tout va directement en production après merge
+# 1. Mission
 
-## Processus de déploiement
+ASF-WMS supports the humanitarian logistics activity of **Aviation Sans Frontières (ASF)**, primarily for the **Messagerie Médicale** branch.
 
-- Branches de développement créées par Codex ou Claude Code
-- PR ouvertes avec CI GitHub Actions (ruff, mypy, pyright, bandit, tests, coverage 93 %)
-- Quand la CI est verte, Edouard demande le merge à l'assistant
-- Nettoyage des branches après merge
-- Déploiement effectif : étape manuelle sur PythonAnywhere (à clarifier — probablement `git pull` + `migrate` + reload webapp)
+Core mission:
 
-## Utilisateurs et interfaces
+- receive
+- prepare
+- consolidate
+- track
+- document
+- ship
 
-| Interface | URL | Utilisateurs |
-|-----------|-----|--------------|
-| `/scan/` | PWA entrepôt | Responsable entrepôt ASF + bénévoles préparateurs (interne ASF) |
-| `/portal/` | Self-service | Associations expéditrices + destinataires à l'étranger |
-| `/benevole/` | Coordination | Bénévoles qui font la mise à bord (embarquement des colis) |
-| `/planning/` | Planification vols | Coordinateurs internes ASF |
-| `/admin/` | Django admin | 2 utilisateurs internes ASF (Edouard + 1 autre) |
+humanitarian parcels internationally, mainly medical.
 
-### Population
+This is not a generic e-commerce system.
+This is an operational tool supporting real aid flows with real downstream consequences.
 
-- **~30 bénévoles actifs** (rotation probable)
-- **~20 associations partenaires expéditrices**
-- **~100 destinataires** (associations à l'étranger)
-- **~300 contacts uniques** en base (estimation)
-- **Profils numériques variables** — bénévoles pas forcément à l'aise avec le numérique, aisance numérique des associations étrangères très variable
+---
 
-## Volume actuel
+# 2. Real-World Activity
 
-- **~15 expéditions / semaine**
-- **~170 colis / mois**
-- **Implication** : volume faible. Les problématiques de *scalabilité pure* (cache Redis, Celery, object storage, sessions cached, sharding) ne sont **pas prioritaires**. Les problématiques de *fiabilité*, *traçabilité*, *conformité* et *ergonomie* dominent.
+## Main shipment content
 
-## Données manipulées (pertinent pour RGPD)
+Approximate mix:
 
-| Catégorie | Exemples | Sensibilité |
-|-----------|----------|-------------|
-| Contacts expéditeurs | Nom asso, emails, téléphones | Standard |
-| Contacts destinataires | Nom, adresse, téléphone, email, pays | Standard + transferts hors UE probables |
-| Bénévoles | Compte, rôle, emails | Standard |
-| Contenu colis | Description matériel médical, médicaments | **Sensible** (pharma + douane) |
-| Documents scannés | Attestations, factures, documents douaniers | **Sensible** |
-| Données bancaires | Non détectées en base (à confirmer) | — |
-| Données de santé | Non — pas de patients individuels | — |
-| Mineurs | **Non** | — |
+- ~90% medical equipment / consumables
+- ~10% may involve medicines or sensitive healthcare items
 
-**Points critiques RGPD** :
-- Transferts hors UE (destinataires dans pays non-UE) → encadrement contractuel nécessaire
-- Sous-traitants : PythonAnywhere (US/UK), Brevo (FR), Microsoft Graph (US — OneDrive), AF-KLM API
-- Durées de conservation : à définir (contraintes douanières = conservation longue probable des documents d'expédition)
+Examples:
 
-## Équipe
+- hospital consumables
+- diagnostic devices
+- mobility equipment
+- medical kits
+- humanitarian supplies
+- occasional regulated products
 
-- **Edouard (créateur)** : non-développeur, assisté par Codex et Claude Code
-- Potentiellement 1-2 autres personnes à terme
-- Bascule en cours vers **Claude Code 100 %** (Codex en retrait)
+## Two operating models
 
-## Budget
+### A. ASF own shipments
 
-- **Très contraint** : < 30 € / mois
-- Idéal : 0 € (offres gratuites)
-- Implication : éviter tout outil/service qui pousse sur un palier payant à court terme
+ASF sends aid under its own operations.
 
-## Intégrations externes
+### B. Shared platform for partner associations
 
-| Service | Usage | Criticité | Coût |
-|---------|-------|-----------|------|
-| **Brevo** | Envoi emails transactionnels (API REST) | Haute | Freemium (300 emails/jour gratuit) |
-| **Microsoft Graph** (OneDrive) | Conversion XLSX→PDF et stockage partagé | Moyenne | Inclus licence Microsoft 365 de l'asso |
-| **ECB (Banque centrale euro)** | Taux de change quotidiens pour facturation | Basse | Gratuit (API publique) |
-| **Air France-KLM Flight Status** | Statut vols pour planning | Moyenne | Gratuit (opendata) |
-| **WhatsApp Web (wa.me)** | Génération de liens de brouillon message | Basse | Gratuit |
-| **API interne (`X-ASF-Integration-Key`)** | Intégrations tierces éventuelles | Optionnelle | — |
+Other NGOs / associations use the platform to organize their own shipments through the ASF logistics network.
 
-## État de la production et incidents
+This means the system serves both:
 
-- Plusieurs bugs corrigés au fil de l'eau
-- Plusieurs refontes de schéma DB (visible dans les migrations, 126+)
-- Pas de stack de monitoring — les incidents sont remontés par les utilisateurs
+- internal operators
+- external partner organizations
 
-## Features IA envisagées (à clarifier)
+---
 
-Edouard envisage des features IA à terme, orientations probables :
+# 3. End Users
 
-1. **Anticipation de la préparation des colis** — prédire à l'avance quels produits préparer (basé historique expéditions, saison, destination)
-2. **Assistance à la gestion du planning d'expédition** — optimisation combinatoire vols/colis (ortools déjà présent dans les dépendances)
+## Internal users
 
-Non encore décidé. Contraintes probables :
-- Budget très limité → prompt caching Anthropic indispensable
-- Pas de données personnelles envoyées aux API externes sans pseudonymisation (RGPD)
-- Traçage des appels IA via `IntegrationEvent` pour observabilité des coûts
+### Warehouse / operations staff
 
-## Priorités actuelles (2026-04-21)
+Use `/scan/`
 
-**Objectif n°1** : finaliser une version production 100 % utilisable.
+Need:
 
-Cela implique : stabilité, conformité RGPD et douanière, ergonomie suffisante pour les profils non-techniques, traçabilité des actions sensibles. La performance et la scalabilité sont **secondaires** tant que le volume reste à ~170 colis/mois.
+- speed
+- reliability
+- dense workflows
+- minimal clicks
+- operational clarity
 
-## Ce que ce contexte change pour les agents
+### Planning / coordination users
 
-Lorsque tu proposes une évolution ou un fix, garde en tête :
+Use `/planning/`
 
-- **Volume faible** → pas de refacto pour la scalabilité
-- **Budget serré** → prioriser outils gratuits (Sentry free tier, GitHub free, offres freemium suffisantes)
-- **Solo + non-dev** → éviter les architectures qui demandent une équipe pour être maintenues
-- **Humanitaire + douane** → la traçabilité (qui a fait quoi, quand) est un besoin fonctionnel, pas un luxe
-- **RGPD + transferts hors UE** → toute nouvelle collecte de données doit être réfléchie
-- **PythonAnywhere Free** → pas de worker séparé, pas de Redis, pas de cron natif au-delà des scheduled tasks
-- **Pas de staging** → les changements risqués ont besoin d'un filet (feature flags, rollback rapide)
-- **Bascule vers Claude Code 100 %** → les workflows devraient s'adapter (skills custom, hooks, slash commands pour automatiser les tâches répétitives d'Edouard)
+Need:
 
-## À clarifier
+- shipment readiness truth
+- allocation visibility
+- exports
+- communication support
 
-- Durées de conservation des données (contraintes douanières vs. RGPD)
-- Procédure exacte de déploiement PythonAnywhere (documentée où ?)
-- DPO de l'association (qui est référent RGPD ?)
-- Statut juridique précis d'ASF Messagerie Médicale (branche autonome ? association loi 1901 ? reconnue d'utilité publique ?)
-- Mentions légales et CGU existantes ? (hors repo ?)
+### Volunteers
+
+Use `/benevole/`
+
+Need:
+
+- simple flows
+- availability input
+- task clarity
+
+---
+
+## External users
+
+### Partner associations
+
+Use `/portal/`
+
+Need:
+
+- create requests
+- manage recipients
+- submit orders
+- understand shipment status
+- trust data accuracy
+
+### Recipients / contacts abroad
+
+May interact through shipment communication flows.
+
+---
+
+# 4. Production Reality
+
+## Current live environment
+
+Production URL:
+
+`https://messmed.pythonanywhere.com/`
+
+## Hosting
+
+PythonAnywhere free-tier style constraints currently matter.
+
+Practical limitations include:
+
+- single web process
+- no dedicated worker infrastructure
+- constrained CPU
+- constrained disk
+- simple filesystem media storage
+- scheduled tasks instead of robust background architecture
+
+## Database
+
+MySQL (hosted environment).
+
+Assume modest scale infrastructure, not enterprise-grade elastic capacity.
+
+## Deployment model
+
+No true staging environment.
+
+Changes generally reach production after CI + manual deployment workflow.
+
+That means regressions are more expensive than in modern multi-env pipelines.
+
+---
+
+# 5. What Makes This System Special
+
+## It is operational software
+
+If a normal SaaS page fails, users get annoyed.
+
+If this system fails, consequences may include:
+
+- shipment delays
+- customs friction
+- missing documents
+- stock confusion
+- partner dissatisfaction
+- lost volunteer time
+- aid arriving late
+
+## It mixes many domains
+
+This repo combines:
+
+- logistics
+- warehousing
+- planning
+- document generation
+- partner portal
+- volunteer coordination
+- notifications
+- regulatory exports
+- legacy Django monolith constraints
+
+---
+
+# 6. High-Value Invariants
+
+Protect these unless explicitly redesigning them.
+
+## Operational speed
+
+Warehouse users repeat actions all day.
+
+Never add friction casually.
+
+## Data truth
+
+Stock, cartons, shipments, references, statuses must remain coherent.
+
+## Shipment readiness truth
+
+A shipment must not appear ready when it is not physically ready.
+
+## Traceability
+
+Important actions should remain understandable after the fact.
+
+## External trust
+
+Portal users must see correct and comprehensible information.
+
+## Print truth
+
+Documents must match real shipment data.
+
+---
+
+# 7. Regulatory / Risk Context
+
+Depending on shipment type or destination:
+
+- French export customs requirements
+- destination-country import constraints
+- personal data / GDPR expectations
+- possible pharmaceutical sensitivity
+- address / identity accuracy needs
+
+Never trivialize data integrity in these areas.
+
+---
+
+# 8. Product Philosophy
+
+This system was built pragmatically around real operations.
+
+Expect:
+
+- legacy patterns
+- mixed architecture generations
+- useful shortcuts
+- dense UI choices optimized for operators
+- code that reflects history
+
+Do not confuse “not modern” with “wrong”.
+
+Many strange-looking choices may encode operational learning.
+
+---
+
+# 9. Change Philosophy
+
+Prefer:
+
+- safe incremental improvements
+- clearer contracts
+- better tests
+- extraction of reusable logic
+- operational UX wins
+- performance wins on constrained infra
+
+Avoid:
+
+- vanity rewrites
+- fashionable architecture migrations without payoff
+- breaking stable operator habits casually
+- adding infrastructure assumptions production cannot support
+
+---
+
+# 10. What An Agent Must Never Break
+
+Never casually break:
+
+- shipment creation/edit flows
+- stock updates
+- carton packing logic
+- planning eligibility
+- print labels / customs docs
+- portal permissions
+- recipient / contact integrity
+- email routing
+- operational navigation speed
+
+---
+
+# 11. Priority Order For Decisions
+
+When tradeoffs exist, usually prefer:
+
+1. Correct operational outcome
+2. Data integrity
+3. Reliability in production
+4. Speed for frequent users
+5. Maintainability
+6. Elegance
+
+Not the reverse.
+
+---
+
+# 12. Before Large Changes
+
+Always ask:
+
+- Who uses this flow in real life?
+- How often?
+- What happens if wrong for one day?
+- Is there an existing hidden contract?
+- Is production infra able to support the new design?
+- Is this solving a real pain or only a code smell?
+
+---
+
+# 13. Relationship With Other Repo Docs
+
+After reading this file, continue with:
+
+1. `01-architecture-and-entrypoints.md`
+2. `02-key-flows-and-living-tests.md`
+3. `03-impact-map.md`
+4. `04-shared-contracts.md`
+
+This file gives context.
+Those files guide execution.
+
+---
+
+# 14. Final Rule
+
+This software exists to move humanitarian aid efficiently and safely.
+
+Every technical decision should remain aligned with that purpose.
