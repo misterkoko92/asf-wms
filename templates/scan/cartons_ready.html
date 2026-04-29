@@ -20,6 +20,71 @@
       <span>{% trans "Vue Colis" %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ cartons|length }}</span>
     </h2>
+    <form method="get" class="scan-filter-actions d-flex flex-wrap gap-2 align-items-end mb-3">
+      <div class="scan-field mb-0">
+        <label class="form-label" for="id_carton_filter_q">{% trans "Recherche" %}</label>
+        <input
+          id="id_carton_filter_q"
+          type="search"
+          name="q"
+          class="form-control form-control-sm"
+          value="{{ carton_filters.q }}"
+          placeholder="{% trans "Produit ou colis" %}"
+        >
+      </div>
+      <div class="scan-field mb-0">
+        <label class="form-label" for="id_carton_filter_assignment">{% trans "Affectation" %}</label>
+        <select id="id_carton_filter_assignment" name="assignment" class="form-select form-select-sm ui-select--md">
+          {% for value, label in carton_assignment_filter_choices %}
+            <option value="{{ value }}"{% if carton_filters.assignment == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-field mb-0">
+        <label class="form-label" for="id_carton_filter_status">{% trans "Statut" %}</label>
+        <select id="id_carton_filter_status" name="status" class="form-select form-select-sm ui-select--md">
+          <option value=""{% if not carton_filters.status %} selected{% endif %}>{% trans "Tous statuts" %}</option>
+          {% for value, label in carton_filter_status_choices %}
+            <option value="{{ value }}"{% if carton_filters.status == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-field mb-0">
+        <label class="form-label" for="id_carton_filter_created_on">{% trans "Créé le" %}</label>
+        <input
+          id="id_carton_filter_created_on"
+          type="date"
+          name="created_on"
+          class="form-control form-control-sm"
+          value="{{ carton_filters.created_on }}"
+        >
+      </div>
+      <div class="scan-field mb-0">
+        <label class="form-label" for="id_carton_filter_prepared_by">{% trans "Bénévole" %}</label>
+        <select id="id_carton_filter_prepared_by" name="prepared_by" class="form-select form-select-sm ui-select--lg">
+          <option value=""{% if not carton_filters.prepared_by %} selected{% endif %}>{% trans "Tous bénévoles" %}</option>
+          {% for volunteer in carton_volunteer_filter_options %}
+            {% with volunteer_id=volunteer.id|stringformat:"s" %}
+              <option value="{{ volunteer.id }}"{% if carton_filters.prepared_by == volunteer_id %} selected{% endif %}>{{ volunteer.label }}</option>
+            {% endwith %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-field mb-0">
+        <label class="form-label" for="id_carton_filter_shipment">{% trans "Expédition" %}</label>
+        <input
+          id="id_carton_filter_shipment"
+          type="text"
+          name="shipment_reference"
+          class="form-control form-control-sm"
+          value="{{ shipment_reference_filter }}"
+        >
+      </div>
+      <div class="scan-inline-actions ui-comp-actions">
+        <button type="submit" class="scan-scan-btn btn btn-primary btn-sm">{% trans "Filtrer" %}</button>
+        <a class="scan-scan-btn btn btn-tertiary btn-sm" href="{% url 'scan:scan_cartons_ready' %}">{% trans "Réinitialiser" %}</a>
+      </div>
+    </form>
     {% if shipment_reference_filter %}
       <div class="scan-field d-flex flex-wrap align-items-center gap-2">
         <span class="scan-help ui-comp-note">Expédition filtrée : {{ shipment_reference_filter }}</span>

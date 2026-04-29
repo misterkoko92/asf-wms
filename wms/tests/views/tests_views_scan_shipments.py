@@ -21,6 +21,8 @@ from wms.models import (
     CartonItem,
     CartonSourceKind,
     CartonStatus,
+    CartonVolunteerActivity,
+    CartonVolunteerActivityAction,
     Destination,
     Location,
     Order,
@@ -157,13 +159,55 @@ class ScanShipmentsViewsTests(TestCase):
         )
         return self._test_product_lot
 
-    def _create_carton_with_item(self, *, code, shipment=None, status=CartonStatus.PACKED):
-        carton = Carton.objects.create(code=code, shipment=shipment, status=status)
+    def _create_product_lot(
+        self,
+        *,
+        sku,
+        name,
+        barcode="",
+        ean="",
+        quantity_on_hand=20,
+    ):
+        base_lot = self._get_test_product_lot()
+        product = Product.objects.create(
+            sku=sku,
+            name=name,
+            barcode=barcode,
+            ean=ean,
+        )
+        return ProductLot.objects.create(
+            product=product,
+            lot_code=f"LOT-{sku}",
+            quantity_on_hand=quantity_on_hand,
+            location=base_lot.location,
+        )
+
+    def _create_carton_with_item(
+        self,
+        *,
+        code,
+        shipment=None,
+        status=CartonStatus.PACKED,
+        product_lot=None,
+        preassigned_destination=None,
+        created_at=None,
+        prepared_by=None,
+    ):
+        carton = Carton.objects.create(
+            code=code,
+            shipment=shipment,
+            status=status,
+            preassigned_destination=preassigned_destination,
+            prepared_by=prepared_by,
+        )
         CartonItem.objects.create(
             carton=carton,
-            product_lot=self._get_test_product_lot(),
+            product_lot=product_lot or self._get_test_product_lot(),
             quantity=1,
         )
+        if created_at is not None:
+            Carton.objects.filter(pk=carton.pk).update(created_at=created_at)
+            carton.created_at = created_at
         return carton
 
     def _create_shipment_party_triplet(self, code):
@@ -953,6 +997,120 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, "C-OTHER")
         self.assertContains(response, f"Expédition filtrée : {matched_shipment.reference}")
         self.assertContains(response, "Voir tous les colis")
+
+    def test_scan_cartons_ready_filters_free_available_cartons(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        self._create_carton_with_item(code="C-FREE-READY", status=CartonStatus.PACKED)
+        self._create_carton_with_item(
+            code="C-FREE-DRAFT",
+            status=CartonStatus.DRAFT,
+        )
+        self._create_carton_with_item(
+            code="C-ASSIGNED",
+            shipment=shipment,
+            status=CartonStatus.PACKED,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_ready"),
+            {"assignment": "free", "status": CartonStatus.PACKED},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-FREE-READY")
+        self.assertNotContains(response, "C-FREE-DRAFT")
+        self.assertNotContains(response, "C-ASSIGNED")
+        self.assertContains(response, 'name="assignment"')
+        self.assertContains(response, 'value="free" selected')
+        self.assertContains(response, 'name="status"')
+
+    def test_scan_cartons_ready_filters_by_product_query(self):
+        syringe_lot = self._create_product_lot(
+            sku="SYRINGE-FILTER",
+            name="Seringues 10ml",
+            barcode="BAR-SYR",
+            ean="EAN-SYR",
+        )
+        gloves_lot = self._create_product_lot(
+            sku="GLOVES-FILTER",
+            name="Gants nitrile",
+        )
+        self._create_carton_with_item(code="C-SYRINGE", product_lot=syringe_lot)
+        self._create_carton_with_item(code="C-GLOVES", product_lot=gloves_lot)
+
+        response = self.client.get(reverse("scan:scan_cartons_ready"), {"q": "seringue"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-SYRINGE")
+        self.assertContains(response, "Seringues 10ml")
+        self.assertNotContains(response, "C-GLOVES")
+        self.assertContains(response, 'name="q"')
+        self.assertContains(response, 'value="seringue"')
+
+    def test_scan_cartons_ready_filters_by_created_date(self):
+        selected_date = timezone.make_aware(datetime(2026, 4, 29, 9, 30))
+        other_date = timezone.make_aware(datetime(2026, 4, 28, 17, 0))
+        self._create_carton_with_item(code="C-DATE-MATCH", created_at=selected_date)
+        self._create_carton_with_item(code="C-DATE-OTHER", created_at=other_date)
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_ready"),
+            {"created_on": "2026-04-29"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-DATE-MATCH")
+        self.assertNotContains(response, "C-DATE-OTHER")
+        self.assertContains(response, 'name="created_on"')
+        self.assertContains(response, 'value="2026-04-29"')
+
+    def test_scan_cartons_ready_filters_by_prepared_volunteer(self):
+        volunteer_user = get_user_model().objects.create_user(
+            username="volunteer-filter",
+            first_name="Alice",
+            last_name="Martin",
+            is_staff=True,
+        )
+        other_user = get_user_model().objects.create_user(
+            username="volunteer-other",
+            first_name="Bob",
+            last_name="Durand",
+            is_staff=True,
+        )
+        volunteer = VolunteerProfile.objects.create(user=volunteer_user, is_active=True)
+        other_volunteer = VolunteerProfile.objects.create(user=other_user, is_active=True)
+        selected_carton = self._create_carton_with_item(
+            code="C-VOLUNTEER-MATCH",
+            prepared_by=volunteer_user,
+        )
+        other_carton = self._create_carton_with_item(
+            code="C-VOLUNTEER-OTHER",
+            prepared_by=other_user,
+        )
+        CartonVolunteerActivity.objects.create(
+            carton=selected_carton,
+            volunteer=volunteer,
+            action=CartonVolunteerActivityAction.PREPARED,
+            actor=self.staff_user,
+        )
+        CartonVolunteerActivity.objects.create(
+            carton=other_carton,
+            volunteer=other_volunteer,
+            action=CartonVolunteerActivityAction.PREPARED,
+            actor=self.staff_user,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_ready"),
+            {"prepared_by": str(volunteer.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-VOLUNTEER-MATCH")
+        self.assertNotContains(response, "C-VOLUNTEER-OTHER")
+        self.assertContains(response, 'name="prepared_by"')
+        self.assertContains(response, f'value="{volunteer.id}" selected')
+        self.assertContains(response, "Alice MARTIN")
 
     def test_scan_cartons_ready_bulk_picking_redirects_to_grouped_route(self):
         carton = Carton.objects.create(code="C-BULK-PICK", status=CartonStatus.PICKING)
