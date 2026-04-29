@@ -119,6 +119,8 @@ Read this flow when touching:
 - Preparateur workflow must preserve active volunteer session, order grouping, carton traceability, family-specific carton formats, and `Marquer prêt` behavior.
 - Preparateur rangement starts from `/scan/preparateur/`, keeps a session batch capped at five distinct products, locks the batch to either `Entrée en stock` or `Déplacement de stock`, requires quantities, increments duplicate scans, routes every line to the product default location, blocks validation until missing default locations are corrected, writes stock only when the batch is validated, and stops unknown receipt-mode products before opening the preparateur product-creation modal.
 - Unknown-product escape hatch from pack/carton edit intentionally drops in-progress carton draft when redirecting to `/scan/import/`.
+- Free carton batch preparation starts from `/scan/pack/`, treats each line quantity as the content of one carton type, creates N independent `PACKED` cartons with no shipment and no preassigned destination, and consumes stock immediately.
+- `Vue Colis` remains the assignment surface for those free cartons; filters by free assignment, status, product query, creation date, and preparateur volunteer help staff assign subsets later.
 - Warehouse preparation conversion creates shipments in `ShipmentStatus.PICKING`, not `PACKED`.
 - Final promotion from `PICKING` to `PACKED` is explicit on shipment dossier and remains separate from preparation-run conversion.
 - Planning must not see `PICKING` shipments as ready.

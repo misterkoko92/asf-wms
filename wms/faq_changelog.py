@@ -5,6 +5,14 @@ SCAN_FAQ_CHANGE_LOG_ENTRIES = [
         "date": date(2026, 4, 29),
         "pr_number": None,
         "summary": (
+            "Batch colis libres pour préparer plusieurs cartons identiques sans "
+            "destination ni expédition, puis les affecter plus tard depuis Vue Colis."
+        ),
+    },
+    {
+        "date": date(2026, 4, 29),
+        "pr_number": None,
+        "summary": (
             "Préparation d'expéditions sans colis affiliés, création batch de dossiers "
             "et impression des dossiers papier avec étiquettes préparatoires."
         ),

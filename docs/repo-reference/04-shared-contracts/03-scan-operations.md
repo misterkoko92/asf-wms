@@ -94,6 +94,10 @@ Read this file when touching scan lists, sidebar navigation, preparateur flows, 
 - `/scan/pack/` preserves linked shipment reference through hidden shipment field when active.
 - Product card layout stays three-row.
 - Free-pack supports forced carton count with warnings.
+- Batch colis libres starts from `/scan/pack/`; line quantities describe one carton type and `Nombre de colis identiques` repeats that exact carton.
+- Free carton batch creation requires the client confirmation popup and the server-side `confirm_free_carton_batch` acknowledgement; JavaScript is only a guardrail, not the source of authority.
+- Free carton batches create real `Carton` rows immediately, consume stock immediately, mark cartons `PACKED`, and leave `shipment` and `preassigned_destination` blank.
+- Later assignment of free batch cartons happens from `Vue Colis`, whose filters can isolate free available cartons by assignment, status, product query, creation date, and preparateur volunteer.
 - Camera-facing choice maps rear/front to `environment`/`user`.
 - Barcode flows reuse selected camera mode.
 - OCR is currently disabled and must fail closed unless future work self-hosts OCR assets and updates CSP, cache, and regression tests.
