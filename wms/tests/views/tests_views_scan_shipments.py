@@ -17,6 +17,7 @@ from contacts.models import Contact, ContactType
 from wms.helper_install import build_helper_install_context
 from wms.models import (
     Carton,
+    CartonFormat,
     CartonItem,
     CartonSourceKind,
     CartonStatus,
@@ -1434,6 +1435,11 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-pack-add-line-btn")
         self.assertContains(response, 'id="id_forced_carton_count"')
+        self.assertContains(response, 'id="id_free_batch_carton_count"')
+        self.assertContains(response, 'name="confirm_free_carton_batch"')
+        self.assertContains(response, 'value="prepare_available_batch"')
+        self.assertContains(response, 'data-free-carton-batch-submit="1"')
+        self.assertContains(response, 'id="free-carton-batch-confirmation-overlay"')
         self.assertContains(response, "Nombre de colis")
         self.assertContains(response, 'value="prepare_without_conditioning"')
         self.assertContains(response, 'value="prepare_available"')
@@ -1445,6 +1451,34 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'for="id_carton_max_weight_g">Poids</label>')
         self.assertContains(response, "ui-comp-actions")
         self.assertNotContains(response, "Ajouter emplacement")
+
+    def test_scan_pack_free_batch_requires_confirmation_from_view(self):
+        lot = self._get_test_product_lot()
+        CartonFormat.objects.create(
+            name="Batch test",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_pack"),
+            {
+                "action": "prepare_available_batch",
+                "free_batch_carton_count": "2",
+                "line_count": "1",
+                "line_1_product_code": lot.product.sku,
+                "line_1_quantity": "3",
+                "confirm_defaults": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Carton.objects.count(), 0)
+        self.assertContains(response, "Confirmez la création du batch de colis libres.")
+        self.assertContains(response, 'value="2"')
 
     def test_scan_pack_uses_shared_action_wrapper_for_generated_result_links(self):
         session = self.client.session

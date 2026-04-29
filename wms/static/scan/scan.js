@@ -1045,6 +1045,29 @@
     const customWidth = document.getElementById('id_carton_width_cm');
     const customHeight = document.getElementById('id_carton_height_cm');
     const customWeight = document.getElementById('id_carton_max_weight_g');
+    const form = container.closest('form');
+    const freeBatchCountInput = document.getElementById('id_free_batch_carton_count');
+    const freeBatchConfirmInput = document.querySelector(
+      '[data-free-carton-batch-confirm-input="1"]'
+    );
+    const freeBatchSubmitButton = document.querySelector(
+      '[data-free-carton-batch-submit="1"]'
+    );
+    const freeBatchModalEl = document.getElementById(
+      'free-carton-batch-confirmation-overlay'
+    );
+    const freeBatchConfirmButton = document.querySelector(
+      '[data-free-carton-batch-confirm="1"]'
+    );
+    const freeBatchConfirmCountEl = document.querySelector(
+      '[data-free-carton-batch-confirm-count]'
+    );
+    const freeBatchConfirmLinesEl = document.querySelector(
+      '[data-free-carton-batch-confirm-lines]'
+    );
+    const freeBatchConfirmTotalEl = document.querySelector(
+      '[data-free-carton-batch-confirm-total]'
+    );
 
     const productDataEl = document.getElementById('product-data');
     const formatDataEl = document.getElementById('carton-format-data');
@@ -1094,6 +1117,10 @@
     const parseNumber = value => {
       const parsed = parseFloat((value || '').toString().replace(',', '.'));
       return Number.isFinite(parsed) ? parsed : null;
+    };
+    const parsePositiveInteger = value => {
+      const parsed = parseInt((value || '').toString(), 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     };
 
     const productEntries = products
@@ -1456,6 +1483,75 @@
     const updateAllLineMetrics = () => {
       Array.from(container.querySelectorAll('.pack-line')).forEach(updateLineMetrics);
     };
+    const resetFreeBatchConfirmation = () => {
+      if (freeBatchConfirmInput) {
+        freeBatchConfirmInput.value = '';
+      }
+    };
+    const formatFreeBatchProductLabel = row => {
+      const product = findProduct(row.product_code);
+      if (!product) {
+        return row.product_code || 'Produit';
+      }
+      return product.brand ? `${product.name} - ${product.brand}` : product.name;
+    };
+    const buildFreeBatchConfirmationSummary = count => {
+      const rows = collectValues()
+        .map(row => ({
+          label: formatFreeBatchProductLabel(row),
+          quantity: parsePositiveInteger(row.quantity) || 0
+        }))
+        .filter(row => row.quantity > 0);
+      const totalUnits = rows.reduce(
+        (total, row) => total + row.quantity * count,
+        0
+      );
+      return { rows, totalUnits };
+    };
+    const renderFreeBatchConfirmation = count => {
+      const summary = buildFreeBatchConfirmationSummary(count);
+      if (freeBatchConfirmCountEl) {
+        freeBatchConfirmCountEl.textContent = String(count);
+      }
+      if (freeBatchConfirmLinesEl) {
+        freeBatchConfirmLinesEl.innerHTML = '';
+        summary.rows.forEach(row => {
+          const item = document.createElement('li');
+          item.textContent = `${row.label}: ${row.quantity} x ${count} = ${
+            row.quantity * count
+          }`;
+          freeBatchConfirmLinesEl.appendChild(item);
+        });
+      }
+      if (freeBatchConfirmTotalEl) {
+        freeBatchConfirmTotalEl.textContent = `${summary.totalUnits} unité(s)`;
+      }
+      return summary;
+    };
+    const requestFreeBatchSubmit = () => {
+      if (!freeBatchConfirmInput || !form || !freeBatchSubmitButton) {
+        return;
+      }
+      freeBatchConfirmInput.value = '1';
+      if (form.requestSubmit) {
+        form.requestSubmit(freeBatchSubmitButton);
+      } else {
+        freeBatchSubmitButton.click();
+      }
+    };
+    const openFreeBatchConfirmation = count => {
+      const summary = renderFreeBatchConfirmation(count);
+      if (freeBatchModalEl && window.bootstrap && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(freeBatchModalEl).show();
+        return;
+      }
+      const ok = window.confirm(
+        `Créer ${count} colis libres sans destination ni expédition ? Total consommé: ${summary.totalUnits} unité(s).`
+      );
+      if (ok) {
+        requestFreeBatchSubmit();
+      }
+    };
 
     const buildLine = (index, value, errors) => {
       const line = document.createElement('div');
@@ -1726,9 +1822,12 @@
         }
       });
       quantityInput.addEventListener('input', updateAllLineMetrics);
+      quantityInput.addEventListener('input', resetFreeBatchConfirmation);
       productInput.addEventListener('change', updateAllLineMetrics);
+      productInput.addEventListener('change', resetFreeBatchConfirmation);
       updateFamilyControls();
       removeButton.addEventListener('click', () => {
+        resetFreeBatchConfirmation();
         const currentValues = collectValues();
         currentValues.splice(index - 1, 1);
         lineErrors = {};
@@ -1817,6 +1916,7 @@
 
     if (addButton) {
       addButton.addEventListener('click', () => {
+        resetFreeBatchConfirmation();
         const nextCount = resolveCount((lineCountInput && lineCountInput.value) || initialCount) + 1;
         lineErrors = {};
         renderLines(nextCount);
@@ -1838,6 +1938,35 @@
         updateAllLineMetrics();
       });
     });
+    if (freeBatchCountInput) {
+      freeBatchCountInput.addEventListener('input', resetFreeBatchConfirmation);
+    }
+    if (form && freeBatchSubmitButton && freeBatchConfirmInput) {
+      let lastPackSubmitter = null;
+      form.addEventListener('click', event => {
+        const submitter = event.target.closest('button, input[type="submit"]');
+        if (submitter && submitter.type === 'submit') {
+          lastPackSubmitter = submitter;
+        }
+      });
+      form.addEventListener('submit', event => {
+        const submitter = event.submitter || lastPackSubmitter;
+        if (!submitter || submitter.dataset.freeCartonBatchSubmit !== '1') {
+          return;
+        }
+        const count = parsePositiveInteger(
+          freeBatchCountInput ? freeBatchCountInput.value : ''
+        );
+        if (!count || freeBatchConfirmInput.value === '1') {
+          return;
+        }
+        event.preventDefault();
+        openFreeBatchConfirmation(count);
+      });
+    }
+    if (freeBatchConfirmButton) {
+      freeBatchConfirmButton.addEventListener('click', requestFreeBatchSubmit);
+    }
   }
 
   function setupShipmentBuilder() {

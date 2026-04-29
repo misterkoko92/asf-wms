@@ -363,6 +363,7 @@ def _render_pack_page(
     missing_defaults,
     confirm_defaults,
     forced_carton_count,
+    free_batch_carton_count=None,
     extra_context=None,
 ):
     context = {
@@ -379,6 +380,7 @@ def _render_pack_page(
         "missing_defaults": missing_defaults,
         "confirm_defaults": confirm_defaults,
         "forced_carton_count": forced_carton_count,
+        "free_batch_carton_count": free_batch_carton_count,
         **_build_local_document_helper_context(request),
     }
     if extra_context:
@@ -408,6 +410,7 @@ def _build_pack_state_from_post(post_data):
         "missing_defaults": [],
         "confirm_defaults": bool(post_data.get("confirm_defaults")),
         "forced_carton_count": post_data.get("forced_carton_count", ""),
+        "free_batch_carton_count": post_data.get("free_batch_carton_count", ""),
     }
 
 
@@ -1580,6 +1583,7 @@ def scan_pack(request):
                 missing_defaults=pack_state["missing_defaults"],
                 confirm_defaults=pack_state["confirm_defaults"],
                 forced_carton_count=pack_state.get("forced_carton_count"),
+                free_batch_carton_count=pack_state.get("free_batch_carton_count"),
                 extra_context=_build_preparateur_pack_extra_context(
                     request,
                     unknown_product_form=unknown_product_form,
@@ -1595,6 +1599,7 @@ def scan_pack(request):
         missing_defaults = pack_state.get("missing_defaults", [])
         confirm_defaults = pack_state.get("confirm_defaults", True)
         forced_carton_count = pack_state.get("forced_carton_count")
+        free_batch_carton_count = pack_state.get("free_batch_carton_count")
         if response:
             return response
     else:
@@ -1605,6 +1610,7 @@ def scan_pack(request):
             line_values,
             forced_carton_count,
         ) = build_pack_defaults(default_format)
+        free_batch_carton_count = None
         missing_defaults = []
         confirm_defaults = True
     return _render_pack_page(
@@ -1621,6 +1627,7 @@ def scan_pack(request):
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
         forced_carton_count=forced_carton_count,
+        free_batch_carton_count=free_batch_carton_count,
         extra_context=_build_preparateur_pack_extra_context(request),
     )
 
@@ -1689,6 +1696,7 @@ def scan_carton_edit(request, carton_id):
             missing_defaults = pack_state.get("missing_defaults", [])
             confirm_defaults = pack_state.get("confirm_defaults", False)
             forced_carton_count = pack_state.get("forced_carton_count")
+            free_batch_carton_count = pack_state.get("free_batch_carton_count")
             if response:
                 return response
         else:
@@ -1699,6 +1707,7 @@ def scan_carton_edit(request, carton_id):
                 line_values,
                 forced_carton_count,
             ) = build_pack_defaults(default_format, carton=editing_carton)
+            free_batch_carton_count = None
             missing_defaults = []
             confirm_defaults = False
     else:
@@ -1717,6 +1726,7 @@ def scan_carton_edit(request, carton_id):
         missing_defaults = []
         confirm_defaults = False
         forced_carton_count = None
+        free_batch_carton_count = None
 
     carton_summary = build_carton_ready_row(
         editing_carton,
@@ -1754,6 +1764,7 @@ def scan_carton_edit(request, carton_id):
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
         forced_carton_count=forced_carton_count,
+        free_batch_carton_count=free_batch_carton_count,
         extra_context={
             "active": ACTIVE_CARTONS_READY,
             "editing_carton": editing_carton,

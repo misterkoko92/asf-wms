@@ -90,10 +90,28 @@
     >
       {% trans "Préparer et mettre en disponible" %}
     </button>
+    <button
+      type="submit"
+      name="action"
+      value="prepare_available_batch"
+      class="scan-submit btn btn-success"
+      data-free-carton-batch-submit="1"
+    >
+      {% trans "Batch colis libres" %}
+    </button>
   {% elif editing_carton %}
     <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer les modifications" %}</button>
   {% else %}
     <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
+    <button
+      type="submit"
+      name="action"
+      value="prepare_available_batch"
+      class="scan-submit btn btn-success"
+      data-free-carton-batch-submit="1"
+    >
+      {% trans "Batch colis libres" %}
+    </button>
   {% endif %}
 </div>
 {% if not request.scan_is_preparateur %}
