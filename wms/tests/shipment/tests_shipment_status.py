@@ -113,6 +113,19 @@ class ShipmentStatusTests(TestCase):
         self.assertEqual(shipment.status, ShipmentStatus.PICKING)
         self.assertIsNone(shipment.ready_at)
 
+    def test_planned_carton_count_defaults_to_zero_and_does_not_create_cartons(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+
+        self.assertEqual(shipment.planned_carton_count, 0)
+        self.assertEqual(shipment.carton_set.count(), 0)
+
+    def test_planned_carton_count_does_not_make_shipment_ready_without_real_cartons(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PICKING)
+        shipment.planned_carton_count = 10
+        shipment.save(update_fields=["planned_carton_count"])
+
+        self.assertFalse(shipment_can_be_confirmed_ready(shipment))
+
     def test_confirm_shipment_ready_marks_assigned_cartons_labeled_and_sets_shipment_packed(self):
         shipment = self._create_shipment(status=ShipmentStatus.PICKING)
         carton = Carton.objects.create(

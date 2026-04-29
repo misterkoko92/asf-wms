@@ -19,6 +19,8 @@ from wms.print_context import (
     build_sample_product_label_context,
     build_sample_product_qr_label_context,
     build_shipment_document_context,
+    build_shipment_preparatory_label_slots,
+    effective_shipment_carton_count,
     resolve_rack_color,
 )
 
@@ -53,6 +55,95 @@ class PrintContextTests(SimpleTestCase):
             _build_destination_info(shipment_without_destination),
             ("", "", "Adresse fallback"),
         )
+
+    def test_effective_shipment_carton_count_uses_planned_count_without_real_cartons(self):
+        shipment = SimpleNamespace(planned_carton_count=10, carton_set=_FakeCartonSet([]))
+
+        self.assertEqual(effective_shipment_carton_count(shipment, cartons=[]), 10)
+
+    def test_effective_shipment_carton_count_uses_real_count_when_above_planned_count(self):
+        cartons = [SimpleNamespace(id=1), SimpleNamespace(id=2), SimpleNamespace(id=3)]
+        shipment = SimpleNamespace(planned_carton_count=2, carton_set=_FakeCartonSet(cartons))
+
+        self.assertEqual(effective_shipment_carton_count(shipment, cartons=cartons), 3)
+
+    def test_build_shipment_preparatory_label_slots_fills_missing_planned_positions(self):
+        cartons = [SimpleNamespace(id=1, code="MM-1")]
+        shipment = SimpleNamespace(
+            reference="EXP-2026-0001",
+            planned_carton_count=3,
+            carton_set=_FakeCartonSet(cartons),
+        )
+
+        slots = build_shipment_preparatory_label_slots(shipment)
+
+        self.assertEqual([slot.position for slot in slots], [1, 2, 3])
+        self.assertEqual([slot.total for slot in slots], [3, 3, 3])
+        self.assertEqual(slots[0].carton, cartons[0])
+        self.assertEqual(slots[0].code, "MM-1")
+        self.assertFalse(slots[0].is_virtual)
+        self.assertEqual(slots[1].code, "EXP-2026-0001-P02")
+        self.assertTrue(slots[1].is_virtual)
+
+    def test_build_shipment_document_context_uses_planned_count_without_cartons(self):
+        shipment = SimpleNamespace(
+            reference="SHP-PLANNED",
+            shipper_name="ASF",
+            shipper_contact="",
+            recipient_name="Hospital",
+            recipient_contact="",
+            correspondent_name="Corr",
+            destination=SimpleNamespace(city="Abidjan", iata_code="ABJ"),
+            destination_address="Fallback Address",
+            destination_country="Cote d'Ivoire",
+            requested_delivery_date=None,
+            notes="",
+            planned_carton_count=10,
+            carton_set=_FakeCartonSet([]),
+        )
+        carton_items_qs = mock.MagicMock()
+        carton_items_qs.select_related.return_value = []
+
+        with mock.patch("wms.print_context.build_shipment_item_rows", return_value=[]):
+            with mock.patch(
+                "wms.print_context.build_shipment_aggregate_rows",
+                return_value=[],
+            ):
+                with mock.patch(
+                    "wms.print_context.CartonFormat.objects.filter",
+                    return_value=SimpleNamespace(first=lambda: None),
+                ):
+                    with mock.patch(
+                        "wms.print_context.CartonFormat.objects.first",
+                        return_value=SimpleNamespace(id=1),
+                    ):
+                        with mock.patch("wms.print_context.build_carton_rows", return_value=[]):
+                            with mock.patch(
+                                "wms.print_context.CartonItem.objects.filter",
+                                return_value=carton_items_qs,
+                            ):
+                                with mock.patch(
+                                    "wms.print_context.compute_weight_total_g", return_value=0
+                                ):
+                                    with mock.patch(
+                                        "wms.print_context.build_shipment_type_labels",
+                                        return_value="",
+                                    ):
+                                        with mock.patch(
+                                            "wms.print_context.build_contact_info",
+                                            return_value={"x": "y"},
+                                        ):
+                                            with mock.patch(
+                                                "wms.print_context.build_org_context",
+                                                return_value={"org": "ASF"},
+                                            ):
+                                                context = build_shipment_document_context(
+                                                    shipment, "shipment_note"
+                                                )
+
+        self.assertEqual(context["carton_count"], 10)
+        self.assertEqual(context["carton_rows"], [])
+        self.assertEqual(context["shipment_description"], "10 cartons, 0 produits")
 
     def test_build_shipment_document_context_hides_measurements_when_missing_defaults(self):
         cartons = [SimpleNamespace(id=10), SimpleNamespace(id=11)]
