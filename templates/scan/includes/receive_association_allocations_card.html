@@ -47,24 +47,26 @@
   {% endif %}
 
   {% if receipt_allocations %}
-    <table class="scan-table">
-      <thead>
-        <tr>
-          <th>Exp&eacute;dition</th>
-          <th>Unit&eacute;s allou&eacute;es</th>
-          <th>Note</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for allocation in receipt_allocations %}
+    <div class="scan-table-wrap table-responsive">
+      <table class="scan-table">
+        <thead>
           <tr>
-            <td>{{ allocation.shipment.reference }}</td>
-            <td>{{ allocation.allocated_received_units }}</td>
-            <td>{% if allocation.note %}{{ allocation.note }}{% else %}-{% endif %}</td>
+            <th>Exp&eacute;dition</th>
+            <th>Unit&eacute;s allou&eacute;es</th>
+            <th>Note</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for allocation in receipt_allocations %}
+            <tr>
+              <td>{{ allocation.shipment.reference }}</td>
+              <td>{{ allocation.allocated_received_units }}</td>
+              <td>{% if allocation.note %}{{ allocation.note }}{% else %}-{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
     <p class="scan-help">Aucune allocation enregistr&eacute;e pour cette r&eacute;ception.</p>
   {% endif %}

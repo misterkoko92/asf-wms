@@ -71,6 +71,14 @@ class ScanStockViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "scan/stock.html")
         self.assertEqual(response.context_data, {"active": "stock", "rows": [1]})
 
+    def test_scan_stock_table_uses_shared_mobile_scroll_contract(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<div class="scan-table-wrap table-responsive">')
+        self.assertContains(response, '<table class="scan-table table table-sm table-hover">')
+        self.assertContains(response, '<td class="qty">4</td>')
+
     def test_scan_recipient_needs_renders_context_from_helper(self):
         fake_context = {
             "active": "recipient_needs",

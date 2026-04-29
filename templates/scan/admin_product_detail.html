@@ -264,39 +264,41 @@
         {% endif %}
 
         {% if detail_payload.kit_items %}
-          <table class="scan-table">
-            <thead>
-              <tr>
-                <th>{% trans "Composant" %}</th>
-                <th>{% trans "Quantité" %}</th>
-                <th>{% trans "Actions" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in detail_payload.kit_items %}
+          <div class="scan-table-wrap table-responsive">
+            <table class="scan-table">
+              <thead>
                 <tr>
-                  <td>{{ item.component.name }}<br><span class="scan-help">{{ item.component.sku }}</span></td>
-                  <td>
-                    <form method="post" class="d-flex gap-2 align-items-center">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="save_kit_component">
-                      <input type="hidden" name="component" value="{{ item.component.id }}">
-                      <input type="number" class="form-control" style="max-width: 7rem;" name="quantity" min="1" value="{{ item.quantity }}">
-                      <button type="submit" class="scan-scan-btn btn btn-tertiary btn-sm">{% trans "Mettre à jour" %}</button>
-                    </form>
-                  </td>
-                  <td>
-                    <form method="post" class="d-inline-flex">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="delete_kit_component">
-                      <input type="hidden" name="kit_item_id" value="{{ item.id }}">
-                      <button type="submit" class="scan-scan-btn btn btn-danger btn-sm">{% trans "Retirer" %}</button>
-                    </form>
-                  </td>
+                  <th>{% trans "Composant" %}</th>
+                  <th>{% trans "Quantité" %}</th>
+                  <th>{% trans "Actions" %}</th>
                 </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {% for item in detail_payload.kit_items %}
+                  <tr>
+                    <td>{{ item.component.name }}<br><span class="scan-help">{{ item.component.sku }}</span></td>
+                    <td>
+                      <form method="post" class="d-flex gap-2 align-items-center">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_kit_component">
+                        <input type="hidden" name="component" value="{{ item.component.id }}">
+                        <input type="number" class="form-control" style="max-width: 7rem;" name="quantity" min="1" value="{{ item.quantity }}">
+                        <button type="submit" class="scan-scan-btn btn btn-tertiary btn-sm">{% trans "Mettre à jour" %}</button>
+                      </form>
+                    </td>
+                    <td>
+                      <form method="post" class="d-inline-flex">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_kit_component">
+                        <input type="hidden" name="kit_item_id" value="{{ item.id }}">
+                        <button type="submit" class="scan-scan-btn btn btn-danger btn-sm">{% trans "Retirer" %}</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         {% else %}
           <p class="scan-help">{% trans "Aucun composant pour le moment." %}</p>
         {% endif %}
@@ -341,26 +343,28 @@
     <div class="scan-card card border-0 ui-comp-card">
       <h3 class="ui-comp-title">{% trans "Lots et stock" %}</h3>
       {% if detail_payload.product_lots %}
-        <table class="scan-table">
-          <thead>
-            <tr>
-              <th>{% trans "Lot" %}</th>
-              <th>{% trans "Disponible" %}</th>
-              <th>{% trans "Réservé" %}</th>
-              <th>{% trans "Emplacement" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for lot in detail_payload.product_lots %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table">
+            <thead>
               <tr>
-                <td>{{ lot.lot_code|default:"-" }}</td>
-                <td>{{ lot.quantity_on_hand }}</td>
-                <td>{{ lot.quantity_reserved }}</td>
-                <td>{{ lot.location|default:"-" }}</td>
+                <th>{% trans "Lot" %}</th>
+                <th>{% trans "Disponible" %}</th>
+                <th>{% trans "Réservé" %}</th>
+                <th>{% trans "Emplacement" %}</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for lot in detail_payload.product_lots %}
+                <tr>
+                  <td>{{ lot.lot_code|default:"-" }}</td>
+                  <td>{{ lot.quantity_on_hand }}</td>
+                  <td>{{ lot.quantity_reserved }}</td>
+                  <td>{{ lot.location|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
         <p class="scan-help mb-0">{% trans "Aucun lot en stock pour ce produit." %}</p>
       {% endif %}

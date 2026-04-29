@@ -2,6 +2,14 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 4, 29),
+        "pr_number": None,
+        "summary": (
+            "Correction mobile des tableaux scan : les colonnes compactes restent "
+            "lisibles et le défilement horizontal reste local au tableau."
+        ),
+    },
+    {
         "date": date(2026, 4, 28),
         "pr_number": 184,
         "summary": (

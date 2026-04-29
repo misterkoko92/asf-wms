@@ -1507,6 +1507,12 @@ body.scan-bootstrap-enabled {
   padding-right: var(--wms-table-header-padding-x);
 }
 
+.scan-bootstrap-enabled .scan-table.table:not(.scan-carton-table):not(.scan-shipments-ready-table) thead th {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .scan-bootstrap-enabled .scan-table td {
   vertical-align: top;
   border-color: var(--wms-table-border-color);
@@ -1514,6 +1520,12 @@ body.scan-bootstrap-enabled {
   padding-bottom: var(--wms-table-cell-padding-y);
   padding-left: var(--wms-table-cell-padding-x);
   padding-right: var(--wms-table-cell-padding-x);
+}
+
+.scan-bootstrap-enabled .scan-table td.qty {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .scan-bootstrap-enabled .scan-table tbody tr:nth-child(even) td {

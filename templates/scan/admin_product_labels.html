@@ -78,37 +78,39 @@
       </p>
 
       {% if products %}
-        <table class="scan-table">
-          <thead>
-            <tr>
-              <th style="width: 80px;">
-                <input id="scan-product-select-all" type="checkbox">
-              </th>
-              <th>{% trans "Nom" %}</th>
-              <th>SKU</th>
-              <th>{% trans "Code barre" %}</th>
-              <th>EAN</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for product in products %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table">
+            <thead>
               <tr>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="product_ids"
-                    value="{{ product.id }}"
-                    class="scan-product-row-check"
-                  >
-                </td>
-                <td>{{ product.name }}</td>
-                <td>{{ product.sku }}</td>
-                <td>{{ product.barcode|default:"-" }}</td>
-                <td>{{ product.ean|default:"-" }}</td>
+                <th style="width: 80px;">
+                  <input id="scan-product-select-all" type="checkbox">
+                </th>
+                <th>{% trans "Nom" %}</th>
+                <th>SKU</th>
+                <th>{% trans "Code barre" %}</th>
+                <th>EAN</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for product in products %}
+                <tr>
+                  <td>
+                    <input
+                      type="checkbox"
+                      name="product_ids"
+                      value="{{ product.id }}"
+                      class="scan-product-row-check"
+                    >
+                  </td>
+                  <td>{{ product.name }}</td>
+                  <td>{{ product.sku }}</td>
+                  <td>{{ product.barcode|default:"-" }}</td>
+                  <td>{{ product.ean|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
         <p class="scan-help">{% trans "Aucun produit trouve." %}</p>
       {% endif %}
