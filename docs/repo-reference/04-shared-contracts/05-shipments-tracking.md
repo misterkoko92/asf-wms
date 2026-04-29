@@ -24,6 +24,7 @@ Read this file when touching shipment readiness, QR tracking, disputes, workflow
 - Order linkage resolves through `OrderShipmentLink`; `order.shipment` is compatibility only.
 - Confirmation relabels remaining `ASSIGNED` cartons to `LABELED`, sets shipment to `PACKED`, and stamps `ready_at`.
 - Planning eligibility remains restricted to `PACKED` and `PLANNED`; `PICKING` stays excluded.
+- Prepared shipments without cartons may carry `planned_carton_count`, but readiness still depends only on real attached cartons. A planned count alone must not satisfy ready confirmation.
 
 ### Maintenance rule
 

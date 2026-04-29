@@ -1,0 +1,14 @@
+{% extends "print/shipment_bundle_a4.html" %}
+
+{% block body %}
+  <div id="{{ document_id|default:'shipment-batch-paper-print-document' }}" class="paper-bundle">
+    {% for group in shipment_groups %}
+      {% for section in group.sections %}
+        <section id="shipment-batch-{{ group.shipment.id }}-{{ section.id }}" class="paper-bundle-section">
+          <div class="batch-shipment-reference">{{ group.shipment.reference }}</div>
+          {{ section.html|safe }}
+        </section>
+      {% endfor %}
+    {% endfor %}
+  </div>
+{% endblock %}

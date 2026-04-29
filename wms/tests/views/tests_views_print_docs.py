@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.http import Http404, HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from wms.models import (
     Carton,
@@ -524,6 +525,94 @@ class PrintDocsViewsTests(TestCase):
         self.assertContains(response, '<span class="label-box-text">N° 2 / 2</span>')
         self.assertNotContains(response, "Colis /")
         self.assertNotContains(response, "Parcel")
+
+    def test_scan_shipment_view_bundle_routes_preparatory_labels(self):
+        shipment = self._create_shipment()
+        shipment.planned_carton_count = 3
+        shipment.save(update_fields=["planned_carton_count"])
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_view_bundle",
+                kwargs={"shipment_id": shipment.id, "bundle_key": "preparatory_labels"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-preparatory-labels-print-document"')
+        self.assertContains(response, 'class="carton-documents-page"', count=3)
+        self.assertContains(response, 'data-print-doc-type="donation_certificate"', count=3)
+        self.assertContains(response, 'data-print-doc-type="shipment_label"', count=3)
+        self.assertContains(response, 'data-print-doc-type="contact_label"', count=3)
+        self.assertNotContains(response, 'data-print-doc-type="packing_list_carton"')
+        self.assertContains(response, '<span class="label-box-text">N° 1 / 3</span>')
+        self.assertContains(response, '<span class="label-box-text">N° 3 / 3</span>')
+
+    def test_scan_shipment_batch_view_bundle_paper_renders_all_shipments(self):
+        shipment_a = self._create_shipment()
+        shipment_b = self._create_shipment()
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_batch_view_bundle", kwargs={"bundle_key": "paper"}),
+            {"shipment_ids": f"{shipment_a.id},{shipment_b.id}"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-batch-paper-print-document"')
+        self.assertContains(response, shipment_a.reference)
+        self.assertContains(response, shipment_b.reference)
+
+    def test_scan_shipment_batch_view_bundle_preparatory_labels_renders_all_shipments(self):
+        shipment_a = self._create_shipment()
+        shipment_a.planned_carton_count = 2
+        shipment_a.save(update_fields=["planned_carton_count"])
+        shipment_b = self._create_shipment()
+        shipment_b.planned_carton_count = 1
+        shipment_b.save(update_fields=["planned_carton_count"])
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_batch_view_bundle",
+                kwargs={"bundle_key": "preparatory_labels"},
+            ),
+            {"shipment_ids": f"{shipment_a.id},{shipment_b.id}"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-batch-preparatory-labels-print-document"')
+        self.assertContains(response, shipment_a.reference)
+        self.assertContains(response, shipment_b.reference)
+        self.assertContains(response, 'data-print-doc-type="shipment_label"', count=3)
+        self.assertNotContains(response, 'data-print-doc-type="packing_list_carton"')
+
+    def test_scan_shipment_batch_view_bundle_404_without_shipment_ids(self):
+        response = self.client.get(
+            reverse("scan:scan_shipment_batch_view_bundle", kwargs={"bundle_key": "paper"})
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_scan_shipment_batch_view_bundle_404_when_only_archived_shipments_match(self):
+        shipment = self._create_shipment()
+        shipment.archived_at = timezone.now()
+        shipment.save(update_fields=["archived_at"])
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_batch_view_bundle", kwargs={"bundle_key": "paper"}),
+            {"shipment_ids": str(shipment.id)},
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_scan_shipment_batch_view_bundle_404_for_unknown_bundle_key(self):
+        shipment = self._create_shipment()
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_batch_view_bundle", kwargs={"bundle_key": "unknown"}),
+            {"shipment_ids": str(shipment.id)},
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_scan_cartons_view_bundle_routes_packing_lists_to_html_bundle_page(self):
         carton_a = self._create_standalone_carton_with_item()

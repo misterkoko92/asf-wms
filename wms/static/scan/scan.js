@@ -1870,6 +1870,13 @@
     const recipientPreferenceRejectButton = document.getElementById(
       'shipment-recipient-preference-reject'
     );
+    const creationModeInputs = Array.from(
+      shipmentForm ? shipmentForm.querySelectorAll('input[name="creation_mode"]') : []
+    );
+    const plannedCartonCountField = document.getElementById(
+      'shipment-planned-carton-count-field'
+    );
+    const withCartonsFields = document.getElementById('shipment-with-cartons-fields');
 
     let lineValues = [];
     let lineErrors = {};
@@ -2148,6 +2155,11 @@
         });
       });
       return values;
+    };
+
+    const isPreparingWithoutCartons = () => {
+      const selected = creationModeInputs.find(input => input.checked);
+      return selected ? selected.value === 'without_cartons' : false;
     };
 
     const updateTotalWeight = () => {
@@ -2559,6 +2571,11 @@
       const existingValues = readCurrentValues();
       const values = existingValues.length ? existingValues : lineValues;
       container.innerHTML = '';
+      if (count < 1) {
+        updateTotalWeight();
+        updateAllLineMetrics();
+        return;
+      }
       for (let index = 1; index <= count; index += 1) {
         const lineValue = values[index - 1] || {};
         const line = document.createElement('div');
@@ -2883,6 +2900,9 @@
     }
 
     const resolveCount = value => {
+      if (isPreparingWithoutCartons()) {
+        return 0;
+      }
       const parsed = parseInt(value, 10);
       if (!Number.isFinite(parsed) || parsed < 1) {
         return 1;
@@ -2890,8 +2910,33 @@
       return parsed;
     };
 
+    const syncShipmentCreationMode = () => {
+      const withoutCartons = isPreparingWithoutCartons();
+      if (plannedCartonCountField) {
+        plannedCartonCountField.hidden = !withoutCartons;
+        plannedCartonCountField.classList.toggle('scan-hidden', !withoutCartons);
+      }
+      if (withCartonsFields) {
+        withCartonsFields.hidden = withoutCartons;
+        withCartonsFields.classList.toggle('scan-hidden', withoutCartons);
+      }
+      if (withoutCartons) {
+        const currentValues = readCurrentValues();
+        if (currentValues.length) {
+          lineValues = currentValues;
+        }
+        renderLines(0);
+        return;
+      }
+      renderLines(resolveCount(countInput ? countInput.value : lineValues.length || 1));
+    };
+
     const initialCount = resolveCount(countInput ? countInput.value : 1);
     renderLines(initialCount);
+    syncShipmentCreationMode();
+    creationModeInputs.forEach(input => {
+      input.addEventListener('change', syncShipmentCreationMode);
+    });
 
     const destinationSelect = document.getElementById('id_destination');
     const recipientSelect = document.getElementById('id_recipient_contact');
@@ -2905,11 +2950,197 @@
     if (countInput) {
       const handleCountChange = event => {
         const nextCount = resolveCount(event.target.value);
-        event.target.value = String(nextCount);
+        if (nextCount > 0) {
+          event.target.value = String(nextCount);
+        }
         renderLines(nextCount);
       };
       countInput.addEventListener('input', handleCountChange);
       countInput.addEventListener('change', handleCountChange);
+    }
+  }
+
+  function setupShipmentBatchBuilder() {
+    const form = document.getElementById('shipment-batch-form');
+    const tbody = document.querySelector('#shipment-batch-rows tbody');
+    const addButton = document.getElementById('shipment-batch-add-row');
+    const rowCountInput = document.getElementById('shipment-batch-row-count');
+    if (!form || !tbody || !rowCountInput) {
+      return;
+    }
+
+    const readData = id => {
+      const el = document.getElementById(id);
+      if (!el) {
+        return [];
+      }
+      try {
+        const data = JSON.parse(el.textContent || '[]');
+        return Array.isArray(data) ? data : [];
+      } catch (err) {
+        return [];
+      }
+    };
+
+    const destinations = readData('shipment-batch-destinations-data');
+    const shippers = readData('shipment-batch-shipper-contacts-data');
+    const recipients = readData('shipment-batch-recipient-contacts-data');
+    const correspondents = readData('shipment-batch-correspondent-contacts-data');
+
+    const replaceOptions = (select, options, selectedValue, labelGetter) => {
+      if (!select) {
+        return;
+      }
+      const selected = selectedValue || select.value || select.dataset.selectedValue || '';
+      select.innerHTML = '';
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = '---------';
+      select.appendChild(emptyOption);
+      options.forEach(optionData => {
+        const option = document.createElement('option');
+        option.value = String(optionData.id);
+        option.textContent = labelGetter(optionData);
+        select.appendChild(option);
+      });
+      const allowedValues = new Set(options.map(optionData => String(optionData.id)));
+      select.value = allowedValues.has(String(selected)) ? String(selected) : '';
+      select.dataset.selectedValue = select.value;
+    };
+
+    const selectedData = (items, value) =>
+      items.find(item => String(item.id) === String(value || '')) || null;
+
+    const destinationAllows = (ids, destinationId) =>
+      Array.isArray(ids) && ids.map(String).includes(String(destinationId));
+
+    const recipientAllows = (recipient, shipper, destinationId) => {
+      if (!recipient || !shipper || !destinationId) {
+        return false;
+      }
+      const shipperOrgId = String(shipper.organization_id || '');
+      return (recipient.binding_pairs || []).some(pair => {
+        return (
+          String(pair.shipper_id) === shipperOrgId &&
+          String(pair.destination_id) === String(destinationId)
+        );
+      });
+    };
+
+    const syncRowOptions = row => {
+      const destinationSelect = row.querySelector('.shipment-batch-destination');
+      const shipperSelect = row.querySelector('.shipment-batch-shipper');
+      const recipientSelect = row.querySelector('.shipment-batch-recipient');
+      const correspondentSelect = row.querySelector('.shipment-batch-correspondent');
+      const destinationId = destinationSelect ? destinationSelect.value : '';
+      const currentShipper = shipperSelect ? shipperSelect.value : '';
+      const eligibleShippers = destinationId
+        ? shippers.filter(shipper => destinationAllows(shipper.allowed_destination_ids, destinationId))
+        : shippers;
+      replaceOptions(shipperSelect, eligibleShippers, currentShipper, shipper => shipper.name);
+      const shipper = selectedData(shippers, shipperSelect ? shipperSelect.value : '');
+      const currentRecipient = recipientSelect ? recipientSelect.value : '';
+      const eligibleRecipients =
+        destinationId && shipper
+          ? recipients.filter(recipient => recipientAllows(recipient, shipper, destinationId))
+          : [];
+      replaceOptions(
+        recipientSelect,
+        eligibleRecipients,
+        currentRecipient,
+        recipient => recipient.name
+      );
+      const currentCorrespondent = correspondentSelect ? correspondentSelect.value : '';
+      const eligibleCorrespondents = destinationId
+        ? correspondents.filter(correspondent =>
+            destinationAllows(correspondent.covered_destination_ids, destinationId)
+          )
+        : [];
+      replaceOptions(
+        correspondentSelect,
+        eligibleCorrespondents,
+        currentCorrespondent,
+        correspondent => correspondent.name
+      );
+      if (eligibleCorrespondents.length === 1 && correspondentSelect) {
+        correspondentSelect.value = String(eligibleCorrespondents[0].id);
+        correspondentSelect.dataset.selectedValue = correspondentSelect.value;
+      }
+    };
+
+    const reindexRows = () => {
+      const rows = Array.from(tbody.querySelectorAll('.shipment-batch-row'));
+      rows.forEach((row, index) => {
+        const rowIndex = index + 1;
+        row.dataset.rowIndex = String(rowIndex);
+        row.querySelectorAll('select, input').forEach(input => {
+          input.name = input.name.replace(/row_\d+_/, `row_${rowIndex}_`);
+        });
+        row.querySelectorAll('[data-shipment-batch-delete]').forEach(button => {
+          button.disabled = rows.length === 1;
+        });
+      });
+      rowCountInput.value = String(rows.length || 1);
+    };
+
+    const bindRow = row => {
+      row.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', () => {
+          select.dataset.selectedValue = select.value;
+          syncRowOptions(row);
+        });
+      });
+      const duplicateButton = row.querySelector('[data-shipment-batch-duplicate]');
+      if (duplicateButton) {
+        duplicateButton.addEventListener('click', () => {
+          const clone = row.cloneNode(true);
+          clone.querySelectorAll('.scan-message').forEach(message => message.remove());
+          row.after(clone);
+          bindRow(clone);
+          reindexRows();
+          syncRowOptions(clone);
+        });
+      }
+      const deleteButton = row.querySelector('[data-shipment-batch-delete]');
+      if (deleteButton) {
+        deleteButton.addEventListener('click', () => {
+          if (tbody.querySelectorAll('.shipment-batch-row').length <= 1) {
+            return;
+          }
+          row.remove();
+          reindexRows();
+        });
+      }
+      syncRowOptions(row);
+    };
+
+    const createEmptyRow = () => {
+      const source = tbody.querySelector('.shipment-batch-row');
+      if (!source) {
+        return null;
+      }
+      const row = source.cloneNode(true);
+      row.querySelectorAll('select, input').forEach(input => {
+        input.value = '';
+        input.dataset.selectedValue = '';
+      });
+      row.querySelectorAll('.scan-message').forEach(message => message.remove());
+      return row;
+    };
+
+    Array.from(tbody.querySelectorAll('.shipment-batch-row')).forEach(bindRow);
+    reindexRows();
+
+    if (addButton) {
+      addButton.addEventListener('click', () => {
+        const row = createEmptyRow();
+        if (!row) {
+          return;
+        }
+        tbody.appendChild(row);
+        bindRow(row);
+        reindexRows();
+      });
     }
   }
 
@@ -4489,6 +4720,7 @@
   setupPackLines();
   setupPackSuccessModal();
   setupShipmentBuilder();
+  setupShipmentBatchBuilder();
   setupShipmentContactFilters();
   setupAdminContactsCrud();
   setupReceiptLines();

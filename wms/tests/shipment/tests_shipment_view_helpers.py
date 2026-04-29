@@ -190,6 +190,7 @@ class ShipmentViewHelpersTests(TestCase):
                 "Imprimer toutes les listes colisage carton (rouleau continu)",
                 "Imprimer toutes les listes par carton",
                 "Imprimer étiquettes cartons",
+                "Imprimer étiquettes préparatoires",
             ],
         )
         self.assertEqual(
@@ -218,6 +219,10 @@ class ShipmentViewHelpersTests(TestCase):
         self.assertEqual(
             actions["grouped_print_actions"][3]["url"],
             f"/scan/shipment/{shipment.id}/print-bundle/carton_lists_a4/",
+        )
+        self.assertEqual(
+            actions["grouped_print_actions"][5]["url"],
+            f"/scan/shipment/{shipment.id}/print-bundle/preparatory_labels/",
         )
         self.assertEqual(
             actions["carton_print_rows"][0]["actions"][0]["url"],

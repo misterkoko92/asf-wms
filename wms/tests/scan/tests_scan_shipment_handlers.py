@@ -343,6 +343,64 @@ class ScanShipmentHandlersTests(TestCase):
             linked_correspondent,
         )
 
+    def test_handle_shipment_create_post_prepares_without_cartons_with_planned_count(self):
+        request = self._request(
+            {
+                "creation_mode": "without_cartons",
+                "planned_carton_count": "10",
+                "post_create_action": "show_dossier",
+            }
+        )
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=0))
+        shipment = SimpleNamespace(reference="EXP-2026-0010", id=44)
+
+        with mock.patch("wms.scan_shipment_handlers.parse_shipment_lines") as parse_mock:
+            with mock.patch(
+                "wms.scan_shipment_handlers.Shipment.objects.create",
+                return_value=shipment,
+            ) as shipment_create_mock:
+                with mock.patch("wms.scan_shipment_handlers.sync_shipment_ready_state"):
+                    with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                        with mock.patch(
+                            "wms.scan_shipment_handlers.redirect",
+                            return_value=SimpleNamespace(status_code=302, url="/shipment/44"),
+                        ):
+                            response, carton_count, line_values, line_errors = (
+                                handle_shipment_create_post(
+                                    request,
+                                    form=form,
+                                    available_carton_ids=set(),
+                                )
+                            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(carton_count, 0)
+        self.assertEqual(line_values, [])
+        self.assertEqual(line_errors, {})
+        parse_mock.assert_not_called()
+        self.assertEqual(shipment_create_mock.call_args.kwargs["planned_carton_count"], 10)
+
+    def test_handle_shipment_create_post_requires_planned_count_without_cartons(self):
+        request = self._request(
+            {
+                "creation_mode": "without_cartons",
+                "planned_carton_count": "",
+            }
+        )
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=0))
+
+        response, carton_count, line_values, line_errors = handle_shipment_create_post(
+            request,
+            form=form,
+            available_carton_ids=set(),
+        )
+
+        self.assertIsNone(response)
+        self.assertEqual(carton_count, 0)
+        self.assertEqual(line_values, [])
+        self.assertEqual(line_errors, {})
+        self.assertIn(("planned_carton_count", "Nombre de colis prévus requis."), form.errors)
+
     def test_get_carton_count_uses_form_when_valid(self):
         request = self._request({"carton_count": "10"})
         form = _FakeForm(valid=True, cleaned_data={"carton_count": 4})

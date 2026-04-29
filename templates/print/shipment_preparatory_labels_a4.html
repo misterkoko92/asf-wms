@@ -1,0 +1,33 @@
+{% extends "print/shipment_carton_documents_a4.html" %}
+
+{% block body %}
+  <div id="{{ document_id|default:'shipment-preparatory-labels-print-document' }}" class="carton-documents-pages">
+    {% for page in carton_pages %}
+      <section id="{{ page.page_id }}" class="carton-documents-page">
+        <div class="carton-documents-grid">
+          <article
+            id="shipment-preparatory-labels-donation-{{ page.shipment.id }}-{{ page.slot.position }}"
+            class="carton-documents-block carton-documents-block--donation"
+            data-print-doc-type="donation_certificate"
+          >
+            {{ page.donation_html|safe }}
+          </article>
+          <article
+            id="shipment-preparatory-labels-label-{{ page.shipment.id }}-{{ page.slot.position }}"
+            class="carton-documents-block carton-documents-block--label"
+            data-print-doc-type="shipment_label"
+          >
+            {{ page.shipment_label_html|safe }}
+          </article>
+          <article
+            id="shipment-preparatory-labels-contact-{{ page.shipment.id }}-{{ page.slot.position }}"
+            class="carton-documents-block carton-documents-block--contact"
+            data-print-doc-type="contact_label"
+          >
+            {{ page.contact_html|safe }}
+          </article>
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -140,6 +140,21 @@ urlpatterns = [
     path("carton/<int:carton_id>/edit/", views.scan_carton_edit, name="scan_carton_edit"),
     path("shipment/", views.scan_shipment_create, name="scan_shipment_create"),
     path(
+        "shipment/batch/",
+        views.scan_shipment_batch_create,
+        name="scan_shipment_batch_create",
+    ),
+    path(
+        "shipment/batch/summary/",
+        views.scan_shipment_batch_summary,
+        name="scan_shipment_batch_summary",
+    ),
+    path(
+        "shipment/batch/print-bundle/<str:bundle_key>/",
+        views.scan_shipment_batch_view_bundle,
+        name="scan_shipment_batch_view_bundle",
+    ),
+    path(
         "shipment/<int:shipment_id>/edit/",
         views.scan_shipment_edit,
         name="scan_shipment_edit",

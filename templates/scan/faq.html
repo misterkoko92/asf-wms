@@ -165,10 +165,25 @@
     <p>
       {% blocktrans trimmed %}
         1. Ouvrir <strong>Créer une expédition</strong> et renseigner destination,
-        expéditeur, destinataire et correspondant. 2. Utiliser <strong>Enregistrer un
-        brouillon</strong> pour figer le dossier ou <strong>Créer des colis multi-produits</strong>
-        pour basculer vers la préparation. 3. Préparer ensuite les colis depuis les produits
-        ou les kits. 4. Revenir sur l'expédition pour affecter, étiqueter et suivre les colis.
+        expéditeur, destinataire et correspondant. 2. Choisir <strong>Préparer sans colis</strong>,
+        saisir le nombre de colis prévus, puis choisir <strong>Afficher le dossier créé</strong>
+        ou <strong>Rester sur cette page</strong>. 3. Imprimer le dossier papier et les
+        étiquettes préparatoires pour étiquetage. 4. Revenir ensuite sur l'expédition pour
+        affecter les vrais colis. Le nombre prévu sert aux documents, il ne rend pas
+        l'expédition prête et ne crée aucun carton.
+      {% endblocktrans %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Batch expéditions" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Ouvrir <strong>Batch expéditions</strong>. 2. Ajouter une ligne par expédition,
+        avec destination, expéditeur, destinataire, correspondant et nombre de colis prévus.
+        3. Utiliser <strong>Ajouter une expédition</strong>, <strong>Dupliquer</strong> ou
+        <strong>Supprimer</strong> pour préparer la liste. 4. Cliquer <strong>Valider le
+        batch</strong>. Le batch est tout-ou-rien : si une ligne est invalide, aucune
+        expédition n'est créée. 5. Depuis le résumé, imprimer les dossiers papier et les
+        étiquettes préparatoires du lot.
       {% endblocktrans %}
     </p>
 

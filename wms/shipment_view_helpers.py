@@ -190,6 +190,10 @@ def build_shipment_dossier_print_actions(shipment):
             "label": _("Imprimer étiquettes cartons"),
             "url": _build_future_shipment_bundle_url(shipment, "standard_labels"),
         },
+        {
+            "label": _("Imprimer étiquettes préparatoires"),
+            "url": _build_future_shipment_bundle_url(shipment, "preparatory_labels"),
+        },
     ]
     paper_print_actions = [
         {

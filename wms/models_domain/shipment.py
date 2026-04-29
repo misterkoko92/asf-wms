@@ -123,6 +123,7 @@ class Shipment(models.Model):
     dispute_resolution_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     ready_at = models.DateTimeField(null=True, blank=True)
+    planned_carton_count = models.PositiveIntegerField(default=0)
     archived_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     dossier_last_activity_at = models.DateTimeField(null=True, blank=True)

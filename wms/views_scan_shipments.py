@@ -95,6 +95,10 @@ from .scan_shipment_handlers import (
     handle_shipment_edit_post,
 )
 from .services import StockError
+from .shipment_batch_handlers import (
+    ShipmentBatchValidationError,
+    create_prepared_shipment_batch,
+)
 from .shipment_dossier_activity import record_shipment_dossier_activity
 from .shipment_form_helpers import (
     build_carton_selection_data,
@@ -171,6 +175,8 @@ TEMPLATE_SHIPMENTS_READY = "scan/shipments_ready.html"
 TEMPLATE_SHIPMENTS_TRACKING = "scan/shipments_tracking.html"
 TEMPLATE_PACK = "scan/pack.html"
 TEMPLATE_SHIPMENT_FORM = "scan/shipment_create.html"
+TEMPLATE_SHIPMENT_BATCH_CREATE = "scan/shipment_batch_create.html"
+TEMPLATE_SHIPMENT_BATCH_SUMMARY = "scan/shipment_batch_summary.html"
 TEMPLATE_SHIPMENT_DOSSIER = "scan/shipment_dossier.html"
 TEMPLATE_SHIPMENT_TRACKING = "scan/shipment_tracking.html"
 TEMPLATE_PICKING_LIST_KITS = "print/picking_list_kits.html"
@@ -179,6 +185,7 @@ ACTIVE_CARTONS_READY = "cartons_ready"
 ACTIVE_KITS_VIEW = "kits_view"
 ACTIVE_PREPARE_KITS = "prepare_kits"
 ACTIVE_PACK = "pack"
+ACTIVE_SHIPMENT_BATCH = "shipment_batch"
 LOCAL_DOCUMENT_HELPER_APP_LABEL = "asf-wms"
 LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE = "scan:scan_local_document_helper_installer"
 EDITABLE_CARTON_ASSIGNMENT_SHIPMENT_STATUSES = (
@@ -419,6 +426,106 @@ def _build_preparateur_pack_extra_context(
         "unknown_product_form": unknown_product_form or ScanPackUnknownProductForm(),
         "unknown_product_modal_open": unknown_product_modal_open,
     }
+
+
+SHIPMENT_BATCH_SESSION_KEY = "shipment_batch_created_ids"
+SHIPMENT_BATCH_ROW_LIMIT = 50
+
+
+def _build_empty_shipment_batch_row(index):
+    return {
+        "index": index,
+        "destination": "",
+        "shipper_contact": "",
+        "recipient_contact": "",
+        "correspondent_contact": "",
+        "planned_carton_count": "",
+        "errors": {},
+    }
+
+
+def _build_shipment_batch_rows_from_post(post_data):
+    row_count = parse_int(post_data.get("row_count")) or 1
+    row_count = min(max(row_count, 1), SHIPMENT_BATCH_ROW_LIMIT)
+    rows = []
+    for index in range(1, row_count + 1):
+        rows.append(
+            {
+                "index": index,
+                "destination": (post_data.get(f"row_{index}_destination") or "").strip(),
+                "shipper_contact": (post_data.get(f"row_{index}_shipper_contact") or "").strip(),
+                "recipient_contact": (
+                    post_data.get(f"row_{index}_recipient_contact") or ""
+                ).strip(),
+                "correspondent_contact": (
+                    post_data.get(f"row_{index}_correspondent_contact") or ""
+                ).strip(),
+                "planned_carton_count": (
+                    post_data.get(f"row_{index}_planned_carton_count") or ""
+                ).strip(),
+                "errors": {},
+            }
+        )
+    return rows
+
+
+def _apply_shipment_batch_row_errors(rows, row_errors):
+    for row in rows:
+        errors = dict(row_errors.get(row["index"], {}))
+        if "__all__" in errors:
+            errors["non_field"] = errors.pop("__all__")
+        row["errors"] = errors
+    return rows
+
+
+def _build_shipment_batch_context(request, *, rows, row_errors=None):
+    support = _build_shipment_form_support()
+    return {
+        "active": ACTIVE_SHIPMENT_BATCH,
+        "rows": _apply_shipment_batch_row_errors(rows, row_errors or {}),
+        "row_count": len(rows),
+        "destinations_json": support["destinations_json"],
+        "shipper_contacts_json": support["shipper_contacts_json"],
+        "recipient_contacts_json": support["recipient_contacts_json"],
+        "correspondent_contacts_json": support["correspondent_contacts_json"],
+        **_build_local_document_helper_context(request),
+    }
+
+
+def _shipment_batch_rows_for_service(rows):
+    return [
+        {
+            "destination": row["destination"],
+            "shipper_contact": row["shipper_contact"],
+            "recipient_contact": row["recipient_contact"],
+            "correspondent_contact": row["correspondent_contact"],
+            "planned_carton_count": row["planned_carton_count"],
+        }
+        for row in rows
+    ]
+
+
+def _load_shipment_batch_summary_shipments(request):
+    raw_ids = request.session.get(SHIPMENT_BATCH_SESSION_KEY, [])
+    shipment_ids = []
+    for raw_id in raw_ids:
+        shipment_id = parse_int(raw_id)
+        if shipment_id:
+            shipment_ids.append(shipment_id)
+    if not shipment_ids:
+        return []
+    shipments_by_id = {
+        shipment.id: shipment
+        for shipment in Shipment.objects.filter(
+            id__in=shipment_ids,
+            archived_at__isnull=True,
+        ).select_related("destination", "shipper_contact_ref", "recipient_contact_ref")
+    }
+    return [
+        shipments_by_id[shipment_id]
+        for shipment_id in shipment_ids
+        if shipment_id in shipments_by_id
+    ]
 
 
 def _carton_is_editable(carton):
@@ -1670,12 +1777,35 @@ def scan_shipment_create(request):
     if request.method != "POST":
         shipper_contact_id = (request.GET.get("shipper_contact") or "").strip()
         recipient_contact_id = (request.GET.get("recipient_contact") or "").strip()
+        correspondent_contact_id = (request.GET.get("correspondent_contact") or "").strip()
         if destination_id:
             initial["destination"] = destination_id
         if shipper_contact_id:
             initial["shipper_contact"] = shipper_contact_id
         if recipient_contact_id:
             initial["recipient_contact"] = recipient_contact_id
+        if correspondent_contact_id:
+            initial["correspondent_contact"] = correspondent_contact_id
+        creation_mode = (request.GET.get("creation_mode") or "").strip()
+        if creation_mode in {
+            ScanShipmentForm.CREATION_MODE_WITH_CARTONS,
+            ScanShipmentForm.CREATION_MODE_WITHOUT_CARTONS,
+        }:
+            initial["creation_mode"] = creation_mode
+        post_create_action = (request.GET.get("post_create_action") or "").strip()
+        if post_create_action in {
+            ScanShipmentForm.POST_CREATE_SHOW_DOSSIER,
+            ScanShipmentForm.POST_CREATE_STAY,
+        }:
+            initial["post_create_action"] = post_create_action
+        try:
+            planned_carton_count = int(
+                (request.GET.get("planned_carton_count") or "0").strip() or "0"
+            )
+        except ValueError:
+            planned_carton_count = 0
+        if planned_carton_count > 0:
+            initial["planned_carton_count"] = planned_carton_count
         try:
             carton_count = max(int((request.GET.get("carton_count") or "0").strip() or "0"), 0)
         except ValueError:
@@ -1715,6 +1845,67 @@ def scan_shipment_create(request):
         line_errors=line_errors,
         active=ACTIVE_SHIPMENT,
     )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_shipment_batch_create(request):
+    if request.method == "POST":
+        rows = _build_shipment_batch_rows_from_post(request.POST)
+        try:
+            result = create_prepared_shipment_batch(
+                rows=_shipment_batch_rows_for_service(rows),
+                user=request.user,
+            )
+        except ShipmentBatchValidationError as exc:
+            messages.error(
+                request,
+                _("Batch non enregistré: corrigez les lignes indiquées."),
+            )
+            return render(
+                request,
+                TEMPLATE_SHIPMENT_BATCH_CREATE,
+                _build_shipment_batch_context(
+                    request,
+                    rows=rows,
+                    row_errors=exc.row_errors,
+                ),
+            )
+
+        request.session[SHIPMENT_BATCH_SESSION_KEY] = [shipment.id for shipment in result.shipments]
+        messages.success(
+            request,
+            ngettext(
+                "%(count)s expédition préparée.",
+                "%(count)s expéditions préparées.",
+                len(result.shipments),
+            )
+            % {"count": len(result.shipments)},
+        )
+        return redirect("scan:scan_shipment_batch_summary")
+
+    return render(
+        request,
+        TEMPLATE_SHIPMENT_BATCH_CREATE,
+        _build_shipment_batch_context(
+            request,
+            rows=[_build_empty_shipment_batch_row(1)],
+        ),
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_shipment_batch_summary(request):
+    shipments = _load_shipment_batch_summary_shipments(request)
+    shipment_ids = ",".join(str(shipment.id) for shipment in shipments)
+    context = {
+        "active": ACTIVE_SHIPMENT_BATCH,
+        "shipments": shipments,
+        "shipment_ids": shipment_ids,
+        **_build_local_document_helper_context(request),
+    }
+    return render(request, TEMPLATE_SHIPMENT_BATCH_SUMMARY, context)
 
 
 @scan_staff_required

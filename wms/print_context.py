@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.utils import timezone
 
 from .billing_document_handlers import build_billing_document_render_payload
@@ -19,6 +21,15 @@ from .scan_helpers import (
     get_product_weight_g,
 )
 from .shipment_party_snapshot import build_shipment_party_contact_label
+
+
+@dataclass(frozen=True)
+class ShipmentLabelSlot:
+    position: int
+    total: int
+    code: str
+    carton: object = None
+    is_virtual: bool = False
 
 
 def _normalized_text(value):
@@ -192,8 +203,41 @@ def _build_donation_recipient_address(
     return base_address
 
 
+def effective_shipment_carton_count(shipment, cartons=None):
+    real_count = len(cartons) if cartons is not None else shipment.carton_set.count()
+    planned_count = int(getattr(shipment, "planned_carton_count", 0) or 0)
+    return max(real_count, planned_count)
+
+
+def build_shipment_preparatory_label_slots(shipment):
+    cartons = list(shipment.carton_set.all().order_by("code"))
+    total = effective_shipment_carton_count(shipment, cartons=cartons)
+    slots = []
+    for position, carton in enumerate(cartons, start=1):
+        slots.append(
+            ShipmentLabelSlot(
+                position=position,
+                total=total,
+                code=getattr(carton, "code", "") or f"{shipment.reference}-P{position:02d}",
+                carton=carton,
+                is_virtual=False,
+            )
+        )
+    for position in range(len(cartons) + 1, total + 1):
+        slots.append(
+            ShipmentLabelSlot(
+                position=position,
+                total=total,
+                code=f"{shipment.reference}-P{position:02d}",
+                is_virtual=True,
+            )
+        )
+    return slots
+
+
 def build_shipment_document_context(shipment, doc_type):
     cartons = list(shipment.carton_set.all().order_by("code"))
+    effective_carton_count = effective_shipment_carton_count(shipment, cartons=cartons)
     carton_labels = {carton.id: f"Colis N°{index}" for index, carton in enumerate(cartons, start=1)}
     item_rows = build_shipment_item_rows(shipment, carton_labels=carton_labels)
     aggregate_rows = build_shipment_aggregate_rows(shipment)
@@ -276,7 +320,7 @@ def build_shipment_document_context(shipment, doc_type):
         fallback_name=correspondent_name,
     )
 
-    description = f"{len(cartons)} cartons, {len(aggregate_rows)} produits"
+    description = f"{effective_carton_count} cartons, {len(aggregate_rows)} produits"
     if shipment.requested_delivery_date:
         description += (
             f", livraison souhaitee {shipment.requested_delivery_date.strftime('%d/%m/%Y')}"
@@ -298,7 +342,7 @@ def build_shipment_document_context(shipment, doc_type):
         "destination_label": destination_label,
         "destination_city": destination_city,
         "destination_iata": destination_iata,
-        "carton_count": len(cartons),
+        "carton_count": effective_carton_count,
         "carton_rows": carton_rows,
         "item_rows": rows_for_template,
         "aggregate_rows": aggregate_rows,
