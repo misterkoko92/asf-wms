@@ -183,7 +183,21 @@ class ScanPreparateurHomeViewTests(TestCase):
         self.assertContains(response, "Rangement")
         self.assertContains(response, 'data-scan-target="id_rangement_product_code"')
 
-    def test_scan_preparateur_rangement_known_product_updates_stock_and_recap(self):
+    def test_scan_preparateur_rangement_scan_requires_mode_and_quantity(self):
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "scan_product",
+                "product_code": "ANY",
+                "quantity": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Choisissez un mode de rangement.")
+        self.assertContains(response, "Quantité obligatoire.")
+
+    def test_scan_preparateur_rangement_receipt_mode_adds_draft_then_validates_stock(self):
         warehouse = Warehouse.objects.create(name="Rangement warehouse", code="RANG")
         location = Location.objects.create(
             warehouse=warehouse,
@@ -202,6 +216,7 @@ class ScanPreparateurHomeViewTests(TestCase):
             reverse("scan:scan_preparateur_rangement"),
             {
                 "action": "scan_product",
+                "movement_mode": "receipt",
                 "product_code": "BAR-RANG-001",
                 "quantity": "3",
             },
@@ -210,6 +225,18 @@ class ScanPreparateurHomeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Produit Rangement")
         self.assertContains(response, "Rangement warehouse A-01-001")
+        self.assertContains(response, "En attente de validation")
+        self.assertEqual(ProductLot.objects.count(), 0)
+        self.assertEqual(StockMovement.objects.count(), 0)
+        self.assertEqual(response.context["rangement_mode"], "receipt")
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {"action": "validate_batch"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_rangement"))
         lot = ProductLot.objects.get(product=product)
         self.assertEqual(lot.quantity_on_hand, 3)
         self.assertEqual(lot.location, location)
@@ -217,8 +244,9 @@ class ScanPreparateurHomeViewTests(TestCase):
         self.assertEqual(movement.movement_type, MovementType.IN)
         self.assertEqual(movement.quantity, 3)
         self.assertEqual(movement.to_location, location)
+        self.assertNotIn("preparateur_rangement_batch", self.client.session)
 
-    def test_scan_preparateur_rangement_duplicate_scan_merges_recap_and_stock(self):
+    def test_scan_preparateur_rangement_duplicate_scan_merges_draft_quantity(self):
         warehouse = Warehouse.objects.create(name="Rangement duplicate", code="RANGD")
         location = Location.objects.create(
             warehouse=warehouse,
@@ -235,24 +263,39 @@ class ScanPreparateurHomeViewTests(TestCase):
 
         url = reverse("scan:scan_preparateur_rangement")
         self.client.post(
-            url, {"action": "scan_product", "product_code": product.sku, "quantity": "2"}
+            url,
+            {
+                "action": "scan_product",
+                "movement_mode": "receipt",
+                "product_code": product.sku,
+                "quantity": "2",
+            },
         )
         response = self.client.post(
             url,
-            {"action": "scan_product", "product_code": product.barcode, "quantity": "4"},
+            {
+                "action": "scan_product",
+                "movement_mode": "receipt",
+                "product_code": product.barcode,
+                "quantity": "4",
+            },
         )
 
         self.assertEqual(response.status_code, 200)
         batch = response.context["rangement_batch"]
         self.assertEqual(len(batch), 1)
         self.assertEqual(batch[0]["quantity"], 6)
-        self.assertEqual(
-            sum(lot.quantity_on_hand for lot in ProductLot.objects.filter(product=product)),
-            6,
-        )
+        self.assertEqual(ProductLot.objects.filter(product=product).count(), 0)
 
-    def test_scan_preparateur_rangement_missing_location_does_not_create_stock(self):
-        Product.objects.create(
+    def test_scan_preparateur_rangement_missing_location_blocks_then_can_be_fixed(self):
+        warehouse = Warehouse.objects.create(name="Rangement fix", code="RANGF")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="C",
+            aisle="03",
+            shelf="003",
+        )
+        product = Product.objects.create(
             sku="RANG-NOLOC",
             name="Produit sans emplacement",
             barcode="BAR-RANG-NOLOC",
@@ -262,6 +305,7 @@ class ScanPreparateurHomeViewTests(TestCase):
             reverse("scan:scan_preparateur_rangement"),
             {
                 "action": "scan_product",
+                "movement_mode": "receipt",
                 "product_code": "BAR-RANG-NOLOC",
                 "quantity": "2",
             },
@@ -269,16 +313,43 @@ class ScanPreparateurHomeViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Produit Sans Emplacement")
-        self.assertContains(response, "Pas d&#x27;emplacement défini, demander conseil")
+        self.assertContains(response, "Emplacement par défaut manquant")
+        self.assertContains(response, "Définir l'emplacement")
         self.assertEqual(ProductLot.objects.count(), 0)
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "validate_batch",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Définissez les emplacements manquants avant validation.")
+        self.assertEqual(ProductLot.objects.count(), 0)
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "set_default_location",
+                "product_id": str(product.id),
+                "location_id": str(location.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        product.refresh_from_db()
+        self.assertEqual(product.default_location, location)
+        self.assertContains(response, "Rangement fix C-03-003")
+        self.assertNotContains(response, "Emplacement par défaut manquant")
 
     def test_scan_preparateur_rangement_limits_batch_to_five_distinct_products(self):
         warehouse = Warehouse.objects.create(name="Rangement limit", code="RANGL")
         location = Location.objects.create(
             warehouse=warehouse,
-            zone="C",
-            aisle="03",
-            shelf="003",
+            zone="D",
+            aisle="04",
+            shelf="004",
         )
         url = reverse("scan:scan_preparateur_rangement")
         for index in range(5):
@@ -292,6 +363,7 @@ class ScanPreparateurHomeViewTests(TestCase):
                 url,
                 {
                     "action": "scan_product",
+                    "movement_mode": "receipt",
                     "product_code": f"BAR-RANG-LIM-{index}",
                     "quantity": "1",
                 },
@@ -307,6 +379,7 @@ class ScanPreparateurHomeViewTests(TestCase):
             url,
             {
                 "action": "scan_product",
+                "movement_mode": "receipt",
                 "product_code": overflow.barcode,
                 "quantity": "1",
             },
@@ -317,13 +390,74 @@ class ScanPreparateurHomeViewTests(TestCase):
         self.assertEqual(len(response.context["rangement_batch"]), 5)
         self.assertFalse(ProductLot.objects.filter(product=overflow).exists())
 
+    def test_scan_preparateur_rangement_transfer_mode_moves_partial_quantity(self):
+        warehouse = Warehouse.objects.create(name="Rangement transfer", code="RANGT")
+        source_location = Location.objects.create(
+            warehouse=warehouse,
+            zone="TABLE",
+            aisle="01",
+            shelf="001",
+        )
+        target_location = Location.objects.create(
+            warehouse=warehouse,
+            zone="E",
+            aisle="05",
+            shelf="005",
+        )
+        product = Product.objects.create(
+            sku="RANG-TRANSFER",
+            name="Produit transfert",
+            barcode="BAR-RANG-TRANSFER",
+            default_location=target_location,
+        )
+        source_lot = ProductLot.objects.create(
+            product=product,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=source_location,
+            received_on=date.today() - timedelta(days=3),
+            expires_on=date.today() + timedelta(days=30),
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "scan_product",
+                "movement_mode": "transfer",
+                "product_code": product.barcode,
+                "quantity": "3",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rangement transfer E-05-005")
+        self.assertContains(response, "Rangement transfer TABLE-01-001")
+        self.assertEqual(source_lot.quantity_on_hand, 20)
+        self.assertEqual(StockMovement.objects.count(), 0)
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {"action": "validate_batch"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        source_lot.refresh_from_db()
+        self.assertEqual(source_lot.quantity_on_hand, 17)
+        target_lot = ProductLot.objects.get(product=product, location=target_location)
+        self.assertEqual(target_lot.quantity_on_hand, 3)
+        movement = StockMovement.objects.get(product=product)
+        self.assertEqual(movement.movement_type, MovementType.TRANSFER)
+        self.assertEqual(movement.quantity, 3)
+        self.assertEqual(movement.from_location, source_location)
+        self.assertEqual(movement.to_location, target_location)
+
     def test_scan_preparateur_rangement_unknown_product_opens_modal_with_recap(self):
         warehouse = Warehouse.objects.create(name="Rangement unknown", code="RANGU")
         location = Location.objects.create(
             warehouse=warehouse,
-            zone="D",
-            aisle="04",
-            shelf="004",
+            zone="F",
+            aisle="06",
+            shelf="006",
         )
         known = Product.objects.create(
             sku="RANG-KNOWN",
@@ -334,12 +468,22 @@ class ScanPreparateurHomeViewTests(TestCase):
         url = reverse("scan:scan_preparateur_rangement")
         self.client.post(
             url,
-            {"action": "scan_product", "product_code": known.barcode, "quantity": "2"},
+            {
+                "action": "scan_product",
+                "movement_mode": "receipt",
+                "product_code": known.barcode,
+                "quantity": "2",
+            },
         )
 
         response = self.client.post(
             url,
-            {"action": "scan_product", "product_code": "UNKNOWN-RANG", "quantity": "4"},
+            {
+                "action": "scan_product",
+                "movement_mode": "receipt",
+                "product_code": "UNKNOWN-RANG",
+                "quantity": "4",
+            },
         )
 
         self.assertEqual(response.status_code, 200)
@@ -351,15 +495,20 @@ class ScanPreparateurHomeViewTests(TestCase):
         self.assertContains(response, 'value="create_unknown_product"')
         self.assertEqual(ProductLot.objects.filter(product__name="UNKNOWN-RANG").count(), 0)
 
-    def test_scan_preparateur_rangement_create_unknown_product_adds_stock_and_recap(self):
+    def test_scan_preparateur_rangement_create_unknown_product_adds_draft_then_validation_stock(
+        self,
+    ):
         warehouse = Warehouse.objects.create(name="Rangement create", code="RANGC")
         location = Location.objects.create(
             warehouse=warehouse,
-            zone="E",
-            aisle="05",
-            shelf="005",
+            zone="G",
+            aisle="07",
+            shelf="007",
         )
         ProductCategory.objects.create(name="MM")
+        session = self.client.session
+        session["preparateur_rangement_mode"] = "receipt"
+        session.save()
 
         with mock.patch("wms.pack_handlers.notify_preparateur_product_review_needed"):
             response = self.client.post(
@@ -387,28 +536,39 @@ class ScanPreparateurHomeViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         product = Product.objects.get(barcode="BAR-RANG-NEW")
-        lot = ProductLot.objects.get(product=product)
         self.assertTrue(product.is_incomplete)
         self.assertEqual(product.default_location, location)
         self.assertEqual(product.brand, "MARQUE RANGEMENT")
         self.assertEqual(product.length_cm, Decimal("10.50"))
-        self.assertEqual(lot.quantity_on_hand, 5)
+        self.assertFalse(ProductLot.objects.filter(product=product).exists())
         self.assertContains(response, product.sku)
-        self.assertContains(response, "Rangement create E-05-005")
+        self.assertContains(response, "Rangement create G-07-007")
+
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {"action": "validate_batch"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        lot = ProductLot.objects.get(product=product)
+        self.assertEqual(lot.quantity_on_hand, 5)
+        self.assertEqual(lot.location, location)
 
     def test_scan_preparateur_rangement_create_unknown_product_respects_batch_limit(self):
         warehouse = Warehouse.objects.create(name="Rangement full unknown", code="RANGFU")
         location = Location.objects.create(
             warehouse=warehouse,
-            zone="F",
-            aisle="06",
-            shelf="006",
+            zone="H",
+            aisle="08",
+            shelf="008",
         )
         ProductCategory.objects.create(name="MM")
         session = self.client.session
+        session["preparateur_rangement_mode"] = "receipt"
         session["preparateur_rangement_batch"] = [
             {
                 "product_id": index + 1,
+                "mode": "receipt",
                 "name": f"Produit plein {index}",
                 "sku": f"FULL-{index}",
                 "quantity": 1,
@@ -450,11 +610,13 @@ class ScanPreparateurHomeViewTests(TestCase):
         self.assertFalse(ProductLot.objects.exists())
         self.assertEqual(len(response.context["rangement_batch"]), 5)
 
-    def test_scan_preparateur_rangement_finish_clears_batch_and_returns_home(self):
+    def test_scan_preparateur_rangement_finish_clears_batch_and_stays_on_rangement(self):
         session = self.client.session
+        session["preparateur_rangement_mode"] = "receipt"
         session["preparateur_rangement_batch"] = [
             {
                 "product_id": 123,
+                "mode": "receipt",
                 "name": "Produit terminé",
                 "sku": "DONE",
                 "quantity": 1,
@@ -470,8 +632,9 @@ class ScanPreparateurHomeViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_home"))
+        self.assertEqual(response["Location"], reverse("scan:scan_preparateur_rangement"))
         self.assertNotIn("preparateur_rangement_batch", self.client.session)
+        self.assertNotIn("preparateur_rangement_mode", self.client.session)
 
     def test_scan_preparateur_home_prepare_order_redirects_to_order_select_with_active_volunteer(
         self,

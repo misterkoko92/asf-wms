@@ -98,7 +98,10 @@ Read this file when touching scan lists, sidebar navigation, preparateur flows, 
 - Barcode flows reuse selected camera mode.
 - OCR is currently disabled and must fail closed unless future work self-hosts OCR assets and updates CSP, cache, and regression tests.
 - Unknown product opens modal; SKU auto-generates; preparateur-created products are incomplete and notify reviewers.
-- `/scan/preparateur/rangement/` caps each batch at five distinct products, merges duplicate scans by increasing quantity, uses product default location for stock intake, leaves no stock entry when location is missing, and reuses the preparateur unknown-product creation modal when a scan cannot be resolved.
+- `/scan/preparateur/rangement/` caps each batch at five distinct products and stores the mode in `preparateur_rangement_mode`.
+- Rangement mode is chosen before scanning and remains locked for the batch: `Entrée en stock` creates receipt stock on validation; `Déplacement de stock` moves available stock toward the product default location using FEFO source selection and supports partial quantities.
+- Rangement scans are draft lines until `Valider le batch`; duplicate scans merge by increasing quantity, every line requires a quantity, and validation is blocked when a product has no default location.
+- Products missing a default location are corrected through the rangement page by setting only `Product.default_location`; unknown products reuse the preparateur product-creation modal in receipt mode and are added to the draft batch before stock is written.
 
 ### Maintenance rule
 
