@@ -3,10 +3,10 @@ from datetime import date
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
         "date": date(2026, 4, 29),
-        "pr_number": None,
+        "pr_number": 186,
         "summary": (
             "Rangement préparateur clarifié avec modes Entrée en stock et Déplacement "
-            "de stock, batch validé explicitement et correction d'emplacement par défaut."
+            "de stock, batch validé explicitement et correction des emplacements par défaut."
         ),
     },
     {
