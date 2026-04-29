@@ -123,8 +123,11 @@ Read this flow when touching:
 - Final promotion from `PICKING` to `PACKED` is explicit on shipment dossier and remains separate from preparation-run conversion.
 - Planning must not see `PICKING` shipments as ready.
 - Shipment document-first creation without cartons remains allowed.
+- Prepared shipment creation can store `planned_carton_count` without attaching cartons; this planned count is document-only and must not make the shipment ready or create `Carton` rows.
+- Prepared shipment batch creation is all-or-nothing and creates one independent document-first shipment per row.
 - Shipment `paper` bundle order remains: `Bon d'expédition`, `Document douane`, `Liste colisage générale` twice.
 - Shipment `standard_labels` means one A4 portrait page per carton with donation certificate, shipment label, contact label, and carton packing list.
+- Shipment `preparatory_labels` means one A4 portrait page per planned/real slot with donation certificate, shipment label, and contact label only; it intentionally omits carton packing lists for virtual slots.
 - `carton_lists` remains continuous-roll; `carton_lists_a4` remains direct printable A4.
 - Public shipment QR tracking remains authenticated/restricted according to current access rules.
 - Correspondent and recipient receipt scans require proof or explicit manual fallback.

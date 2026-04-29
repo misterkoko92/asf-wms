@@ -1,0 +1,51 @@
+{% extends "scan/base.html" %}
+{% load i18n %}
+
+{% block title %}WMS Scan - {% trans "Batch expéditions" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Expéditions préparées" %}</h2>
+    {% include "wms/_local_document_helper_install_panel.html" %}
+
+    {% if shipments %}
+      <div class="ui-comp-actions">
+        <a class="btn btn-primary" href="{% url 'scan:scan_shipment_batch_view_bundle' 'paper' %}?shipment_ids={{ shipment_ids|urlencode }}" target="_blank" rel="noopener">{% trans "Imprimer les dossiers" %}</a>
+        <a class="btn btn-secondary" href="{% url 'scan:scan_shipment_batch_view_bundle' 'preparatory_labels' %}?shipment_ids={{ shipment_ids|urlencode }}" target="_blank" rel="noopener">{% trans "Imprimer les étiquettes" %}</a>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_shipment_batch_create' %}">{% trans "Créer un autre batch" %}</a>
+      </div>
+
+      <div class="scan-table-wrap">
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>{% trans "Référence" %}</th>
+              <th>{% trans "Destination" %}</th>
+              <th>{% trans "Expéditeur" %}</th>
+              <th>{% trans "Destinataire" %}</th>
+              <th>{% trans "Colis prévus" %}</th>
+              <th>{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for shipment in shipments %}
+              <tr>
+                <td>{{ shipment.reference }}</td>
+                <td>{{ shipment.destination }}</td>
+                <td>{{ shipment.shipper_name }}</td>
+                <td>{{ shipment.recipient_name }}</td>
+                <td>{{ shipment.planned_carton_count }}</td>
+                <td>
+                  <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_shipment_edit' shipment.id %}">{% trans "Ouvrir" %}</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help ui-comp-note">{% trans "Aucune expédition de batch récente à afficher." %}</p>
+      <a class="btn btn-primary" href="{% url 'scan:scan_shipment_batch_create' %}">{% trans "Créer un batch" %}</a>
+    {% endif %}
+  </div>
+{% endblock %}

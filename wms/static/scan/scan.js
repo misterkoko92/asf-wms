@@ -2960,6 +2960,190 @@
     }
   }
 
+  function setupShipmentBatchBuilder() {
+    const form = document.getElementById('shipment-batch-form');
+    const tbody = document.querySelector('#shipment-batch-rows tbody');
+    const addButton = document.getElementById('shipment-batch-add-row');
+    const rowCountInput = document.getElementById('shipment-batch-row-count');
+    if (!form || !tbody || !rowCountInput) {
+      return;
+    }
+
+    const readData = id => {
+      const el = document.getElementById(id);
+      if (!el) {
+        return [];
+      }
+      try {
+        const data = JSON.parse(el.textContent || '[]');
+        return Array.isArray(data) ? data : [];
+      } catch (err) {
+        return [];
+      }
+    };
+
+    const destinations = readData('shipment-batch-destinations-data');
+    const shippers = readData('shipment-batch-shipper-contacts-data');
+    const recipients = readData('shipment-batch-recipient-contacts-data');
+    const correspondents = readData('shipment-batch-correspondent-contacts-data');
+
+    const replaceOptions = (select, options, selectedValue, labelGetter) => {
+      if (!select) {
+        return;
+      }
+      const selected = selectedValue || select.value || select.dataset.selectedValue || '';
+      select.innerHTML = '';
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = '---------';
+      select.appendChild(emptyOption);
+      options.forEach(optionData => {
+        const option = document.createElement('option');
+        option.value = String(optionData.id);
+        option.textContent = labelGetter(optionData);
+        select.appendChild(option);
+      });
+      const allowedValues = new Set(options.map(optionData => String(optionData.id)));
+      select.value = allowedValues.has(String(selected)) ? String(selected) : '';
+      select.dataset.selectedValue = select.value;
+    };
+
+    const selectedData = (items, value) =>
+      items.find(item => String(item.id) === String(value || '')) || null;
+
+    const destinationAllows = (ids, destinationId) =>
+      Array.isArray(ids) && ids.map(String).includes(String(destinationId));
+
+    const recipientAllows = (recipient, shipper, destinationId) => {
+      if (!recipient || !shipper || !destinationId) {
+        return false;
+      }
+      const shipperOrgId = String(shipper.organization_id || '');
+      return (recipient.binding_pairs || []).some(pair => {
+        return (
+          String(pair.shipper_id) === shipperOrgId &&
+          String(pair.destination_id) === String(destinationId)
+        );
+      });
+    };
+
+    const syncRowOptions = row => {
+      const destinationSelect = row.querySelector('.shipment-batch-destination');
+      const shipperSelect = row.querySelector('.shipment-batch-shipper');
+      const recipientSelect = row.querySelector('.shipment-batch-recipient');
+      const correspondentSelect = row.querySelector('.shipment-batch-correspondent');
+      const destinationId = destinationSelect ? destinationSelect.value : '';
+      const currentShipper = shipperSelect ? shipperSelect.value : '';
+      const eligibleShippers = destinationId
+        ? shippers.filter(shipper => destinationAllows(shipper.allowed_destination_ids, destinationId))
+        : shippers;
+      replaceOptions(shipperSelect, eligibleShippers, currentShipper, shipper => shipper.name);
+      const shipper = selectedData(shippers, shipperSelect ? shipperSelect.value : '');
+      const currentRecipient = recipientSelect ? recipientSelect.value : '';
+      const eligibleRecipients =
+        destinationId && shipper
+          ? recipients.filter(recipient => recipientAllows(recipient, shipper, destinationId))
+          : [];
+      replaceOptions(
+        recipientSelect,
+        eligibleRecipients,
+        currentRecipient,
+        recipient => recipient.name
+      );
+      const currentCorrespondent = correspondentSelect ? correspondentSelect.value : '';
+      const eligibleCorrespondents = destinationId
+        ? correspondents.filter(correspondent =>
+            destinationAllows(correspondent.covered_destination_ids, destinationId)
+          )
+        : [];
+      replaceOptions(
+        correspondentSelect,
+        eligibleCorrespondents,
+        currentCorrespondent,
+        correspondent => correspondent.name
+      );
+      if (eligibleCorrespondents.length === 1 && correspondentSelect) {
+        correspondentSelect.value = String(eligibleCorrespondents[0].id);
+        correspondentSelect.dataset.selectedValue = correspondentSelect.value;
+      }
+    };
+
+    const reindexRows = () => {
+      const rows = Array.from(tbody.querySelectorAll('.shipment-batch-row'));
+      rows.forEach((row, index) => {
+        const rowIndex = index + 1;
+        row.dataset.rowIndex = String(rowIndex);
+        row.querySelectorAll('select, input').forEach(input => {
+          input.name = input.name.replace(/row_\d+_/, `row_${rowIndex}_`);
+        });
+        row.querySelectorAll('[data-shipment-batch-delete]').forEach(button => {
+          button.disabled = rows.length === 1;
+        });
+      });
+      rowCountInput.value = String(rows.length || 1);
+    };
+
+    const bindRow = row => {
+      row.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', () => {
+          select.dataset.selectedValue = select.value;
+          syncRowOptions(row);
+        });
+      });
+      const duplicateButton = row.querySelector('[data-shipment-batch-duplicate]');
+      if (duplicateButton) {
+        duplicateButton.addEventListener('click', () => {
+          const clone = row.cloneNode(true);
+          clone.querySelectorAll('.scan-message').forEach(message => message.remove());
+          row.after(clone);
+          bindRow(clone);
+          reindexRows();
+          syncRowOptions(clone);
+        });
+      }
+      const deleteButton = row.querySelector('[data-shipment-batch-delete]');
+      if (deleteButton) {
+        deleteButton.addEventListener('click', () => {
+          if (tbody.querySelectorAll('.shipment-batch-row').length <= 1) {
+            return;
+          }
+          row.remove();
+          reindexRows();
+        });
+      }
+      syncRowOptions(row);
+    };
+
+    const createEmptyRow = () => {
+      const source = tbody.querySelector('.shipment-batch-row');
+      if (!source) {
+        return null;
+      }
+      const row = source.cloneNode(true);
+      row.querySelectorAll('select, input').forEach(input => {
+        input.value = '';
+        input.dataset.selectedValue = '';
+      });
+      row.querySelectorAll('.scan-message').forEach(message => message.remove());
+      return row;
+    };
+
+    Array.from(tbody.querySelectorAll('.shipment-batch-row')).forEach(bindRow);
+    reindexRows();
+
+    if (addButton) {
+      addButton.addEventListener('click', () => {
+        const row = createEmptyRow();
+        if (!row) {
+          return;
+        }
+        tbody.appendChild(row);
+        bindRow(row);
+        reindexRows();
+      });
+    }
+  }
+
   function setupShipmentContactFilters() {
     const shipmentForm = document.getElementById('shipment-form');
     const destinationSelect = document.getElementById('id_destination');
@@ -4536,6 +4720,7 @@
   setupPackLines();
   setupPackSuccessModal();
   setupShipmentBuilder();
+  setupShipmentBatchBuilder();
   setupShipmentContactFilters();
   setupAdminContactsCrud();
   setupReceiptLines();

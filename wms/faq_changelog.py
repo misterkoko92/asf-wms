@@ -3,6 +3,14 @@ from datetime import date
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
         "date": date(2026, 4, 29),
+        "pr_number": None,
+        "summary": (
+            "Préparation d'expéditions sans colis affiliés, création batch de dossiers "
+            "et impression des dossiers papier avec étiquettes préparatoires."
+        ),
+    },
+    {
+        "date": date(2026, 4, 29),
         "pr_number": 187,
         "summary": (
             "Correction ouverture automatique de la modale pour ajouter un produit "

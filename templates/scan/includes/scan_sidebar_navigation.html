@@ -107,18 +107,19 @@
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#scan-sidebar-preparation-group"
-        aria-expanded="{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' or active == 'preparation_runs' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' or active == 'shipment_batch' or active == 'preparation_runs' %}true{% else %}false{% endif %}"
         aria-controls="scan-sidebar-preparation-group"
       >
         <span>Préparation</span>
       </button>
       <div
         id="scan-sidebar-preparation-group"
-        class="collapse scan-sidebar-group-links{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' or active == 'preparation_runs' %} show{% endif %}"
+        class="collapse scan-sidebar-group-links{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' or active == 'shipment_batch' or active == 'preparation_runs' %} show{% endif %}"
       >
         <a href="{% url 'scan:scan_prepare_kits' %}" class="scan-sidebar-child-link{% if active == 'prepare_kits' %} active{% endif %}">{% trans "Préparer des kits" %}</a>
         <a href="{% url 'scan:scan_pack' %}" class="scan-sidebar-child-link{% if active == 'pack' %} active{% endif %}">{% trans "Préparer des colis" %}</a>
         <a href="{% url 'scan:scan_shipment_create' %}" class="scan-sidebar-child-link{% if active == 'shipment' %} active{% endif %}">{% trans "Préparation expédition" %}</a>
+        <a href="{% url 'scan:scan_shipment_batch_create' %}" class="scan-sidebar-child-link{% if active == 'shipment_batch' %} active{% endif %}">{% trans "Batch expéditions" %}</a>
         <a href="{% url 'scan:scan_preparation_run_list' %}" class="scan-sidebar-child-link{% if active == 'preparation_runs' %} active{% endif %}">Runs magasin</a>
       </div>
     </div>

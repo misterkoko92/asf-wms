@@ -1,0 +1,98 @@
+{% extends "scan/base.html" %}
+{% load i18n static %}
+
+{% block title %}WMS Scan - {% trans "Batch expéditions" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Créer des expéditions en batch" %}</h2>
+    {% include "wms/_local_document_helper_install_panel.html" %}
+
+    <form method="post" id="shipment-batch-form" class="ui-comp-form" novalidate>
+      {% csrf_token %}
+      <input type="hidden" id="shipment-batch-row-count" name="row_count" value="{{ row_count }}">
+
+      <div id="shipment-batch-rows" class="scan-table-wrap">
+        <table class="scan-table shipment-batch-table">
+          <thead>
+            <tr>
+              <th>{% trans "Destination" %}</th>
+              <th>{% trans "Expéditeur" %}</th>
+              <th>{% trans "Destinataire" %}</th>
+              <th>{% trans "Correspondant" %}</th>
+              <th>{% trans "Colis prévus" %}</th>
+              <th>{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr class="shipment-batch-row" data-row-index="{{ row.index }}">
+                <td>
+                  <select name="row_{{ row.index }}_destination" class="shipment-batch-destination form-select" required>
+                    <option value="">---------</option>
+                    {% for destination in destinations_json %}
+                      <option value="{{ destination.id }}" {% if destination.id|stringformat:"s" == row.destination %}selected{% endif %}>{{ destination.label }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if row.errors.destination %}<div class="scan-message error">{{ row.errors.destination }}</div>{% endif %}
+                </td>
+                <td>
+                  <select name="row_{{ row.index }}_shipper_contact" class="shipment-batch-shipper form-select" required data-selected-value="{{ row.shipper_contact }}">
+                    <option value="">---------</option>
+                    {% for shipper in shipper_contacts_json %}
+                      <option value="{{ shipper.id }}" {% if shipper.id|stringformat:"s" == row.shipper_contact %}selected{% endif %}>{{ shipper.name }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if row.errors.shipper_contact %}<div class="scan-message error">{{ row.errors.shipper_contact }}</div>{% endif %}
+                </td>
+                <td>
+                  <select name="row_{{ row.index }}_recipient_contact" class="shipment-batch-recipient form-select" required data-selected-value="{{ row.recipient_contact }}">
+                    <option value="">---------</option>
+                    {% for recipient in recipient_contacts_json %}
+                      <option value="{{ recipient.id }}" {% if recipient.id|stringformat:"s" == row.recipient_contact %}selected{% endif %}>{{ recipient.name }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if row.errors.recipient_contact %}<div class="scan-message error">{{ row.errors.recipient_contact }}</div>{% endif %}
+                </td>
+                <td>
+                  <select name="row_{{ row.index }}_correspondent_contact" class="shipment-batch-correspondent form-select" required data-selected-value="{{ row.correspondent_contact }}">
+                    <option value="">---------</option>
+                    {% for correspondent in correspondent_contacts_json %}
+                      <option value="{{ correspondent.id }}" {% if correspondent.id|stringformat:"s" == row.correspondent_contact %}selected{% endif %}>{{ correspondent.name }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if row.errors.correspondent_contact %}<div class="scan-message error">{{ row.errors.correspondent_contact }}</div>{% endif %}
+                </td>
+                <td>
+                  <input type="number" name="row_{{ row.index }}_planned_carton_count" class="shipment-batch-planned-count form-control" min="1" step="1" value="{{ row.planned_carton_count }}" required>
+                  {% if row.errors.planned_carton_count %}<div class="scan-message error">{{ row.errors.planned_carton_count }}</div>{% endif %}
+                  {% if row.errors.non_field %}<div class="scan-message error">{{ row.errors.non_field }}</div>{% endif %}
+                </td>
+                <td>
+                  <div class="ui-comp-actions">
+                    <button type="button" class="btn btn-tertiary btn-sm" data-shipment-batch-duplicate>{% trans "Dupliquer" %}</button>
+                    <button type="button" class="btn btn-tertiary btn-sm" data-shipment-batch-delete>{% trans "Supprimer" %}</button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ui-comp-actions">
+        <button type="button" class="btn btn-tertiary" id="shipment-batch-add-row">{% trans "Ajouter une expédition" %}</button>
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider le batch" %}</button>
+      </div>
+    </form>
+
+    {{ destinations_json|json_script:"shipment-batch-destinations-data" }}
+    {{ shipper_contacts_json|json_script:"shipment-batch-shipper-contacts-data" }}
+    {{ recipient_contacts_json|json_script:"shipment-batch-recipient-contacts-data" }}
+    {{ correspondent_contacts_json|json_script:"shipment-batch-correspondent-contacts-data" }}
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
+{% endblock %}

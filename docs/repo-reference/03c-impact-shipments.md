@@ -57,6 +57,7 @@ These rules must remain true unless explicitly redesigned.
 ### Carton Consistency
 
 - shipment carton counts must match attached cartons
+- `Shipment.planned_carton_count` is a preparatory/document count only; it must not be treated as attached carton truth
 - carton state transitions must remain coherent with shipment state
 - detached cartons must not remain counted
 
@@ -189,6 +190,23 @@ Confirm accepted proposals still create shipments in:
 `PICKING`
 
 not automatically `PACKED`.
+
+### If Editing Prepared Shipments Without Cartons
+
+Also verify:
+
+- `/scan/shipment/` mode `Préparer sans colis`
+- `/scan/shipment/batch/`
+- `wms/shipment_batch_handlers.py`
+- `wms/print_context.py`
+- `wms/views_print_docs.py`
+
+Confirm planned counts:
+
+- create final shipment references without creating or attaching `Carton` rows
+- stay out of readiness and planning eligibility until real cartons are attached and explicitly confirmed ready
+- feed only paper documents and preparatory labels
+- remain independent per batch row
 
 ---
 

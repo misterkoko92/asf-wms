@@ -167,3 +167,70 @@ class PreparedShipmentBatchHandlersTests(TestCase):
             )
 
         self.assertEqual(Shipment.objects.count(), 0)
+
+    def test_create_prepared_shipment_batch_requires_at_least_one_row(self):
+        with self.assertRaises(ShipmentBatchValidationError) as raised:
+            create_prepared_shipment_batch(rows=[], user=self.user)
+
+        self.assertEqual(
+            raised.exception.row_errors,
+            {1: {"__all__": "Ajouter au moins une expédition."}},
+        )
+
+    def test_create_prepared_shipment_batch_reports_invalid_row_fields(self):
+        with self.assertRaises(ShipmentBatchValidationError) as raised:
+            create_prepared_shipment_batch(
+                rows=[
+                    {
+                        "destination": "not-a-destination-id",
+                        "shipper_contact": "not-a-shipper-id",
+                        "recipient_contact": "not-a-recipient-id",
+                        "planned_carton_count": "abc",
+                    }
+                ],
+                user=self.user,
+            )
+
+        self.assertEqual(
+            raised.exception.row_errors,
+            {
+                1: {
+                    "destination": "Destination requise.",
+                    "shipper_contact": "Expéditeur requis.",
+                    "recipient_contact": "Destinataire requis.",
+                    "planned_carton_count": "Nombre de colis prévus requis.",
+                }
+            },
+        )
+
+    def test_create_prepared_shipment_batch_rejects_unavailable_correspondent(self):
+        destination, shipper, recipient = self._create_shipment_party_triplet("BTM")
+        _other_destination, _other_shipper, _other_recipient = self._create_shipment_party_triplet(
+            "BTN"
+        )
+        other_correspondent = _other_destination.correspondent_contact
+
+        with self.assertRaises(ShipmentBatchValidationError) as raised:
+            create_prepared_shipment_batch(
+                rows=[
+                    {
+                        "destination": destination,
+                        "shipper_contact": shipper,
+                        "recipient_contact": recipient,
+                        "correspondent_contact": other_correspondent,
+                        "planned_carton_count": 3,
+                    }
+                ],
+                user=self.user,
+            )
+
+        self.assertEqual(
+            raised.exception.row_errors,
+            {
+                1: {
+                    "correspondent_contact": (
+                        "Correspondant non disponible pour cette destination."
+                    )
+                }
+            },
+        )

@@ -39,13 +39,18 @@ from wms.models import (
     RecipientProductPreference,
     RecipientProductPreferenceStatus,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentTrackingAccessGrant,
     ShipmentTrackingAccessRole,
     ShipmentTrackingEvent,
     ShipmentTrackingIdentityStatus,
     ShipmentTrackingStatus,
+    ShipmentValidationStatus,
     VolunteerAccountRequest,
     VolunteerAccountRequestStatus,
     VolunteerProfile,
@@ -159,6 +164,92 @@ class ScanShipmentsViewsTests(TestCase):
             quantity=1,
         )
         return carton
+
+    def _create_shipment_party_triplet(self, code):
+        correspondent_org = Contact.objects.create(
+            name=f"Correspondent Org {code}",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name=f"Correspondent {code}",
+            contact_type=ContactType.PERSON,
+            first_name="Correspondent",
+            last_name=code,
+            organization=correspondent_org,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city=f"Destination {code}",
+            iata_code=code,
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=correspondent_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=True,
+        )
+
+        shipper_org = Contact.objects.create(
+            name=f"Shipper Org {code}",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_contact = Contact.objects.create(
+            name=f"Shipper {code}",
+            contact_type=ContactType.PERSON,
+            first_name="Shipper",
+            last_name=code,
+            organization=shipper_org,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+        recipient_org_contact = Contact.objects.create(
+            name=f"Recipient Org {code}",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org_contact,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        recipient_contact = Contact.objects.create(
+            name=f"Recipient {code}",
+            contact_type=ContactType.PERSON,
+            first_name="Recipient",
+            last_name=code,
+            organization=recipient_org_contact,
+            is_active=True,
+        )
+        shipment_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_org,
+            contact=recipient_contact,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_org,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=shipment_recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
+        return destination, shipper_contact, recipient_contact, correspondent
 
     def test_tracking_pending_account_helpers_create_update_and_assign(self):
         created_user = _get_or_create_tracking_pending_user(
@@ -1756,6 +1847,84 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'name="post_create_action"')
         self.assertContains(response, 'value="show_dossier"')
         self.assertContains(response, 'value="stay"')
+
+    def test_scan_shipment_batch_create_renders_line_builder(self):
+        response = self.client.get(reverse("scan:scan_shipment_batch_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-batch-form"')
+        self.assertContains(response, 'name="row_1_destination"')
+        self.assertContains(response, 'name="row_1_planned_carton_count"')
+        self.assertContains(response, "Ajouter une expédition")
+        self.assertContains(response, "Valider le batch")
+
+    def test_scan_shipment_batch_create_posts_valid_rows_to_summary(self):
+        destination_a, shipper_a, recipient_a, correspondent_a = (
+            self._create_shipment_party_triplet("BVA")
+        )
+        destination_b, shipper_b, recipient_b, correspondent_b = (
+            self._create_shipment_party_triplet("BVB")
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_batch_create"),
+            {
+                "row_count": "2",
+                "row_1_destination": str(destination_a.id),
+                "row_1_shipper_contact": str(shipper_a.id),
+                "row_1_recipient_contact": str(recipient_a.id),
+                "row_1_correspondent_contact": str(correspondent_a.id),
+                "row_1_planned_carton_count": "10",
+                "row_2_destination": str(destination_b.id),
+                "row_2_shipper_contact": str(shipper_b.id),
+                "row_2_recipient_contact": str(recipient_b.id),
+                "row_2_correspondent_contact": str(correspondent_b.id),
+                "row_2_planned_carton_count": "5",
+            },
+        )
+
+        self.assertRedirects(response, reverse("scan:scan_shipment_batch_summary"))
+        shipments = list(Shipment.objects.order_by("id"))
+        self.assertEqual([shipment.planned_carton_count for shipment in shipments], [10, 5])
+        self.assertEqual(
+            self.client.session["shipment_batch_created_ids"],
+            [shipment.id for shipment in shipments],
+        )
+
+    def test_scan_shipment_batch_create_rerenders_invalid_rows_with_errors(self):
+        destination, shipper, recipient, correspondent = self._create_shipment_party_triplet("BVI")
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_batch_create"),
+            {
+                "row_count": "1",
+                "row_1_destination": str(destination.id),
+                "row_1_shipper_contact": str(shipper.id),
+                "row_1_recipient_contact": str(recipient.id),
+                "row_1_correspondent_contact": str(correspondent.id),
+                "row_1_planned_carton_count": "0",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Batch non enregistré")
+        self.assertContains(response, "Nombre de colis prévus requis.")
+        self.assertEqual(Shipment.objects.count(), 0)
+
+    def test_scan_shipment_batch_summary_renders_created_shipments(self):
+        shipment_a = self._create_shipment(reference="EXP-BATCH-A")
+        shipment_b = self._create_shipment(reference="EXP-BATCH-B")
+        session = self.client.session
+        session["shipment_batch_created_ids"] = [shipment_a.id, shipment_b.id]
+        session.save()
+
+        response = self.client.get(reverse("scan:scan_shipment_batch_summary"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "EXP-BATCH-A")
+        self.assertContains(response, "EXP-BATCH-B")
+        self.assertContains(response, "Imprimer les dossiers")
+        self.assertContains(response, "Imprimer les étiquettes")
 
     def test_scan_shipment_create_renders_single_correspondent_display_markers(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))

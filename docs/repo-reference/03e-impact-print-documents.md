@@ -146,6 +146,18 @@ one `A4` page per carton with blocks:
 - contact label
 - carton packing list
 
+### If Editing Preparatory Labels
+
+Also verify current meaning remains:
+
+one `A4` page per planned/real shipment slot with blocks:
+
+- donation
+- shipment label
+- contact label
+
+Preparatory labels intentionally do not include carton packing lists for virtual slots because no real carton contents exist yet.
+
 ### If Editing Carton Lists
 
 Distinguish:

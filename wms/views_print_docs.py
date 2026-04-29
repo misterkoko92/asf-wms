@@ -1,4 +1,5 @@
 from io import BytesIO
+from types import SimpleNamespace
 
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404
@@ -29,6 +30,7 @@ from .print_context import (
     build_carton_picking_context,
     build_label_context,
     build_shipment_document_context,
+    build_shipment_preparatory_label_slots,
 )
 from .print_delivery import wants_browser_print, wants_external_pdf
 from .print_pack_engine import (
@@ -64,6 +66,8 @@ TEMPLATE_SHIPMENT_BUNDLE_A4 = "print/shipment_bundle_a4.html"
 TEMPLATE_SHIPMENT_BUNDLE_A5_TWO_UP = "print/shipment_bundle_a5_two_up.html"
 TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP = "print/shipment_carton_lists_a4_four_up.html"
 TEMPLATE_SHIPMENT_CARTON_DOCUMENTS_A4 = "print/shipment_carton_documents_a4.html"
+TEMPLATE_SHIPMENT_PREPARATORY_LABELS_A4 = "print/shipment_preparatory_labels_a4.html"
+TEMPLATE_SHIPMENT_BATCH_BUNDLE_A4 = "print/shipment_batch_bundle_a4.html"
 
 
 def _require_preparateur_non_shipped_carton(request, carton):
@@ -506,6 +510,48 @@ def _build_shipment_carton_document_pages(request, shipment):
     return pages
 
 
+def _build_slot_carton_proxy(slot):
+    if slot.carton is not None:
+        return slot.carton
+    return SimpleNamespace(id=f"planned-{slot.position}", code=slot.code)
+
+
+def _build_shipment_preparatory_label_pages(request, shipment):
+    shipment.ensure_qr_code(request=request)
+    donation_context = build_shipment_document_context(shipment, "donation_certificate")
+    pages = []
+    for slot in build_shipment_preparatory_label_slots(shipment):
+        carton = _build_slot_carton_proxy(slot)
+        pages.append(
+            {
+                "page_id": f"shipment-preparatory-labels-page-{shipment.id}-{slot.position}",
+                "slot": slot,
+                "carton": carton,
+                "shipment": shipment,
+                "donation_html": _render_print_partial(
+                    "print/partials/donation_certificate_body.html",
+                    donation_context,
+                ),
+                "shipment_label_html": _render_print_partial(
+                    "print/partials/shipment_label_body.html",
+                    {
+                        "label": _build_shipment_label_payload(
+                            shipment,
+                            carton,
+                            position=slot.position,
+                            total=slot.total,
+                        )
+                    },
+                ),
+                "contact_html": _render_print_partial(
+                    "print/partials/contact_label_body.html",
+                    build_carton_contact_label_context(shipment, carton),
+                ),
+            }
+        )
+    return pages
+
+
 def _shipment_view_bundle_context(request, shipment, bundle_key):
     ordered_cartons = _ordered_shipment_cartons(shipment)
     bundle_key = (bundle_key or "").strip()
@@ -532,6 +578,10 @@ def _shipment_view_bundle_context(request, shipment, bundle_key):
                     _shipment_bundle_action(
                         _("Lot étiquettes cartons"),
                         f"/scan/shipment/{shipment.id}/print-bundle/standard_labels/",
+                    ),
+                    _shipment_bundle_action(
+                        _("Lot étiquettes préparatoires"),
+                        f"/scan/shipment/{shipment.id}/print-bundle/preparatory_labels/",
                     ),
                 ],
             },
@@ -590,6 +640,17 @@ def _shipment_view_bundle_context(request, shipment, bundle_key):
                 "shipment": shipment,
                 "bundle_title": _("Lot étiquettes cartons"),
                 "carton_pages": _build_shipment_carton_document_pages(request, shipment),
+                "hide_footer": True,
+            },
+        }
+    if bundle_key == "preparatory_labels":
+        return {
+            "template_name": TEMPLATE_SHIPMENT_PREPARATORY_LABELS_A4,
+            "context": {
+                "shipment": shipment,
+                "bundle_title": _("Lot étiquettes préparatoires"),
+                "carton_pages": _build_shipment_preparatory_label_pages(request, shipment),
+                "document_id": "shipment-preparatory-labels-print-document",
                 "hide_footer": True,
             },
         }
@@ -1021,6 +1082,66 @@ def scan_shipment_view_bundle(request, shipment_id, bundle_key):
         bundle["template_name"],
         bundle["context"],
     )
+
+
+def _batch_shipments_from_request(request):
+    shipment_ids = _parse_carton_ids(request.GET.get("shipment_ids"))
+    if not shipment_ids:
+        raise Http404(_("Aucune expédition sélectionnée."))
+    shipments_by_id = {
+        shipment.id: shipment
+        for shipment in Shipment.objects.filter(
+            id__in=shipment_ids,
+            archived_at__isnull=True,
+        ).select_related("destination")
+    }
+    shipments = [
+        shipments_by_id[shipment_id]
+        for shipment_id in shipment_ids
+        if shipment_id in shipments_by_id
+    ]
+    if not shipments:
+        raise Http404(_("Aucune expédition sélectionnée."))
+    return shipments
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_shipment_batch_view_bundle(request, bundle_key):
+    shipments = _batch_shipments_from_request(request)
+    normalized_key = (bundle_key or "").strip()
+    if normalized_key == "paper":
+        return render(
+            request,
+            TEMPLATE_SHIPMENT_BATCH_BUNDLE_A4,
+            {
+                "bundle_title": _("Lot papier batch expéditions"),
+                "document_id": "shipment-batch-paper-print-document",
+                "shipment_groups": [
+                    {
+                        "shipment": shipment,
+                        "sections": _build_shipment_paper_bundle_sections(shipment),
+                    }
+                    for shipment in shipments
+                ],
+                "hide_footer": True,
+            },
+        )
+    if normalized_key == "preparatory_labels":
+        pages = []
+        for shipment in shipments:
+            pages.extend(_build_shipment_preparatory_label_pages(request, shipment))
+        return render(
+            request,
+            TEMPLATE_SHIPMENT_PREPARATORY_LABELS_A4,
+            {
+                "bundle_title": _("Lot étiquettes préparatoires batch"),
+                "document_id": "shipment-batch-preparatory-labels-print-document",
+                "carton_pages": pages,
+                "hide_footer": True,
+            },
+        )
+    raise Http404("Bundle type not found")
 
 
 @scan_staff_required
