@@ -697,6 +697,24 @@ class ScanPreparateurHomeViewTests(TestCase):
         self.assertContains(response, 'value="create_unknown_product"')
         self.assertEqual(ProductLot.objects.filter(product__name="UNKNOWN-RANG").count(), 0)
 
+    def test_scan_preparateur_rangement_unknown_product_modal_script_runs_after_bootstrap(self):
+        response = self.client.post(
+            reverse("scan:scan_preparateur_rangement"),
+            {
+                "action": "scan_product",
+                "movement_mode": "receipt",
+                "product_code": "UNKNOWN-RANG-SCRIPT",
+                "quantity": "4",
+            },
+        )
+
+        content = response.content.decode()
+        self.assertContains(response, 'data-open-on-load="1"')
+        self.assertLess(
+            content.index("bootstrap.bundle.min.js"),
+            content.index("window.bootstrap.Modal.getOrCreateInstance(modal).show();"),
+        )
+
     def test_scan_preparateur_rangement_transfer_unknown_product_stays_in_flow(self):
         response = self.client.post(
             reverse("scan:scan_preparateur_rangement"),
