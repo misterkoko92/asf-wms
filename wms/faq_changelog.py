@@ -3,7 +3,7 @@ from datetime import date
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
         "date": date(2026, 4, 29),
-        "pr_number": None,
+        "pr_number": 187,
         "summary": (
             "Correction ouverture automatique de la modale pour ajouter un produit "
             "inconnu dans le rangement préparateur."
