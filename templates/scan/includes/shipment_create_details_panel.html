@@ -1,56 +1,93 @@
 {% load i18n %}
 
 <div id="shipment-details-section" class="scan-hidden ui-comp-panel" hidden>
-  <div class="scan-field">
-    <label class="form-label" for="id_carton_count">{% trans "Nombre de colis" %}</label>
-    {{ form.carton_count }}
-    {% for error in form.carton_count.errors %}
-      <div class="scan-message error">{{ error }}</div>
-    {% endfor %}
-    <p class="scan-help ui-comp-note">
-      {% trans "Sélectionner ci-dessous des colis déjà préparés ou créer des colis mono-produit. Pour des colis multi-produits, passer par l'onglet Préparation avant de créer l'expédition." %}
-    </p>
+  {% if not is_edit %}
+    <div class="scan-field" id="shipment-creation-mode-field">
+      <label class="form-label">{{ form.creation_mode.label }}</label>
+      <div class="scan-choice-list" data-shipment-creation-mode-options>
+        {{ form.creation_mode }}
+      </div>
+      {% for error in form.creation_mode.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field" id="shipment-planned-carton-count-field">
+      <label class="form-label" for="id_planned_carton_count">{{ form.planned_carton_count.label }}</label>
+      {{ form.planned_carton_count }}
+      {% for error in form.planned_carton_count.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+      <p class="scan-help ui-comp-note">
+        {% trans "Utilisé pour préparer le dossier et imprimer les documents sans affecter les colis tout de suite." %}
+      </p>
+    </div>
+  {% endif %}
+
+  <div id="shipment-with-cartons-fields">
+    <div class="scan-field">
+      <label class="form-label" for="id_carton_count">{% trans "Nombre de colis" %}</label>
+      {{ form.carton_count }}
+      {% for error in form.carton_count.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+      <p class="scan-help ui-comp-note">
+        {% trans "Sélectionner ci-dessous des colis déjà préparés ou créer des colis mono-produit. Pour des colis multi-produits, passer par l'onglet Préparation avant de créer l'expédition." %}
+      </p>
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis forcé" %}</label>
+      <input
+        id="id_forced_carton_count"
+        type="number"
+        name="forced_carton_count"
+        min="1"
+        step="1"
+        class="form-control"
+        value="{{ forced_carton_count|default:'' }}"
+        placeholder="{% trans "Auto" %}"
+      >
+      <p class="scan-help ui-comp-note">
+        {% trans "Optionnel : répartit uniquement les lignes produit créées ici sur le nombre de colis demandé. Les colis déjà préparés gardent leur propre comptage." %}
+      </p>
+    </div>
+
+    <div class="shipment-lines" id="shipment-lines"></div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_total_weight">{% trans "Poids total (g)" %}</label>
+      <input type="text" id="id_total_weight" readonly>
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label">{% trans "Colis multi-produits" %}</label>
+      {% if is_edit %}
+        <a class="scan-scan-btn btn btn-secondary" href="{% url 'scan:scan_pack' %}?shipment_reference={{ shipment.reference|urlencode }}">
+          {% trans "Créer des colis multi-produits" %}
+        </a>
+      {% else %}
+        <button type="submit" name="action" value="create_pack" class="scan-scan-btn btn btn-secondary">
+          {% trans "Créer des colis multi-produits" %}
+        </button>
+      {% endif %}
+      <p class="scan-help ui-comp-note">
+        {% trans "Utilisez l'onglet Préparation pour créer des colis multi-produits, puis revenez ici pour les ajouter à l'expédition." %}
+      </p>
+    </div>
   </div>
 
-  <div class="scan-field">
-    <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis forcé" %}</label>
-    <input
-      id="id_forced_carton_count"
-      type="number"
-      name="forced_carton_count"
-      min="1"
-      step="1"
-      class="form-control"
-      value="{{ forced_carton_count|default:'' }}"
-      placeholder="{% trans "Auto" %}"
-    >
-    <p class="scan-help ui-comp-note">
-      {% trans "Optionnel : répartit uniquement les lignes produit créées ici sur le nombre de colis demandé. Les colis déjà préparés gardent leur propre comptage." %}
-    </p>
-  </div>
-
-  <div class="shipment-lines" id="shipment-lines"></div>
-
-  <div class="scan-field">
-    <label class="form-label" for="id_total_weight">{% trans "Poids total (g)" %}</label>
-    <input type="text" id="id_total_weight" readonly>
-  </div>
-
-  <div class="scan-field">
-    <label class="form-label">{% trans "Colis multi-produits" %}</label>
-    {% if is_edit %}
-      <a class="scan-scan-btn btn btn-secondary" href="{% url 'scan:scan_pack' %}?shipment_reference={{ shipment.reference|urlencode }}">
-        {% trans "Créer des colis multi-produits" %}
-      </a>
-    {% else %}
-      <button type="submit" name="action" value="create_pack" class="scan-scan-btn btn btn-secondary">
-        {% trans "Créer des colis multi-produits" %}
-      </button>
-    {% endif %}
-    <p class="scan-help ui-comp-note">
-      {% trans "Utilisez l'onglet Préparation pour créer des colis multi-produits, puis revenez ici pour les ajouter à l'expédition." %}
-    </p>
-  </div>
+  {% if not is_edit %}
+    <div class="scan-field" id="shipment-post-create-action-field">
+      <label class="form-label">{{ form.post_create_action.label }}</label>
+      <div class="scan-choice-list">
+        {{ form.post_create_action }}
+      </div>
+      {% for error in form.post_create_action.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
   <div id="shipment-details-actions" class="ui-comp-actions">
     <button type="submit" class="scan-submit btn btn-primary">

@@ -1870,6 +1870,13 @@
     const recipientPreferenceRejectButton = document.getElementById(
       'shipment-recipient-preference-reject'
     );
+    const creationModeInputs = Array.from(
+      shipmentForm ? shipmentForm.querySelectorAll('input[name="creation_mode"]') : []
+    );
+    const plannedCartonCountField = document.getElementById(
+      'shipment-planned-carton-count-field'
+    );
+    const withCartonsFields = document.getElementById('shipment-with-cartons-fields');
 
     let lineValues = [];
     let lineErrors = {};
@@ -2148,6 +2155,11 @@
         });
       });
       return values;
+    };
+
+    const isPreparingWithoutCartons = () => {
+      const selected = creationModeInputs.find(input => input.checked);
+      return selected ? selected.value === 'without_cartons' : false;
     };
 
     const updateTotalWeight = () => {
@@ -2559,6 +2571,11 @@
       const existingValues = readCurrentValues();
       const values = existingValues.length ? existingValues : lineValues;
       container.innerHTML = '';
+      if (count < 1) {
+        updateTotalWeight();
+        updateAllLineMetrics();
+        return;
+      }
       for (let index = 1; index <= count; index += 1) {
         const lineValue = values[index - 1] || {};
         const line = document.createElement('div');
@@ -2883,6 +2900,9 @@
     }
 
     const resolveCount = value => {
+      if (isPreparingWithoutCartons()) {
+        return 0;
+      }
       const parsed = parseInt(value, 10);
       if (!Number.isFinite(parsed) || parsed < 1) {
         return 1;
@@ -2890,8 +2910,33 @@
       return parsed;
     };
 
+    const syncShipmentCreationMode = () => {
+      const withoutCartons = isPreparingWithoutCartons();
+      if (plannedCartonCountField) {
+        plannedCartonCountField.hidden = !withoutCartons;
+        plannedCartonCountField.classList.toggle('scan-hidden', !withoutCartons);
+      }
+      if (withCartonsFields) {
+        withCartonsFields.hidden = withoutCartons;
+        withCartonsFields.classList.toggle('scan-hidden', withoutCartons);
+      }
+      if (withoutCartons) {
+        const currentValues = readCurrentValues();
+        if (currentValues.length) {
+          lineValues = currentValues;
+        }
+        renderLines(0);
+        return;
+      }
+      renderLines(resolveCount(countInput ? countInput.value : lineValues.length || 1));
+    };
+
     const initialCount = resolveCount(countInput ? countInput.value : 1);
     renderLines(initialCount);
+    syncShipmentCreationMode();
+    creationModeInputs.forEach(input => {
+      input.addEventListener('change', syncShipmentCreationMode);
+    });
 
     const destinationSelect = document.getElementById('id_destination');
     const recipientSelect = document.getElementById('id_recipient_contact');
@@ -2905,7 +2950,9 @@
     if (countInput) {
       const handleCountChange = event => {
         const nextCount = resolveCount(event.target.value);
-        event.target.value = String(nextCount);
+        if (nextCount > 0) {
+          event.target.value = String(nextCount);
+        }
         renderLines(nextCount);
       };
       countInput.addEventListener('input', handleCountChange);

@@ -1745,6 +1745,18 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, 'name="action" value="save_draft"')
         self.assertContains(response, 'name="action" value="create_pack"', count=1)
 
+    def test_scan_shipment_create_exposes_preparation_mode_and_redirect_choice(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="creation_mode"')
+        self.assertContains(response, 'value="with_cartons"')
+        self.assertContains(response, 'value="without_cartons"')
+        self.assertContains(response, 'id="id_planned_carton_count"')
+        self.assertContains(response, 'name="post_create_action"')
+        self.assertContains(response, 'value="show_dossier"')
+        self.assertContains(response, 'value="stay"')
+
     def test_scan_shipment_create_renders_single_correspondent_display_markers(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))
 

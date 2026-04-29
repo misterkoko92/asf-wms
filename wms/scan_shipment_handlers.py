@@ -1,5 +1,6 @@
 import logging
 import re
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.db import IntegrityError, connection, transaction
@@ -51,6 +52,10 @@ LOCKED_SHIPMENT_STATUSES = {
 SAVE_DRAFT_ACTION = "save_draft"
 SAVE_DRAFT_PACK_ACTION = "save_draft_pack"
 CREATE_PACK_ACTION = "create_pack"
+CREATE_MODE_WITH_CARTONS = "with_cartons"
+CREATE_MODE_WITHOUT_CARTONS = "without_cartons"
+POST_CREATE_SHOW_DOSSIER = "show_dossier"
+POST_CREATE_STAY = "stay"
 TEMP_SHIPMENT_REFERENCE_RE = re.compile(r"^EXP-TEMP-(\d+)$")
 TEMP_SHIPMENT_REFERENCE_MAX_RETRIES = 5
 logger = logging.getLogger(__name__)
@@ -71,6 +76,28 @@ def _get_carton_count(form, request):
 
 def _get_carton_count_from_post(request):
     return _parse_carton_count(request.POST.get("carton_count", 0))
+
+
+def _parse_planned_carton_count(raw_value):
+    try:
+        count = int(raw_value)
+    except (TypeError, ValueError):
+        return None
+    return count if count > 0 else None
+
+
+def _get_creation_mode(request):
+    value = (request.POST.get("creation_mode") or CREATE_MODE_WITH_CARTONS).strip()
+    if value == CREATE_MODE_WITHOUT_CARTONS:
+        return CREATE_MODE_WITHOUT_CARTONS
+    return CREATE_MODE_WITH_CARTONS
+
+
+def _get_post_create_action(request):
+    value = (request.POST.get("post_create_action") or POST_CREATE_SHOW_DOSSIER).strip()
+    if value == POST_CREATE_STAY:
+        return POST_CREATE_STAY
+    return POST_CREATE_SHOW_DOSSIER
 
 
 def _is_save_draft_action(request):
@@ -122,6 +149,25 @@ def _resolve_optional_contact(form, field_name):
 def _build_pack_redirect_url(*, shipment_reference):
     base_url = reverse("scan:scan_pack")
     return f"{base_url}?shipment_reference={shipment_reference}"
+
+
+def _build_shipment_create_stay_url(*, form, planned_carton_count):
+    base_url = reverse("scan:scan_shipment_create")
+    params = {
+        "creation_mode": CREATE_MODE_WITHOUT_CARTONS,
+        "planned_carton_count": planned_carton_count,
+        "post_create_action": POST_CREATE_STAY,
+    }
+    for field_name in (
+        "destination",
+        "shipper_contact",
+        "recipient_contact",
+        "correspondent_contact",
+    ):
+        value = form.data.get(field_name)
+        if value:
+            params[field_name] = value
+    return f"{base_url}?{urlencode(params)}"
 
 
 def _related_order_for_shipment(shipment):
@@ -511,10 +557,20 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
         return response, carton_count, line_values, {}
 
     create_pack = _is_create_pack_action(request)
-    carton_count = 0 if create_pack else _get_carton_count(form, request)
+    creation_mode = _get_creation_mode(request)
+    prepare_without_cartons = creation_mode == CREATE_MODE_WITHOUT_CARTONS and not create_pack
+    planned_carton_count = 0
+    if prepare_without_cartons:
+        planned_carton_count = _parse_planned_carton_count(request.POST.get("planned_carton_count"))
+        if planned_carton_count is None:
+            form.add_error("planned_carton_count", _("Nombre de colis prévus requis."))
+            return None, 0, [], {}
+    carton_count = 0 if create_pack or prepare_without_cartons else _get_carton_count(form, request)
     try:
         forced_carton_count = (
-            None if create_pack else _parse_forced_carton_count_from_request(request)
+            None
+            if create_pack or prepare_without_cartons
+            else _parse_forced_carton_count_from_request(request)
         )
     except StockError as exc:
         forced_carton_count = None
@@ -572,9 +628,10 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                     destination_address=destination_label,
                     destination_country=destination.country,
                     created_by=request.user,
+                    planned_carton_count=planned_carton_count,
                     **party_payload,
                 )
-                if not create_pack:
+                if not create_pack and not prepare_without_cartons:
                     product_line_items = [item for item in line_items if "product" in item]
                     for item in line_items:
                         carton_id = item.get("carton_id")
@@ -651,6 +708,13 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
             )
             if create_pack:
                 response = redirect(_build_pack_redirect_url(shipment_reference=shipment.reference))
+            elif _get_post_create_action(request) == POST_CREATE_STAY:
+                response = redirect(
+                    _build_shipment_create_stay_url(
+                        form=form,
+                        planned_carton_count=planned_carton_count,
+                    )
+                )
             else:
                 response = redirect("scan:scan_shipment_edit", shipment.id)
         except StockError as exc:

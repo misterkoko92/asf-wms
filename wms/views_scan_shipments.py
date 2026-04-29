@@ -1670,12 +1670,35 @@ def scan_shipment_create(request):
     if request.method != "POST":
         shipper_contact_id = (request.GET.get("shipper_contact") or "").strip()
         recipient_contact_id = (request.GET.get("recipient_contact") or "").strip()
+        correspondent_contact_id = (request.GET.get("correspondent_contact") or "").strip()
         if destination_id:
             initial["destination"] = destination_id
         if shipper_contact_id:
             initial["shipper_contact"] = shipper_contact_id
         if recipient_contact_id:
             initial["recipient_contact"] = recipient_contact_id
+        if correspondent_contact_id:
+            initial["correspondent_contact"] = correspondent_contact_id
+        creation_mode = (request.GET.get("creation_mode") or "").strip()
+        if creation_mode in {
+            ScanShipmentForm.CREATION_MODE_WITH_CARTONS,
+            ScanShipmentForm.CREATION_MODE_WITHOUT_CARTONS,
+        }:
+            initial["creation_mode"] = creation_mode
+        post_create_action = (request.GET.get("post_create_action") or "").strip()
+        if post_create_action in {
+            ScanShipmentForm.POST_CREATE_SHOW_DOSSIER,
+            ScanShipmentForm.POST_CREATE_STAY,
+        }:
+            initial["post_create_action"] = post_create_action
+        try:
+            planned_carton_count = int(
+                (request.GET.get("planned_carton_count") or "0").strip() or "0"
+            )
+        except ValueError:
+            planned_carton_count = 0
+        if planned_carton_count > 0:
+            initial["planned_carton_count"] = planned_carton_count
         try:
             carton_count = max(int((request.GET.get("carton_count") or "0").strip() or "0"), 0)
         except ValueError:

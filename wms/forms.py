@@ -956,6 +956,19 @@ class ScanOutForm(forms.Form):
 
 
 class ScanShipmentForm(forms.Form):
+    CREATION_MODE_WITH_CARTONS = "with_cartons"
+    CREATION_MODE_WITHOUT_CARTONS = "without_cartons"
+    POST_CREATE_SHOW_DOSSIER = "show_dossier"
+    POST_CREATE_STAY = "stay"
+    CREATION_MODE_CHOICES = (
+        (CREATION_MODE_WITH_CARTONS, _("Préparer avec colis")),
+        (CREATION_MODE_WITHOUT_CARTONS, _("Préparer sans colis")),
+    )
+    POST_CREATE_ACTION_CHOICES = (
+        (POST_CREATE_SHOW_DOSSIER, _("Afficher le dossier créé")),
+        (POST_CREATE_STAY, _("Rester sur cette page")),
+    )
+
     destination = forms.ModelChoiceField(
         label=_("Destination"),
         queryset=Destination.objects.none(),
@@ -972,12 +985,32 @@ class ScanShipmentForm(forms.Form):
         label=_("Correspondant"),
         queryset=Contact.objects.none(),
     )
+    creation_mode = forms.ChoiceField(
+        label=_("Mode de préparation"),
+        choices=CREATION_MODE_CHOICES,
+        required=False,
+        initial=CREATION_MODE_WITH_CARTONS,
+        widget=forms.RadioSelect,
+    )
+    planned_carton_count = forms.IntegerField(
+        label=_("Nombre de colis prévus"),
+        min_value=1,
+        required=False,
+        widget=forms.NumberInput(attrs={"min": 1}),
+    )
     carton_count = forms.IntegerField(
         label=_("Nombre de colis"),
         min_value=0,
         required=False,
         initial=None,
         widget=forms.NumberInput(attrs={"min": 0}),
+    )
+    post_create_action = forms.ChoiceField(
+        label=_("Après l'enregistrement"),
+        choices=POST_CREATE_ACTION_CHOICES,
+        required=False,
+        initial=POST_CREATE_SHOW_DOSSIER,
+        widget=forms.RadioSelect,
     )
 
     def __init__(self, *args, destination_id=None, **kwargs):
@@ -1243,7 +1276,15 @@ class ScanShipmentForm(forms.Form):
         shipper = cleaned.get("shipper_contact")
         recipient = cleaned.get("recipient_contact")
         correspondent = cleaned.get("correspondent_contact")
+        creation_mode = cleaned.get("creation_mode") or self.CREATION_MODE_WITH_CARTONS
         self._apply_invalid_choice_messages(destination=destination)
+        if creation_mode == self.CREATION_MODE_WITHOUT_CARTONS and not cleaned.get(
+            "planned_carton_count"
+        ):
+            self.add_error(
+                "planned_carton_count",
+                _("Nombre de colis prévus requis."),
+            )
         expected_correspondent = shipment_correspondent_contact_for_destination(destination)
         if expected_correspondent is not None:
             if correspondent is None:
