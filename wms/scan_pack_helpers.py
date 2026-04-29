@@ -118,6 +118,35 @@ def build_forced_carton_warnings(*, bins, carton_size, carton_format_label):
     return warnings
 
 
+def build_identical_carton_batch_bins(line_items, carton_size, carton_count, *, apply_defaults):
+    bins, errors, warnings = build_packing_bins(
+        line_items,
+        carton_size,
+        apply_defaults=apply_defaults,
+    )
+    if errors:
+        return None, errors, warnings
+    if len(bins or []) != 1:
+        return None, ["Le colis type doit tenir dans un seul colis."], warnings
+
+    source_items = bins[0]["items"]
+    batch_bins = []
+    for _index in range(carton_count):
+        batch_bins.append(
+            {
+                "items": {
+                    product_id: {
+                        "product": entry["product"],
+                        "quantity": entry["quantity"],
+                        "expires_on": entry.get("expires_on"),
+                    }
+                    for product_id, entry in source_items.items()
+                }
+            }
+        )
+    return batch_bins, [], warnings
+
+
 def build_packing_bins(
     line_items,
     carton_size,

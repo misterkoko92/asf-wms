@@ -38,6 +38,7 @@ from .scan_helpers import (
 from .scan_pack_helpers import (
     build_forced_carton_warnings,
     build_forced_packing_bins,
+    build_identical_carton_batch_bins,
     parse_forced_carton_count,
 )
 from .scan_permissions import user_is_preparateur
@@ -52,6 +53,8 @@ PREPARATEUR_ALLOWED_FAMILIES = (
 )
 PACK_ACTION_PREPARE_WITHOUT_CONDITIONING = "prepare_without_conditioning"
 PACK_ACTION_PREPARE_AVAILABLE = "prepare_available"
+PACK_ACTION_PREPARE_AVAILABLE_BATCH = "prepare_available_batch"
+FREE_CARTON_BATCH_CONFIRM_FIELD = "confirm_free_carton_batch"
 PREPARATEUR_LOCATION_LABELS = {
     PREPARATEUR_FAMILY_MM: "Colis Prets MM",
     PREPARATEUR_FAMILY_CN: "Colis Prets CN",
@@ -247,9 +250,24 @@ def create_preparateur_unknown_product_from_pack(*, request, form, receive_initi
 
 def _resolve_pack_action(request):
     action = (request.POST.get("action") or "").strip()
+    if action == PACK_ACTION_PREPARE_AVAILABLE_BATCH:
+        return PACK_ACTION_PREPARE_AVAILABLE_BATCH
     if action == PACK_ACTION_PREPARE_AVAILABLE:
         return PACK_ACTION_PREPARE_AVAILABLE
     return PACK_ACTION_PREPARE_WITHOUT_CONDITIONING
+
+
+def _parse_free_batch_carton_count(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        count = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(_("Nombre de colis batch invalide.")) from exc
+    if count <= 0:
+        raise ValueError(_("Nombre de colis batch invalide."))
+    return count
 
 
 def _get_active_preparateur_volunteer(request):
@@ -287,6 +305,7 @@ def _build_state(
     missing_defaults,
     confirm_defaults,
     forced_carton_count=None,
+    free_batch_carton_count=None,
 ):
     return {
         "carton_format_id": carton_format_id,
@@ -297,6 +316,7 @@ def _build_state(
         "missing_defaults": missing_defaults,
         "confirm_defaults": confirm_defaults,
         "forced_carton_count": forced_carton_count,
+        "free_batch_carton_count": free_batch_carton_count,
     }
 
 
@@ -620,6 +640,194 @@ def _handle_preparateur_pack(
         )
 
 
+def _handle_free_carton_batch_pack(
+    *,
+    request,
+    form,
+    shipment,
+    preassigned_destination,
+    carton_size,
+    carton_format_id,
+    carton_custom,
+    line_count,
+    line_values,
+    line_errors,
+    line_items,
+    missing_defaults,
+    confirm_defaults,
+    forced_carton_count,
+    free_batch_carton_count,
+):
+    state_kwargs = {
+        "carton_format_id": carton_format_id,
+        "carton_custom": carton_custom,
+        "line_count": line_count,
+        "line_values": line_values,
+        "line_errors": line_errors,
+        "missing_defaults": missing_defaults,
+        "confirm_defaults": confirm_defaults,
+        "forced_carton_count": forced_carton_count,
+        "free_batch_carton_count": free_batch_carton_count,
+    }
+
+    if free_batch_carton_count is None:
+        form.add_error(None, _("Nombre de colis batch invalide."))
+        return None, _build_state(**state_kwargs)
+
+    if shipment is not None or preassigned_destination is not None:
+        form.add_error(
+            None,
+            _("Le batch colis libres doit rester sans destination ni expédition."),
+        )
+        return None, _build_state(**state_kwargs)
+
+    if (request.POST.get(FREE_CARTON_BATCH_CONFIRM_FIELD) or "").strip() != "1":
+        form.add_error(None, _("Confirmez la création du batch de colis libres."))
+        return None, _build_state(**state_kwargs)
+
+    current_location = form.cleaned_data["current_location"]
+    batch_carton_size = carton_size
+    prepared_by_user = None
+    volunteer_profile = None
+    created_result_entries = []
+    ready_location_warning = ""
+    preparateur_family = ""
+
+    if user_is_preparateur(request.user):
+        active_volunteer = _get_active_preparateur_volunteer(request)
+        if active_volunteer is None:
+            form.add_error(None, _("Choisissez un bénévole depuis l'accueil préparateur."))
+            return None, _build_state(**state_kwargs)
+
+        grouped_line_items = defaultdict(list)
+        for item in line_items:
+            family = _resolve_preparateur_pack_family(
+                item["product"],
+                item.get("pack_family_override"),
+            )
+            if not family:
+                line_errors[str(item["index"])] = [
+                    _("Choisissez manuellement MM ou CN pour ce produit."),
+                ]
+                continue
+            item["pack_family"] = family
+            grouped_line_items[family].append(item)
+
+        if line_errors:
+            form.add_error(
+                None,
+                _(
+                    "Choisissez manuellement MM ou CN pour les produits sans categorie racine MM/CN."
+                ),
+            )
+            return None, _build_state(**state_kwargs)
+
+        non_empty_families = [
+            family for family in PREPARATEUR_ALLOWED_FAMILIES if grouped_line_items.get(family)
+        ]
+        if len(non_empty_families) != 1:
+            form.add_error(
+                None,
+                _("Le batch colis libres doit contenir une seule famille MM ou CN."),
+            )
+            return None, _build_state(**state_kwargs)
+
+        preparateur_family = non_empty_families[0]
+        try:
+            locations_by_family = _resolve_preparateur_locations()
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+            return None, _build_state(**state_kwargs)
+
+        family_format = resolve_standard_carton_format_for_family(preparateur_family)
+        batch_carton_size = _carton_size_from_format(family_format) or carton_size
+        current_location = locations_by_family[preparateur_family]
+        prepared_by_user = active_volunteer.user
+        volunteer_profile = active_volunteer
+    else:
+        try:
+            current_location, ready_location_warning = _resolve_ready_location_for_available_pack(
+                line_items
+            )
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+            return None, _build_state(**state_kwargs)
+
+    bins, pack_errors, pack_warnings = build_identical_carton_batch_bins(
+        line_items,
+        batch_carton_size,
+        free_batch_carton_count,
+        apply_defaults=confirm_defaults,
+    )
+    if pack_errors:
+        for error in pack_errors:
+            form.add_error(None, error)
+        return None, _build_state(**state_kwargs)
+
+    try:
+        created_cartons = []
+        with transaction.atomic():
+            for bin_data in bins:
+                carton = None
+                for entry in bin_data["items"].values():
+                    carton = pack_carton(
+                        user=request.user,
+                        product=entry["product"],
+                        quantity=entry["quantity"],
+                        carton=carton,
+                        carton_code=None,
+                        shipment=None,
+                        preassigned_destination=None,
+                        display_expires_on=entry.get("expires_on"),
+                        current_location=current_location,
+                        carton_size=batch_carton_size,
+                        skip_picking_status=True,
+                        prepared_by_user=prepared_by_user,
+                        volunteer_profile=volunteer_profile,
+                        actor_user=request.user,
+                    )
+                if carton:
+                    if preparateur_family:
+                        _finalize_preparateur_carton(
+                            carton=carton,
+                            family=preparateur_family,
+                            user=request.user,
+                        )
+                    else:
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.PACKED,
+                            reason="scan_pack_free_batch_available",
+                            user=request.user,
+                        )
+                    created_cartons.append(carton)
+                    if preparateur_family:
+                        created_result_entries.append(
+                            {
+                                "carton_id": carton.id,
+                                "zone_label": PREPARATEUR_LOCATION_LABELS[preparateur_family],
+                                "family": preparateur_family,
+                            }
+                        )
+        if ready_location_warning:
+            messages.warning(request, ready_location_warning)
+        for warning in pack_warnings:
+            messages.warning(request, warning)
+        request.session["pack_results"] = (
+            created_result_entries
+            if created_result_entries
+            else [carton.id for carton in created_cartons]
+        )
+        messages.success(
+            request,
+            _("%(count)s carton(s) libres préparé(s).") % {"count": len(created_cartons)},
+        )
+        return redirect("scan:scan_pack"), _build_state(**state_kwargs)
+    except StockError as exc:
+        form.add_error(None, str(exc))
+        return None, _build_state(**state_kwargs)
+
+
 def _handle_carton_edit_pack(
     *,
     request,
@@ -802,21 +1010,32 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
     line_items = []
     missing_defaults = []
     confirm_defaults = bool(request.POST.get("confirm_defaults"))
+    pack_action = _resolve_pack_action(request)
     forced_carton_error = None
     try:
         forced_carton_count = (
             None
-            if editing_carton is not None
+            if editing_carton is not None or pack_action == PACK_ACTION_PREPARE_AVAILABLE_BATCH
             else parse_forced_carton_count(request.POST.get("forced_carton_count"))
         )
     except ValueError as exc:
         forced_carton_count = None
         forced_carton_error = str(exc)
         form.add_error(None, forced_carton_error)
+    free_batch_carton_error = None
+    try:
+        free_batch_carton_count = (
+            _parse_free_batch_carton_count(request.POST.get("free_batch_carton_count"))
+            if editing_carton is None and pack_action == PACK_ACTION_PREPARE_AVAILABLE_BATCH
+            else None
+        )
+    except ValueError as exc:
+        free_batch_carton_count = None
+        free_batch_carton_error = str(exc)
+        form.add_error(None, free_batch_carton_error)
     shipment = None
-    pack_action = _resolve_pack_action(request)
 
-    if form.is_valid() and forced_carton_error is None:
+    if form.is_valid() and forced_carton_error is None and free_batch_carton_error is None:
         shipment = (
             editing_carton.shipment
             if editing_carton is not None and editing_carton.shipment_id
@@ -910,7 +1129,26 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                             "missing_defaults": missing_defaults,
                             "confirm_defaults": confirm_defaults,
                             "forced_carton_count": forced_carton_count,
+                            "free_batch_carton_count": free_batch_carton_count,
                         },
+                    )
+                if pack_action == PACK_ACTION_PREPARE_AVAILABLE_BATCH:
+                    return _handle_free_carton_batch_pack(
+                        request=request,
+                        form=form,
+                        shipment=shipment,
+                        preassigned_destination=preassigned_destination,
+                        carton_size=carton_size,
+                        carton_format_id=carton_format_id,
+                        carton_custom=carton_custom,
+                        line_count=line_count,
+                        line_values=line_values,
+                        line_errors=line_errors,
+                        line_items=line_items,
+                        missing_defaults=missing_defaults,
+                        confirm_defaults=confirm_defaults,
+                        forced_carton_count=forced_carton_count,
+                        free_batch_carton_count=free_batch_carton_count,
                     )
                 if user_is_preparateur(request.user):
                     if editing_carton is not None:
@@ -979,6 +1217,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                             missing_defaults=missing_defaults,
                             confirm_defaults=confirm_defaults,
                             forced_carton_count=forced_carton_count,
+                            free_batch_carton_count=free_batch_carton_count,
                         ),
                     )
                 bins, pack_errors, pack_warnings = build_packing_bins(
@@ -1028,6 +1267,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                                     missing_defaults=missing_defaults,
                                     confirm_defaults=confirm_defaults,
                                     forced_carton_count=forced_carton_count,
+                                    free_batch_carton_count=free_batch_carton_count,
                                 ),
                             )
                         skip_picking_status = True
@@ -1084,6 +1324,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                                 "missing_defaults": missing_defaults,
                                 "confirm_defaults": confirm_defaults,
                                 "forced_carton_count": forced_carton_count,
+                                "free_batch_carton_count": free_batch_carton_count,
                             },
                         )
                     except StockError as exc:
@@ -1100,5 +1341,6 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
             missing_defaults=missing_defaults,
             confirm_defaults=confirm_defaults,
             forced_carton_count=forced_carton_count,
+            free_batch_carton_count=free_batch_carton_count,
         ),
     )
