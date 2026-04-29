@@ -91,7 +91,7 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response["Service-Worker-Allowed"], "/scan/")
         body = response.content.decode()
         self.assertIn("CACHE_NAME", body)
-        self.assertIn("wms-scan-v60", body)
+        self.assertIn("wms-scan-v61", body)
         self.assertIn("/static/scan/scan-bootstrap.css", body)
         self.assertIn("/static/scan/modules/core.js", body)
         self.assertIn("new Request(url, { cache: 'reload' })", body)
@@ -103,7 +103,7 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            f"{reverse('scan:scan_service_worker')}?v=60",
+            f"{reverse('scan:scan_service_worker')}?v=61",
         )
 
     def test_scan_faq_requires_staff(self):

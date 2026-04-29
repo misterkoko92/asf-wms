@@ -387,6 +387,9 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   background: var(--table-header);
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .scan-table.scan-carton-table th.scan-carton-table-head {
@@ -475,6 +478,9 @@
 .scan-table td.qty {
   text-align: right;
   font-weight: 700;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .scan-table td.status {

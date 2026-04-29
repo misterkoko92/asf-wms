@@ -246,26 +246,28 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3>{% trans "Historique recent" %}</h3>
     {% if recent_audits %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>{% trans "Date" %}</th>
-            <th>{% trans "Utilisateur" %}</th>
-            <th>{% trans "Champs modifies" %}</th>
-            <th>{% trans "Commentaire" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for audit in recent_audits %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table">
+          <thead>
             <tr>
-              <td>{{ audit.changed_at|date:"Y-m-d H:i:s" }}</td>
-              <td>{% if audit.changed_by %}{{ audit.changed_by.username }}{% else %}-{% endif %}</td>
-              <td>{{ audit.changed_fields|join:", " }}</td>
-              <td>{% if audit.change_note %}{{ audit.change_note }}{% else %}-{% endif %}</td>
+              <th>{% trans "Date" %}</th>
+              <th>{% trans "Utilisateur" %}</th>
+              <th>{% trans "Champs modifies" %}</th>
+              <th>{% trans "Commentaire" %}</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for audit in recent_audits %}
+              <tr>
+                <td>{{ audit.changed_at|date:"Y-m-d H:i:s" }}</td>
+                <td>{% if audit.changed_by %}{{ audit.changed_by.username }}{% else %}-{% endif %}</td>
+                <td>{{ audit.changed_fields|join:", " }}</td>
+                <td>{% if audit.change_note %}{{ audit.change_note }}{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p class="scan-help">{% trans "Aucun changement trace pour le moment." %}</p>
     {% endif %}

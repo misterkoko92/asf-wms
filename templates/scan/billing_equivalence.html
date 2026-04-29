@@ -86,38 +86,40 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3>R&egrave;gles actives et historiques</h3>
     {% if equivalence_rules %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>Libell&eacute;</th>
-            <th>Port&eacute;e</th>
-            <th>Niveau cat&eacute;gorie</th>
-            <th>Unit&eacute;s</th>
-            <th>Priorit&eacute;</th>
-            <th>Statut</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for rule in equivalence_rules %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table">
+          <thead>
             <tr>
-              <td><a href="?edit_rule={{ rule.id }}">{{ rule.label }}</a></td>
-              <td>
-                {% if rule.applies_to_hors_format %}
-                  Hors format
-                {% elif rule.category %}
-                  {{ rule.category }}
-                {% else %}
-                  R&egrave;gle globale
-                {% endif %}
-              </td>
-              <td>{% if rule.category_depth %}{{ rule.category_depth }}{% else %}-{% endif %}</td>
-              <td>{{ rule.units_per_item }}</td>
-              <td>{{ rule.priority }}</td>
-              <td>{% if rule.is_active %}Actif{% else %}Inactif{% endif %}</td>
+              <th>Libell&eacute;</th>
+              <th>Port&eacute;e</th>
+              <th>Niveau cat&eacute;gorie</th>
+              <th>Unit&eacute;s</th>
+              <th>Priorit&eacute;</th>
+              <th>Statut</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for rule in equivalence_rules %}
+              <tr>
+                <td><a href="?edit_rule={{ rule.id }}">{{ rule.label }}</a></td>
+                <td>
+                  {% if rule.applies_to_hors_format %}
+                    Hors format
+                  {% elif rule.category %}
+                    {{ rule.category }}
+                  {% else %}
+                    R&egrave;gle globale
+                  {% endif %}
+                </td>
+                <td>{% if rule.category_depth %}{{ rule.category_depth }}{% else %}-{% endif %}</td>
+                <td>{{ rule.units_per_item }}</td>
+                <td>{{ rule.priority }}</td>
+                <td>{% if rule.is_active %}Actif{% else %}Inactif{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p class="scan-help">Aucune r&egrave;gle d&apos;&eacute;quivalence configur&eacute;e.</p>
     {% endif %}

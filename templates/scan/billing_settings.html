@@ -103,34 +103,36 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3>Profils configur&eacute;s</h3>
     {% if computation_profiles %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>Libell&eacute;</th>
-            <th>Code</th>
-            <th>Base</th>
-            <th>Tranche</th>
-            <th>Surplus</th>
-            <th>D&eacute;faut</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for profile in computation_profiles %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table">
+          <thead>
             <tr>
-              <td><a href="?edit_profile={{ profile.id }}">{{ profile.label }}</a></td>
-              <td>{{ profile.code }}</td>
-              <td>{{ profile.get_base_unit_source_display }}</td>
-              <td>{{ profile.base_step_size }} / {{ profile.base_step_price }}</td>
-              <td>{{ profile.get_extra_unit_mode_display }} / {{ profile.extra_unit_price }}</td>
-              <td>
-                {% if profile.is_default_for_shipment_only %}Sans r&eacute;ception{% endif %}
-                {% if profile.is_default_for_shipment_only and profile.is_default_for_receipt_linked %} | {% endif %}
-                {% if profile.is_default_for_receipt_linked %}Avec r&eacute;ception{% endif %}
-              </td>
+              <th>Libell&eacute;</th>
+              <th>Code</th>
+              <th>Base</th>
+              <th>Tranche</th>
+              <th>Surplus</th>
+              <th>D&eacute;faut</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for profile in computation_profiles %}
+              <tr>
+                <td><a href="?edit_profile={{ profile.id }}">{{ profile.label }}</a></td>
+                <td>{{ profile.code }}</td>
+                <td>{{ profile.get_base_unit_source_display }}</td>
+                <td>{{ profile.base_step_size }} / {{ profile.base_step_price }}</td>
+                <td>{{ profile.get_extra_unit_mode_display }} / {{ profile.extra_unit_price }}</td>
+                <td>
+                  {% if profile.is_default_for_shipment_only %}Sans r&eacute;ception{% endif %}
+                  {% if profile.is_default_for_shipment_only and profile.is_default_for_receipt_linked %} | {% endif %}
+                  {% if profile.is_default_for_receipt_linked %}Avec r&eacute;ception{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p class="scan-help">Aucun profil de calcul pour le moment.</p>
     {% endif %}
@@ -209,30 +211,32 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3>Catalogue configur&eacute;</h3>
     {% if service_catalog_items %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>Libell&eacute;</th>
-            <th>Type</th>
-            <th>Prix</th>
-            <th>Devise</th>
-            <th>D&eacute;faut enl&egrave;vement</th>
-            <th>Statut</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for service in service_catalog_items %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table">
+          <thead>
             <tr>
-              <td><a href="?edit_service={{ service.id }}">{{ service.label }}</a></td>
-              <td>{% if service.service_type %}{{ service.service_type }}{% else %}-{% endif %}</td>
-              <td>{{ service.default_unit_price }}</td>
-              <td>{{ service.default_currency }}</td>
-              <td>{% if service.use_for_default_pickup_charge %}Oui{% else %}-{% endif %}</td>
-              <td>{% if service.is_active %}Actif{% else %}Inactif{% endif %}</td>
+              <th>Libell&eacute;</th>
+              <th>Type</th>
+              <th>Prix</th>
+              <th>Devise</th>
+              <th>D&eacute;faut enl&egrave;vement</th>
+              <th>Statut</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for service in service_catalog_items %}
+              <tr>
+                <td><a href="?edit_service={{ service.id }}">{{ service.label }}</a></td>
+                <td>{% if service.service_type %}{{ service.service_type }}{% else %}-{% endif %}</td>
+                <td>{{ service.default_unit_price }}</td>
+                <td>{{ service.default_currency }}</td>
+                <td>{% if service.use_for_default_pickup_charge %}Oui{% else %}-{% endif %}</td>
+                <td>{% if service.is_active %}Actif{% else %}Inactif{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p class="scan-help">Aucun service annexe pour le moment.</p>
     {% endif %}
@@ -298,40 +302,42 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3>Surcharges configur&eacute;es</h3>
     {% if association_price_overrides %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>Association</th>
-            <th>Port&eacute;e</th>
-            <th>Montant</th>
-            <th>Devise</th>
-            <th>P&eacute;riode</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for override in association_price_overrides %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table">
+          <thead>
             <tr>
-              <td><a href="?edit_override={{ override.id }}">{{ override.association_billing_profile.association_profile.contact.name }}</a></td>
-              <td>
-                {% if override.service_catalog_item %}
-                  {{ override.service_catalog_item.label }}
-                {% elif override.computation_profile %}
-                  {{ override.computation_profile.label }}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              <td>{{ override.overridden_amount }}</td>
-              <td>{{ override.currency }}</td>
-              <td>
-                {% if override.effective_from %}{{ override.effective_from }}{% else %}-{% endif %}
-                /
-                {% if override.effective_to %}{{ override.effective_to }}{% else %}-{% endif %}
-              </td>
+              <th>Association</th>
+              <th>Port&eacute;e</th>
+              <th>Montant</th>
+              <th>Devise</th>
+              <th>P&eacute;riode</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for override in association_price_overrides %}
+              <tr>
+                <td><a href="?edit_override={{ override.id }}">{{ override.association_billing_profile.association_profile.contact.name }}</a></td>
+                <td>
+                  {% if override.service_catalog_item %}
+                    {{ override.service_catalog_item.label }}
+                  {% elif override.computation_profile %}
+                    {{ override.computation_profile.label }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>{{ override.overridden_amount }}</td>
+                <td>{{ override.currency }}</td>
+                <td>
+                  {% if override.effective_from %}{{ override.effective_from }}{% else %}-{% endif %}
+                  /
+                  {% if override.effective_to %}{{ override.effective_to }}{% else %}-{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p class="scan-help">Aucune surcharge sp&eacute;cifique configur&eacute;e.</p>
     {% endif %}

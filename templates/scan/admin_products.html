@@ -56,64 +56,66 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title">{% blocktrans trimmed with count=kit_rows|length|default:0 %}Kits disponibles ({{ count }}){% endblocktrans %}</h3>
     {% if kit_rows %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>{% trans "Kit" %}</th>
-            <th>{% trans "Composition directe" %}</th>
-            <th>{% trans "Composition déployée" %}</th>
-            <th>{% trans "Actions" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in kit_rows %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table">
+          <thead>
             <tr>
-              <td>
-                {{ row.kit.name }}<br>
-                <span class="scan-help">{{ row.kit.sku }}</span><br>
-                <span class="scan-help">{% if row.kit.is_active %}{% trans "Actif" %}{% else %}{% trans "Archivé" %}{% endif %}</span>
-              </td>
-              <td>
-                {% for line in row.direct_lines %}
-                  {{ line }}{% if not forloop.last %}<br>{% endif %}
-                {% empty %}
-                  -
-                {% endfor %}
-              </td>
-              <td>
-                {% if row.has_cycle %}
-                  <span class="scan-help">{% trans "Cycle détecté dans la composition." %}</span>
-                {% else %}
-                  {% for line in row.flattened_lines %}
+              <th>{% trans "Kit" %}</th>
+              <th>{% trans "Composition directe" %}</th>
+              <th>{% trans "Composition déployée" %}</th>
+              <th>{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in kit_rows %}
+              <tr>
+                <td>
+                  {{ row.kit.name }}<br>
+                  <span class="scan-help">{{ row.kit.sku }}</span><br>
+                  <span class="scan-help">{% if row.kit.is_active %}{% trans "Actif" %}{% else %}{% trans "Archivé" %}{% endif %}</span>
+                </td>
+                <td>
+                  {% for line in row.direct_lines %}
                     {{ line }}{% if not forloop.last %}<br>{% endif %}
                   {% empty %}
                     -
                   {% endfor %}
-                {% endif %}
-              </td>
-              <td>
-                <div class="scan-inline scan-inline-gap ui-comp-actions">
-                  {% ui_button label=open_label href=row.open_url variant="tertiary" extra_classes="scan-scan-btn" %}
-                  {% if row.can_delete %}
-                    <form method="post" class="d-inline-flex">
-                      {% csrf_token %}
-                      <input type="hidden" name="product_id" value="{{ row.kit.id }}">
-                      <input type="hidden" name="q" value="{{ query }}">
-                      <input type="hidden" name="status" value="{{ status }}">
-                      <button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">{{ delete_label }}</button>
-                    </form>
+                </td>
+                <td>
+                  {% if row.has_cycle %}
+                    <span class="scan-help">{% trans "Cycle détecté dans la composition." %}</span>
                   {% else %}
-                    <button type="button" class="scan-scan-btn btn btn-secondary" disabled title="{{ row.reason }}">{{ delete_label }}</button>
+                    {% for line in row.flattened_lines %}
+                      {{ line }}{% if not forloop.last %}<br>{% endif %}
+                    {% empty %}
+                      -
+                    {% endfor %}
                   {% endif %}
-                </div>
-                {% if not row.can_delete %}
-                  <div class="scan-help mt-2">{{ row.reason }}</div>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+                </td>
+                <td>
+                  <div class="scan-inline scan-inline-gap ui-comp-actions">
+                    {% ui_button label=open_label href=row.open_url variant="tertiary" extra_classes="scan-scan-btn" %}
+                    {% if row.can_delete %}
+                      <form method="post" class="d-inline-flex">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ row.kit.id }}">
+                        <input type="hidden" name="q" value="{{ query }}">
+                        <input type="hidden" name="status" value="{{ status }}">
+                        <button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">{{ delete_label }}</button>
+                      </form>
+                    {% else %}
+                      <button type="button" class="scan-scan-btn btn btn-secondary" disabled title="{{ row.reason }}">{{ delete_label }}</button>
+                    {% endif %}
+                  </div>
+                  {% if not row.can_delete %}
+                    <div class="scan-help mt-2">{{ row.reason }}</div>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p class="scan-help">{% trans "Aucun kit trouvé." %}</p>
     {% endif %}
@@ -122,52 +124,54 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title">{% blocktrans trimmed with count=product_rows|length|default:0 %}Produits disponibles ({{ count }}){% endblocktrans %}</h3>
     {% if product_rows %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>{% trans "Produit" %}</th>
-            <th>{% trans "SKU" %}</th>
-            <th>{% trans "Usage" %}</th>
-            <th>{% trans "Actions" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in product_rows %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table">
+          <thead>
             <tr>
-              <td>
-                {{ row.product.name }}<br>
-                <span class="scan-help">{% if row.product.is_active %}{% trans "Actif" %}{% else %}{% trans "Archivé" %}{% endif %}</span>
-              </td>
-              <td>{{ row.product.sku }}</td>
-              <td>
-                {% if row.component_usage_count %}
-                  <span class="scan-help">{% blocktrans trimmed with count=row.component_usage_count %}Composant de {{ count }} kit(s){% endblocktrans %}</span>
-                {% elif row.can_delete %}
-                  <span class="scan-help">{% trans "Aucun blocage" %}</span>
-                {% else %}
-                  <span class="scan-help">{{ row.reason }}</span>
-                {% endif %}
-              </td>
-              <td>
-                <div class="scan-inline scan-inline-gap ui-comp-actions">
-                  {% ui_button label=open_label href=row.open_url variant="tertiary" extra_classes="scan-scan-btn" %}
-                  {% if row.can_delete %}
-                    <form method="post" class="d-inline-flex">
-                      {% csrf_token %}
-                      <input type="hidden" name="product_id" value="{{ row.product.id }}">
-                      <input type="hidden" name="q" value="{{ query }}">
-                      <input type="hidden" name="status" value="{{ status }}">
-                      <button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">{{ delete_label }}</button>
-                    </form>
-                  {% else %}
-                    <button type="button" class="scan-scan-btn btn btn-secondary" disabled title="{{ row.reason }}">{{ delete_label }}</button>
-                  {% endif %}
-                </div>
-              </td>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "SKU" %}</th>
+              <th>{% trans "Usage" %}</th>
+              <th>{% trans "Actions" %}</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for row in product_rows %}
+              <tr>
+                <td>
+                  {{ row.product.name }}<br>
+                  <span class="scan-help">{% if row.product.is_active %}{% trans "Actif" %}{% else %}{% trans "Archivé" %}{% endif %}</span>
+                </td>
+                <td>{{ row.product.sku }}</td>
+                <td>
+                  {% if row.component_usage_count %}
+                    <span class="scan-help">{% blocktrans trimmed with count=row.component_usage_count %}Composant de {{ count }} kit(s){% endblocktrans %}</span>
+                  {% elif row.can_delete %}
+                    <span class="scan-help">{% trans "Aucun blocage" %}</span>
+                  {% else %}
+                    <span class="scan-help">{{ row.reason }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="scan-inline scan-inline-gap ui-comp-actions">
+                    {% ui_button label=open_label href=row.open_url variant="tertiary" extra_classes="scan-scan-btn" %}
+                    {% if row.can_delete %}
+                      <form method="post" class="d-inline-flex">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ row.product.id }}">
+                        <input type="hidden" name="q" value="{{ query }}">
+                        <input type="hidden" name="status" value="{{ status }}">
+                        <button type="submit" name="action" value="delete_product" class="scan-scan-btn btn btn-danger">{{ delete_label }}</button>
+                      </form>
+                    {% else %}
+                      <button type="button" class="scan-scan-btn btn btn-secondary" disabled title="{{ row.reason }}">{{ delete_label }}</button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p class="scan-help">{% trans "Aucun produit trouvé." %}</p>
     {% endif %}

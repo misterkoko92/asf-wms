@@ -1362,6 +1362,40 @@ class ScanBootstrapUiTests(TestCase):
             css_content,
         )
 
+    def test_scan_table_css_keeps_dense_mobile_columns_readable(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-table.table:not(.scan-carton-table):not(.scan-shipments-ready-table) thead th {\n"
+            "  white-space: nowrap;\n"
+            "  overflow-wrap: normal;\n"
+            "  word-break: normal;",
+            css_content,
+        )
+        qty_nowrap_rule = ".scan-bootstrap-enabled .scan-table td.qty {\n  white-space: nowrap;"
+        qty_normal_rule = ".scan-bootstrap-enabled .scan-table td.qty {\n  white-space: normal;"
+        self.assertIn(qty_nowrap_rule, css_content)
+        self.assertNotIn(qty_normal_rule, css_content)
+
+    def test_scan_templates_keep_tables_inside_local_scroll_wrappers(self):
+        templates_root = Path(settings.BASE_DIR) / "templates" / "scan"
+        missing_wrappers = []
+        for template_path in sorted(templates_root.rglob("*.html")):
+            lines = template_path.read_text(encoding="utf-8").splitlines()
+            for line_number, line in enumerate(lines, start=1):
+                if "<table" not in line or "scan-table" not in line:
+                    continue
+                preceding_lines = "\n".join(lines[max(0, line_number - 4) : line_number - 1])
+                if (
+                    "scan-table-wrap" not in preceding_lines
+                    and "table-responsive" not in preceding_lines
+                ):
+                    relative_path = template_path.relative_to(Path(settings.BASE_DIR))
+                    missing_wrappers.append(f"{relative_path}:{line_number}")
+
+        self.assertEqual(missing_wrappers, [])
+
     def test_scan_shell_css_restores_page_scroll_on_mobile(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
         css_content = css_path.read_text(encoding="utf-8")
