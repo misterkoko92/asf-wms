@@ -197,7 +197,7 @@ def notify_preparateur_product_review_needed(
     )
 
 
-def create_preparateur_unknown_product_from_pack(*, request, form):
+def create_preparateur_unknown_product_from_pack(*, request, form, receive_initial_stock=True):
     if not form.is_valid():
         raise ValueError("Unknown product form is invalid.")
 
@@ -223,15 +223,16 @@ def create_preparateur_unknown_product_from_pack(*, request, form):
             notes=form.cleaned_data["notes"],
             is_incomplete=True,
         )
-        receive_stock(
-            user=request.user,
-            product=product,
-            quantity=form.cleaned_data["initial_quantity"],
-            location=form.cleaned_data["location"],
-            lot_code=form.cleaned_data["lot_code"],
-            received_on=timezone.localdate(),
-            expires_on=form.cleaned_data["expires_on"],
-        )
+        if receive_initial_stock:
+            receive_stock(
+                user=request.user,
+                product=product,
+                quantity=form.cleaned_data["initial_quantity"],
+                location=form.cleaned_data["location"],
+                lot_code=form.cleaned_data["lot_code"],
+                received_on=timezone.localdate(),
+                expires_on=form.cleaned_data["expires_on"],
+            )
 
     notify_preparateur_product_review_needed(
         product=product,

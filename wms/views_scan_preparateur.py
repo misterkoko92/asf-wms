@@ -7,12 +7,19 @@ from .pack_handlers import create_preparateur_unknown_product_from_pack
 from .preparateur_orders import clear_preparateur_selected_order
 from .preparateur_rangement import (
     PREPARATEUR_RANGEMENT_BATCH_LIMIT,
+    PREPARATEUR_RANGEMENT_MODE_RECEIPT,
+    PREPARATEUR_RANGEMENT_MODE_TRANSFER,
+    PREPARATEUR_RANGEMENT_MODES,
     PreparateurRangementError,
     add_created_product_to_preparateur_rangement_batch,
     add_product_to_preparateur_rangement_batch,
     clear_preparateur_rangement_batch,
     get_preparateur_rangement_batch,
+    get_preparateur_rangement_mode,
     resolve_preparateur_rangement_product,
+    set_default_location_for_rangement_product,
+    set_preparateur_rangement_mode,
+    validate_preparateur_rangement_batch,
 )
 from .preparateur_session import (
     build_preparateur_volunteer_label,
@@ -104,7 +111,7 @@ def scan_preparateur_pack_start(request):
 def _parse_rangement_quantity(value):
     value = (value or "").strip()
     if not value:
-        return 1
+        raise PreparateurRangementError("Quantité obligatoire.")
     try:
         quantity = int(value)
     except ValueError as exc:
@@ -134,14 +141,22 @@ def _build_preparateur_rangement_context(
     unknown_product_form=None,
     unknown_product_source_code="",
 ):
+    location_data = build_location_data()
+    rangement_mode = get_preparateur_rangement_mode(request)
     return {
         "active": ACTIVE_PREPARATEUR_RANGEMENT,
         "rangement_batch": get_preparateur_rangement_batch(request),
+        "rangement_mode": rangement_mode,
+        "rangement_mode_label": PREPARATEUR_RANGEMENT_MODES.get(rangement_mode, ""),
+        "rangement_modes": [
+            {"value": value, "label": label} for value, label in PREPARATEUR_RANGEMENT_MODES.items()
+        ],
         "unknown_product_modal_open": unknown_product_modal_open,
         "unknown_product_source_code": unknown_product_source_code,
         "unknown_product_form": unknown_product_form or ScanPackUnknownProductForm(),
         "products_json": build_product_options(compact=True),
-        "location_data": build_location_data(),
+        "location_data": location_data,
+        "location_options": location_data,
     }
 
 
@@ -164,10 +179,43 @@ def scan_preparateur_rangement(request):
         if action == "finish_batch":
             clear_preparateur_rangement_batch(request)
             messages.success(request, "Rangement terminé.")
-            return redirect("scan:scan_preparateur_home")
+            return redirect("scan:scan_preparateur_rangement")
+
+        if action == "validate_batch":
+            try:
+                validate_preparateur_rangement_batch(request)
+                messages.success(request, "Batch rangement validé.")
+                return redirect("scan:scan_preparateur_rangement")
+            except (PreparateurRangementError, StockError) as exc:
+                messages.error(request, str(exc))
+                return _render_preparateur_rangement(request)
+
+        if action == "set_default_location":
+            try:
+                set_default_location_for_rangement_product(
+                    request,
+                    product_id=request.POST.get("product_id"),
+                    location_id=request.POST.get("location_id"),
+                )
+                messages.success(request, "Emplacement par défaut défini.")
+            except PreparateurRangementError as exc:
+                messages.error(request, str(exc))
+            return _render_preparateur_rangement(request)
 
         if action == "create_unknown_product":
             unknown_product_form = ScanPackUnknownProductForm(request.POST)
+            mode = get_preparateur_rangement_mode(request) or request.POST.get("movement_mode", "")
+            if mode != PREPARATEUR_RANGEMENT_MODE_RECEIPT:
+                unknown_product_form.add_error(
+                    None,
+                    "Créer un produit inconnu est réservé au mode Entrée en stock.",
+                )
+                return _render_preparateur_rangement(
+                    request,
+                    unknown_product_modal_open=True,
+                    unknown_product_form=unknown_product_form,
+                    unknown_product_source_code=request.POST.get("unknown_product_source_code", ""),
+                )
             if unknown_product_form.is_valid():
                 try:
                     if (
@@ -178,13 +226,15 @@ def scan_preparateur_rangement(request):
                     product = create_preparateur_unknown_product_from_pack(
                         request=request,
                         form=unknown_product_form,
+                        receive_initial_stock=False,
                     )
                     add_created_product_to_preparateur_rangement_batch(
                         request,
                         product=product,
                         quantity=unknown_product_form.cleaned_data["initial_quantity"],
+                        mode=PREPARATEUR_RANGEMENT_MODE_RECEIPT,
                     )
-                    messages.success(request, "Produit créé et stock initial ajouté.")
+                    messages.success(request, "Produit créé et ajouté au batch.")
                     unknown_product_form = ScanPackUnknownProductForm()
                     return _render_preparateur_rangement(
                         request,
@@ -201,10 +251,20 @@ def scan_preparateur_rangement(request):
 
         if action == "scan_product":
             product_code = (request.POST.get("product_code") or "").strip()
+            mode = (request.POST.get("movement_mode") or "").strip()
+            errors = []
+            try:
+                set_preparateur_rangement_mode(request, mode)
+            except PreparateurRangementError as exc:
+                errors.append(str(exc))
             try:
                 quantity = _parse_rangement_quantity(request.POST.get("quantity"))
             except PreparateurRangementError as exc:
-                messages.error(request, str(exc))
+                errors.append(str(exc))
+                quantity = None
+            for error in errors:
+                messages.error(request, error)
+            if errors:
                 return _render_preparateur_rangement(request)
             if not product_code:
                 messages.error(request, "Code produit requis.")
@@ -212,6 +272,12 @@ def scan_preparateur_rangement(request):
 
             product = resolve_preparateur_rangement_product(product_code)
             if product is None:
+                if mode == PREPARATEUR_RANGEMENT_MODE_TRANSFER:
+                    messages.error(
+                        request,
+                        "Impossible de déplacer un produit inconnu. Utilisez Entrée en stock.",
+                    )
+                    return _render_preparateur_rangement(request)
                 messages.warning(request, "Produit inconnu. Terminer ou ajouter le produit.")
                 return _render_preparateur_rangement(
                     request,
@@ -228,11 +294,12 @@ def scan_preparateur_rangement(request):
                     request,
                     product=product,
                     quantity=quantity,
+                    mode=mode,
                 )
-                if item.get("stock_updated"):
-                    messages.success(request, "Stock ajouté au récap rangement.")
+                if item.get("is_valid"):
+                    messages.success(request, "Produit ajouté au batch rangement.")
                 else:
-                    messages.warning(request, "Pas d'emplacement défini, demander conseil")
+                    messages.warning(request, item.get("stock_status_label"))
             except (PreparateurRangementError, StockError) as exc:
                 messages.error(request, str(exc))
             return _render_preparateur_rangement(request)

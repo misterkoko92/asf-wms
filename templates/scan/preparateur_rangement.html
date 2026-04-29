@@ -8,15 +8,45 @@
     <div class="d-flex flex-column gap-2 mb-4">
       <h2 class="ui-comp-title mb-0">{% trans "Rangement" %}</h2>
       <p class="scan-help ui-comp-note mb-0">
-        {% trans "Scanner jusqu'à 5 produits. Le stock est ajouté quand un emplacement est défini." %}
+        {% trans "Scanner jusqu'à 5 produits. Le stock est écrit uniquement à la validation du batch." %}
       </p>
+      {% if rangement_mode %}
+        <div class="scan-message success mb-0">
+          {% trans "Mode actuel" %}: <strong>{{ rangement_mode_label }}</strong>
+        </div>
+      {% endif %}
     </div>
 
     <form method="post" class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="scan_product">
       <div class="row g-3 align-items-end">
-        <div class="scan-field col-12 col-lg-7">
+        <div class="scan-field col-12 col-lg-3">
+          <label class="form-label" for="id_rangement_movement_mode">{% trans "Mode" %}</label>
+          {% if rangement_mode %}
+            <input type="hidden" name="movement_mode" value="{{ rangement_mode }}">
+            <input
+              type="text"
+              id="id_rangement_movement_mode"
+              class="form-control"
+              value="{{ rangement_mode_label }}"
+              readonly
+            >
+          {% else %}
+            <select
+              id="id_rangement_movement_mode"
+              name="movement_mode"
+              class="form-select"
+              required
+            >
+              <option value="">{% trans "Choisir" %}</option>
+              {% for mode in rangement_modes %}
+                <option value="{{ mode.value }}">{{ mode.label }}</option>
+              {% endfor %}
+            </select>
+          {% endif %}
+        </div>
+        <div class="scan-field col-12 col-lg-5">
           <label class="form-label" for="id_rangement_product_code">{% trans "Produit" %}</label>
           <div class="scan-inline">
             <input
@@ -53,18 +83,32 @@
   <div class="scan-card card border-0 ui-comp-card">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h2 class="ui-comp-title mb-0">{% trans "Récap rangement" %}</h2>
-      <form method="post" class="m-0">
-        {% csrf_token %}
-        <button
-          type="submit"
-          name="action"
-          value="finish_batch"
-          class="btn btn-tertiary"
-          {% if not rangement_batch %}disabled{% endif %}
-        >
-          {% trans "Terminer le rangement" %}
-        </button>
-      </form>
+      <div class="d-flex flex-wrap gap-2">
+        <form method="post" class="m-0">
+          {% csrf_token %}
+          <button
+            type="submit"
+            name="action"
+            value="validate_batch"
+            class="btn btn-primary"
+            {% if not rangement_batch %}disabled{% endif %}
+          >
+            {% trans "Valider le batch" %}
+          </button>
+        </form>
+        <form method="post" class="m-0">
+          {% csrf_token %}
+          <button
+            type="submit"
+            name="action"
+            value="finish_batch"
+            class="btn btn-tertiary"
+            {% if not rangement_batch %}disabled{% endif %}
+          >
+            {% trans "Vider / nouveau batch" %}
+          </button>
+        </form>
+      </div>
     </div>
 
     {% if rangement_batch %}
@@ -75,6 +119,7 @@
               <th>{% trans "Produit" %}</th>
               <th>{% trans "Quantité" %}</th>
               <th>{% trans "Emplacement" %}</th>
+              <th>{% trans "Source" %}</th>
               <th>{% trans "Stock" %}</th>
             </tr>
           </thead>
@@ -86,7 +131,28 @@
                   {% if item.sku %}<div class="ui-comp-note">{{ item.sku }}</div>{% endif %}
                 </td>
                 <td>{{ item.quantity }}</td>
-                <td>{{ item.location_label }}</td>
+                <td>
+                  {{ item.location_label }}
+                  {% if not item.location_id %}
+                    <form method="post" class="mt-2">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="set_default_location">
+                      <input type="hidden" name="product_id" value="{{ item.product_id }}">
+                      <div class="scan-inline">
+                        <select name="location_id" class="form-select form-select-sm" required>
+                          <option value="">{% trans "Choisir un emplacement" %}</option>
+                          {% for location in location_options %}
+                            <option value="{{ location.id }}">{{ location.label }}</option>
+                          {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-tertiary btn-sm">
+                          {% trans "Définir l'emplacement" %}
+                        </button>
+                      </div>
+                    </form>
+                  {% endif %}
+                </td>
+                <td>{{ item.source_label|default:"-" }}</td>
                 <td>{{ item.stock_status_label }}</td>
               </tr>
             {% endfor %}
@@ -115,6 +181,9 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <form method="post" class="modal-content">
         {% csrf_token %}
+        {% if rangement_mode %}
+          <input type="hidden" name="movement_mode" value="{{ rangement_mode }}">
+        {% endif %}
         <div class="modal-header">
           <h3 id="pack-unknown-product-modal-title" class="modal-title h5 mb-0">{% trans "Ajouter un nouveau produit" %}</h3>
           <button type="button"
