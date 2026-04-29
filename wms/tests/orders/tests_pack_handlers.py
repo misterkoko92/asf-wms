@@ -395,6 +395,37 @@ class PackHandlersTests(TestCase):
         self.assertIn((None, "Confirmez la création du batch de colis libres."), form.errors)
         self.assertEqual(state["free_batch_carton_count"], 3)
 
+    def test_handle_pack_post_free_batch_requires_carton_count(self):
+        category_mm = ProductCategory.objects.create(name="MM")
+        product = self._create_stock_product(
+            sku="BATCH-NO-COUNT",
+            name="Produit Batch No Count",
+            category=category_mm,
+            quantity_on_hand=50,
+        )
+        request = self._db_request(
+            {
+                "action": "prepare_available_batch",
+                "confirm_free_carton_batch": "1",
+                "line_count": "1",
+                "line_1_product_code": product.sku,
+                "line_1_quantity": "2",
+                "confirm_defaults": "1",
+            }
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            response, state = handle_pack_post(request, form=form, default_format=None)
+
+        self.assertIsNone(response)
+        self.assertEqual(Carton.objects.count(), 0)
+        self.assertIn((None, "Nombre de colis batch invalide."), form.errors)
+        self.assertIsNone(state["free_batch_carton_count"])
+
     def test_handle_pack_post_free_batch_rejects_destination_or_shipment(self):
         category_mm = ProductCategory.objects.create(name="MM")
         product = self._create_stock_product(
@@ -1233,6 +1264,92 @@ class PackHandlersTests(TestCase):
                 actor=self.staff_user,
             ).count(),
             3,
+        )
+
+    def test_handle_pack_post_preparateur_free_batch_requires_active_volunteer(self):
+        category_mm = ProductCategory.objects.create(name="MM")
+        product_mm = self._create_stock_product(
+            sku="SKU-MM-FREE-BATCH-NO-VOL",
+            name="Produit MM Free Batch No Volunteer",
+            category=category_mm,
+            quantity_on_hand=20,
+        )
+        request = self._db_request(
+            {
+                "action": "prepare_available_batch",
+                "free_batch_carton_count": "2",
+                "confirm_free_carton_batch": "1",
+                "line_count": "1",
+                "line_1_product_code": product_mm.sku,
+                "line_1_quantity": "2",
+                "confirm_defaults": "1",
+            },
+            preparateur=True,
+        )
+        request.scan_active_volunteer = None
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            response, state = handle_pack_post(
+                request,
+                form=form,
+                default_format=None,
+            )
+
+        self.assertIsNone(response)
+        self.assertEqual(Carton.objects.count(), 0)
+        self.assertEqual(state["line_errors"], {})
+        self.assertIn(
+            (None, "Choisissez un bénévole depuis l'accueil préparateur."),
+            form.errors,
+        )
+
+    def test_handle_pack_post_preparateur_free_batch_requires_manual_family_override(self):
+        product = self._create_stock_product(
+            sku="SKU-FREE-BATCH-NO-FAMILY",
+            name="Produit Free Batch No Family",
+            category=None,
+            quantity_on_hand=20,
+        )
+        request = self._db_request(
+            {
+                "action": "prepare_available_batch",
+                "free_batch_carton_count": "2",
+                "confirm_free_carton_batch": "1",
+                "line_count": "1",
+                "line_1_product_code": product.sku,
+                "line_1_quantity": "2",
+                "confirm_defaults": "1",
+            },
+            preparateur=True,
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            response, state = handle_pack_post(
+                request,
+                form=form,
+                default_format=None,
+            )
+
+        self.assertIsNone(response)
+        self.assertEqual(Carton.objects.count(), 0)
+        self.assertEqual(
+            state["line_errors"],
+            {"1": ["Choisissez manuellement MM ou CN pour ce produit."]},
+        )
+        self.assertIn(
+            (
+                None,
+                "Choisissez manuellement MM ou CN pour les produits sans categorie racine MM/CN.",
+            ),
+            form.errors,
         )
 
     def test_handle_pack_post_preparateur_free_batch_rejects_mixed_mm_cn_families(self):

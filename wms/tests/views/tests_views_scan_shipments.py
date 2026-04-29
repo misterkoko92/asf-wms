@@ -1024,6 +1024,57 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'value="free" selected')
         self.assertContains(response, 'name="status"')
 
+    def test_scan_cartons_ready_filters_assigned_and_preassigned_cartons(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        destination, _shipper, _recipient, _correspondent = self._create_shipment_party_triplet(
+            "LFW"
+        )
+        self._create_carton_with_item(code="C-FREE")
+        self._create_carton_with_item(code="C-ASSIGNED", shipment=shipment)
+        self._create_carton_with_item(
+            code="C-PREASSIGNED",
+            preassigned_destination=destination,
+        )
+
+        assigned_response = self.client.get(
+            reverse("scan:scan_cartons_ready"),
+            {"assignment": "assigned"},
+        )
+        preassigned_response = self.client.get(
+            reverse("scan:scan_cartons_ready"),
+            {"assignment": "preassigned"},
+        )
+
+        self.assertEqual(assigned_response.status_code, 200)
+        self.assertContains(assigned_response, "C-ASSIGNED")
+        self.assertNotContains(assigned_response, "C-FREE")
+        self.assertNotContains(assigned_response, "C-PREASSIGNED")
+        self.assertContains(assigned_response, 'value="assigned" selected')
+        self.assertEqual(preassigned_response.status_code, 200)
+        self.assertContains(preassigned_response, "C-PREASSIGNED")
+        self.assertNotContains(preassigned_response, "C-FREE")
+        self.assertNotContains(preassigned_response, "C-ASSIGNED")
+        self.assertContains(preassigned_response, 'value="preassigned" selected')
+
+    def test_scan_cartons_ready_ignores_invalid_filter_values(self):
+        self._create_carton_with_item(code="C-INVALID-FILTER-A")
+        self._create_carton_with_item(code="C-INVALID-FILTER-B")
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_ready"),
+            {
+                "assignment": "outside",
+                "status": "outside",
+                "created_on": "not-a-date",
+                "prepared_by": "not-a-volunteer-id",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-INVALID-FILTER-A")
+        self.assertContains(response, "C-INVALID-FILTER-B")
+        self.assertNotContains(response, 'value="outside" selected')
+
     def test_scan_cartons_ready_filters_by_product_query(self):
         syringe_lot = self._create_product_lot(
             sku="SYRINGE-FILTER",
