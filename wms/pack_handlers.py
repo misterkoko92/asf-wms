@@ -427,6 +427,146 @@ def parse_exact_carton_plan(request, *, default_format):
     return plan, errors, missing_defaults
 
 
+def _add_exact_carton_plan_errors_to_form(form, errors):
+    for row_errors in errors.values():
+        for error in row_errors:
+            form.add_error(None, error)
+
+
+def _build_missing_defaults_error(missing_defaults):
+    product_list = ", ".join(missing_defaults)
+    return _(
+        "Attention : les produits suivants n'ont pas de dimensions "
+        "ni de poids enregistrés : %(products)s. Si vous validez "
+        "ces ajouts, des valeurs par défaut seront appliquées "
+        "(1cm x 1cm x 1cm et 5g)."
+    ) % {"products": product_list}
+
+
+def _handle_exact_carton_plan_pack(
+    *,
+    request,
+    form,
+    default_format,
+    carton_format_id,
+    carton_custom,
+    line_count,
+    line_values,
+    line_errors,
+    confirm_defaults,
+    forced_carton_count,
+    carton_distribution_mode,
+):
+    plan, plan_errors, missing_defaults = parse_exact_carton_plan(
+        request,
+        default_format=default_format,
+    )
+    if not request.POST.get("confirm_carton_plan"):
+        form.add_error(None, _("Confirmez le récapitulatif des colis avant création."))
+    if plan_errors:
+        _add_exact_carton_plan_errors_to_form(form, plan_errors)
+    if missing_defaults and not confirm_defaults:
+        form.add_error(None, _build_missing_defaults_error(missing_defaults))
+    if form.errors:
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
+                carton_distribution_mode=carton_distribution_mode,
+            ),
+        )
+
+    try:
+        created_cartons = []
+        pack_warnings = []
+        with transaction.atomic():
+            for carton_plan in plan:
+                current_location = carton_plan["current_location"]
+                skip_picking_status = False
+                if (
+                    carton_plan["output_mode"] == EXACT_CARTON_OUTPUT_AVAILABLE
+                    and carton_plan["shipment"] is None
+                ):
+                    skip_picking_status = True
+                    if current_location is None:
+                        current_location, ready_location_warning = (
+                            _resolve_ready_location_for_available_pack(carton_plan["line_items"])
+                        )
+                        if ready_location_warning:
+                            pack_warnings.append(ready_location_warning)
+                carton = None
+                for entry in carton_plan["line_items"]:
+                    carton = pack_carton(
+                        user=request.user,
+                        product=entry["product"],
+                        quantity=entry["quantity"],
+                        carton=carton,
+                        carton_code=None,
+                        shipment=carton_plan["shipment"],
+                        preassigned_destination=carton_plan["preassigned_destination"],
+                        display_expires_on=entry.get("expires_on"),
+                        current_location=current_location,
+                        carton_size=carton_plan["carton_size"],
+                        skip_picking_status=skip_picking_status,
+                    )
+                if carton:
+                    if (
+                        carton_plan["output_mode"] == EXACT_CARTON_OUTPUT_AVAILABLE
+                        and carton_plan["shipment"] is None
+                    ):
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.PACKED,
+                            reason="scan_pack_exact_plan_ready",
+                            user=request.user,
+                        )
+                    created_cartons.append(carton)
+        for warning in pack_warnings:
+            messages.warning(request, warning)
+        request.session["pack_results"] = [carton.id for carton in created_cartons]
+        messages.success(
+            request,
+            _("%(count)s carton(s) créé(s) selon le plan.") % {"count": len(created_cartons)},
+        )
+        return (
+            redirect("scan:scan_pack"),
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
+                carton_distribution_mode=carton_distribution_mode,
+            ),
+        )
+    except (StockError, ValueError) as exc:
+        form.add_error(None, str(exc))
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
+                carton_distribution_mode=carton_distribution_mode,
+            ),
+        )
+
+
 def _resolve_carton_distribution_mode(request):
     mode = (request.POST.get("carton_distribution_mode") or "").strip()
     if mode == CARTON_DISTRIBUTION_MODE_AUTO:
@@ -1003,12 +1143,16 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
     deprecated_free_batch_requested = (
         request.POST.get("action") or ""
     ).strip() == DEPRECATED_PACK_ACTION_PREPARE_AVAILABLE_BATCH
+    exact_carton_plan_requested = (
+        request.POST.get("carton_plan_mode") or ""
+    ).strip() == PACK_CARTON_PLAN_MODE_EXACT and editing_carton is None
     carton_distribution_mode = _resolve_carton_distribution_mode(request)
     forced_carton_error = None
     try:
         forced_carton_count = (
             None
             if editing_carton is not None
+            or exact_carton_plan_requested
             or carton_distribution_mode == CARTON_DISTRIBUTION_MODE_AUTO
             else parse_forced_carton_count(request.POST.get("forced_carton_count"))
         )
@@ -1036,6 +1180,20 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
         )
 
     if form.is_valid() and forced_carton_error is None:
+        if exact_carton_plan_requested:
+            return _handle_exact_carton_plan_pack(
+                request=request,
+                form=form,
+                default_format=default_format,
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                confirm_defaults=confirm_defaults,
+                forced_carton_count=forced_carton_count,
+                carton_distribution_mode=carton_distribution_mode,
+            )
         shipment = (
             editing_carton.shipment
             if editing_carton is not None and editing_carton.shipment_id
@@ -1107,16 +1265,9 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                     }
                 )
                 if missing_defaults and not confirm_defaults:
-                    product_list = ", ".join(missing_defaults)
                     form.add_error(
                         None,
-                        _(
-                            "Attention : les produits suivants n'ont pas de dimensions "
-                            "ni de poids enregistrés : %(products)s. Si vous validez "
-                            "ces ajouts, des valeurs par défaut seront appliquées "
-                            "(1cm x 1cm x 1cm et 5g)."
-                        )
-                        % {"products": product_list},
+                        _build_missing_defaults_error(missing_defaults),
                     )
                     return (
                         None,

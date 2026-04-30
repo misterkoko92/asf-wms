@@ -491,6 +491,192 @@ class PackHandlersTests(TestCase):
         self.assertEqual(plan[2]["line_items"][1]["product"], compress)
         self.assertEqual(plan[3]["output_mode"], EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING)
 
+    def test_handle_pack_post_creates_exact_carton_plan_with_mixed_outputs(self):
+        stock_location, _ready_mm, _ready_cn = self._create_locations()
+        category = ProductCategory.objects.create(name="MM")
+        syringe = Product.objects.create(
+            sku="SYR-PLAN",
+            name="Seringues plan",
+            category=category,
+            weight_g=100,
+            length_cm=Decimal("10"),
+            width_cm=Decimal("10"),
+            height_cm=Decimal("10"),
+            default_location=stock_location,
+        )
+        compress = Product.objects.create(
+            sku="CMP-PLAN",
+            name="Compresses plan",
+            category=category,
+            weight_g=50,
+            length_cm=Decimal("5"),
+            width_cm=Decimal("5"),
+            height_cm=Decimal("5"),
+            default_location=stock_location,
+        )
+        syringe_lot = ProductLot.objects.create(
+            product=syringe,
+            lot_code="LOT-SYR-PLAN",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=50,
+            location=stock_location,
+        )
+        compress_lot = ProductLot.objects.create(
+            product=compress,
+            lot_code="LOT-CMP-PLAN",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=50,
+            location=stock_location,
+        )
+        destination = self._create_destination(code="ABJ")
+        shipment = Shipment.objects.create(
+            reference="EXP-PLAN-003",
+            shipper_name="ASF",
+            recipient_name="Hopital",
+            destination=destination,
+            destination_address="Abidjan",
+        )
+        carton_format = CartonFormat.objects.create(
+            name="Standard exact plan",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        request = self._db_request(
+            {
+                "carton_plan_mode": "exact",
+                "confirm_carton_plan": "1",
+                "carton_plan_count": "4",
+                "carton_1_output_mode": "available",
+                "carton_1_preassigned_destination": str(destination.id),
+                "carton_1_current_location": str(stock_location.id),
+                "carton_1_carton_format_id": str(carton_format.id),
+                "carton_1_line_count": "1",
+                "carton_1_line_1_product_code": syringe.sku,
+                "carton_1_line_1_quantity": "10",
+                "carton_2_output_mode": "available",
+                "carton_2_shipment_reference": shipment.reference,
+                "carton_2_current_location": str(stock_location.id),
+                "carton_2_carton_format_id": str(carton_format.id),
+                "carton_2_line_count": "1",
+                "carton_2_line_1_product_code": syringe.sku,
+                "carton_2_line_1_quantity": "10",
+                "carton_3_output_mode": "available",
+                "carton_3_current_location": str(stock_location.id),
+                "carton_3_carton_format_id": str(carton_format.id),
+                "carton_3_line_count": "2",
+                "carton_3_line_1_product_code": syringe.sku,
+                "carton_3_line_1_quantity": "5",
+                "carton_3_line_2_product_code": compress.sku,
+                "carton_3_line_2_quantity": "20",
+                "carton_4_output_mode": "without_conditioning",
+                "carton_4_current_location": str(stock_location.id),
+                "carton_4_carton_format_id": str(carton_format.id),
+                "carton_4_line_count": "1",
+                "carton_4_line_1_product_code": compress.sku,
+                "carton_4_line_1_quantity": "4",
+            }
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch("wms.pack_handlers.build_packing_bins") as build_bins_mock:
+            with mock.patch("wms.pack_handlers.messages.success") as success_mock:
+                response, state = handle_pack_post(
+                    request,
+                    form=form,
+                    default_format=carton_format,
+                )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(state["line_errors"], {})
+        build_bins_mock.assert_not_called()
+        self.assertEqual(Carton.objects.count(), 4)
+        created_cartons = list(Carton.objects.order_by("id"))
+        self.assertEqual(
+            [carton.status for carton in created_cartons],
+            [
+                CartonStatus.PACKED,
+                CartonStatus.ASSIGNED,
+                CartonStatus.PACKED,
+                CartonStatus.PICKING,
+            ],
+        )
+        self.assertEqual(created_cartons[0].preassigned_destination, destination)
+        self.assertIsNone(created_cartons[0].shipment)
+        self.assertEqual(created_cartons[1].shipment, shipment)
+        self.assertIsNone(created_cartons[1].preassigned_destination)
+        self.assertEqual(created_cartons[2].cartonitem_set.count(), 2)
+        self.assertEqual(request.session["pack_results"], [carton.id for carton in created_cartons])
+        syringe_lot.refresh_from_db()
+        compress_lot.refresh_from_db()
+        self.assertEqual(syringe_lot.quantity_on_hand, 25)
+        self.assertEqual(compress_lot.quantity_on_hand, 26)
+        success_mock.assert_called_once_with(
+            request,
+            "4 carton(s) créé(s) selon le plan.",
+        )
+
+    def test_handle_pack_post_exact_carton_plan_rolls_back_on_stock_error(self):
+        stock_location, _ready_mm, _ready_cn = self._create_locations()
+        category = ProductCategory.objects.create(name="MM")
+        syringe = Product.objects.create(
+            sku="SYR-PLAN-LOW",
+            name="Seringues plan low",
+            category=category,
+            weight_g=100,
+            length_cm=Decimal("10"),
+            width_cm=Decimal("10"),
+            height_cm=Decimal("10"),
+            default_location=stock_location,
+        )
+        lot = ProductLot.objects.create(
+            product=syringe,
+            lot_code="LOT-SYR-LOW",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=5,
+            location=stock_location,
+        )
+        carton_format = CartonFormat.objects.create(
+            name="Standard exact low",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        request = self._db_request(
+            {
+                "carton_plan_mode": "exact",
+                "confirm_carton_plan": "1",
+                "carton_plan_count": "2",
+                "carton_1_output_mode": "available",
+                "carton_1_carton_format_id": str(carton_format.id),
+                "carton_1_line_count": "1",
+                "carton_1_line_1_product_code": syringe.sku,
+                "carton_1_line_1_quantity": "3",
+                "carton_2_output_mode": "available",
+                "carton_2_carton_format_id": str(carton_format.id),
+                "carton_2_line_count": "1",
+                "carton_2_line_1_product_code": syringe.sku,
+                "carton_2_line_1_quantity": "4",
+            }
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        response, _state = handle_pack_post(
+            request,
+            form=form,
+            default_format=carton_format,
+        )
+
+        self.assertIsNone(response)
+        self.assertEqual(Carton.objects.count(), 0)
+        lot.refresh_from_db()
+        self.assertEqual(lot.quantity_on_hand, 5)
+        self.assertTrue(any("Stock insuffisant" in error for _field, error in form.errors))
+
     def test_handle_pack_post_validates_shipment_carton_and_line_fields(self):
         request = self._request(
             {
