@@ -518,7 +518,7 @@
               <div class="scan-pack-workbench-header">
                 <div>
                   <h3 id="pack-row-editor-title" class="ui-comp-title h5 mb-1">{% trans "Aperçu" %}</h3>
-                  <p class="scan-help ui-comp-note mb-0">{% trans "Sélectionnez un colis pour modifier son contenu, son affectation, sa sortie ou le dupliquer en plusieurs colis identiques." %}</p>
+                  <p class="scan-help ui-comp-note mb-0">{% trans "Sélectionnez un colis pour consulter son contenu, modifier son affectation, sa sortie ou le dupliquer en plusieurs colis identiques." %}</p>
                 </div>
               </div>
               <div class="scan-pack-preview-grid">
@@ -582,11 +582,8 @@
               {% endif %}
 
               <div class="scan-filter-actions scan-pack-validation-actions d-flex flex-wrap gap-2 align-items-center ui-comp-actions">
-                <button type="button" class="scan-submit btn btn-outline-secondary" id="pack-open-final-confirmation">
+                <button type="button" class="scan-submit btn btn-success" id="pack-open-final-confirmation">
                   {% trans "Vérifier le récapitulatif" %}
-                </button>
-                <button type="submit" name="confirm_carton_plan" value="1" class="scan-submit btn btn-success" id="pack-direct-final-submit">
-                  {% trans "Créer les colis" %}
                 </button>
               </div>
             </section>

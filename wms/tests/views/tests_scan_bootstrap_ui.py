@@ -1294,6 +1294,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="pack-final-confirmation"')
         self.assertContains(response, 'id="pack-plan-hidden-fields"')
         self.assertContains(response, 'name="carton_plan_mode" value="exact"')
+        self.assertNotContains(response, 'id="pack-direct-final-submit"')
 
     def test_scan_pack_workbench_js_exposes_draft_plan_contract(self):
         scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
