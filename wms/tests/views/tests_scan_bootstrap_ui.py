@@ -1281,6 +1281,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("removeButton.textContent = 'Retirer';", scan_js_content)
         self.assertIn(".scan-bootstrap-enabled .pack-line-header {", css_content)
 
+    def test_scan_pack_workbench_shell_exposes_creation_contract(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="pack-workbench"')
+        self.assertContains(response, 'data-pack-workbench="1"')
+        self.assertContains(response, 'id="pack-quick-generator"')
+        self.assertContains(response, 'id="pack-selection-toolbar"')
+        self.assertContains(response, 'id="pack-draft-plan"')
+        self.assertContains(response, 'id="pack-row-editor"')
+        self.assertContains(response, 'id="pack-final-confirmation"')
+        self.assertContains(response, 'id="pack-plan-hidden-fields"')
+        self.assertContains(response, 'name="carton_plan_mode" value="exact"')
+
     def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
         response = self.client.get(reverse("scan:scan_pack"))
         self.assertEqual(response.status_code, 200)
@@ -2650,9 +2664,9 @@ class ScanBootstrapUiTests(TestCase):
 
         pack_response = self.client.get(reverse("scan:scan_pack"))
         self.assertEqual(pack_response.status_code, 200)
-        self.assertContains(pack_response, "scan-pack-shipping-row")
-        self.assertContains(pack_response, "scan-pack-shipping-actions-inline")
-        self.assertContains(pack_response, "scan-pack-shipping-field")
+        self.assertContains(pack_response, "scan-pack-generator-grid")
+        self.assertContains(pack_response, "scan-pack-validation-actions")
+        self.assertContains(pack_response, "scan-pack-assignment-field")
 
     def test_scan_pack_uses_shipment_select_contract(self):
         destination = Destination.objects.create(

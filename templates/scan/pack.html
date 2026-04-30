@@ -234,90 +234,310 @@
         {% if form.non_field_errors %}
           {% ui_alert tone="error" body=form.non_field_errors|join:" " %}
         {% endif %}
-        <form method="post" novalidate class="ui-comp-form">
+        <form method="post" novalidate class="ui-comp-form" id="pack-workbench-form">
           {% csrf_token %}
 
-          <section id="pack-section-content" class="scan-pack-section">
-            <h3 class="ui-comp-subtitle">{% trans "Contenu" %}</h3>
-            <div class="scan-field">
-              <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
-              <div class="scan-inline">
-                <select id="id_carton_format" name="carton_format_id" class="form-select ui-select--xl">
-                  {% for format in carton_formats %}
-                    {% with format_id=format.id|stringformat:"s" %}
-                      <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
-                        {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
-                      </option>
-                    {% endwith %}
-                  {% endfor %}
-                  <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
-                </select>
-                {% if not request.scan_is_preparateur %}
-                  <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_carton_formats' %}" target="_blank" rel="noopener">
-                    {% trans "Ajouter format" %}
-                  </a>
-                {% endif %}
-              </div>
-            </div>
+          <input type="hidden" name="carton_plan_mode" value="exact">
+          <input type="hidden" id="pack-plan-count" name="carton_plan_count" value="0">
+          <div id="pack-plan-hidden-fields"></div>
 
-            {% include "scan/includes/pack_custom_format_fields.html" %}
-
-            <div class="pack-lines" id="pack-lines"></div>
-            <div class="scan-inline-actions ui-comp-actions flex-wrap">
-              <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
-              <a
-                id="pack-create-product-link"
-                class="scan-scan-btn btn btn-tertiary"
-                href="{% url 'scan:scan_import' %}"
-              >
-                {% trans "Créer un nouveau produit" %}
-              </a>
-            </div>
-          </section>
-
-          {% if not editing_carton %}
-            <section id="pack-section-distribution" class="scan-pack-section">
-              <h3 class="ui-comp-subtitle">{% trans "Répartition" %}</h3>
-              <div class="scan-pack-distribution-grid">
-                <fieldset class="scan-field scan-pack-distribution-mode">
-                  <legend class="form-label">{% trans "Calcul des colis" %}</legend>
-                  <div class="scan-pack-mode-options" role="radiogroup" aria-label="{% trans "Calcul des colis" %}">
-                    <label class="scan-pack-mode-option">
-                      <input
-                        type="radio"
-                        name="carton_distribution_mode"
-                        value="auto"
-                        {% if carton_distribution_mode != "manual" %}checked{% endif %}
-                      >
-                      <span>{% trans "Auto" %}</span>
-                    </label>
-                    <label class="scan-pack-mode-option">
-                      <input
-                        type="radio"
-                        name="carton_distribution_mode"
-                        value="manual"
-                        {% if carton_distribution_mode == "manual" %}checked{% endif %}
-                      >
-                      <span>{% trans "Manuel" %}</span>
-                    </label>
-                  </div>
-                </fieldset>
-                <div class="scan-field scan-pack-forced-count-row" data-pack-manual-count>
-                  <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis" %}</label>
-                  <input type="number"
-                         name="forced_carton_count"
-                         id="id_forced_carton_count"
-                         class="form-control scan-pack-forced-count-input"
-                         min="1"
-                         step="1"
-                         value="{{ forced_carton_count|default:'' }}"
-                         placeholder="{% trans "Auto" %}">
+          <div id="pack-workbench" class="scan-pack-workbench" data-pack-workbench="1">
+            <section id="pack-quick-generator" class="scan-pack-workbench-panel scan-pack-generator ui-comp-panel">
+              <div class="scan-pack-workbench-header">
+                <div>
+                  <h3 class="ui-comp-title h5 mb-1">{% trans "Générateur rapide" %}</h3>
+                  <p class="scan-help ui-comp-note mb-0">{% trans "Scannez ou choisissez un produit, indiquez la Quantité totale et la Quantité par colis, puis ajoutez les colis au plan." %}</p>
+                </div>
+                <div class="scan-pack-generator-modes" role="group" aria-label="{% trans "Type de colis" %}">
+                  <button type="button" class="btn btn-tertiary btn-sm is-active" data-pack-generator-mode="mono">{% trans "Mono produit" %}</button>
+                  <button type="button" class="btn btn-tertiary btn-sm" data-pack-generator-mode="multi">{% trans "Multi produits" %}</button>
                 </div>
               </div>
+
+              <div class="scan-pack-generator-grid">
+                <div class="scan-field scan-pack-format-field">
+                  <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
+                  <div class="scan-inline">
+                    <select id="id_carton_format" name="carton_format_id" class="form-select ui-select--xl">
+                      {% for format in carton_formats %}
+                        {% with format_id=format.id|stringformat:"s" %}
+                          <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
+                            {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
+                          </option>
+                        {% endwith %}
+                      {% endfor %}
+                      <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
+                    </select>
+                    {% if not request.scan_is_preparateur %}
+                      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_carton_formats' %}" target="_blank" rel="noopener">
+                        {% trans "Ajouter format" %}
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="scan-field scan-pack-output-field">
+                  <label class="form-label" for="pack-default-output-mode">{% trans "Sortie par défaut" %}</label>
+                  <select id="pack-default-output-mode" class="form-select ui-select--md" data-pack-default-output>
+                    <option value="available">{% trans "Mettre disponible" %}</option>
+                    <option value="without_conditioning">{% trans "Créer sans conditionner" %}</option>
+                  </select>
+                </div>
+
+                <div class="scan-field scan-pack-assignment-field">
+                  <label class="form-label" for="id_preassigned_destination">{% trans "Destination par défaut" %}</label>
+                  <select id="{{ form.preassigned_destination.id_for_label }}" name="{{ form.preassigned_destination.html_name }}" class="form-select ui-select--md">
+                    <option value=""{% if not form.preassigned_destination.value %} selected{% endif %}>---------</option>
+                    {% for destination in form.preassigned_destination.field.queryset %}
+                      {% with destination_id=destination.id|stringformat:"s" %}
+                        <option value="{{ destination.id }}" {% if form.preassigned_destination.value|stringformat:"s" == destination_id %}selected{% endif %}>
+                          {{ destination }}
+                        </option>
+                      {% endwith %}
+                    {% endfor %}
+                  </select>
+                  {% for error in form.preassigned_destination.errors %}
+                    <div class="scan-message error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                {% if not request.scan_is_preparateur %}
+                  <div class="scan-field scan-pack-assignment-field">
+                    <label class="form-label" for="id_shipment_reference">{% trans "Expédition par défaut" %}</label>
+                    <select id="{{ form.shipment_reference.id_for_label }}" name="{{ form.shipment_reference.html_name }}" class="form-select ui-select--xl">
+                      <option value=""{% if not form.shipment_reference.value %} selected{% endif %}>---------</option>
+                      {% for shipment in form.shipment_reference.field.queryset %}
+                        <option
+                          value="{{ shipment.reference }}"
+                          {% if form.shipment_reference.value|stringformat:"s" == shipment.reference|stringformat:"s" %}selected{% endif %}
+                        >
+                          {{ shipment.reference }} - {{ shipment.destination.iata_code|default:"-" }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    {% for error in form.shipment_reference.errors %}
+                      <div class="scan-message error">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="scan-field scan-pack-assignment-field">
+                    <label class="form-label" for="id_current_location">{% trans "Emplacement par défaut" %}</label>
+                    <select id="{{ form.current_location.id_for_label }}" name="{{ form.current_location.html_name }}" class="form-select ui-select--md">
+                      <option value=""{% if not form.current_location.value %} selected{% endif %}>---------</option>
+                      {% for location in form.current_location.field.queryset %}
+                        {% with location_id=location.id|stringformat:"s" %}
+                          <option value="{{ location.id }}" {% if form.current_location.value|stringformat:"s" == location_id %}selected{% endif %}>
+                            {{ location }}
+                          </option>
+                        {% endwith %}
+                      {% endfor %}
+                    </select>
+                  </div>
+                {% else %}
+                  {% if form.shipment_reference.value|default:selected_order_summary.shipment_reference %}
+                    <input
+                      type="hidden"
+                      id="id_shipment_reference"
+                      name="{{ form.shipment_reference.html_name }}"
+                      value="{{ form.shipment_reference.value|default:selected_order_summary.shipment_reference }}"
+                    >
+                  {% endif %}
+                {% endif %}
+              </div>
+
+              {% include "scan/includes/pack_custom_format_fields.html" %}
+
+              <div class="pack-lines" id="pack-lines"></div>
+              <div class="scan-inline-actions ui-comp-actions flex-wrap">
+                <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+                <button type="button" class="scan-submit btn btn-primary" id="pack-generate-cartons">{% trans "Ajouter au plan" %}</button>
+                <a
+                  id="pack-create-product-link"
+                  class="scan-scan-btn btn btn-tertiary"
+                  href="{% url 'scan:scan_import' %}"
+                >
+                  {% trans "Créer un nouveau produit" %}
+                </a>
+              </div>
             </section>
-          {% endif %}
+
+            <section class="scan-pack-workbench-panel ui-comp-panel" aria-labelledby="pack-draft-title">
+              <div class="scan-pack-workbench-header">
+                <div>
+                  <h3 id="pack-draft-title" class="ui-comp-title h5 mb-1">{% trans "Plan des colis à créer" %}</h3>
+                  <p class="scan-help ui-comp-note mb-0">{% trans "Chaque ligne correspond à un colis réel. Les actions sélectionnées s'additionnent sans écraser les autres champs." %}</p>
+                </div>
+                <div class="scan-pack-plan-summary" id="pack-plan-summary" aria-live="polite">
+                  <span><strong data-pack-summary-cartons>0</strong> {% trans "colis" %}</span>
+                  <span><strong data-pack-summary-units>0</strong> {% trans "unités" %}</span>
+                </div>
+              </div>
+
+              <div id="pack-selection-toolbar" class="scan-pack-selection-toolbar" data-pack-selection-toolbar>
+                <div class="scan-pack-selection-count">
+                  <strong data-pack-selected-count>0</strong>
+                  <span>{% trans "sélectionné(s)" %}</span>
+                </div>
+                <div class="scan-pack-batch-actions">
+                  <select id="pack-batch-destination" class="form-select ui-select--md" data-pack-batch-field="preassigned_destination">
+                    <option value="">{% trans "Destination" %}</option>
+                    {% for destination in form.preassigned_destination.field.queryset %}
+                      <option value="{{ destination.id }}">{{ destination }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if not request.scan_is_preparateur %}
+                    <select id="pack-batch-shipment" class="form-select ui-select--lg" data-pack-batch-field="shipment_reference">
+                      <option value="">{% trans "Expédition" %}</option>
+                      {% for shipment in form.shipment_reference.field.queryset %}
+                        <option value="{{ shipment.reference }}">{{ shipment.reference }} - {{ shipment.destination.iata_code|default:"-" }}</option>
+                      {% endfor %}
+                    </select>
+                    <select id="pack-batch-location" class="form-select ui-select--md" data-pack-batch-field="current_location">
+                      <option value="">{% trans "Emplacement" %}</option>
+                      {% for location in form.current_location.field.queryset %}
+                        <option value="{{ location.id }}">{{ location }}</option>
+                      {% endfor %}
+                    </select>
+                  {% endif %}
+                  <select id="pack-batch-output" class="form-select ui-select--md" data-pack-batch-field="output_mode">
+                    <option value="">{% trans "Sortie" %}</option>
+                    <option value="available">{% trans "Mettre disponible" %}</option>
+                    <option value="without_conditioning">{% trans "Créer sans conditionner" %}</option>
+                  </select>
+                  <select id="pack-batch-format" class="form-select ui-select--md" data-pack-batch-field="carton_format_id">
+                    <option value="">{% trans "Format" %}</option>
+                    {% for format in carton_formats %}
+                      <option value="{{ format.id }}">{{ format.name }}</option>
+                    {% endfor %}
+                    <option value="custom">{% trans "Personnalisé" %}</option>
+                  </select>
+                  <button type="button" class="btn btn-tertiary btn-sm" id="pack-batch-duplicate">{% trans "Dupliquer" %}</button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" id="pack-batch-delete">{% trans "Retirer" %}</button>
+                </div>
+              </div>
+
+              <div class="scan-table-wrap scan-pack-plan-table-wrap">
+                <table id="pack-draft-plan" class="table scan-table scan-pack-plan-table" data-pack-draft-plan>
+                  <thead>
+                    <tr>
+                      <th scope="col"><input type="checkbox" id="pack-select-all" aria-label="{% trans "Tout sélectionner" %}"></th>
+                      <th scope="col">{% trans "Colis" %}</th>
+                      <th scope="col">{% trans "Contenu" %}</th>
+                      <th scope="col">{% trans "Qté" %}</th>
+                      <th scope="col">{% trans "Affectation" %}</th>
+                      <th scope="col">{% trans "Sortie" %}</th>
+                      <th scope="col">{% trans "Actions" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pack-draft-plan-body">
+                    <tr class="scan-pack-empty-row">
+                      <td colspan="7">{% trans "Aucun colis dans le plan." %}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="pack-row-editor" class="scan-pack-workbench-panel ui-comp-panel" aria-labelledby="pack-row-editor-title">
+              <div class="scan-pack-workbench-header">
+                <div>
+                  <h3 id="pack-row-editor-title" class="ui-comp-title h5 mb-1">{% trans "Aperçu" %}</h3>
+                  <p class="scan-help ui-comp-note mb-0">{% trans "Sélectionnez un colis pour modifier son contenu, son affectation, sa sortie ou le dupliquer en plusieurs colis identiques." %}</p>
+                </div>
+              </div>
+              <div class="scan-pack-preview-grid">
+                <div>
+                  <div class="ui-comp-note">{% trans "Colis sélectionné" %}</div>
+                  <div id="pack-preview-title" class="scan-pack-preview-value">-</div>
+                </div>
+                <div>
+                  <div class="ui-comp-note">{% trans "Contenu" %}</div>
+                  <div id="pack-preview-content" class="scan-pack-preview-value">-</div>
+                </div>
+                <div>
+                  <div class="ui-comp-note">{% trans "Affectation" %}</div>
+                  <div id="pack-preview-assignment" class="scan-pack-preview-value">-</div>
+                </div>
+                <div>
+                  <div class="ui-comp-note">{% trans "Sortie" %}</div>
+                  <div id="pack-preview-output" class="scan-pack-preview-value">-</div>
+                </div>
+              </div>
+              <div class="scan-inline-actions ui-comp-actions flex-wrap mt-3">
+                <button type="button" class="btn btn-tertiary btn-sm" id="pack-row-duplicate">{% trans "Dupliquer" %}</button>
+                <label class="scan-pack-duplicate-target" for="pack-duplicate-target-count">
+                  <span>{% trans "Total souhaité" %}</span>
+                  <input type="number" id="pack-duplicate-target-count" class="form-control" min="2" step="1" value="2">
+                </label>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="pack-row-delete">{% trans "Retirer" %}</button>
+              </div>
+            </section>
+
+            <section class="scan-pack-workbench-panel ui-comp-panel">
+              <div class="scan-field scan-pack-defaults-field mb-3">
+                <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
+                  <input
+                    id="id_confirm_defaults"
+                    {% if confirm_defaults %}checked="checked"{% endif %}
+                    class="form-check-input"
+                    name="confirm_defaults"
+                    role="switch"
+                    type="checkbox"
+                    value="1"
+                  >
+                  <label class="form-check-label scan-switch-label" for="id_confirm_defaults">
+                    <span class="scan-switch-copy">
+                      <span id="id_confirm_defaults-label" class="scan-switch-title">{% trans "Autoriser l'ajout avec valeurs standard pour les produits sans dimensions/poids." %}</span>
+                    </span>
+                    <span class="scan-switch-control" aria-hidden="true">
+                      <span class="scan-switch-track">
+                        <span class="scan-switch-handle"></span>
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {% if missing_defaults %}
+                {% blocktrans with products=missing_defaults|join:", " trimmed asvar missing_defaults_body %}
+                  Attention : les produits suivants n'ont pas de dimensions ni de poids enregistrés : {{ products }}. Si vous validez ces ajouts, des valeurs par défaut seront appliquées (1cm x 1cm x 1cm et 5g).
+                {% endblocktrans %}
+                {% ui_alert tone="warning" body=missing_defaults_body %}
+              {% endif %}
+
+              <div class="scan-filter-actions scan-pack-validation-actions d-flex flex-wrap gap-2 align-items-center ui-comp-actions">
+                <button type="button" class="scan-submit btn btn-outline-secondary" id="pack-open-final-confirmation">
+                  {% trans "Vérifier le récapitulatif" %}
+                </button>
+                <button type="submit" name="confirm_carton_plan" value="1" class="scan-submit btn btn-success" id="pack-direct-final-submit">
+                  {% trans "Créer les colis" %}
+                </button>
+              </div>
+            </section>
+          </div>
+
           <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
-          {% include "scan/includes/pack_shipping_section.html" %}
+          <div id="pack-final-confirmation" class="modal fade" tabindex="-1" aria-labelledby="pack-final-confirmation-title" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h3 class="modal-title h5" id="pack-final-confirmation-title">{% trans "Récapitulatif avant création" %}</h3>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans "Fermer" %}"></button>
+                </div>
+                <div class="modal-body">
+                  <div id="pack-final-summary" class="scan-pack-final-summary">
+                    <p class="scan-help ui-comp-note mb-0">{% trans "Le plan sera recalculé juste avant validation." %}</p>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-tertiary" data-bs-dismiss="modal">{% trans "Retour" %}</button>
+                  <button type="submit" name="confirm_carton_plan" value="1" class="scan-submit btn btn-success" id="pack-final-submit">
+                    {% trans "Confirmer et créer" %}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           {% if request.scan_is_preparateur %}
             {% include "scan/includes/pack_unknown_product_modal.html" %}
           {% endif %}
