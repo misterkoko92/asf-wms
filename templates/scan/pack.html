@@ -237,6 +237,82 @@
         <form method="post" novalidate class="ui-comp-form" id="pack-workbench-form">
           {% csrf_token %}
 
+          {% if request.scan_is_preparateur %}
+            <section id="pack-section-content" class="scan-pack-section">
+              <h3 class="ui-comp-subtitle">{% trans "Contenu" %}</h3>
+              <div class="scan-field">
+                <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
+                <div class="scan-inline">
+                  <select id="id_carton_format" name="carton_format_id" class="form-select ui-select--xl">
+                    {% for format in carton_formats %}
+                      {% with format_id=format.id|stringformat:"s" %}
+                        <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
+                          {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
+                        </option>
+                      {% endwith %}
+                    {% endfor %}
+                    <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
+                  </select>
+                </div>
+              </div>
+
+              {% include "scan/includes/pack_custom_format_fields.html" %}
+
+              <div class="pack-lines" id="pack-lines"></div>
+              <div class="scan-inline-actions ui-comp-actions flex-wrap">
+                <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+                <a
+                  id="pack-create-product-link"
+                  class="scan-scan-btn btn btn-tertiary"
+                  href="{% url 'scan:scan_import' %}"
+                >
+                  {% trans "Créer un nouveau produit" %}
+                </a>
+              </div>
+            </section>
+
+            <section id="pack-section-distribution" class="scan-pack-section">
+              <h3 class="ui-comp-subtitle">{% trans "Répartition" %}</h3>
+              <div class="scan-pack-distribution-grid">
+                <fieldset class="scan-field scan-pack-distribution-mode">
+                  <legend class="form-label">{% trans "Calcul des colis" %}</legend>
+                  <div class="scan-pack-mode-options" role="radiogroup" aria-label="{% trans "Calcul des colis" %}">
+                    <label class="scan-pack-mode-option">
+                      <input
+                        type="radio"
+                        name="carton_distribution_mode"
+                        value="auto"
+                        {% if carton_distribution_mode != "manual" %}checked{% endif %}
+                      >
+                      <span>{% trans "Auto" %}</span>
+                    </label>
+                    <label class="scan-pack-mode-option">
+                      <input
+                        type="radio"
+                        name="carton_distribution_mode"
+                        value="manual"
+                        {% if carton_distribution_mode == "manual" %}checked{% endif %}
+                      >
+                      <span>{% trans "Manuel" %}</span>
+                    </label>
+                  </div>
+                </fieldset>
+                <div class="scan-field scan-pack-forced-count-row" data-pack-manual-count>
+                  <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis" %}</label>
+                  <input type="number"
+                         name="forced_carton_count"
+                         id="id_forced_carton_count"
+                         class="form-control scan-pack-forced-count-input"
+                         min="1"
+                         step="1"
+                         value="{{ forced_carton_count|default:'' }}"
+                         placeholder="{% trans "Auto" %}">
+                </div>
+              </div>
+            </section>
+            <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
+            {% include "scan/includes/pack_shipping_section.html" %}
+          {% else %}
           <input type="hidden" name="carton_plan_mode" value="exact">
           <input type="hidden" id="pack-plan-count" name="carton_plan_count" value="0">
           <div id="pack-plan-hidden-fields"></div>
@@ -538,6 +614,7 @@
               </div>
             </div>
           </div>
+          {% endif %}
           {% if request.scan_is_preparateur %}
             {% include "scan/includes/pack_unknown_product_modal.html" %}
           {% endif %}

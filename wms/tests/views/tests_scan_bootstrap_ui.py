@@ -1295,6 +1295,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="pack-plan-hidden-fields"')
         self.assertContains(response, 'name="carton_plan_mode" value="exact"')
 
+    def test_scan_pack_workbench_js_exposes_draft_plan_contract(self):
+        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        scan_js_content = scan_js_path.read_text(encoding="utf-8")
+
+        self.assertIn("const packDraftCartons = [];", scan_js_content)
+        self.assertIn("function generatePackDraftCartonsFromQuickGenerator()", scan_js_content)
+        self.assertIn("function duplicatePackDraftCartonToTargetCount", scan_js_content)
+        self.assertIn("function applyPackBatchUpdateToSelectedCartons", scan_js_content)
+        self.assertIn("function serializePackExactPlanHiddenFields()", scan_js_content)
+        self.assertIn("function renderPackFinalConfirmationSummary()", scan_js_content)
+        self.assertIn("name = `carton_${cartonIndex}_line_${lineIndex}_quantity`", scan_js_content)
+        self.assertIn("name = `carton_${cartonIndex}_shipment_reference`", scan_js_content)
+        self.assertIn("name = `carton_${cartonIndex}_output_mode`", scan_js_content)
+
     def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
         response = self.client.get(reverse("scan:scan_pack"))
         self.assertEqual(response.status_code, 200)
