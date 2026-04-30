@@ -215,6 +215,7 @@ class PackHandlersTests(TestCase):
                 {
                     "product_code": "",
                     "quantity": "",
+                    "per_carton_quantity": "",
                     "expires_on": "",
                     "pack_family_override": "",
                 }
@@ -240,6 +241,7 @@ class PackHandlersTests(TestCase):
                 {
                     "product_code": "",
                     "quantity": "",
+                    "per_carton_quantity": "",
                     "expires_on": "",
                     "pack_family_override": "",
                 }
@@ -303,249 +305,95 @@ class PackHandlersTests(TestCase):
         self.assertIn("Nombre de colis forcé: 1 au lieu de 2.", warning_messages)
         success_mock.assert_called_once_with(request, "1 carton(s) préparé(s).")
 
-    def test_handle_pack_post_free_batch_creates_identical_available_cartons(self):
-        stock_location, ready_mm, _ready_cn = self._create_locations()
-        category_mm = ProductCategory.objects.create(name="MM")
-        product = Product.objects.create(
-            sku="SYRINGE",
-            name="Seringues",
-            category=category_mm,
-            weight_g=10,
-            length_cm=Decimal("1"),
-            width_cm=Decimal("1"),
-            height_cm=Decimal("1"),
-            default_location=stock_location,
-        )
-        lot = ProductLot.objects.create(
-            product=product,
-            lot_code="LOT-SYRINGE",
-            status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=4000,
-            location=stock_location,
-        )
-        request = self._db_request(
+    def test_handle_pack_post_auto_distribution_ignores_stale_forced_carton_count(self):
+        request = self._request(
             {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "32",
-                "confirm_free_carton_batch": "1",
+                "carton_distribution_mode": "auto",
                 "line_count": "1",
-                "line_1_product_code": product.sku,
-                "line_1_quantity": "100",
+                "line_1_product_code": "SKU-1",
+                "line_1_quantity": "5",
+                "forced_carton_count": "1",
                 "confirm_defaults": "1",
             }
         )
+        product = SimpleNamespace(id=5, name="Produit 1")
+        created_carton = SimpleNamespace(id=77)
         form = self._form(valid=True, shipment_reference="")
-
+        auto_bins = [
+            {"items": {product.id: {"product": product, "quantity": 3}}},
+            {"items": {product.id: {"product": product, "quantity": 2}}},
+        ]
         with mock.patch(
             "wms.pack_handlers.resolve_carton_size",
             return_value=(self._carton_size(), []),
         ):
-            with mock.patch("wms.pack_handlers.messages.warning") as warning_mock:
-                with mock.patch("wms.pack_handlers.messages.success") as success_mock:
-                    response, state = handle_pack_post(
-                        request,
-                        form=form,
-                        default_format=None,
-                    )
+            with mock.patch("wms.pack_handlers.resolve_product", return_value=product):
+                with mock.patch("wms.pack_handlers.get_product_weight_g", return_value=20):
+                    with mock.patch("wms.pack_handlers.get_product_volume_cm3", return_value=30):
+                        with mock.patch(
+                            "wms.pack_handlers.build_packing_bins",
+                            return_value=(auto_bins, [], []),
+                        ):
+                            with mock.patch(
+                                "wms.pack_handlers.pack_carton",
+                                return_value=created_carton,
+                            ) as pack_carton_mock:
+                                with mock.patch(
+                                    "wms.pack_handlers.messages.warning"
+                                ) as warning_mock:
+                                    with mock.patch("wms.pack_handlers.messages.success"):
+                                        response, state = handle_pack_post(
+                                            request,
+                                            form=form,
+                                            default_format=None,
+                                        )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(state["line_errors"], {})
-        cartons = list(Carton.objects.order_by("id"))
-        self.assertEqual(len(cartons), 32)
-        self.assertTrue(all(carton.status == CartonStatus.PACKED for carton in cartons))
-        self.assertTrue(all(carton.shipment_id is None for carton in cartons))
-        self.assertTrue(all(carton.preassigned_destination_id is None for carton in cartons))
-        self.assertTrue(all(carton.current_location_id == ready_mm.id for carton in cartons))
-        self.assertTrue(all(carton.cartonitem_set.get().quantity == 100 for carton in cartons))
-        lot.refresh_from_db()
-        self.assertEqual(lot.quantity_on_hand, 800)
-        self.assertEqual(request.session["pack_results"], [carton.id for carton in cartons])
-        warning_mock.assert_not_called()
-        success_mock.assert_called_once_with(request, "32 carton(s) libres préparé(s).")
+        self.assertIsNone(state["forced_carton_count"])
+        self.assertEqual(pack_carton_mock.call_count, 2)
+        warning_messages = [call.args[1] for call in warning_mock.call_args_list]
+        self.assertNotIn("Nombre de colis forcé: 1 au lieu de 2.", warning_messages)
 
-    def test_handle_pack_post_free_batch_requires_confirmation(self):
-        category_mm = ProductCategory.objects.create(name="MM")
-        product = self._create_stock_product(
-            sku="BATCH-NO-CONFIRM",
-            name="Produit Batch No Confirm",
-            category=category_mm,
-            quantity_on_hand=50,
-        )
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "3",
-                "line_count": "1",
-                "line_1_product_code": product.sku,
-                "line_1_quantity": "2",
-                "confirm_defaults": "1",
-            }
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            with mock.patch("wms.pack_handlers.messages.success"):
-                response, state = handle_pack_post(request, form=form, default_format=None)
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertIn((None, "Confirmez la création du batch de colis libres."), form.errors)
-        self.assertEqual(state["free_batch_carton_count"], 3)
-
-    def test_handle_pack_post_free_batch_requires_carton_count(self):
-        category_mm = ProductCategory.objects.create(name="MM")
-        product = self._create_stock_product(
-            sku="BATCH-NO-COUNT",
-            name="Produit Batch No Count",
-            category=category_mm,
-            quantity_on_hand=50,
-        )
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "confirm_free_carton_batch": "1",
-                "line_count": "1",
-                "line_1_product_code": product.sku,
-                "line_1_quantity": "2",
-                "confirm_defaults": "1",
-            }
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            response, state = handle_pack_post(request, form=form, default_format=None)
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertIn((None, "Nombre de colis batch invalide."), form.errors)
-        self.assertIsNone(state["free_batch_carton_count"])
-
-    def test_handle_pack_post_free_batch_rejects_destination_or_shipment(self):
-        category_mm = ProductCategory.objects.create(name="MM")
-        product = self._create_stock_product(
-            sku="BATCH-SCOPE",
-            name="Produit Batch Scope",
-            category=category_mm,
-            quantity_on_hand=50,
-        )
-        shipment = Shipment.objects.create(
-            status="draft",
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            destination_address="1 rue test",
-            destination_country="France",
-        )
-        destination = self._create_destination(code="BZV")
-        base_payload = {
-            "action": "prepare_available_batch",
-            "free_batch_carton_count": "2",
-            "confirm_free_carton_batch": "1",
-            "line_count": "1",
-            "line_1_product_code": product.sku,
-            "line_1_quantity": "2",
-            "confirm_defaults": "1",
-        }
-
-        forms = (
-            self._form(valid=True, shipment_reference=shipment),
-            self._form(valid=True, shipment_reference="", preassigned_destination=destination),
-        )
-        for form in forms:
-            request = self._db_request(base_payload)
-            with mock.patch(
-                "wms.pack_handlers.resolve_carton_size",
-                return_value=(self._carton_size(), []),
-            ):
-                with mock.patch("wms.pack_handlers.messages.success"):
-                    response, state = handle_pack_post(request, form=form, default_format=None)
-            self.assertIsNone(response)
-            self.assertEqual(state["line_errors"], {})
-            self.assertTrue(
-                any("sans destination ni expédition" in error for _field, error in form.errors)
-            )
-
-        self.assertEqual(Carton.objects.count(), 0)
-
-    def test_handle_pack_post_free_batch_rolls_back_when_stock_is_insufficient(self):
-        category_mm = ProductCategory.objects.create(name="MM")
-        product = self._create_stock_product(
-            sku="BATCH-STOCK",
-            name="Produit Batch Stock",
-            category=category_mm,
-            quantity_on_hand=5,
-        )
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "3",
-                "confirm_free_carton_batch": "1",
-                "line_count": "1",
-                "line_1_product_code": product.sku,
-                "line_1_quantity": "2",
-                "confirm_defaults": "1",
-            }
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            with mock.patch("wms.pack_handlers.messages.success"):
-                response, _state = handle_pack_post(request, form=form, default_format=None)
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertEqual(ProductLot.objects.get(product=product).quantity_on_hand, 5)
-        self.assertTrue(any("Stock" in error for _field, error in form.errors))
-
-    def test_handle_pack_post_free_batch_rejects_carton_type_that_does_not_fit_once(self):
-        category_mm = ProductCategory.objects.create(name="MM")
-        product = self._create_stock_product(
-            sku="BATCH-SPLIT",
-            name="Produit Batch Split",
-            category=category_mm,
-            quantity_on_hand=20,
-            weight_g=5000,
-            length_cm=Decimal("10"),
-            width_cm=Decimal("10"),
-            height_cm=Decimal("10"),
-        )
+    def test_handle_pack_post_rejects_deprecated_free_batch_action(self):
         request = self._db_request(
             {
                 "action": "prepare_available_batch",
                 "free_batch_carton_count": "2",
                 "confirm_free_carton_batch": "1",
                 "line_count": "1",
-                "line_1_product_code": product.sku,
-                "line_1_quantity": "2",
+                "line_1_product_code": "SKU-1",
+                "line_1_quantity": "5",
                 "confirm_defaults": "1",
             }
         )
+        product = self._create_stock_product(
+            sku="SKU-1",
+            name="Produit 1",
+            category=ProductCategory.objects.create(name="MM"),
+            quantity_on_hand=20,
+        )
         form = self._form(valid=True, shipment_reference="")
-        small_carton = {
-            "length_cm": Decimal("40"),
-            "width_cm": Decimal("30"),
-            "height_cm": Decimal("30"),
-            "max_weight_g": 8000,
-        }
 
         with mock.patch(
             "wms.pack_handlers.resolve_carton_size",
-            return_value=(small_carton, []),
+            return_value=(self._carton_size(), []),
         ):
-            with mock.patch("wms.pack_handlers.messages.success"):
-                response, _state = handle_pack_post(request, form=form, default_format=None)
+            with mock.patch("wms.pack_handlers.resolve_product", return_value=product):
+                response, _state = handle_pack_post(
+                    request,
+                    form=form,
+                    default_format=None,
+                )
 
         self.assertIsNone(response)
         self.assertEqual(Carton.objects.count(), 0)
-        self.assertIn((None, "Le colis type doit tenir dans un seul colis."), form.errors)
+        self.assertIn(
+            (
+                None,
+                "Le mode batch colis libres a été remplacé par le nombre de colis manuel.",
+            ),
+            form.errors,
+        )
 
     def test_handle_pack_post_validates_shipment_carton_and_line_fields(self):
         request = self._request(
@@ -1214,217 +1062,6 @@ class PackHandlersTests(TestCase):
                 action=CartonVolunteerActivityAction.PREPARED,
                 actor=self.staff_user,
             ).exists()
-        )
-
-    def test_handle_pack_post_preparateur_free_batch_uses_active_volunteer(self):
-        category_mm = ProductCategory.objects.create(name="MM")
-        product_mm = self._create_stock_product(
-            sku="SKU-MM-FREE-BATCH-VOL",
-            name="Produit MM Free Batch Volunteer",
-            category=category_mm,
-            quantity_on_hand=20,
-        )
-        volunteer = self._create_active_volunteer(username="pack-volunteer-free-batch")
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "3",
-                "confirm_free_carton_batch": "1",
-                "line_count": "1",
-                "line_1_product_code": product_mm.sku,
-                "line_1_quantity": "2",
-                "confirm_defaults": "1",
-            },
-            preparateur=True,
-            active_volunteer=volunteer,
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            with mock.patch("wms.pack_handlers.messages.warning"):
-                with mock.patch("wms.pack_handlers.messages.success"):
-                    response, state = handle_pack_post(
-                        request,
-                        form=form,
-                        default_format=None,
-                    )
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(state["line_errors"], {})
-        cartons = list(Carton.objects.order_by("id"))
-        self.assertEqual(len(cartons), 3)
-        self.assertTrue(all(carton.prepared_by == volunteer.user for carton in cartons))
-        self.assertEqual(
-            CartonVolunteerActivity.objects.filter(
-                volunteer=volunteer,
-                action=CartonVolunteerActivityAction.PREPARED,
-                actor=self.staff_user,
-            ).count(),
-            3,
-        )
-
-    def test_handle_pack_post_preparateur_free_batch_requires_active_volunteer(self):
-        category_mm = ProductCategory.objects.create(name="MM")
-        product_mm = self._create_stock_product(
-            sku="SKU-MM-FREE-BATCH-NO-VOL",
-            name="Produit MM Free Batch No Volunteer",
-            category=category_mm,
-            quantity_on_hand=20,
-        )
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "2",
-                "confirm_free_carton_batch": "1",
-                "line_count": "1",
-                "line_1_product_code": product_mm.sku,
-                "line_1_quantity": "2",
-                "confirm_defaults": "1",
-            },
-            preparateur=True,
-        )
-        request.scan_active_volunteer = None
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            response, state = handle_pack_post(
-                request,
-                form=form,
-                default_format=None,
-            )
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertEqual(state["line_errors"], {})
-        self.assertIn(
-            (None, "Choisissez un bénévole depuis l'accueil préparateur."),
-            form.errors,
-        )
-
-    def test_handle_pack_post_preparateur_free_batch_requires_manual_family_override(self):
-        product = self._create_stock_product(
-            sku="SKU-FREE-BATCH-NO-FAMILY",
-            name="Produit Free Batch No Family",
-            category=None,
-            quantity_on_hand=20,
-        )
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "2",
-                "confirm_free_carton_batch": "1",
-                "line_count": "1",
-                "line_1_product_code": product.sku,
-                "line_1_quantity": "2",
-                "confirm_defaults": "1",
-            },
-            preparateur=True,
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            response, state = handle_pack_post(
-                request,
-                form=form,
-                default_format=None,
-            )
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertEqual(
-            state["line_errors"],
-            {"1": ["Choisissez manuellement MM ou CN pour ce produit."]},
-        )
-        self.assertIn(
-            (
-                None,
-                "Choisissez manuellement MM ou CN pour les produits sans categorie racine MM/CN.",
-            ),
-            form.errors,
-        )
-
-    def test_handle_pack_post_preparateur_free_batch_rejects_mixed_mm_cn_families(self):
-        stock_location, _ready_mm, _ready_cn = self._create_locations()
-        category_mm = ProductCategory.objects.create(name="MM")
-        category_cn = ProductCategory.objects.create(name="CN")
-        product_mm = Product.objects.create(
-            sku="SKU-MM-FREE-BATCH-MIX",
-            name="Produit MM Free Batch Mix",
-            category=category_mm,
-            weight_g=100,
-            length_cm=Decimal("10"),
-            width_cm=Decimal("10"),
-            height_cm=Decimal("10"),
-            default_location=stock_location,
-        )
-        product_cn = Product.objects.create(
-            sku="SKU-CN-FREE-BATCH-MIX",
-            name="Produit CN Free Batch Mix",
-            category=category_cn,
-            weight_g=100,
-            length_cm=Decimal("10"),
-            width_cm=Decimal("10"),
-            height_cm=Decimal("10"),
-            default_location=stock_location,
-        )
-        ProductLot.objects.create(
-            product=product_mm,
-            lot_code="LOT-MM-FREE-BATCH-MIX",
-            status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=20,
-            location=stock_location,
-        )
-        ProductLot.objects.create(
-            product=product_cn,
-            lot_code="LOT-CN-FREE-BATCH-MIX",
-            status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=20,
-            location=stock_location,
-        )
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "2",
-                "confirm_free_carton_batch": "1",
-                "line_count": "2",
-                "line_1_product_code": product_mm.sku,
-                "line_1_quantity": "1",
-                "line_2_product_code": product_cn.sku,
-                "line_2_quantity": "1",
-                "confirm_defaults": "1",
-            },
-            preparateur=True,
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            response, state = handle_pack_post(
-                request,
-                form=form,
-                default_format=None,
-            )
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertEqual(state["line_errors"], {})
-        self.assertIn(
-            (
-                None,
-                "Le batch colis libres doit contenir une seule famille MM ou CN.",
-            ),
-            form.errors,
         )
 
     def test_handle_pack_post_preparateur_carton_edit_logs_edited_activity(self):

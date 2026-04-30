@@ -1638,17 +1638,25 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'data-scan-target="id_shipment_reference"')
 
-    def test_scan_pack_shows_dual_prepare_buttons_and_hides_location_admin_action(self):
+    def test_scan_pack_uses_guided_creation_sections_and_hides_location_admin_action(self):
         response = self.client.get(reverse("scan:scan_pack"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-pack-add-line-btn")
+        self.assertContains(response, 'id="pack-section-content"')
+        self.assertContains(response, 'id="pack-section-distribution"')
+        self.assertContains(response, 'id="pack-section-output"')
+        self.assertContains(response, 'id="pack-section-assignment"')
+        self.assertContains(response, 'id="pack-section-review"')
         self.assertContains(response, 'id="id_forced_carton_count"')
-        self.assertContains(response, 'id="id_free_batch_carton_count"')
-        self.assertContains(response, 'name="confirm_free_carton_batch"')
-        self.assertContains(response, 'value="prepare_available_batch"')
-        self.assertContains(response, 'data-free-carton-batch-submit="1"')
-        self.assertContains(response, 'id="free-carton-batch-confirmation-overlay"')
+        self.assertContains(response, 'name="carton_distribution_mode"')
+        self.assertContains(response, 'value="auto"')
+        self.assertContains(response, 'value="manual"')
+        self.assertNotContains(response, 'id="id_free_batch_carton_count"')
+        self.assertNotContains(response, 'name="confirm_free_carton_batch"')
+        self.assertNotContains(response, 'value="prepare_available_batch"')
+        self.assertNotContains(response, 'data-free-carton-batch-submit="1"')
+        self.assertNotContains(response, 'id="free-carton-batch-confirmation-overlay"')
         self.assertContains(response, "Nombre de colis")
         self.assertContains(response, 'value="prepare_without_conditioning"')
         self.assertContains(response, 'value="prepare_available"')
@@ -1661,7 +1669,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "ui-comp-actions")
         self.assertNotContains(response, "Ajouter emplacement")
 
-    def test_scan_pack_free_batch_requires_confirmation_from_view(self):
+    def test_scan_pack_rejects_deprecated_free_batch_action_from_view(self):
         lot = self._get_test_product_lot()
         CartonFormat.objects.create(
             name="Batch test",
@@ -1686,8 +1694,11 @@ class ScanShipmentsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Carton.objects.count(), 0)
-        self.assertContains(response, "Confirmez la création du batch de colis libres.")
-        self.assertContains(response, 'value="2"')
+        self.assertContains(
+            response,
+            "Le mode batch colis libres a été remplacé par le nombre de colis manuel.",
+        )
+        self.assertNotContains(response, 'id="id_free_batch_carton_count"')
 
     def test_scan_pack_uses_shared_action_wrapper_for_generated_result_links(self):
         session = self.client.session

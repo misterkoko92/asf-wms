@@ -1,5 +1,9 @@
 # Free Carton Batch Preparation Design
 
+> Superseded on 2026-04-30 by `2026-04-30-pack-creation-guided-flow.md`.
+> The accepted direction keeps one pack creation flow and uses the existing manual
+> carton count instead of a dedicated free-carton batch action.
+
 ## Goal
 
 Allow operators and preparateur volunteers to produce many identical free cartons in one

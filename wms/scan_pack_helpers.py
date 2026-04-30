@@ -23,6 +23,9 @@ def build_pack_line_values(line_count, data=None):
             {
                 "product_code": (data.get(prefix + "product_code") if data else "") or "",
                 "quantity": (data.get(prefix + "quantity") if data else "") or "",
+                "per_carton_quantity": (
+                    (data.get(prefix + "per_carton_quantity") if data else "") or ""
+                ),
                 "expires_on": (data.get(prefix + "expires_on") if data else "") or "",
                 "pack_family_override": (
                     (data.get(prefix + "pack_family_override") if data else "") or ""
@@ -116,35 +119,6 @@ def build_forced_carton_warnings(*, bins, carton_size, carton_format_label):
                 f"Colis forcé {index} dépasse le poids max du format {carton_format_label}."
             )
     return warnings
-
-
-def build_identical_carton_batch_bins(line_items, carton_size, carton_count, *, apply_defaults):
-    bins, errors, warnings = build_packing_bins(
-        line_items,
-        carton_size,
-        apply_defaults=apply_defaults,
-    )
-    if errors:
-        return None, errors, warnings
-    if len(bins or []) != 1:
-        return None, ["Le colis type doit tenir dans un seul colis."], warnings
-
-    source_items = bins[0]["items"]
-    batch_bins = []
-    for _index in range(carton_count):
-        batch_bins.append(
-            {
-                "items": {
-                    product_id: {
-                        "product": entry["product"],
-                        "quantity": entry["quantity"],
-                        "expires_on": entry.get("expires_on"),
-                    }
-                    for product_id, entry in source_items.items()
-                }
-            }
-        )
-    return batch_bins, [], warnings
 
 
 def build_packing_bins(

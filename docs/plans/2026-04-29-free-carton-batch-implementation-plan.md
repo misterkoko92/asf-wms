@@ -1,5 +1,9 @@
 # Free Carton Batch Preparation Implementation Plan
 
+> Superseded on 2026-04-30 by `2026-04-30-pack-creation-guided-flow.md`.
+> Do not implement this plan as written: the dedicated `prepare_available_batch`
+> path was replaced by a guided pack page using the existing manual carton count.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a safe `Batch colis libres` mode that creates N identical available cartons without destination or shipment, then lets staff assign them later from `Vue Colis`.

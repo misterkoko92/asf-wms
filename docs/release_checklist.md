@@ -72,7 +72,7 @@ Notes:
 - [ ] Always-on smoke: validate shipment create sequencing (destination -> expéditeur -> destinataire/correspondant -> détails).
 - [ ] Always-on smoke: validate document-first shipment creation in `Préparer sans colis` mode so destination + 3 contacts + planned count creates a shipment with a final reference and no attached cartons.
 - [ ] Always-on smoke: validate `/scan/shipment/batch/` creates multiple independent prepared shipments and summary print links open paper/preparatory-label bundles.
-- [ ] Always-on smoke: create a free carton batch from `/scan/pack/`, verify N independent `Disponible` cartons with no shipment/destination, then assign a subset from `Vue Colis`.
+- [ ] Always-on smoke: create cartons from `/scan/pack/` with auto calculation, then with manual `Nombre de colis` / `Qté par colis`; verify unassigned `Disponible` cartons can still be assigned from `Vue Colis`.
 - [ ] Always-on smoke: if carton batch scope changed, validate Vue Colis batch assignment plus grouped picking / packing-list outputs.
 - [ ] Always-on smoke: validate one shipment tracking or close action on an existing shipment.
 - [ ] Conditional smoke: if QR shipment tracking access changed, validate an anonymous QR tracking open, identifier entry, login-required redirect, lost-code email, pending-account creation, and one authenticated correspondent/recipient proof scan.

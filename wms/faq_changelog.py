@@ -5,8 +5,8 @@ SCAN_FAQ_CHANGE_LOG_ENTRIES = [
         "date": date(2026, 4, 29),
         "pr_number": None,
         "summary": (
-            "Batch colis libres pour préparer plusieurs cartons identiques sans "
-            "destination ni expédition, puis les affecter plus tard depuis Vue Colis."
+            "Page Préparer des colis réorganisée en flux guidé avec répartition "
+            "auto/manuelle, quantité par colis et affectation optionnelle."
         ),
     },
     {

@@ -237,103 +237,90 @@
         <form method="post" novalidate class="ui-comp-form">
           {% csrf_token %}
 
-          <div class="scan-field">
-            <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
-            <div class="scan-inline">
-              <select id="id_carton_format" name="carton_format_id" class="form-select ui-select--xl">
-                {% for format in carton_formats %}
-                  {% with format_id=format.id|stringformat:"s" %}
-                    <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
-                      {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
-                    </option>
-                  {% endwith %}
-                {% endfor %}
-                <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
-              </select>
-              {% if not request.scan_is_preparateur %}
-                <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_carton_formats' %}" target="_blank" rel="noopener">
-                  {% trans "Ajouter format" %}
-                </a>
-              {% endif %}
+          <section id="pack-section-content" class="scan-pack-section">
+            <h3 class="ui-comp-subtitle">{% trans "Contenu" %}</h3>
+            <div class="scan-field">
+              <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
+              <div class="scan-inline">
+                <select id="id_carton_format" name="carton_format_id" class="form-select ui-select--xl">
+                  {% for format in carton_formats %}
+                    {% with format_id=format.id|stringformat:"s" %}
+                      <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
+                        {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
+                      </option>
+                    {% endwith %}
+                  {% endfor %}
+                  <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
+                </select>
+                {% if not request.scan_is_preparateur %}
+                  <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_carton_formats' %}" target="_blank" rel="noopener">
+                    {% trans "Ajouter format" %}
+                  </a>
+                {% endif %}
+              </div>
             </div>
-          </div>
 
-          {% include "scan/includes/pack_custom_format_fields.html" %}
+            {% include "scan/includes/pack_custom_format_fields.html" %}
 
-          <div class="pack-lines" id="pack-lines"></div>
-          <div class="scan-field scan-pack-forced-count-row">
-            <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis" %}</label>
-            <input type="number"
-                   name="forced_carton_count"
-                   id="id_forced_carton_count"
-                   class="form-control scan-pack-forced-count-input"
-                   min="1"
-                   step="1"
-                   value="{{ forced_carton_count|default:'' }}"
-                   placeholder="{% trans "Auto" %}">
-            <p class="scan-help ui-comp-note mb-0">{% trans "Laisser vide pour conserver le calcul automatique." %}</p>
-          </div>
-          <div class="scan-field scan-pack-free-batch-row">
-            <label class="form-label" for="id_free_batch_carton_count">{% trans "Nombre de colis identiques" %}</label>
-            <input type="number"
-                   name="free_batch_carton_count"
-                   id="id_free_batch_carton_count"
-                   class="form-control scan-pack-free-batch-count-input"
-                   min="1"
-                   step="1"
-                   value="{{ free_batch_carton_count|default:'' }}">
-            <input type="hidden"
-                   name="confirm_free_carton_batch"
-                   value=""
-                   data-free-carton-batch-confirm-input="1">
-            <p class="scan-help ui-comp-note mb-0">{% trans "Les quantités produits ci-dessus correspondent à un colis type." %}</p>
-          </div>
-          <div class="scan-inline-actions ui-comp-actions flex-wrap mb-3">
-            <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
-            <a
-              id="pack-create-product-link"
-              class="scan-scan-btn btn btn-tertiary"
-              href="{% url 'scan:scan_import' %}"
-            >
-              {% trans "Créer un nouveau produit" %}
-            </a>
-          </div>
+            <div class="pack-lines" id="pack-lines"></div>
+            <div class="scan-inline-actions ui-comp-actions flex-wrap">
+              <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+              <a
+                id="pack-create-product-link"
+                class="scan-scan-btn btn btn-tertiary"
+                href="{% url 'scan:scan_import' %}"
+              >
+                {% trans "Créer un nouveau produit" %}
+              </a>
+            </div>
+          </section>
+
+          {% if not editing_carton %}
+            <section id="pack-section-distribution" class="scan-pack-section">
+              <h3 class="ui-comp-subtitle">{% trans "Répartition" %}</h3>
+              <div class="scan-pack-distribution-grid">
+                <fieldset class="scan-field scan-pack-distribution-mode">
+                  <legend class="form-label">{% trans "Calcul des colis" %}</legend>
+                  <div class="scan-pack-mode-options" role="radiogroup" aria-label="{% trans "Calcul des colis" %}">
+                    <label class="scan-pack-mode-option">
+                      <input
+                        type="radio"
+                        name="carton_distribution_mode"
+                        value="auto"
+                        {% if carton_distribution_mode != "manual" %}checked{% endif %}
+                      >
+                      <span>{% trans "Auto" %}</span>
+                    </label>
+                    <label class="scan-pack-mode-option">
+                      <input
+                        type="radio"
+                        name="carton_distribution_mode"
+                        value="manual"
+                        {% if carton_distribution_mode == "manual" %}checked{% endif %}
+                      >
+                      <span>{% trans "Manuel" %}</span>
+                    </label>
+                  </div>
+                </fieldset>
+                <div class="scan-field scan-pack-forced-count-row" data-pack-manual-count>
+                  <label class="form-label" for="id_forced_carton_count">{% trans "Nombre de colis" %}</label>
+                  <input type="number"
+                         name="forced_carton_count"
+                         id="id_forced_carton_count"
+                         class="form-control scan-pack-forced-count-input"
+                         min="1"
+                         step="1"
+                         value="{{ forced_carton_count|default:'' }}"
+                         placeholder="{% trans "Auto" %}">
+                </div>
+              </div>
+            </section>
+          {% endif %}
           <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
           {% include "scan/includes/pack_shipping_section.html" %}
           {% if request.scan_is_preparateur %}
             {% include "scan/includes/pack_unknown_product_modal.html" %}
           {% endif %}
-          <div
-            class="modal fade"
-            id="free-carton-batch-confirmation-overlay"
-            tabindex="-1"
-            aria-labelledby="free-carton-batch-confirmation-title"
-            aria-hidden="true"
-          >
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h3 class="modal-title h5" id="free-carton-batch-confirmation-title">{% trans "Confirmer le batch colis libres" %}</h3>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans "Fermer" %}"></button>
-                </div>
-                <div class="modal-body">
-                  <p class="mb-2">
-                    {% blocktrans trimmed %}
-                      Création de <strong data-free-carton-batch-confirm-count>0</strong> colis libres sans destination ni expédition.
-                    {% endblocktrans %}
-                  </p>
-                  <ul class="mb-2 ps-3" data-free-carton-batch-confirm-lines></ul>
-                  <p class="mb-0">
-                    {% trans "Total consommé" %}: <strong data-free-carton-batch-confirm-total>0</strong>
-                  </p>
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Annuler" %}</button>
-                  <button type="button" class="btn btn-success" data-free-carton-batch-confirm="1">{% trans "Créer les colis libres" %}</button>
-                </div>
-              </div>
-            </div>
-          </div>
         </form>
       {% endif %}
       {{ products_json|json_script:"product-data" }}

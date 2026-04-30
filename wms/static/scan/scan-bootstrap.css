@@ -1315,6 +1315,10 @@ body.scan-bootstrap-enabled {
   grid-column: 8 / span 2;
 }
 
+.scan-bootstrap-enabled .pack-line-per-carton-field {
+  grid-column: 10 / -1;
+}
+
 .scan-bootstrap-enabled .pack-line-scan-field {
   grid-column: 10 / -1;
 }
@@ -1352,6 +1356,55 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-pack-forced-count-row {
   max-width: 18rem;
+}
+
+.scan-bootstrap-enabled .scan-pack-section {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.35rem;
+}
+
+.scan-bootstrap-enabled .scan-pack-section .ui-comp-subtitle {
+  margin: 0;
+  font-size: var(--wms-font-size-h3);
+}
+
+.scan-bootstrap-enabled .scan-pack-distribution-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 20rem) minmax(12rem, 18rem);
+  gap: var(--wms-field-gap);
+  align-items: end;
+}
+
+.scan-bootstrap-enabled .scan-pack-mode-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.scan-bootstrap-enabled .scan-pack-mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.45rem;
+  background: var(--scan-boot-surface);
+  color: var(--ds-text);
+  font-weight: 700;
+}
+
+.scan-bootstrap-enabled .scan-pack-mode-option input {
+  margin: 0;
+}
+
+.scan-bootstrap-enabled .scan-pack-forced-count-row.is-disabled {
+  opacity: 0.68;
+}
+
+.scan-bootstrap-enabled .scan-pack-defaults-field {
+  max-width: 42rem;
 }
 
 .scan-bootstrap-enabled .btn {
@@ -2681,6 +2734,10 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
     align-items: stretch;
   }
 
+  .scan-bootstrap-enabled .scan-pack-distribution-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .scan-bootstrap-enabled .pack-line-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2688,6 +2745,7 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
   .scan-bootstrap-enabled .pack-line-search-field,
   .scan-bootstrap-enabled .pack-line-select-field,
   .scan-bootstrap-enabled .pack-line-quantity-field,
+  .scan-bootstrap-enabled .pack-line-per-carton-field,
   .scan-bootstrap-enabled .pack-line-scan-field,
   .scan-bootstrap-enabled .pack-line-expires-field,
   .scan-bootstrap-enabled .pack-line-family-field,

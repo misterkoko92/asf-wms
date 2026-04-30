@@ -1245,6 +1245,10 @@ class ScanBootstrapUiTests(TestCase):
             "quantityField.className = 'pack-line-field pack-line-quantity-field';", scan_js_content
         )
         self.assertIn(
+            "perCartonField.className = 'pack-line-field pack-line-per-carton-field';",
+            scan_js_content,
+        )
+        self.assertIn(
             "scanField.className = 'pack-line-field pack-line-scan-field';", scan_js_content
         )
         self.assertIn("scanBtn.textContent = 'Scanner un code barre / QR Code';", scan_js_content)
@@ -1260,6 +1264,10 @@ class ScanBootstrapUiTests(TestCase):
         )
         self.assertIn(
             ".scan-bootstrap-enabled .pack-line-quantity-field {\n  grid-column: 8 / span 2;",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .pack-line-per-carton-field {\n  grid-column: 10 / -1;",
             css_content,
         )
         self.assertIn(
