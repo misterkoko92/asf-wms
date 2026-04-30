@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import RequestFactory, TestCase
 
-from contacts.models import Contact, ContactType
 from wms.forms import ScanPackUnknownProductForm
 from wms.models import (
     Carton,
@@ -15,24 +14,19 @@ from wms.models import (
     CartonStatusEvent,
     CartonVolunteerActivity,
     CartonVolunteerActivityAction,
-    Destination,
     Location,
     Product,
     ProductCategory,
     ProductLot,
     ProductLotStatus,
-    Shipment,
     VolunteerProfile,
     Warehouse,
 )
 from wms.pack_handlers import (
-    EXACT_CARTON_OUTPUT_AVAILABLE,
-    EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING,
     build_pack_defaults,
     create_preparateur_unknown_product_from_pack,
     handle_pack_post,
     notify_preparateur_product_review_needed,
-    parse_exact_carton_plan,
 )
 from wms.services import StockError
 
@@ -118,8 +112,7 @@ class PackHandlersTests(TestCase):
         }
 
     def _create_locations(self):
-        suffix = Warehouse.objects.count() + 1
-        warehouse = Warehouse.objects.create(name=f"Main {suffix}", code=f"MAIN{suffix}")
+        warehouse = Warehouse.objects.create(name="Main", code="MAIN")
         stock_location = Location.objects.create(
             warehouse=warehouse,
             zone="STOCK",
@@ -142,53 +135,26 @@ class PackHandlersTests(TestCase):
         )
         return stock_location, ready_mm, ready_cn
 
-    def _create_stock_product(
-        self,
-        *,
-        sku,
-        name,
-        category,
-        quantity_on_hand=20,
-        weight_g=100,
-        volume_cm3=None,
-        length_cm=Decimal("10"),
-        width_cm=Decimal("10"),
-        height_cm=Decimal("10"),
-    ):
+    def _create_stock_product(self, *, sku, name, category):
         stock_location, _, _ = self._create_locations()
         product = Product.objects.create(
             sku=sku,
             name=name,
             category=category,
-            weight_g=weight_g,
-            volume_cm3=volume_cm3,
-            length_cm=length_cm,
-            width_cm=width_cm,
-            height_cm=height_cm,
+            weight_g=100,
+            length_cm=Decimal("10"),
+            width_cm=Decimal("10"),
+            height_cm=Decimal("10"),
             default_location=stock_location,
         )
         ProductLot.objects.create(
             product=product,
             lot_code=f"LOT-{sku}",
             status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=quantity_on_hand,
+            quantity_on_hand=20,
             location=stock_location,
         )
         return product
-
-    def _create_destination(self, *, code="NKC"):
-        correspondent = Contact.objects.create(
-            name=f"Correspondent {code}",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        return Destination.objects.create(
-            city=f"City {code}",
-            iata_code=code,
-            country="Country",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
 
     def test_build_pack_defaults_with_and_without_default_format(self):
         default_format = SimpleNamespace(
@@ -218,7 +184,6 @@ class PackHandlersTests(TestCase):
                 {
                     "product_code": "",
                     "quantity": "",
-                    "per_carton_quantity": "",
                     "expires_on": "",
                     "pack_family_override": "",
                 }
@@ -244,7 +209,6 @@ class PackHandlersTests(TestCase):
                 {
                     "product_code": "",
                     "quantity": "",
-                    "per_carton_quantity": "",
                     "expires_on": "",
                     "pack_family_override": "",
                 }
@@ -308,426 +272,6 @@ class PackHandlersTests(TestCase):
         self.assertIn("Nombre de colis forcé: 1 au lieu de 2.", warning_messages)
         success_mock.assert_called_once_with(request, "1 carton(s) préparé(s).")
 
-    def test_handle_pack_post_auto_distribution_ignores_stale_forced_carton_count(self):
-        request = self._request(
-            {
-                "carton_distribution_mode": "auto",
-                "line_count": "1",
-                "line_1_product_code": "SKU-1",
-                "line_1_quantity": "5",
-                "forced_carton_count": "1",
-                "confirm_defaults": "1",
-            }
-        )
-        product = SimpleNamespace(id=5, name="Produit 1")
-        created_carton = SimpleNamespace(id=77)
-        form = self._form(valid=True, shipment_reference="")
-        auto_bins = [
-            {"items": {product.id: {"product": product, "quantity": 3}}},
-            {"items": {product.id: {"product": product, "quantity": 2}}},
-        ]
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            with mock.patch("wms.pack_handlers.resolve_product", return_value=product):
-                with mock.patch("wms.pack_handlers.get_product_weight_g", return_value=20):
-                    with mock.patch("wms.pack_handlers.get_product_volume_cm3", return_value=30):
-                        with mock.patch(
-                            "wms.pack_handlers.build_packing_bins",
-                            return_value=(auto_bins, [], []),
-                        ):
-                            with mock.patch(
-                                "wms.pack_handlers.pack_carton",
-                                return_value=created_carton,
-                            ) as pack_carton_mock:
-                                with mock.patch(
-                                    "wms.pack_handlers.messages.warning"
-                                ) as warning_mock:
-                                    with mock.patch("wms.pack_handlers.messages.success"):
-                                        response, state = handle_pack_post(
-                                            request,
-                                            form=form,
-                                            default_format=None,
-                                        )
-
-        self.assertEqual(response.status_code, 302)
-        self.assertIsNone(state["forced_carton_count"])
-        self.assertEqual(pack_carton_mock.call_count, 2)
-        warning_messages = [call.args[1] for call in warning_mock.call_args_list]
-        self.assertNotIn("Nombre de colis forcé: 1 au lieu de 2.", warning_messages)
-
-    def test_handle_pack_post_rejects_deprecated_free_batch_action(self):
-        request = self._db_request(
-            {
-                "action": "prepare_available_batch",
-                "free_batch_carton_count": "2",
-                "confirm_free_carton_batch": "1",
-                "line_count": "1",
-                "line_1_product_code": "SKU-1",
-                "line_1_quantity": "5",
-                "confirm_defaults": "1",
-            }
-        )
-        product = self._create_stock_product(
-            sku="SKU-1",
-            name="Produit 1",
-            category=ProductCategory.objects.create(name="MM"),
-            quantity_on_hand=20,
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch(
-            "wms.pack_handlers.resolve_carton_size",
-            return_value=(self._carton_size(), []),
-        ):
-            with mock.patch("wms.pack_handlers.resolve_product", return_value=product):
-                response, _state = handle_pack_post(
-                    request,
-                    form=form,
-                    default_format=None,
-                )
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertIn(
-            (
-                None,
-                "Le mode batch colis libres a été remplacé par le nombre de colis manuel.",
-            ),
-            form.errors,
-        )
-
-    def test_parse_exact_carton_plan_reads_mixed_carton_rows(self):
-        stock_location, _ready_mm, _ready_cn = self._create_locations()
-        category = ProductCategory.objects.create(name="MM")
-        syringe = Product.objects.create(
-            sku="SYR-10",
-            name="Seringues",
-            category=category,
-            weight_g=100,
-            length_cm=Decimal("10"),
-            width_cm=Decimal("10"),
-            height_cm=Decimal("10"),
-            default_location=stock_location,
-        )
-        compress = Product.objects.create(
-            sku="CMP-20",
-            name="Compresses",
-            category=category,
-            weight_g=50,
-            length_cm=Decimal("5"),
-            width_cm=Decimal("5"),
-            height_cm=Decimal("5"),
-            default_location=stock_location,
-        )
-        destination = self._create_destination(code="ABJ")
-        shipment = Shipment.objects.create(
-            reference="EXP-003",
-            shipper_name="ASF",
-            recipient_name="Hopital",
-            destination=destination,
-            destination_address="Abidjan",
-        )
-        carton_format = CartonFormat.objects.create(
-            name="Standard test",
-            length_cm=40,
-            width_cm=30,
-            height_cm=30,
-            max_weight_g=8000,
-            is_default=True,
-        )
-        request = self._db_request(
-            {
-                "carton_plan_mode": "exact",
-                "confirm_carton_plan": "1",
-                "carton_plan_count": "4",
-                "carton_1_output_mode": "available",
-                "carton_1_preassigned_destination": str(destination.id),
-                "carton_1_current_location": str(stock_location.id),
-                "carton_1_carton_format_id": str(carton_format.id),
-                "carton_1_line_count": "1",
-                "carton_1_line_1_product_code": syringe.sku,
-                "carton_1_line_1_quantity": "10",
-                "carton_2_output_mode": "available",
-                "carton_2_shipment_reference": shipment.reference,
-                "carton_2_carton_format_id": str(carton_format.id),
-                "carton_2_line_count": "1",
-                "carton_2_line_1_product_code": syringe.sku,
-                "carton_2_line_1_quantity": "10",
-                "carton_3_output_mode": "available",
-                "carton_3_carton_format_id": str(carton_format.id),
-                "carton_3_line_count": "2",
-                "carton_3_line_1_product_code": syringe.sku,
-                "carton_3_line_1_quantity": "5",
-                "carton_3_line_2_product_code": compress.sku,
-                "carton_3_line_2_quantity": "20",
-                "carton_4_output_mode": "without_conditioning",
-                "carton_4_carton_format_id": str(carton_format.id),
-                "carton_4_line_count": "1",
-                "carton_4_line_1_product_code": compress.sku,
-                "carton_4_line_1_quantity": "4",
-            }
-        )
-
-        plan, errors, missing_defaults = parse_exact_carton_plan(
-            request,
-            default_format=carton_format,
-        )
-
-        self.assertEqual(errors, {})
-        self.assertEqual(missing_defaults, [])
-        self.assertEqual(len(plan), 4)
-        self.assertEqual(plan[0]["output_mode"], EXACT_CARTON_OUTPUT_AVAILABLE)
-        self.assertEqual(plan[0]["preassigned_destination"], destination)
-        self.assertEqual(plan[0]["shipment"], None)
-        self.assertEqual(plan[0]["current_location"], stock_location)
-        self.assertEqual(plan[0]["carton_size"]["max_weight_g"], 8000)
-        self.assertEqual(plan[0]["line_items"][0]["product"], syringe)
-        self.assertEqual(plan[0]["line_items"][0]["quantity"], 10)
-        self.assertEqual(plan[1]["shipment"], shipment)
-        self.assertIsNone(plan[1]["preassigned_destination"])
-        self.assertEqual(plan[2]["line_items"][0]["product"], syringe)
-        self.assertEqual(plan[2]["line_items"][1]["product"], compress)
-        self.assertEqual(plan[3]["output_mode"], EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING)
-
-    def test_handle_pack_post_exact_carton_plan_reports_validation_errors(self):
-        carton_format = CartonFormat.objects.create(
-            name="Standard exact errors",
-            length_cm=40,
-            width_cm=30,
-            height_cm=30,
-            max_weight_g=8000,
-            is_default=True,
-        )
-        request = self._db_request(
-            {
-                "carton_plan_mode": "exact",
-                "carton_plan_count": "2",
-                "carton_1_output_mode": "invalid-output",
-                "carton_1_shipment_reference": "EXP-MISSING",
-                "carton_1_current_location": "bad-location",
-                "carton_1_carton_format_id": str(carton_format.id),
-                "carton_1_line_count": "3",
-                "carton_1_line_1_quantity": "2",
-                "carton_1_line_2_product_code": "SKU-MISSING",
-                "carton_1_line_2_quantity": "-1",
-                "carton_1_line_2_expires_on": "not-a-date",
-                "carton_2_output_mode": "available",
-                "carton_2_preassigned_destination": "bad-destination",
-                "carton_2_carton_format_id": str(carton_format.id),
-                "carton_2_line_count": "0",
-            }
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        response, state = handle_pack_post(
-            request,
-            form=form,
-            default_format=carton_format,
-        )
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        self.assertEqual(state["line_errors"], {})
-        errors = [message for _field, message in form.errors]
-        self.assertIn("Confirmez le récapitulatif des colis avant création.", errors)
-        self.assertIn("Mode de sortie invalide.", errors)
-        self.assertIn("Expédition introuvable.", errors)
-        self.assertIn("Emplacement invalide.", errors)
-        self.assertIn("Produit requis.", errors)
-        self.assertIn("Quantité invalide.", errors)
-        self.assertIn("Produit introuvable.", errors)
-        self.assertIn("Date de péremption invalide.", errors)
-        self.assertIn("Destination invalide.", errors)
-        self.assertIn("Ajoutez au moins un produit.", errors)
-
-    def test_handle_pack_post_creates_exact_carton_plan_with_mixed_outputs(self):
-        stock_location, _ready_mm, _ready_cn = self._create_locations()
-        category = ProductCategory.objects.create(name="MM")
-        syringe = Product.objects.create(
-            sku="SYR-PLAN",
-            name="Seringues plan",
-            category=category,
-            weight_g=100,
-            length_cm=Decimal("10"),
-            width_cm=Decimal("10"),
-            height_cm=Decimal("10"),
-            default_location=stock_location,
-        )
-        compress = Product.objects.create(
-            sku="CMP-PLAN",
-            name="Compresses plan",
-            category=category,
-            weight_g=50,
-            length_cm=Decimal("5"),
-            width_cm=Decimal("5"),
-            height_cm=Decimal("5"),
-            default_location=stock_location,
-        )
-        syringe_lot = ProductLot.objects.create(
-            product=syringe,
-            lot_code="LOT-SYR-PLAN",
-            status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=50,
-            location=stock_location,
-        )
-        compress_lot = ProductLot.objects.create(
-            product=compress,
-            lot_code="LOT-CMP-PLAN",
-            status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=50,
-            location=stock_location,
-        )
-        destination = self._create_destination(code="ABJ")
-        shipment = Shipment.objects.create(
-            reference="EXP-PLAN-003",
-            shipper_name="ASF",
-            recipient_name="Hopital",
-            destination=destination,
-            destination_address="Abidjan",
-        )
-        carton_format = CartonFormat.objects.create(
-            name="Standard exact plan",
-            length_cm=40,
-            width_cm=30,
-            height_cm=30,
-            max_weight_g=8000,
-            is_default=True,
-        )
-        request = self._db_request(
-            {
-                "carton_plan_mode": "exact",
-                "confirm_carton_plan": "1",
-                "carton_plan_count": "4",
-                "carton_1_output_mode": "available",
-                "carton_1_preassigned_destination": str(destination.id),
-                "carton_1_current_location": str(stock_location.id),
-                "carton_1_carton_format_id": str(carton_format.id),
-                "carton_1_line_count": "1",
-                "carton_1_line_1_product_code": syringe.sku,
-                "carton_1_line_1_quantity": "10",
-                "carton_2_output_mode": "available",
-                "carton_2_shipment_reference": shipment.reference,
-                "carton_2_current_location": str(stock_location.id),
-                "carton_2_carton_format_id": str(carton_format.id),
-                "carton_2_line_count": "1",
-                "carton_2_line_1_product_code": syringe.sku,
-                "carton_2_line_1_quantity": "10",
-                "carton_3_output_mode": "available",
-                "carton_3_current_location": str(stock_location.id),
-                "carton_3_carton_format_id": str(carton_format.id),
-                "carton_3_line_count": "2",
-                "carton_3_line_1_product_code": syringe.sku,
-                "carton_3_line_1_quantity": "5",
-                "carton_3_line_2_product_code": compress.sku,
-                "carton_3_line_2_quantity": "20",
-                "carton_4_output_mode": "without_conditioning",
-                "carton_4_current_location": str(stock_location.id),
-                "carton_4_carton_format_id": str(carton_format.id),
-                "carton_4_line_count": "1",
-                "carton_4_line_1_product_code": compress.sku,
-                "carton_4_line_1_quantity": "4",
-            }
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        with mock.patch("wms.pack_handlers.build_packing_bins") as build_bins_mock:
-            with mock.patch("wms.pack_handlers.messages.success") as success_mock:
-                response, state = handle_pack_post(
-                    request,
-                    form=form,
-                    default_format=carton_format,
-                )
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(state["line_errors"], {})
-        build_bins_mock.assert_not_called()
-        self.assertEqual(Carton.objects.count(), 4)
-        created_cartons = list(Carton.objects.order_by("id"))
-        self.assertEqual(
-            [carton.status for carton in created_cartons],
-            [
-                CartonStatus.PACKED,
-                CartonStatus.ASSIGNED,
-                CartonStatus.PACKED,
-                CartonStatus.PICKING,
-            ],
-        )
-        self.assertEqual(created_cartons[0].preassigned_destination, destination)
-        self.assertIsNone(created_cartons[0].shipment)
-        self.assertEqual(created_cartons[1].shipment, shipment)
-        self.assertIsNone(created_cartons[1].preassigned_destination)
-        self.assertEqual(created_cartons[2].cartonitem_set.count(), 2)
-        self.assertEqual(request.session["pack_results"], [carton.id for carton in created_cartons])
-        syringe_lot.refresh_from_db()
-        compress_lot.refresh_from_db()
-        self.assertEqual(syringe_lot.quantity_on_hand, 25)
-        self.assertEqual(compress_lot.quantity_on_hand, 26)
-        success_mock.assert_called_once_with(
-            request,
-            "4 carton(s) créé(s) selon le plan.",
-        )
-
-    def test_handle_pack_post_exact_carton_plan_rolls_back_on_stock_error(self):
-        stock_location, _ready_mm, _ready_cn = self._create_locations()
-        category = ProductCategory.objects.create(name="MM")
-        syringe = Product.objects.create(
-            sku="SYR-PLAN-LOW",
-            name="Seringues plan low",
-            category=category,
-            weight_g=100,
-            length_cm=Decimal("10"),
-            width_cm=Decimal("10"),
-            height_cm=Decimal("10"),
-            default_location=stock_location,
-        )
-        lot = ProductLot.objects.create(
-            product=syringe,
-            lot_code="LOT-SYR-LOW",
-            status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=5,
-            location=stock_location,
-        )
-        carton_format = CartonFormat.objects.create(
-            name="Standard exact low",
-            length_cm=40,
-            width_cm=30,
-            height_cm=30,
-            max_weight_g=8000,
-            is_default=True,
-        )
-        request = self._db_request(
-            {
-                "carton_plan_mode": "exact",
-                "confirm_carton_plan": "1",
-                "carton_plan_count": "2",
-                "carton_1_output_mode": "available",
-                "carton_1_carton_format_id": str(carton_format.id),
-                "carton_1_line_count": "1",
-                "carton_1_line_1_product_code": syringe.sku,
-                "carton_1_line_1_quantity": "3",
-                "carton_2_output_mode": "available",
-                "carton_2_carton_format_id": str(carton_format.id),
-                "carton_2_line_count": "1",
-                "carton_2_line_1_product_code": syringe.sku,
-                "carton_2_line_1_quantity": "4",
-            }
-        )
-        form = self._form(valid=True, shipment_reference="")
-
-        response, _state = handle_pack_post(
-            request,
-            form=form,
-            default_format=carton_format,
-        )
-
-        self.assertIsNone(response)
-        self.assertEqual(Carton.objects.count(), 0)
-        lot.refresh_from_db()
-        self.assertEqual(lot.quantity_on_hand, 5)
-        self.assertTrue(any("Stock insuffisant" in error for _field, error in form.errors))
-
     def test_handle_pack_post_validates_shipment_carton_and_line_fields(self):
         request = self._request(
             {
@@ -770,12 +314,11 @@ class PackHandlersTests(TestCase):
             "wms.pack_handlers.resolve_carton_size",
             return_value=(self._carton_size(), []),
         ):
-            with mock.patch("wms.pack_handlers.messages.success"):
-                response, state = handle_pack_post(
-                    request,
-                    form=form,
-                    default_format=None,
-                )
+            response, state = handle_pack_post(
+                request,
+                form=form,
+                default_format=None,
+            )
         self.assertIsNone(response)
         self.assertEqual(state["line_errors"], {})
         self.assertIn((None, "Ajoutez au moins un produit."), form.errors)

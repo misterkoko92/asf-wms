@@ -19,7 +19,6 @@ from .models import (
     CartonFormat,
     CartonStatus,
     CartonVolunteerActivityAction,
-    Destination,
     Location,
     Product,
     ProductCategory,
@@ -53,19 +52,6 @@ PREPARATEUR_ALLOWED_FAMILIES = (
 )
 PACK_ACTION_PREPARE_WITHOUT_CONDITIONING = "prepare_without_conditioning"
 PACK_ACTION_PREPARE_AVAILABLE = "prepare_available"
-DEPRECATED_PACK_ACTION_PREPARE_AVAILABLE_BATCH = "prepare_available_batch"
-PACK_CARTON_PLAN_MODE_EXACT = "exact"
-EXACT_CARTON_OUTPUT_AVAILABLE = "available"
-EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING = "without_conditioning"
-EXACT_CARTON_OUTPUT_MODES = {
-    EXACT_CARTON_OUTPUT_AVAILABLE,
-    EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING,
-}
-CARTON_DISTRIBUTION_MODE_AUTO = "auto"
-CARTON_DISTRIBUTION_MODE_MANUAL = "manual"
-DEPRECATED_FREE_BATCH_ACTION_ERROR = _(
-    "Le mode batch colis libres a été remplacé par le nombre de colis manuel."
-)
 PREPARATEUR_LOCATION_LABELS = {
     PREPARATEUR_FAMILY_MM: "Colis Prets MM",
     PREPARATEUR_FAMILY_CN: "Colis Prets CN",
@@ -266,320 +252,6 @@ def _resolve_pack_action(request):
     return PACK_ACTION_PREPARE_WITHOUT_CONDITIONING
 
 
-def _add_exact_plan_error(errors, key, message):
-    errors.setdefault(key, []).append(str(message))
-
-
-def _resolve_exact_plan_destination(value, errors, key):
-    value = (value or "").strip()
-    if not value:
-        return None
-    destination_id = parse_int(value)
-    if destination_id is None:
-        _add_exact_plan_error(errors, key, _("Destination invalide."))
-        return None
-    destination = Destination.objects.filter(pk=destination_id, is_active=True).first()
-    if destination is None:
-        _add_exact_plan_error(errors, key, _("Destination introuvable."))
-    return destination
-
-
-def _resolve_exact_plan_location(value, errors, key):
-    value = (value or "").strip()
-    if not value:
-        return None
-    location_id = parse_int(value)
-    if location_id is None:
-        _add_exact_plan_error(errors, key, _("Emplacement invalide."))
-        return None
-    location = Location.objects.filter(pk=location_id).first()
-    if location is None:
-        _add_exact_plan_error(errors, key, _("Emplacement introuvable."))
-    return location
-
-
-def _resolve_exact_plan_carton_size(request, *, carton_index, default_format, errors):
-    fallback_format_id = str(default_format.id) if default_format is not None else "custom"
-    carton_format_id = (
-        request.POST.get(f"carton_{carton_index}_carton_format_id")
-        or request.POST.get("carton_format_id")
-        or fallback_format_id
-    ).strip()
-    carton_size, carton_errors = resolve_carton_size(
-        carton_format_id=carton_format_id,
-        default_format=default_format,
-        data=request.POST,
-    )
-    for error in carton_errors:
-        _add_exact_plan_error(errors, f"carton_{carton_index}", error)
-    return carton_format_id, carton_size
-
-
-def parse_exact_carton_plan(request, *, default_format):
-    errors = {}
-    missing_defaults = []
-    plan = []
-    carton_count = parse_int(request.POST.get("carton_plan_count"))
-    if carton_count is None or carton_count <= 0:
-        _add_exact_plan_error(errors, "carton_plan", _("Ajoutez au moins un colis."))
-        return plan, errors, missing_defaults
-
-    missing_default_names = set()
-    for carton_index in range(1, carton_count + 1):
-        carton_key = f"carton_{carton_index}"
-        output_mode = (
-            request.POST.get(f"{carton_key}_output_mode") or EXACT_CARTON_OUTPUT_AVAILABLE
-        ).strip()
-        if output_mode not in EXACT_CARTON_OUTPUT_MODES:
-            _add_exact_plan_error(errors, carton_key, _("Mode de sortie invalide."))
-            output_mode = EXACT_CARTON_OUTPUT_AVAILABLE
-
-        shipment_reference = (request.POST.get(f"{carton_key}_shipment_reference") or "").strip()
-        shipment = _resolve_selected_shipment(shipment_reference) if shipment_reference else None
-        if shipment_reference and shipment is None:
-            _add_exact_plan_error(errors, carton_key, _("Expédition introuvable."))
-
-        preassigned_destination = None
-        if shipment is None:
-            preassigned_destination = _resolve_exact_plan_destination(
-                request.POST.get(f"{carton_key}_preassigned_destination"),
-                errors,
-                carton_key,
-            )
-
-        current_location = _resolve_exact_plan_location(
-            request.POST.get(f"{carton_key}_current_location"),
-            errors,
-            carton_key,
-        )
-        carton_format_id, carton_size = _resolve_exact_plan_carton_size(
-            request,
-            carton_index=carton_index,
-            default_format=default_format,
-            errors=errors,
-        )
-
-        line_count = parse_int(request.POST.get(f"{carton_key}_line_count")) or 0
-        if line_count <= 0:
-            _add_exact_plan_error(errors, carton_key, _("Ajoutez au moins un produit."))
-
-        line_items = []
-        for line_index in range(1, line_count + 1):
-            line_key = f"{carton_key}_line_{line_index}"
-            prefix = f"{line_key}_"
-            product_code = (request.POST.get(prefix + "product_code") or "").strip()
-            quantity_raw = (request.POST.get(prefix + "quantity") or "").strip()
-            expires_on_raw = (request.POST.get(prefix + "expires_on") or "").strip()
-            if not product_code and not quantity_raw:
-                continue
-            if not product_code:
-                _add_exact_plan_error(errors, line_key, _("Produit requis."))
-            quantity = None
-            if not quantity_raw:
-                _add_exact_plan_error(errors, line_key, _("Quantité requise."))
-            else:
-                quantity = parse_int(quantity_raw)
-                if quantity is None or quantity <= 0:
-                    _add_exact_plan_error(errors, line_key, _("Quantité invalide."))
-            product = resolve_product(product_code, include_kits=True) if product_code else None
-            if product_code and product is None:
-                _add_exact_plan_error(errors, line_key, _("Produit introuvable."))
-            expires_on = None
-            if expires_on_raw:
-                expires_on = parse_date(expires_on_raw)
-                if expires_on is None:
-                    _add_exact_plan_error(errors, line_key, _("Date de péremption invalide."))
-            if product is not None and quantity is not None and quantity > 0:
-                if (
-                    get_product_weight_g(product) is None
-                    and get_product_volume_cm3(product) is None
-                ):
-                    missing_default_names.add(product.name)
-                line_items.append(
-                    {
-                        "product": product,
-                        "quantity": quantity,
-                        "expires_on": expires_on,
-                        "index": line_index,
-                        "pack_family_override": (
-                            request.POST.get(prefix + "pack_family_override") or ""
-                        ),
-                    }
-                )
-
-        if not line_items:
-            _add_exact_plan_error(errors, carton_key, _("Ajoutez au moins un produit."))
-
-        plan.append(
-            {
-                "index": carton_index,
-                "output_mode": output_mode,
-                "shipment": shipment,
-                "preassigned_destination": preassigned_destination,
-                "current_location": current_location,
-                "carton_format_id": carton_format_id,
-                "carton_size": carton_size,
-                "line_items": line_items,
-            }
-        )
-
-    missing_defaults = sorted(missing_default_names)
-    return plan, errors, missing_defaults
-
-
-def _add_exact_carton_plan_errors_to_form(form, errors):
-    for row_errors in errors.values():
-        for error in row_errors:
-            form.add_error(None, error)
-
-
-def _build_missing_defaults_error(missing_defaults):
-    product_list = ", ".join(missing_defaults)
-    return _(
-        "Attention : les produits suivants n'ont pas de dimensions "
-        "ni de poids enregistrés : %(products)s. Si vous validez "
-        "ces ajouts, des valeurs par défaut seront appliquées "
-        "(1cm x 1cm x 1cm et 5g)."
-    ) % {"products": product_list}
-
-
-def _handle_exact_carton_plan_pack(
-    *,
-    request,
-    form,
-    default_format,
-    carton_format_id,
-    carton_custom,
-    line_count,
-    line_values,
-    line_errors,
-    confirm_defaults,
-    forced_carton_count,
-    carton_distribution_mode,
-):
-    plan, plan_errors, missing_defaults = parse_exact_carton_plan(
-        request,
-        default_format=default_format,
-    )
-    if not request.POST.get("confirm_carton_plan"):
-        form.add_error(None, _("Confirmez le récapitulatif des colis avant création."))
-    if plan_errors:
-        _add_exact_carton_plan_errors_to_form(form, plan_errors)
-    if missing_defaults and not confirm_defaults:
-        form.add_error(None, _build_missing_defaults_error(missing_defaults))
-    if form.errors:
-        return (
-            None,
-            _build_state(
-                carton_format_id=carton_format_id,
-                carton_custom=carton_custom,
-                line_count=line_count,
-                line_values=line_values,
-                line_errors=line_errors,
-                missing_defaults=missing_defaults,
-                confirm_defaults=confirm_defaults,
-                forced_carton_count=forced_carton_count,
-                carton_distribution_mode=carton_distribution_mode,
-            ),
-        )
-
-    try:
-        created_cartons = []
-        pack_warnings = []
-        with transaction.atomic():
-            for carton_plan in plan:
-                current_location = carton_plan["current_location"]
-                skip_picking_status = False
-                if (
-                    carton_plan["output_mode"] == EXACT_CARTON_OUTPUT_AVAILABLE
-                    and carton_plan["shipment"] is None
-                ):
-                    skip_picking_status = True
-                    if current_location is None:
-                        current_location, ready_location_warning = (
-                            _resolve_ready_location_for_available_pack(carton_plan["line_items"])
-                        )
-                        if ready_location_warning:
-                            pack_warnings.append(ready_location_warning)
-                carton = None
-                for entry in carton_plan["line_items"]:
-                    carton = pack_carton(
-                        user=request.user,
-                        product=entry["product"],
-                        quantity=entry["quantity"],
-                        carton=carton,
-                        carton_code=None,
-                        shipment=carton_plan["shipment"],
-                        preassigned_destination=carton_plan["preassigned_destination"],
-                        display_expires_on=entry.get("expires_on"),
-                        current_location=current_location,
-                        carton_size=carton_plan["carton_size"],
-                        skip_picking_status=skip_picking_status,
-                    )
-                if carton:
-                    if (
-                        carton_plan["output_mode"] == EXACT_CARTON_OUTPUT_AVAILABLE
-                        and carton_plan["shipment"] is None
-                    ):
-                        set_carton_status(
-                            carton=carton,
-                            new_status=CartonStatus.PACKED,
-                            reason="scan_pack_exact_plan_ready",
-                            user=request.user,
-                        )
-                    created_cartons.append(carton)
-        for warning in pack_warnings:
-            messages.warning(request, warning)
-        request.session["pack_results"] = [carton.id for carton in created_cartons]
-        messages.success(
-            request,
-            _("%(count)s carton(s) créé(s) selon le plan.") % {"count": len(created_cartons)},
-        )
-        return (
-            redirect("scan:scan_pack"),
-            _build_state(
-                carton_format_id=carton_format_id,
-                carton_custom=carton_custom,
-                line_count=line_count,
-                line_values=line_values,
-                line_errors=line_errors,
-                missing_defaults=missing_defaults,
-                confirm_defaults=confirm_defaults,
-                forced_carton_count=forced_carton_count,
-                carton_distribution_mode=carton_distribution_mode,
-            ),
-        )
-    except (StockError, ValueError) as exc:
-        form.add_error(None, str(exc))
-        return (
-            None,
-            _build_state(
-                carton_format_id=carton_format_id,
-                carton_custom=carton_custom,
-                line_count=line_count,
-                line_values=line_values,
-                line_errors=line_errors,
-                missing_defaults=missing_defaults,
-                confirm_defaults=confirm_defaults,
-                forced_carton_count=forced_carton_count,
-                carton_distribution_mode=carton_distribution_mode,
-            ),
-        )
-
-
-def _resolve_carton_distribution_mode(request):
-    mode = (request.POST.get("carton_distribution_mode") or "").strip()
-    if mode == CARTON_DISTRIBUTION_MODE_AUTO:
-        return CARTON_DISTRIBUTION_MODE_AUTO
-    if mode == CARTON_DISTRIBUTION_MODE_MANUAL:
-        return CARTON_DISTRIBUTION_MODE_MANUAL
-    return (
-        CARTON_DISTRIBUTION_MODE_MANUAL
-        if (request.POST.get("forced_carton_count") or "").strip()
-        else CARTON_DISTRIBUTION_MODE_AUTO
-    )
-
-
 def _get_active_preparateur_volunteer(request):
     return getattr(request, "scan_active_volunteer", None)
 
@@ -615,14 +287,7 @@ def _build_state(
     missing_defaults,
     confirm_defaults,
     forced_carton_count=None,
-    carton_distribution_mode=None,
 ):
-    if carton_distribution_mode is None:
-        carton_distribution_mode = (
-            CARTON_DISTRIBUTION_MODE_MANUAL
-            if forced_carton_count
-            else CARTON_DISTRIBUTION_MODE_AUTO
-        )
     return {
         "carton_format_id": carton_format_id,
         "carton_custom": carton_custom,
@@ -632,7 +297,6 @@ def _build_state(
         "missing_defaults": missing_defaults,
         "confirm_defaults": confirm_defaults,
         "forced_carton_count": forced_carton_count,
-        "carton_distribution_mode": carton_distribution_mode,
     }
 
 
@@ -709,7 +373,6 @@ def _build_carton_edit_line_values(carton):
             {
                 "product_code": row["product_code"],
                 "quantity": str(row["quantity"]),
-                "per_carton_quantity": "",
                 "expires_on": row["expires_on"].isoformat() if row["expires_on"] else "",
                 "pack_family_override": row["pack_family_override"],
             }
@@ -1139,21 +802,11 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
     line_items = []
     missing_defaults = []
     confirm_defaults = bool(request.POST.get("confirm_defaults"))
-    pack_action = _resolve_pack_action(request)
-    deprecated_free_batch_requested = (
-        request.POST.get("action") or ""
-    ).strip() == DEPRECATED_PACK_ACTION_PREPARE_AVAILABLE_BATCH
-    exact_carton_plan_requested = (
-        request.POST.get("carton_plan_mode") or ""
-    ).strip() == PACK_CARTON_PLAN_MODE_EXACT and editing_carton is None
-    carton_distribution_mode = _resolve_carton_distribution_mode(request)
     forced_carton_error = None
     try:
         forced_carton_count = (
             None
             if editing_carton is not None
-            or exact_carton_plan_requested
-            or carton_distribution_mode == CARTON_DISTRIBUTION_MODE_AUTO
             else parse_forced_carton_count(request.POST.get("forced_carton_count"))
         )
     except ValueError as exc:
@@ -1161,39 +814,9 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
         forced_carton_error = str(exc)
         form.add_error(None, forced_carton_error)
     shipment = None
-
-    if deprecated_free_batch_requested:
-        form.add_error(None, DEPRECATED_FREE_BATCH_ACTION_ERROR)
-        return (
-            None,
-            _build_state(
-                carton_format_id=carton_format_id,
-                carton_custom=carton_custom,
-                line_count=line_count,
-                line_values=line_values,
-                line_errors=line_errors,
-                missing_defaults=missing_defaults,
-                confirm_defaults=confirm_defaults,
-                forced_carton_count=forced_carton_count,
-                carton_distribution_mode=carton_distribution_mode,
-            ),
-        )
+    pack_action = _resolve_pack_action(request)
 
     if form.is_valid() and forced_carton_error is None:
-        if exact_carton_plan_requested:
-            return _handle_exact_carton_plan_pack(
-                request=request,
-                form=form,
-                default_format=default_format,
-                carton_format_id=carton_format_id,
-                carton_custom=carton_custom,
-                line_count=line_count,
-                line_values=line_values,
-                line_errors=line_errors,
-                confirm_defaults=confirm_defaults,
-                forced_carton_count=forced_carton_count,
-                carton_distribution_mode=carton_distribution_mode,
-            )
         shipment = (
             editing_carton.shipment
             if editing_carton is not None and editing_carton.shipment_id
@@ -1265,9 +888,16 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                     }
                 )
                 if missing_defaults and not confirm_defaults:
+                    product_list = ", ".join(missing_defaults)
                     form.add_error(
                         None,
-                        _build_missing_defaults_error(missing_defaults),
+                        _(
+                            "Attention : les produits suivants n'ont pas de dimensions "
+                            "ni de poids enregistrés : %(products)s. Si vous validez "
+                            "ces ajouts, des valeurs par défaut seront appliquées "
+                            "(1cm x 1cm x 1cm et 5g)."
+                        )
+                        % {"products": product_list},
                     )
                     return (
                         None,
@@ -1280,7 +910,6 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                             "missing_defaults": missing_defaults,
                             "confirm_defaults": confirm_defaults,
                             "forced_carton_count": forced_carton_count,
-                            "carton_distribution_mode": carton_distribution_mode,
                         },
                     )
                 if user_is_preparateur(request.user):
@@ -1350,7 +979,6 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                             missing_defaults=missing_defaults,
                             confirm_defaults=confirm_defaults,
                             forced_carton_count=forced_carton_count,
-                            carton_distribution_mode=carton_distribution_mode,
                         ),
                     )
                 bins, pack_errors, pack_warnings = build_packing_bins(
@@ -1400,7 +1028,6 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                                     missing_defaults=missing_defaults,
                                     confirm_defaults=confirm_defaults,
                                     forced_carton_count=forced_carton_count,
-                                    carton_distribution_mode=carton_distribution_mode,
                                 ),
                             )
                         skip_picking_status = True
@@ -1457,7 +1084,6 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                                 "missing_defaults": missing_defaults,
                                 "confirm_defaults": confirm_defaults,
                                 "forced_carton_count": forced_carton_count,
-                                "carton_distribution_mode": carton_distribution_mode,
                             },
                         )
                     except StockError as exc:
@@ -1474,6 +1100,5 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
             missing_defaults=missing_defaults,
             confirm_defaults=confirm_defaults,
             forced_carton_count=forced_carton_count,
-            carton_distribution_mode=carton_distribution_mode,
         ),
     )

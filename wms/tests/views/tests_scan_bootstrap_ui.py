@@ -1245,10 +1245,6 @@ class ScanBootstrapUiTests(TestCase):
             "quantityField.className = 'pack-line-field pack-line-quantity-field';", scan_js_content
         )
         self.assertIn(
-            "perCartonField.className = 'pack-line-field pack-line-per-carton-field';",
-            scan_js_content,
-        )
-        self.assertIn(
             "scanField.className = 'pack-line-field pack-line-scan-field';", scan_js_content
         )
         self.assertIn("scanBtn.textContent = 'Scanner un code barre / QR Code';", scan_js_content)
@@ -1267,10 +1263,6 @@ class ScanBootstrapUiTests(TestCase):
             css_content,
         )
         self.assertIn(
-            ".scan-bootstrap-enabled .pack-line-per-carton-field {\n  grid-column: 10 / -1;",
-            css_content,
-        )
-        self.assertIn(
             ".scan-bootstrap-enabled .pack-line-scan-field {\n  grid-column: 10 / -1;", css_content
         )
         self.assertIn(
@@ -1280,47 +1272,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("pack-line-remove-btn", scan_js_content)
         self.assertIn("removeButton.textContent = 'Retirer';", scan_js_content)
         self.assertIn(".scan-bootstrap-enabled .pack-line-header {", css_content)
-
-    def test_scan_pack_workbench_shell_exposes_creation_contract(self):
-        response = self.client.get(reverse("scan:scan_pack"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="pack-workbench"')
-        self.assertContains(response, 'data-pack-workbench="1"')
-        self.assertContains(response, 'id="pack-quick-generator"')
-        self.assertContains(response, 'id="pack-selection-toolbar"')
-        self.assertContains(response, 'id="pack-draft-plan"')
-        self.assertContains(response, 'id="pack-row-editor"')
-        self.assertContains(response, 'id="pack-final-confirmation"')
-        self.assertContains(response, 'id="pack-plan-hidden-fields"')
-        self.assertContains(response, 'name="carton_plan_mode" value="exact"')
-        self.assertNotContains(response, 'id="pack-direct-final-submit"')
-
-    def test_scan_pack_workbench_js_exposes_draft_plan_contract(self):
-        scan_js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
-        scan_js_content = scan_js_path.read_text(encoding="utf-8")
-
-        self.assertIn("const packDraftCartons = [];", scan_js_content)
-        self.assertIn("function generatePackDraftCartonsFromQuickGenerator()", scan_js_content)
-        self.assertIn("function duplicatePackDraftCartonToTargetCount", scan_js_content)
-        self.assertIn("function applyPackBatchUpdateToSelectedCartons", scan_js_content)
-        self.assertIn("function serializePackExactPlanHiddenFields()", scan_js_content)
-        self.assertIn("function renderPackFinalConfirmationSummary()", scan_js_content)
-        self.assertIn("name = `carton_${cartonIndex}_line_${lineIndex}_quantity`", scan_js_content)
-        self.assertIn("name = `carton_${cartonIndex}_shipment_reference`", scan_js_content)
-        self.assertIn("name = `carton_${cartonIndex}_output_mode`", scan_js_content)
-
-    def test_scan_pack_workbench_css_exposes_dense_layout_contract(self):
-        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
-        css_content = css_path.read_text(encoding="utf-8")
-
-        self.assertIn(".scan-bootstrap-enabled .scan-pack-workbench {", css_content)
-        self.assertIn(".scan-bootstrap-enabled .scan-pack-generator-grid {", css_content)
-        self.assertIn(".scan-bootstrap-enabled .scan-pack-selection-toolbar {", css_content)
-        self.assertIn(".scan-bootstrap-enabled .scan-pack-batch-actions {", css_content)
-        self.assertIn(".scan-bootstrap-enabled .scan-pack-plan-table {", css_content)
-        self.assertIn(".scan-bootstrap-enabled .scan-pack-preview-grid {", css_content)
-        self.assertIn(".scan-bootstrap-enabled .scan-pack-final-summary-list {", css_content)
 
     def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
         response = self.client.get(reverse("scan:scan_pack"))
@@ -2691,9 +2642,9 @@ class ScanBootstrapUiTests(TestCase):
 
         pack_response = self.client.get(reverse("scan:scan_pack"))
         self.assertEqual(pack_response.status_code, 200)
-        self.assertContains(pack_response, "scan-pack-generator-grid")
-        self.assertContains(pack_response, "scan-pack-validation-actions")
-        self.assertContains(pack_response, "scan-pack-assignment-field")
+        self.assertContains(pack_response, "scan-pack-shipping-row")
+        self.assertContains(pack_response, "scan-pack-shipping-actions-inline")
+        self.assertContains(pack_response, "scan-pack-shipping-field")
 
     def test_scan_pack_uses_shipment_select_contract(self):
         destination = Destination.objects.create(

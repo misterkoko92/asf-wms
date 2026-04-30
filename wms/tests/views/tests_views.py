@@ -722,8 +722,8 @@ class ScanViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_pack"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Destination pre-affectee")
         self.assertContains(response, 'id="id_preassigned_destination"')
-        self.assertContains(response, 'id="pack-batch-destination"')
 
     def test_scan_pack_creates_carton_with_preassigned_destination(self):
         correspondent = Contact.objects.create(name="Pack Correspondent")

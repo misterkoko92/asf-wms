@@ -1,55 +1,46 @@
 {% load i18n wms_ui %}
 
-<section id="pack-section-assignment" class="scan-pack-section">
-  <h3 class="ui-comp-subtitle">{% trans "Affectation" %}</h3>
-  <div class="row g-3 align-items-end scan-pack-shipping-row">
-    <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-4{% endif %}">
-      <label class="form-label" for="id_preassigned_destination">{% trans "Destination pre-affectee" %}</label>
-      {{ form.preassigned_destination }}
-      {% if request.scan_is_preparateur and form.shipment_reference.value|default:selected_order_summary.shipment_reference %}
-        <input
-          type="hidden"
-          name="{{ form.shipment_reference.html_name }}"
-          value="{{ form.shipment_reference.value|default:selected_order_summary.shipment_reference }}"
-        >
-      {% endif %}
-      {% for error in form.preassigned_destination.errors %}
+<div class="row g-3 align-items-end scan-pack-shipping-row">
+  <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
+    <label class="form-label" for="id_preassigned_destination">{% trans "Destination pre-affectee" %}</label>
+    {{ form.preassigned_destination }}
+    {% if request.scan_is_preparateur and form.shipment_reference.value|default:selected_order_summary.shipment_reference %}
+      <input
+        type="hidden"
+        name="{{ form.shipment_reference.html_name }}"
+        value="{{ form.shipment_reference.value|default:selected_order_summary.shipment_reference }}"
+      >
+    {% endif %}
+    {% for error in form.preassigned_destination.errors %}
+      <div class="scan-message error">{{ error }}</div>
+    {% endfor %}
+  </div>
+  {% if not request.scan_is_preparateur %}
+    <div class="scan-field scan-pack-shipping-field col-12 col-lg-3">
+      <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
+      <select id="{{ form.shipment_reference.id_for_label }}" name="{{ form.shipment_reference.html_name }}">
+        <option value=""{% if not form.shipment_reference.value %} selected{% endif %}>---------</option>
+        {% for shipment in form.shipment_reference.field.queryset %}
+          <option
+            value="{{ shipment.reference }}"
+            {% if form.shipment_reference.value|stringformat:"s" == shipment.reference|stringformat:"s" %}selected{% endif %}
+          >
+            {{ shipment.reference }} - {{ shipment.destination.iata_code|default:"-" }}
+          </option>
+        {% endfor %}
+      </select>
+      {% for error in form.shipment_reference.errors %}
         <div class="scan-message error">{{ error }}</div>
       {% endfor %}
     </div>
-    {% if not request.scan_is_preparateur %}
-      <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
-        <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
-        <select id="{{ form.shipment_reference.id_for_label }}" name="{{ form.shipment_reference.html_name }}">
-          <option value=""{% if not form.shipment_reference.value %} selected{% endif %}>---------</option>
-          {% for shipment in form.shipment_reference.field.queryset %}
-            <option
-              value="{{ shipment.reference }}"
-              {% if form.shipment_reference.value|stringformat:"s" == shipment.reference|stringformat:"s" %}selected{% endif %}
-            >
-              {{ shipment.reference }} - {{ shipment.destination.iata_code|default:"-" }}
-            </option>
-          {% endfor %}
-        </select>
-        {% for error in form.shipment_reference.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
 
-      <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
-        <label class="form-label" for="id_current_location">{% trans "Emplacement colis prêt (optionnel)" %}</label>
-        {{ form.current_location }}
-      </div>
-    {% endif %}
-  </div>
-  {% if not request.scan_is_preparateur %}
-    <p class="scan-help ui-comp-note mb-0">{% trans "Sans expédition, les cartons restent pré-conditionnés ou disponibles selon la validation." %}</p>
+    <div class="scan-field scan-pack-shipping-field col-12 col-lg-3">
+      <label class="form-label" for="id_current_location">{% trans "Choisir un emplacement de rangement du colis prêt (optionnel)" %}</label>
+      {{ form.current_location }}
+    </div>
   {% endif %}
-</section>
 
-<section id="pack-section-output" class="scan-pack-section">
-  <h3 class="ui-comp-subtitle">{% trans "Sortie" %}</h3>
-  <div class="scan-field scan-pack-defaults-field">
+  <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
     <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
       <input
         id="id_confirm_defaults"
@@ -62,7 +53,7 @@
       >
       <label class="form-check-label scan-switch-label" for="id_confirm_defaults">
         <span class="scan-switch-copy">
-          <span id="id_confirm_defaults-label" class="scan-switch-title">{% trans "Autoriser l'ajout avec valeurs standard pour les produits sans dimensions/poids." %}</span>
+          <span id="id_confirm_defaults-label" class="scan-switch-title">Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids.</span>
         </span>
         <span class="scan-switch-control" aria-hidden="true">
           <span class="scan-switch-track">
@@ -72,39 +63,39 @@
       </label>
     </div>
   </div>
+</div>
 
-  {% if missing_defaults %}
-    {% blocktrans with products=missing_defaults|join:", " trimmed asvar missing_defaults_body %}
-      Attention : les produits suivants n'ont pas de dimensions ni de poids enregistrés : {{ products }}. Si vous validez ces ajouts, des valeurs par défaut seront appliquées (1cm x 1cm x 1cm et 5g).
-    {% endblocktrans %}
-    {% ui_alert tone="warning" body=missing_defaults_body %}
+{% if missing_defaults %}
+  {% blocktrans with products=missing_defaults|join:", " trimmed asvar missing_defaults_body %}
+    Attention : les produits suivants n'ont pas de dimensions ni de poids enregistrés : {{ products }}. Si vous validez ces ajouts, des valeurs par défaut seront appliquées (1cm x 1cm x 1cm et 5g).
+  {% endblocktrans %}
+  {% ui_alert tone="warning" body=missing_defaults_body %}
+{% endif %}
+
+<div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
+  {% if not request.scan_is_preparateur and not editing_carton %}
+    <button
+      type="submit"
+      name="action"
+      value="prepare_without_conditioning"
+      class="scan-submit btn btn-outline-secondary"
+    >
+      {% trans "Préparer sans conditionner" %}
+    </button>
+    <button
+      type="submit"
+      name="action"
+      value="prepare_available"
+      class="scan-submit btn btn-success"
+    >
+      {% trans "Préparer et mettre en disponible" %}
+    </button>
+  {% elif editing_carton %}
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer les modifications" %}</button>
+  {% else %}
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
   {% endif %}
-</section>
-
-<section id="pack-section-review" class="scan-pack-section">
-  <h3 class="ui-comp-subtitle">{% trans "Validation" %}</h3>
-  <div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
-    {% if not request.scan_is_preparateur and not editing_carton %}
-      <button
-        type="submit"
-        name="action"
-        value="prepare_without_conditioning"
-        class="scan-submit btn btn-outline-secondary"
-      >
-        {% trans "Préparer sans conditionner" %}
-      </button>
-      <button
-        type="submit"
-        name="action"
-        value="prepare_available"
-        class="scan-submit btn btn-success"
-      >
-        {% trans "Préparer et mettre en disponible" %}
-      </button>
-    {% elif editing_carton %}
-      <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer les modifications" %}</button>
-    {% else %}
-      <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
-    {% endif %}
-  </div>
-</section>
+</div>
+{% if not request.scan_is_preparateur %}
+  <p class="scan-help ui-comp-note">{% trans "Si la référence d'expédition est vide, les cartons sont pré-conditionnés." %}</p>
+{% endif %}

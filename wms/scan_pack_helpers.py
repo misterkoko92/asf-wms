@@ -23,9 +23,6 @@ def build_pack_line_values(line_count, data=None):
             {
                 "product_code": (data.get(prefix + "product_code") if data else "") or "",
                 "quantity": (data.get(prefix + "quantity") if data else "") or "",
-                "per_carton_quantity": (
-                    (data.get(prefix + "per_carton_quantity") if data else "") or ""
-                ),
                 "expires_on": (data.get(prefix + "expires_on") if data else "") or "",
                 "pack_family_override": (
                     (data.get(prefix + "pack_family_override") if data else "") or ""

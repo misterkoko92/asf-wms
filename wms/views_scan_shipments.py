@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -73,7 +72,6 @@ from .preparateur_orders import (
     build_preparateur_selected_order_summary,
     get_preparateur_selected_order,
 )
-from .preparateur_session import build_preparateur_volunteer_label
 from .prepare_kits_helpers import (
     _parse_carton_ids,
     build_prepare_kits_page_context,
@@ -190,9 +188,6 @@ ACTIVE_PACK = "pack"
 ACTIVE_SHIPMENT_BATCH = "shipment_batch"
 LOCAL_DOCUMENT_HELPER_APP_LABEL = "asf-wms"
 LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE = "scan:scan_local_document_helper_installer"
-CARTON_ASSIGNMENT_FILTER_FREE = "free"
-CARTON_ASSIGNMENT_FILTER_ASSIGNED = "assigned"
-CARTON_ASSIGNMENT_FILTER_PREASSIGNED = "preassigned"
 EDITABLE_CARTON_ASSIGNMENT_SHIPMENT_STATUSES = (
     ShipmentStatus.DRAFT,
     ShipmentStatus.PICKING,
@@ -212,15 +207,6 @@ DOSSIER_LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 }
-
-CARTON_FILTER_STATUS_CHOICES = (
-    CartonStatus.DRAFT,
-    CartonStatus.PICKING,
-    CartonStatus.PACKED,
-    CartonStatus.ASSIGNED,
-    CartonStatus.LABELED,
-    CartonStatus.SHIPPED,
-)
 
 
 def _build_shipment_form_support(*, extra_carton_options=None, product_options=None):
@@ -377,7 +363,6 @@ def _render_pack_page(
     missing_defaults,
     confirm_defaults,
     forced_carton_count,
-    carton_distribution_mode="auto",
     extra_context=None,
 ):
     context = {
@@ -394,7 +379,6 @@ def _render_pack_page(
         "missing_defaults": missing_defaults,
         "confirm_defaults": confirm_defaults,
         "forced_carton_count": forced_carton_count,
-        "carton_distribution_mode": carton_distribution_mode,
         **_build_local_document_helper_context(request),
     }
     if extra_context:
@@ -424,7 +408,6 @@ def _build_pack_state_from_post(post_data):
         "missing_defaults": [],
         "confirm_defaults": bool(post_data.get("confirm_defaults")),
         "forced_carton_count": post_data.get("forced_carton_count", ""),
-        "carton_distribution_mode": post_data.get("carton_distribution_mode", "auto"),
     }
 
 
@@ -1269,70 +1252,6 @@ def _render_shipment_tracking(
     )
 
 
-def _parse_carton_filter_date(value):
-    raw_value = (value or "").strip()
-    if not raw_value:
-        return None
-    try:
-        return datetime.strptime(raw_value, "%Y-%m-%d").date()
-    except ValueError:
-        return None
-
-
-def _parse_carton_prepared_by_filter(value):
-    raw_value = (value or "").strip()
-    if not raw_value:
-        return None
-    try:
-        return int(raw_value)
-    except ValueError:
-        return None
-
-
-def _build_cartons_ready_filter_state(request):
-    assignment_filter = (request.GET.get("assignment") or "").strip()
-    if assignment_filter not in {
-        "",
-        CARTON_ASSIGNMENT_FILTER_FREE,
-        CARTON_ASSIGNMENT_FILTER_ASSIGNED,
-        CARTON_ASSIGNMENT_FILTER_PREASSIGNED,
-    }:
-        assignment_filter = ""
-
-    status_filter = (request.GET.get("status") or "").strip()
-    if status_filter and status_filter not in CartonStatus.values:
-        status_filter = ""
-
-    created_on = (request.GET.get("created_on") or "").strip()
-    prepared_by = (request.GET.get("prepared_by") or "").strip()
-
-    return {
-        "q": (request.GET.get("q") or "").strip(),
-        "assignment": assignment_filter,
-        "status": status_filter,
-        "created_on": created_on,
-        "created_on_date": _parse_carton_filter_date(created_on),
-        "prepared_by": prepared_by,
-        "prepared_by_id": _parse_carton_prepared_by_filter(prepared_by),
-    }
-
-
-def _build_carton_volunteer_filter_options():
-    volunteers = (
-        VolunteerProfile.objects.filter(carton_activities__carton__cartonitem__isnull=False)
-        .select_related("user")
-        .distinct()
-        .order_by("user__last_name", "user__first_name", "id")
-    )
-    return [
-        {
-            "id": volunteer.id,
-            "label": build_preparateur_volunteer_label(volunteer),
-        }
-        for volunteer in volunteers
-    ]
-
-
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_cartons_ready(request):
@@ -1360,7 +1279,6 @@ def scan_cartons_ready(request):
 
     carton_capacity_cm3 = get_carton_capacity_cm3()
     shipment_reference_filter = (request.GET.get("shipment_reference") or "").strip()
-    carton_filters = _build_cartons_ready_filter_state(request)
 
     cartons_qs = (
         Carton.objects.filter(cartonitem__isnull=False)
@@ -1371,44 +1289,8 @@ def scan_cartons_ready(request):
     )
     if shipment_reference_filter:
         cartons_qs = cartons_qs.filter(shipment__reference__iexact=shipment_reference_filter)
-    if carton_filters["assignment"] == CARTON_ASSIGNMENT_FILTER_FREE:
-        cartons_qs = cartons_qs.filter(
-            shipment__isnull=True,
-            preassigned_destination__isnull=True,
-        )
-    elif carton_filters["assignment"] == CARTON_ASSIGNMENT_FILTER_ASSIGNED:
-        cartons_qs = cartons_qs.filter(shipment__isnull=False)
-    elif carton_filters["assignment"] == CARTON_ASSIGNMENT_FILTER_PREASSIGNED:
-        cartons_qs = cartons_qs.filter(
-            shipment__isnull=True,
-            preassigned_destination__isnull=False,
-        )
-    if carton_filters["status"]:
-        cartons_qs = cartons_qs.filter(status=carton_filters["status"])
-    if carton_filters["q"]:
-        q = carton_filters["q"]
-        cartons_qs = cartons_qs.filter(
-            Q(code__icontains=q)
-            | Q(cartonitem__product_lot__product__name__icontains=q)
-            | Q(cartonitem__product_lot__product__sku__icontains=q)
-            | Q(cartonitem__product_lot__product__barcode__icontains=q)
-            | Q(cartonitem__product_lot__product__ean__icontains=q)
-        )
-    if carton_filters["created_on_date"] is not None:
-        cartons_qs = cartons_qs.filter(created_at__date=carton_filters["created_on_date"])
-    if carton_filters["prepared_by_id"] is not None:
-        volunteer = (
-            VolunteerProfile.objects.filter(pk=carton_filters["prepared_by_id"])
-            .select_related("user")
-            .first()
-        )
-        if volunteer is not None:
-            cartons_qs = cartons_qs.filter(
-                Q(volunteer_activities__volunteer=volunteer) | Q(prepared_by_id=volunteer.user_id)
-            )
     if user_is_preparateur(request.user):
         cartons_qs = cartons_qs.exclude(status=CartonStatus.SHIPPED)
-    cartons_qs = cartons_qs.distinct()
     cartons = build_cartons_ready_rows(cartons_qs, carton_capacity_cm3=carton_capacity_cm3)
 
     return render(
@@ -1426,17 +1308,6 @@ def scan_cartons_ready(request):
                 ]
             ),
             "shipment_reference_filter": shipment_reference_filter,
-            "carton_filters": carton_filters,
-            "carton_assignment_filter_choices": [
-                ("", _("Toutes affectations")),
-                (CARTON_ASSIGNMENT_FILTER_FREE, _("Libres")),
-                (CARTON_ASSIGNMENT_FILTER_ASSIGNED, _("Affectés")),
-                (CARTON_ASSIGNMENT_FILTER_PREASSIGNED, _("Pré-affectés")),
-            ],
-            "carton_filter_status_choices": [
-                (status, CartonStatus(status).label) for status in CARTON_FILTER_STATUS_CHOICES
-            ],
-            "carton_volunteer_filter_options": _build_carton_volunteer_filter_options(),
             **_build_local_document_helper_context(request),
         },
     )
@@ -1709,7 +1580,6 @@ def scan_pack(request):
                 missing_defaults=pack_state["missing_defaults"],
                 confirm_defaults=pack_state["confirm_defaults"],
                 forced_carton_count=pack_state.get("forced_carton_count"),
-                carton_distribution_mode=pack_state.get("carton_distribution_mode", "auto"),
                 extra_context=_build_preparateur_pack_extra_context(
                     request,
                     unknown_product_form=unknown_product_form,
@@ -1725,7 +1595,6 @@ def scan_pack(request):
         missing_defaults = pack_state.get("missing_defaults", [])
         confirm_defaults = pack_state.get("confirm_defaults", True)
         forced_carton_count = pack_state.get("forced_carton_count")
-        carton_distribution_mode = pack_state.get("carton_distribution_mode", "auto")
         if response:
             return response
     else:
@@ -1736,7 +1605,6 @@ def scan_pack(request):
             line_values,
             forced_carton_count,
         ) = build_pack_defaults(default_format)
-        carton_distribution_mode = "auto"
         missing_defaults = []
         confirm_defaults = True
     return _render_pack_page(
@@ -1753,7 +1621,6 @@ def scan_pack(request):
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
         forced_carton_count=forced_carton_count,
-        carton_distribution_mode=carton_distribution_mode,
         extra_context=_build_preparateur_pack_extra_context(request),
     )
 
@@ -1822,7 +1689,6 @@ def scan_carton_edit(request, carton_id):
             missing_defaults = pack_state.get("missing_defaults", [])
             confirm_defaults = pack_state.get("confirm_defaults", False)
             forced_carton_count = pack_state.get("forced_carton_count")
-            carton_distribution_mode = pack_state.get("carton_distribution_mode", "auto")
             if response:
                 return response
         else:
@@ -1833,7 +1699,6 @@ def scan_carton_edit(request, carton_id):
                 line_values,
                 forced_carton_count,
             ) = build_pack_defaults(default_format, carton=editing_carton)
-            carton_distribution_mode = "auto"
             missing_defaults = []
             confirm_defaults = False
     else:
@@ -1852,7 +1717,6 @@ def scan_carton_edit(request, carton_id):
         missing_defaults = []
         confirm_defaults = False
         forced_carton_count = None
-        carton_distribution_mode = "auto"
 
     carton_summary = build_carton_ready_row(
         editing_carton,
@@ -1890,7 +1754,6 @@ def scan_carton_edit(request, carton_id):
         missing_defaults=missing_defaults,
         confirm_defaults=confirm_defaults,
         forced_carton_count=forced_carton_count,
-        carton_distribution_mode=carton_distribution_mode,
         extra_context={
             "active": ACTIVE_CARTONS_READY,
             "editing_carton": editing_carton,
