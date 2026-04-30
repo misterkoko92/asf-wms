@@ -19,6 +19,7 @@ from .models import (
     CartonFormat,
     CartonStatus,
     CartonVolunteerActivityAction,
+    Destination,
     Location,
     Product,
     ProductCategory,
@@ -53,6 +54,13 @@ PREPARATEUR_ALLOWED_FAMILIES = (
 PACK_ACTION_PREPARE_WITHOUT_CONDITIONING = "prepare_without_conditioning"
 PACK_ACTION_PREPARE_AVAILABLE = "prepare_available"
 DEPRECATED_PACK_ACTION_PREPARE_AVAILABLE_BATCH = "prepare_available_batch"
+PACK_CARTON_PLAN_MODE_EXACT = "exact"
+EXACT_CARTON_OUTPUT_AVAILABLE = "available"
+EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING = "without_conditioning"
+EXACT_CARTON_OUTPUT_MODES = {
+    EXACT_CARTON_OUTPUT_AVAILABLE,
+    EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING,
+}
 CARTON_DISTRIBUTION_MODE_AUTO = "auto"
 CARTON_DISTRIBUTION_MODE_MANUAL = "manual"
 DEPRECATED_FREE_BATCH_ACTION_ERROR = _(
@@ -256,6 +264,167 @@ def _resolve_pack_action(request):
     if action == PACK_ACTION_PREPARE_AVAILABLE:
         return PACK_ACTION_PREPARE_AVAILABLE
     return PACK_ACTION_PREPARE_WITHOUT_CONDITIONING
+
+
+def _add_exact_plan_error(errors, key, message):
+    errors.setdefault(key, []).append(str(message))
+
+
+def _resolve_exact_plan_destination(value, errors, key):
+    value = (value or "").strip()
+    if not value:
+        return None
+    destination_id = parse_int(value)
+    if destination_id is None:
+        _add_exact_plan_error(errors, key, _("Destination invalide."))
+        return None
+    destination = Destination.objects.filter(pk=destination_id, is_active=True).first()
+    if destination is None:
+        _add_exact_plan_error(errors, key, _("Destination introuvable."))
+    return destination
+
+
+def _resolve_exact_plan_location(value, errors, key):
+    value = (value or "").strip()
+    if not value:
+        return None
+    location_id = parse_int(value)
+    if location_id is None:
+        _add_exact_plan_error(errors, key, _("Emplacement invalide."))
+        return None
+    location = Location.objects.filter(pk=location_id).first()
+    if location is None:
+        _add_exact_plan_error(errors, key, _("Emplacement introuvable."))
+    return location
+
+
+def _resolve_exact_plan_carton_size(request, *, carton_index, default_format, errors):
+    fallback_format_id = str(default_format.id) if default_format is not None else "custom"
+    carton_format_id = (
+        request.POST.get(f"carton_{carton_index}_carton_format_id")
+        or request.POST.get("carton_format_id")
+        or fallback_format_id
+    ).strip()
+    carton_size, carton_errors = resolve_carton_size(
+        carton_format_id=carton_format_id,
+        default_format=default_format,
+        data=request.POST,
+    )
+    for error in carton_errors:
+        _add_exact_plan_error(errors, f"carton_{carton_index}", error)
+    return carton_format_id, carton_size
+
+
+def parse_exact_carton_plan(request, *, default_format):
+    errors = {}
+    missing_defaults = []
+    plan = []
+    carton_count = parse_int(request.POST.get("carton_plan_count"))
+    if carton_count is None or carton_count <= 0:
+        _add_exact_plan_error(errors, "carton_plan", _("Ajoutez au moins un colis."))
+        return plan, errors, missing_defaults
+
+    missing_default_names = set()
+    for carton_index in range(1, carton_count + 1):
+        carton_key = f"carton_{carton_index}"
+        output_mode = (
+            request.POST.get(f"{carton_key}_output_mode") or EXACT_CARTON_OUTPUT_AVAILABLE
+        ).strip()
+        if output_mode not in EXACT_CARTON_OUTPUT_MODES:
+            _add_exact_plan_error(errors, carton_key, _("Mode de sortie invalide."))
+            output_mode = EXACT_CARTON_OUTPUT_AVAILABLE
+
+        shipment_reference = (request.POST.get(f"{carton_key}_shipment_reference") or "").strip()
+        shipment = _resolve_selected_shipment(shipment_reference) if shipment_reference else None
+        if shipment_reference and shipment is None:
+            _add_exact_plan_error(errors, carton_key, _("Expédition introuvable."))
+
+        preassigned_destination = None
+        if shipment is None:
+            preassigned_destination = _resolve_exact_plan_destination(
+                request.POST.get(f"{carton_key}_preassigned_destination"),
+                errors,
+                carton_key,
+            )
+
+        current_location = _resolve_exact_plan_location(
+            request.POST.get(f"{carton_key}_current_location"),
+            errors,
+            carton_key,
+        )
+        carton_format_id, carton_size = _resolve_exact_plan_carton_size(
+            request,
+            carton_index=carton_index,
+            default_format=default_format,
+            errors=errors,
+        )
+
+        line_count = parse_int(request.POST.get(f"{carton_key}_line_count")) or 0
+        if line_count <= 0:
+            _add_exact_plan_error(errors, carton_key, _("Ajoutez au moins un produit."))
+
+        line_items = []
+        for line_index in range(1, line_count + 1):
+            line_key = f"{carton_key}_line_{line_index}"
+            prefix = f"{line_key}_"
+            product_code = (request.POST.get(prefix + "product_code") or "").strip()
+            quantity_raw = (request.POST.get(prefix + "quantity") or "").strip()
+            expires_on_raw = (request.POST.get(prefix + "expires_on") or "").strip()
+            if not product_code and not quantity_raw:
+                continue
+            if not product_code:
+                _add_exact_plan_error(errors, line_key, _("Produit requis."))
+            quantity = None
+            if not quantity_raw:
+                _add_exact_plan_error(errors, line_key, _("Quantité requise."))
+            else:
+                quantity = parse_int(quantity_raw)
+                if quantity is None or quantity <= 0:
+                    _add_exact_plan_error(errors, line_key, _("Quantité invalide."))
+            product = resolve_product(product_code, include_kits=True) if product_code else None
+            if product_code and product is None:
+                _add_exact_plan_error(errors, line_key, _("Produit introuvable."))
+            expires_on = None
+            if expires_on_raw:
+                expires_on = parse_date(expires_on_raw)
+                if expires_on is None:
+                    _add_exact_plan_error(errors, line_key, _("Date de péremption invalide."))
+            if product is not None and quantity is not None and quantity > 0:
+                if (
+                    get_product_weight_g(product) is None
+                    and get_product_volume_cm3(product) is None
+                ):
+                    missing_default_names.add(product.name)
+                line_items.append(
+                    {
+                        "product": product,
+                        "quantity": quantity,
+                        "expires_on": expires_on,
+                        "index": line_index,
+                        "pack_family_override": (
+                            request.POST.get(prefix + "pack_family_override") or ""
+                        ),
+                    }
+                )
+
+        if not line_items:
+            _add_exact_plan_error(errors, carton_key, _("Ajoutez au moins un produit."))
+
+        plan.append(
+            {
+                "index": carton_index,
+                "output_mode": output_mode,
+                "shipment": shipment,
+                "preassigned_destination": preassigned_destination,
+                "current_location": current_location,
+                "carton_format_id": carton_format_id,
+                "carton_size": carton_size,
+                "line_items": line_items,
+            }
+        )
+
+    missing_defaults = sorted(missing_default_names)
+    return plan, errors, missing_defaults
 
 
 def _resolve_carton_distribution_mode(request):

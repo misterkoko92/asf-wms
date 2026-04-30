@@ -26,10 +26,13 @@ from wms.models import (
     Warehouse,
 )
 from wms.pack_handlers import (
+    EXACT_CARTON_OUTPUT_AVAILABLE,
+    EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING,
     build_pack_defaults,
     create_preparateur_unknown_product_from_pack,
     handle_pack_post,
     notify_preparateur_product_review_needed,
+    parse_exact_carton_plan,
 )
 from wms.services import StockError
 
@@ -394,6 +397,99 @@ class PackHandlersTests(TestCase):
             ),
             form.errors,
         )
+
+    def test_parse_exact_carton_plan_reads_mixed_carton_rows(self):
+        stock_location, _ready_mm, _ready_cn = self._create_locations()
+        category = ProductCategory.objects.create(name="MM")
+        syringe = Product.objects.create(
+            sku="SYR-10",
+            name="Seringues",
+            category=category,
+            weight_g=100,
+            length_cm=Decimal("10"),
+            width_cm=Decimal("10"),
+            height_cm=Decimal("10"),
+            default_location=stock_location,
+        )
+        compress = Product.objects.create(
+            sku="CMP-20",
+            name="Compresses",
+            category=category,
+            weight_g=50,
+            length_cm=Decimal("5"),
+            width_cm=Decimal("5"),
+            height_cm=Decimal("5"),
+            default_location=stock_location,
+        )
+        destination = self._create_destination(code="ABJ")
+        shipment = Shipment.objects.create(
+            reference="EXP-003",
+            shipper_name="ASF",
+            recipient_name="Hopital",
+            destination=destination,
+            destination_address="Abidjan",
+        )
+        carton_format = CartonFormat.objects.create(
+            name="Standard test",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        request = self._db_request(
+            {
+                "carton_plan_mode": "exact",
+                "confirm_carton_plan": "1",
+                "carton_plan_count": "4",
+                "carton_1_output_mode": "available",
+                "carton_1_preassigned_destination": str(destination.id),
+                "carton_1_current_location": str(stock_location.id),
+                "carton_1_carton_format_id": str(carton_format.id),
+                "carton_1_line_count": "1",
+                "carton_1_line_1_product_code": syringe.sku,
+                "carton_1_line_1_quantity": "10",
+                "carton_2_output_mode": "available",
+                "carton_2_shipment_reference": shipment.reference,
+                "carton_2_carton_format_id": str(carton_format.id),
+                "carton_2_line_count": "1",
+                "carton_2_line_1_product_code": syringe.sku,
+                "carton_2_line_1_quantity": "10",
+                "carton_3_output_mode": "available",
+                "carton_3_carton_format_id": str(carton_format.id),
+                "carton_3_line_count": "2",
+                "carton_3_line_1_product_code": syringe.sku,
+                "carton_3_line_1_quantity": "5",
+                "carton_3_line_2_product_code": compress.sku,
+                "carton_3_line_2_quantity": "20",
+                "carton_4_output_mode": "without_conditioning",
+                "carton_4_carton_format_id": str(carton_format.id),
+                "carton_4_line_count": "1",
+                "carton_4_line_1_product_code": compress.sku,
+                "carton_4_line_1_quantity": "4",
+            }
+        )
+
+        plan, errors, missing_defaults = parse_exact_carton_plan(
+            request,
+            default_format=carton_format,
+        )
+
+        self.assertEqual(errors, {})
+        self.assertEqual(missing_defaults, [])
+        self.assertEqual(len(plan), 4)
+        self.assertEqual(plan[0]["output_mode"], EXACT_CARTON_OUTPUT_AVAILABLE)
+        self.assertEqual(plan[0]["preassigned_destination"], destination)
+        self.assertEqual(plan[0]["shipment"], None)
+        self.assertEqual(plan[0]["current_location"], stock_location)
+        self.assertEqual(plan[0]["carton_size"]["max_weight_g"], 8000)
+        self.assertEqual(plan[0]["line_items"][0]["product"], syringe)
+        self.assertEqual(plan[0]["line_items"][0]["quantity"], 10)
+        self.assertEqual(plan[1]["shipment"], shipment)
+        self.assertIsNone(plan[1]["preassigned_destination"])
+        self.assertEqual(plan[2]["line_items"][0]["product"], syringe)
+        self.assertEqual(plan[2]["line_items"][1]["product"], compress)
+        self.assertEqual(plan[3]["output_mode"], EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING)
 
     def test_handle_pack_post_validates_shipment_carton_and_line_fields(self):
         request = self._request(
