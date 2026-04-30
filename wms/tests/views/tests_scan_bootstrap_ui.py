@@ -1309,6 +1309,18 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("name = `carton_${cartonIndex}_shipment_reference`", scan_js_content)
         self.assertIn("name = `carton_${cartonIndex}_output_mode`", scan_js_content)
 
+    def test_scan_pack_workbench_css_exposes_dense_layout_contract(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(".scan-bootstrap-enabled .scan-pack-workbench {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-pack-generator-grid {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-pack-selection-toolbar {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-pack-batch-actions {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-pack-plan-table {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-pack-preview-grid {", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-pack-final-summary-list {", css_content)
+
     def test_scan_overlay_exposes_front_rear_camera_choice_contract(self):
         response = self.client.get(reverse("scan:scan_pack"))
         self.assertEqual(response.status_code, 200)
