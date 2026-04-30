@@ -491,6 +491,57 @@ class PackHandlersTests(TestCase):
         self.assertEqual(plan[2]["line_items"][1]["product"], compress)
         self.assertEqual(plan[3]["output_mode"], EXACT_CARTON_OUTPUT_WITHOUT_CONDITIONING)
 
+    def test_handle_pack_post_exact_carton_plan_reports_validation_errors(self):
+        carton_format = CartonFormat.objects.create(
+            name="Standard exact errors",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        request = self._db_request(
+            {
+                "carton_plan_mode": "exact",
+                "carton_plan_count": "2",
+                "carton_1_output_mode": "invalid-output",
+                "carton_1_shipment_reference": "EXP-MISSING",
+                "carton_1_current_location": "bad-location",
+                "carton_1_carton_format_id": str(carton_format.id),
+                "carton_1_line_count": "3",
+                "carton_1_line_1_quantity": "2",
+                "carton_1_line_2_product_code": "SKU-MISSING",
+                "carton_1_line_2_quantity": "-1",
+                "carton_1_line_2_expires_on": "not-a-date",
+                "carton_2_output_mode": "available",
+                "carton_2_preassigned_destination": "bad-destination",
+                "carton_2_carton_format_id": str(carton_format.id),
+                "carton_2_line_count": "0",
+            }
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        response, state = handle_pack_post(
+            request,
+            form=form,
+            default_format=carton_format,
+        )
+
+        self.assertIsNone(response)
+        self.assertEqual(Carton.objects.count(), 0)
+        self.assertEqual(state["line_errors"], {})
+        errors = [message for _field, message in form.errors]
+        self.assertIn("Confirmez le récapitulatif des colis avant création.", errors)
+        self.assertIn("Mode de sortie invalide.", errors)
+        self.assertIn("Expédition introuvable.", errors)
+        self.assertIn("Emplacement invalide.", errors)
+        self.assertIn("Produit requis.", errors)
+        self.assertIn("Quantité invalide.", errors)
+        self.assertIn("Produit introuvable.", errors)
+        self.assertIn("Date de péremption invalide.", errors)
+        self.assertIn("Destination invalide.", errors)
+        self.assertIn("Ajoutez au moins un produit.", errors)
+
     def test_handle_pack_post_creates_exact_carton_plan_with_mixed_outputs(self):
         stock_location, _ready_mm, _ready_cn = self._create_locations()
         category = ProductCategory.objects.create(name="MM")
