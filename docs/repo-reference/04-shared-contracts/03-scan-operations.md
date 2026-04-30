@@ -93,8 +93,12 @@ Read this file when touching scan lists, sidebar navigation, preparateur flows, 
 - Planned carton becomes real only when `Marquer prêt` is clicked.
 - `/scan/pack/` preserves linked shipment reference through hidden shipment field when active.
 - Product card layout stays three-row.
-- Free-pack supports automatic carton calculation or manual forced carton count with warnings.
-- `/scan/pack/` line quantities remain total quantities to prepare; optional `Qté / colis` is a client-side helper that computes the manual carton count and does not change the server stock contract.
+- Staff `/scan/pack/` uses a browser-owned carton workbench: the draft plan has one row per real carton and is posted as an exact carton plan only on confirmation.
+- The workbench generator creates mono-product or multi-product cartons from total quantity and quantity per carton; duplicate creates copies up to the requested target total.
+- Workbench rows can be selected individually or in groups for cumulative destination, shipment, output mode, location, and format updates; changing one field must not silently erase unrelated fields.
+- Staff exact-plan submission uses `carton_plan_mode=exact`, `carton_plan_count`, per-carton line fields, and `confirm_carton_plan=1`; the final recap modal is the only staff creation submit path.
+- Preparateur free-pack keeps the guided automatic/manual carton-count flow tied to active volunteer/order context and its existing warnings.
+- `/scan/pack/` line quantities remain total quantities to prepare; optional `Qté / colis` is a client-side helper and does not change the server stock contract.
 - Prepared cartons can stay unassigned, be preassigned to a destination, or be linked to a shipment through the existing assignment fields.
 - Later assignment of unassigned available cartons happens from `Vue Colis`, whose filters can isolate free available cartons by assignment, status, product query, creation date, and preparateur volunteer.
 - Camera-facing choice maps rear/front to `environment`/`user`.

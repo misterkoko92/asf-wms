@@ -142,10 +142,11 @@
     <p>
       {% blocktrans trimmed %}
         1. Utiliser <strong>Préparer des colis</strong> pour des produits unitaires ou
-        <strong>Préparer des kits</strong> pour des préparations répétées. 2. Choisir le
-        format, le kit ou les produits. 3. Ajouter les lignes avec <strong>Ajouter un
-        produit</strong> ou <strong>Ajouter</strong>. 4. Lancer la préparation avec le
-        bouton principal de la page. 5. Vérifier le résultat dans <strong>Vue Colis</strong>.
+        <strong>Préparer des kits</strong> pour des préparations répétées. 2. Dans le
+        workbench colis staff, scanner ou rechercher les produits, saisir la quantité totale
+        et la quantité par colis, puis ajouter les colis au plan. 3. Ajuster le plan par
+        duplication, retrait ou action batch. 4. Vérifier le récapitulatif final puis
+        confirmer la création. 5. Vérifier le résultat dans <strong>Vue Colis</strong>.
       {% endblocktrans %}
     </p>
 
@@ -153,12 +154,13 @@
     <p>
       {% blocktrans trimmed %}
         1. Dans <strong>Préparer des colis</strong>, scanner ou rechercher les produits,
-        puis saisir la quantité totale à préparer. 2. Laisser le calcul en
-        <strong>Auto</strong> ou choisir <strong>Manuel</strong> et renseigner le
-        <strong>Nombre de colis</strong>. 3. Utiliser <strong>Qté / colis</strong> sur
-        une ligne produit pour calculer rapidement ce nombre. 4. Valider en colis
-        documentaire ou en colis disponible. 5. Les colis non affectés restent
-        filtrables et affectables plus tard depuis <strong>Vue Colis</strong>.
+        puis saisir la quantité totale à préparer. 2. Renseigner la quantité par colis
+        pour générer une ligne par colis, ou laisser un seul colis si tout doit rester
+        ensemble. 3. Dupliquer un colis en indiquant le total souhaité, ou sélectionner
+        plusieurs colis pour appliquer destination, expédition, sortie, emplacement ou
+        format. 4. Valider en colis documentaire ou en colis disponible depuis le
+        récapitulatif. 5. Les colis non affectés restent filtrables et affectables plus
+        tard depuis <strong>Vue Colis</strong>.
       {% endblocktrans %}
     </p>
 
@@ -281,12 +283,13 @@
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true" data-faq-group="stock-prep" data-faq-group-title="{% trans "Stocks & préparation" %}">
     <h2 class="ui-comp-title">{% trans "Préparation (cartons)" %}</h2>
     <ul>
-      <li>{% trans "Choisir un format de carton (ou personnaliser les dimensions)." %}</li>
-      <li>{% trans "Ajouter une ou plusieurs lignes produit + quantité (scan possible)." %}</li>
-      <li>{% trans "Le système peut créer plusieurs cartons selon la capacité (poids/volume)." %}</li>
+      <li>{% trans "Choisir un format de carton (ou personnaliser les dimensions) et une sortie par défaut." %}</li>
+      <li>{% trans "Scanner ou rechercher un produit, saisir la quantité totale et la quantité par colis, puis ajouter les colis au plan." %}</li>
+      <li>{% trans "Créer des colis mono-produit ou multi-produits, puis dupliquer une ligne en indiquant le total souhaité." %}</li>
+      <li>{% trans "Sélectionner plusieurs colis pour appliquer destination, expédition, sortie, emplacement ou format sans modifier les autres champs." %}</li>
       <li>{% trans "Si un produit n'a pas de dimensions/poids, activez le switch d'autorisation pour appliquer les valeurs standard (1 x 1 x 1 cm et 5 g)." %}</li>
-      <li>{% trans "Optionnel : référence expédition pour affecter directement les cartons." %}</li>
-      <li>{% trans "Optionnel : emplacement courant pour tracer le stockage temporaire." %}</li>
+      <li>{% trans "Le récapitulatif final est à vérifier avant création des cartons." %}</li>
+      <li>{% trans "Le flux préparateur lié à un bénévole et à une commande reste guidé et séparé du workbench staff." %}</li>
     </ul>
     <p>
       {% blocktrans trimmed %}

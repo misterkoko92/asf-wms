@@ -2,6 +2,14 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 4, 30),
+        "pr_number": 189,
+        "summary": (
+            "Préparer des colis passe en workbench staff avec plan exact, duplication, "
+            "actions batch cumulatives et récapitulatif final avant création."
+        ),
+    },
+    {
         "date": date(2026, 4, 29),
         "pr_number": None,
         "summary": (
