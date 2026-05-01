@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from .config import get_installation_config
 from .events import outbox
 from .models import (
     IntegrationDirection,
@@ -122,6 +123,26 @@ def _normalize_recipients(recipient):
 
 def _coerce_queue_text(value):
     return str(value or "")
+
+
+def format_email_subject(subject: str) -> str:
+    """Return an installation-prefixed email subject idempotently.
+
+    The default installation prefix is ``"ASF WMS -"``. Idempotence compares
+    with ``prefix.rstrip()`` so existing subjects such as ``"ASF WMS - X"``
+    are returned unchanged. This also intentionally treats the edge case
+    ``"ASF WMS -Nouvelle commande"`` as already prefixed because it starts
+    with the normalized prefix marker.
+    """
+
+    subject_text = _coerce_queue_text(subject)
+    prefix = _coerce_queue_text(
+        get_installation_config().notifications.email_subject_prefix,
+    )
+    prefix_marker = prefix.rstrip()
+    if not prefix_marker or subject_text.startswith(prefix_marker):
+        return subject_text
+    return f"{prefix_marker} {subject_text.lstrip()}"
 
 
 def _coerce_queue_tags(tags):
@@ -426,6 +447,7 @@ def send_email_safe(*, subject, message, recipient, html_message=None, tags=None
     if html_message is not None:
         html_message_text = _coerce_queue_text(html_message)
     normalized_tags = _coerce_queue_tags(tags)
+    subject_text = format_email_subject(subject_text)
     if _send_with_brevo(
         subject=subject_text,
         message=message_text,
