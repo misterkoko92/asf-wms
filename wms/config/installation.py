@@ -9,6 +9,7 @@ ASF_ORG_SHORT_NAME = "ASF"
 ASF_APPLICATION_DISPLAY_NAME = "ASF-WMS"
 ASF_CONTACT_EMAIL = "messmed@aviation-sans-frontieres-fr.org"
 ASF_SKU_PREFIX = "ASF"
+ASF_EMAIL_SUBJECT_PREFIX = "ASF WMS -"
 
 _PLACEHOLDER_VALUES = {
     "",
@@ -81,11 +82,17 @@ class InstallationIntegrations:
 
 
 @dataclass(frozen=True)
+class InstallationNotifications:
+    email_subject_prefix: str
+
+
+@dataclass(frozen=True)
 class InstallationConfig:
     identity: InstallationIdentity
     vocabulary: InstallationVocabulary
     features: InstallationFeatureFlags
     integrations: InstallationIntegrations
+    notifications: InstallationNotifications
 
 
 def get_installation_config() -> InstallationConfig:
@@ -113,6 +120,9 @@ def get_installation_config() -> InstallationConfig:
             email_enabled=integrations.email.enabled,
         ),
         integrations=integrations,
+        notifications=InstallationNotifications(
+            email_subject_prefix=ASF_EMAIL_SUBJECT_PREFIX,
+        ),
     )
 
 
@@ -208,6 +218,7 @@ __all__ = [
     "InstallationFeatureFlags",
     "InstallationIdentity",
     "InstallationIntegrations",
+    "InstallationNotifications",
     "InstallationVocabulary",
     "IntegrationDescriptor",
     "get_installation_config",

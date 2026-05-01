@@ -324,7 +324,7 @@ class BrevoAndFallbackSendTests(TestCase):
 
         self.assertTrue(sent)
         send_mail_mock.assert_called_once_with(
-            "Subject",
+            "ASF WMS - Subject",
             "Message",
             "default@example.com",
             ["one@example.com", "two@example.com"],

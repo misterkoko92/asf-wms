@@ -18,7 +18,8 @@ capabilities, or integration descriptors.
 - `wms.config.get_installation_config()` returns a read-only snapshot of
   installation-level configuration.
 - The snapshot is structured as frozen dataclasses for identity, vocabulary,
-  feature/capability flags, and integration descriptors.
+  feature/capability flags, integration descriptors, and notification
+  conventions.
 - The module is a leaf dependency. It may depend on Django settings and the
   Python standard library, but not on runtime application code, database models,
   forms, views, admin, jobs, APIs, policies, templates, or services.
@@ -32,6 +33,15 @@ capabilities, or integration descriptors.
   disable, hide, or route any behavior in this PR.
 - The integration descriptors document the current provider shape only. They do
   not refactor providers, change credentials, or change integration behavior.
+- `notifications.email_subject_prefix` is the installation-level email subject
+  prefix convention. It is not the canonical application name: the current
+  identity display name remains `ASF-WMS`, while the historical email prefix is
+  `ASF WMS -`.
+- The default `notifications.email_subject_prefix` is exactly `ASF WMS -` for
+  compatibility with existing visible subjects.
+- The first runtime consumer of the installation config is the email layer:
+  `wms.emailing.format_email_subject()` applies this prefix at the final
+  transport boundary before Brevo or SMTP send.
 
 ### Two categories of feature flags
 
@@ -59,7 +69,8 @@ requires both the descriptor and construction-time derivation.
   documents, donation documents, shipment flows, packing, planning, portal,
   billing, APIs, or integrations.
 - This does not restart or replace i18n work.
-- This module is intentionally unused by runtime code in the foundation PR.
+- This module was intentionally unused by runtime code in the foundation PR.
+  The first controlled runtime use is the email subject prefix formatter.
 
 ### Productization role
 
@@ -97,7 +108,9 @@ These are roadmap aids, not behavior changes in the foundation PR.
 - Home/shell branding: read identity values for controlled, tested display
   surfaces.
 - Email subject prefixes: centralize current ASF prefixes before allowing
-  installation-specific values.
+  installation-specific values. The current implementation exposes the
+  notification prefix and applies it in the email transport boundary; future
+  work may externalize the value per installation.
 - Visible structural vocabulary: introduce a narrow vocabulary layer for labels
   such as organization, partner, volunteer, shipper, and recipient.
 - Feature/capability flags: document or surface high-level module availability

@@ -19,7 +19,7 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertTrue(dataclasses.is_dataclass(config))
         self.assertEqual(
             set(config.__dataclass_fields__),
-            {"identity", "vocabulary", "features", "integrations"},
+            {"identity", "vocabulary", "features", "integrations", "notifications"},
         )
         self.assertEqual(
             set(config.identity.__dataclass_fields__),
@@ -64,6 +64,10 @@ class InstallationConfigTests(SimpleTestCase):
                 "local_helper",
             },
         )
+        self.assertEqual(
+            set(config.notifications.__dataclass_fields__),
+            {"email_subject_prefix"},
+        )
 
     @override_settings(
         ORG_NAME="Aviation Sans Frontieres",
@@ -89,6 +93,7 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.identity.sku_prefix, "ASF")
         self.assertEqual(config.identity.contact_reference_prefix, "ASF")
         self.assertEqual(config.vocabulary.volunteer_label, "benevole")
+        self.assertEqual(config.notifications.email_subject_prefix, "ASF WMS -")
         self.assertEqual(config.integrations.email.provider, "brevo_with_smtp_fallback")
         self.assertTrue(config.integrations.email.enabled)
         self.assertEqual(config.integrations.pdf_conversion.provider, "microsoft_graph")
@@ -101,7 +106,7 @@ class InstallationConfigTests(SimpleTestCase):
 
         config = get_installation_config()
 
-        for section_name in ("identity", "vocabulary"):
+        for section_name in ("identity", "vocabulary", "notifications"):
             section = getattr(config, section_name)
             for field_name in section.__dataclass_fields__:
                 self.assertIsInstance(getattr(section, field_name), str)
@@ -122,6 +127,9 @@ class InstallationConfigTests(SimpleTestCase):
 
         with self.assertRaises(dataclasses.FrozenInstanceError):
             config.identity.organization_short_name = "OTHER"
+
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            config.notifications.email_subject_prefix = "OTHER -"
 
     def test_feature_flags_expose_stable_boolean_defaults(self):
         from wms.config import get_installation_config
@@ -212,6 +220,7 @@ print(json.dumps(loaded))
             InstallationFeatureFlags,
             InstallationIdentity,
             InstallationIntegrations,
+            InstallationNotifications,
             InstallationVocabulary,
             IntegrationDescriptor,
             get_installation_config,
@@ -223,6 +232,7 @@ print(json.dumps(loaded))
                 "vocabulary": InstallationVocabulary,
                 "features": InstallationFeatureFlags,
                 "integrations": InstallationIntegrations,
+                "notifications": InstallationNotifications,
             },
             InstallationIdentity: {
                 "organization_full_name": str,
@@ -259,6 +269,9 @@ print(json.dumps(loaded))
                 "document_scan": IntegrationDescriptor,
                 "flight_provider": IntegrationDescriptor,
                 "local_helper": IntegrationDescriptor,
+            },
+            InstallationNotifications: {
+                "email_subject_prefix": str,
             },
         }
 
