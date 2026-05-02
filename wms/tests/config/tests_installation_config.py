@@ -66,7 +66,7 @@ class InstallationConfigTests(SimpleTestCase):
         )
         self.assertEqual(
             set(config.notifications.__dataclass_fields__),
-            {"email_subject_prefix"},
+            {"email_subject_prefix", "email_sender_name"},
         )
 
     @override_settings(
@@ -75,6 +75,7 @@ class InstallationConfigTests(SimpleTestCase):
         SKU_PREFIX="ASF",
         DOCUMENT_SCAN_BACKEND="clamav",
         EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+        BREVO_SENDER_NAME="",
         PLANNING_FLIGHT_API_PROVIDER="airfrance_klm",
         GRAPH_TENANT_ID="",
         GRAPH_CLIENT_ID="",
@@ -94,6 +95,7 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.identity.contact_reference_prefix, "ASF")
         self.assertEqual(config.vocabulary.volunteer_label, "benevole")
         self.assertEqual(config.notifications.email_subject_prefix, "ASF WMS -")
+        self.assertEqual(config.notifications.email_sender_name, "ASF WMS")
         self.assertEqual(config.integrations.email.provider, "brevo_with_smtp_fallback")
         self.assertTrue(config.integrations.email.enabled)
         self.assertEqual(config.integrations.pdf_conversion.provider, "microsoft_graph")
@@ -130,6 +132,30 @@ class InstallationConfigTests(SimpleTestCase):
 
         with self.assertRaises(dataclasses.FrozenInstanceError):
             config.notifications.email_subject_prefix = "OTHER -"
+
+    @override_settings(BREVO_SENDER_NAME=" Client Sender ")
+    def test_email_sender_name_reflects_existing_brevo_sender_name_setting(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(config.notifications.email_sender_name, "Client Sender")
+
+    @override_settings(BREVO_SENDER_NAME="")
+    def test_email_sender_name_falls_back_when_blank(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(config.notifications.email_sender_name, "ASF WMS")
+
+    @override_settings(BREVO_SENDER_NAME="   ")
+    def test_email_sender_name_falls_back_when_whitespace_only(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(config.notifications.email_sender_name, "ASF WMS")
 
     def test_feature_flags_expose_stable_boolean_defaults(self):
         from wms.config import get_installation_config
@@ -272,6 +298,7 @@ print(json.dumps(loaded))
             },
             InstallationNotifications: {
                 "email_subject_prefix": str,
+                "email_sender_name": str,
             },
         }
 

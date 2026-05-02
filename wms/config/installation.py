@@ -10,6 +10,7 @@ ASF_APPLICATION_DISPLAY_NAME = "ASF-WMS"
 ASF_CONTACT_EMAIL = "messmed@aviation-sans-frontieres-fr.org"
 ASF_SKU_PREFIX = "ASF"
 ASF_EMAIL_SUBJECT_PREFIX = "ASF WMS -"
+ASF_EMAIL_SENDER_NAME = "ASF WMS"
 
 _PLACEHOLDER_VALUES = {
     "",
@@ -84,6 +85,7 @@ class InstallationIntegrations:
 @dataclass(frozen=True)
 class InstallationNotifications:
     email_subject_prefix: str
+    email_sender_name: str
 
 
 @dataclass(frozen=True)
@@ -122,6 +124,7 @@ def get_installation_config() -> InstallationConfig:
         integrations=integrations,
         notifications=InstallationNotifications(
             email_subject_prefix=ASF_EMAIL_SUBJECT_PREFIX,
+            email_sender_name=_setting_text("BREVO_SENDER_NAME", ASF_EMAIL_SENDER_NAME),
         ),
     )
 
