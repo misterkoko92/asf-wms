@@ -1,5 +1,7 @@
 import json
 import os
+from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 from urllib.error import URLError
 
@@ -22,6 +24,7 @@ from wms.emailing import (
     get_admin_emails,
     get_order_admin_emails,
     process_email_queue,
+    resolve_email_sender_name,
     send_email_safe,
 )
 
@@ -139,6 +142,14 @@ class EmailingHelpersTests(TestCase):
         self.assertEqual(parsed_meta["attempts"], 0)
         self.assertTrue(timezone.is_aware(parsed_meta["next_attempt_at"]))
 
+    def test_resolve_email_sender_name_returns_stripped_installation_value(self):
+        installation = SimpleNamespace(
+            notifications=SimpleNamespace(email_sender_name=" Client Sender "),
+        )
+
+        with mock.patch("wms.emailing.get_installation_config", return_value=installation):
+            self.assertEqual(resolve_email_sender_name(), "Client Sender")
+
     @override_settings(
         DEFAULT_FROM_EMAIL="default@example.com",
         BREVO_API_KEY="",
@@ -162,7 +173,7 @@ class EmailingHelpersTests(TestCase):
                 (
                     "env-key",
                     "sender@example.com",
-                    "Env Sender",
+                    "ASF WMS",
                     "reply@example.com",
                 ),
             )
@@ -175,8 +186,13 @@ class EmailingHelpersTests(TestCase):
             api_key, sender_email, sender_name, reply_to = _brevo_settings()
         self.assertEqual(api_key, "env-key")
         self.assertEqual(sender_email, "default@example.com")
-        self.assertEqual(sender_name, "")
+        self.assertEqual(sender_name, "ASF WMS")
         self.assertEqual(reply_to, "")
+
+    def test_emailing_module_does_not_reference_brevo_sender_name_directly(self):
+        emailing_source = (Path(__file__).resolve().parents[2] / "emailing.py").read_text()
+
+        self.assertNotIn("BREVO_SENDER_NAME", emailing_source)
 
 
 class BrevoAndFallbackSendTests(TestCase):
@@ -234,6 +250,7 @@ class BrevoAndFallbackSendTests(TestCase):
         request = captured["request"]
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["sender"]["email"], "sender@example.com")
+        self.assertEqual(payload["sender"]["name"], "Sender Name")
         self.assertEqual(payload["subject"], "Subject")
         self.assertEqual(payload["textContent"], "Message")
         self.assertEqual(payload["htmlContent"], "<p>Hello</p>")
@@ -241,6 +258,144 @@ class BrevoAndFallbackSendTests(TestCase):
         self.assertEqual(payload["tags"], ["tag-1", "tag-2"])
         header_items = {key.lower(): value for key, value in request.header_items()}
         self.assertEqual(header_items["api-key"], "key-123")
+
+    @override_settings(
+        BREVO_API_KEY="key-123",
+        BREVO_SENDER_EMAIL="sender@example.com",
+        BREVO_SENDER_NAME="",
+    )
+    def test_send_with_brevo_uses_default_sender_name(self):
+        captured = {}
+
+        class _FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def _fake_urlopen(request, timeout):
+            captured["request"] = request
+            return _FakeResponse()
+
+        with mock.patch("wms.emailing.urlopen", side_effect=_fake_urlopen):
+            sent = _send_with_brevo(
+                subject="Subject",
+                message="Message",
+                recipients=["dest@example.com"],
+            )
+
+        self.assertTrue(sent)
+        payload = json.loads(captured["request"].data.decode("utf-8"))
+        self.assertEqual(payload["sender"]["name"], "ASF WMS")
+
+    @override_settings(
+        BREVO_API_KEY="key-123",
+        BREVO_SENDER_EMAIL="sender@example.com",
+        BREVO_SENDER_NAME="Env Sender",
+    )
+    def test_send_with_brevo_uses_installation_sender_name_over_direct_setting(self):
+        captured = {}
+        installation = SimpleNamespace(
+            notifications=SimpleNamespace(email_sender_name="Mock Sender"),
+        )
+
+        class _FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def _fake_urlopen(request, timeout):
+            captured["request"] = request
+            return _FakeResponse()
+
+        with mock.patch("wms.emailing.get_installation_config", return_value=installation):
+            with mock.patch("wms.emailing.urlopen", side_effect=_fake_urlopen):
+                sent = _send_with_brevo(
+                    subject="Subject",
+                    message="Message",
+                    recipients=["dest@example.com"],
+                )
+
+        self.assertTrue(sent)
+        payload = json.loads(captured["request"].data.decode("utf-8"))
+        self.assertEqual(payload["sender"]["name"], "Mock Sender")
+
+    @override_settings(
+        BREVO_API_KEY="key-123",
+        BREVO_SENDER_EMAIL="sender@example.com",
+        BREVO_SENDER_NAME="Settings Sender",
+    )
+    def test_send_with_brevo_uses_brevo_sender_name_through_installation_config(self):
+        captured = {}
+
+        class _FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def _fake_urlopen(request, timeout):
+            captured["request"] = request
+            return _FakeResponse()
+
+        with mock.patch("wms.emailing.urlopen", side_effect=_fake_urlopen):
+            sent = _send_with_brevo(
+                subject="Subject",
+                message="Message",
+                recipients=["dest@example.com"],
+            )
+
+        self.assertTrue(sent)
+        payload = json.loads(captured["request"].data.decode("utf-8"))
+        self.assertEqual(payload["sender"]["name"], "Settings Sender")
+
+    @override_settings(
+        BREVO_API_KEY="key-123",
+        BREVO_SENDER_EMAIL="sender@example.com",
+        BREVO_SENDER_NAME="",
+    )
+    def test_send_with_brevo_falls_back_to_sender_email_when_installation_name_blank(self):
+        captured = {}
+        installation = SimpleNamespace(notifications=SimpleNamespace(email_sender_name=" "))
+
+        class _FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def _fake_urlopen(request, timeout):
+            captured["request"] = request
+            return _FakeResponse()
+
+        with mock.patch("wms.emailing.get_installation_config", return_value=installation):
+            with mock.patch("wms.emailing.urlopen", side_effect=_fake_urlopen):
+                sent = _send_with_brevo(
+                    subject="Subject",
+                    message="Message",
+                    recipients=["dest@example.com"],
+                )
+
+        self.assertTrue(sent)
+        payload = json.loads(captured["request"].data.decode("utf-8"))
+        self.assertEqual(payload["sender"]["name"], "sender@example.com")
 
     @override_settings(BREVO_API_KEY="key-123", BREVO_SENDER_EMAIL="sender@example.com")
     def test_send_with_brevo_logs_warning_on_transport_error(self):
@@ -306,6 +461,22 @@ class BrevoAndFallbackSendTests(TestCase):
         self.assertFalse(sent)
         warning_mock.assert_called_once()
 
+    @override_settings(
+        DEFAULT_FROM_EMAIL="default@example.com",
+        BREVO_SENDER_NAME="Client Sender",
+    )
+    def test_send_email_safe_smtp_fallback_keeps_default_from_email_unchanged(self):
+        with mock.patch("wms.emailing._send_with_brevo", return_value=False):
+            with mock.patch("wms.emailing.send_mail", return_value=1) as send_mail_mock:
+                sent = send_email_safe(
+                    subject="Subject",
+                    message="Message",
+                    recipient="dest@example.com",
+                )
+
+        self.assertTrue(sent)
+        self.assertEqual(send_mail_mock.call_args.args[2], "default@example.com")
+
     @override_settings(DEFAULT_FROM_EMAIL="default@example.com")
     def test_send_email_safe_normalizes_recipients(self):
         with mock.patch("wms.emailing._send_with_brevo", return_value=False):
@@ -364,6 +535,11 @@ class EmailQueueExtraTests(TestCase):
         self.assertEqual(event.payload["recipient"], ["dest@example.com"])
         self.assertEqual(event.payload["html_message"], "<p>hello</p>")
         self.assertEqual(event.payload["tags"], ["a", "b"])
+        self.assertEqual(
+            set(event.payload),
+            {"subject", "message", "recipient", "html_message", "tags", "_queue"},
+        )
+        self.assertNotIn("sender_name", event.payload)
 
     def test_enqueue_email_safe_normalizes_and_deduplicates_recipients(self):
         queued = enqueue_email_safe(
@@ -392,6 +568,51 @@ class EmailQueueExtraTests(TestCase):
             event.payload["recipient"],
             ["first@example.com", "second@example.com"],
         )
+
+    @override_settings(
+        BREVO_API_KEY="key-123",
+        BREVO_SENDER_EMAIL="sender@example.com",
+        BREVO_SENDER_NAME="",
+    )
+    def test_process_email_queue_resolves_sender_name_at_send_time(self):
+        queued = enqueue_email_safe(
+            subject="Sujet",
+            message="Message",
+            recipient="dest@example.com",
+        )
+        self.assertTrue(queued)
+        event = process_email_queue.__globals__["IntegrationEvent"].objects.get()
+        self.assertNotIn("sender_name", event.payload)
+
+        captured = {}
+        installation = SimpleNamespace(
+            notifications=SimpleNamespace(
+                email_subject_prefix="ASF WMS -",
+                email_sender_name="Queued Sender",
+            ),
+        )
+
+        class _FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def _fake_urlopen(request, timeout):
+            captured["request"] = request
+            return _FakeResponse()
+
+        with mock.patch("wms.emailing.get_installation_config", return_value=installation):
+            with mock.patch("wms.emailing.urlopen", side_effect=_fake_urlopen):
+                result = process_email_queue(limit=10)
+
+        self.assertEqual(result["processed"], 1)
+        payload = json.loads(captured["request"].data.decode("utf-8"))
+        self.assertEqual(payload["sender"]["name"], "Queued Sender")
 
     @mock.patch("wms.emailing.send_email_safe", return_value=True)
     def test_process_email_queue_handles_invalid_limit_value(self, _send_mock):

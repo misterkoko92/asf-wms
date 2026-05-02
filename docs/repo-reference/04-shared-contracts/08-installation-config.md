@@ -39,9 +39,15 @@ capabilities, or integration descriptors.
   `ASF WMS -`.
 - The default `notifications.email_subject_prefix` is exactly `ASF WMS -` for
   compatibility with existing visible subjects.
-- The first runtime consumer of the installation config is the email layer:
-  `wms.emailing.format_email_subject()` applies this prefix at the final
-  transport boundary before Brevo or SMTP send.
+- `notifications.email_sender_name` is the installation-level Brevo sender
+  display name. The default is exactly `ASF WMS`, and existing deployments may
+  still override it through `BREVO_SENDER_NAME` via the installation config
+  layer.
+- Controlled runtime consumers of notification config live in the email layer:
+  `wms.emailing.format_email_subject()` applies the subject prefix at the final
+  transport boundary before Brevo or SMTP send, while
+  `wms.emailing.resolve_email_sender_name()` is consumed only by the Brevo API
+  sender payload. SMTP sender behavior remains governed by `DEFAULT_FROM_EMAIL`.
 
 ### Two categories of feature flags
 

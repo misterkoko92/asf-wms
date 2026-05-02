@@ -145,6 +145,12 @@ def format_email_subject(subject: str) -> str:
     return f"{prefix_marker} {subject_text.lstrip()}"
 
 
+def resolve_email_sender_name() -> str:
+    return _coerce_queue_text(
+        get_installation_config().notifications.email_sender_name,
+    ).strip()
+
+
 def _coerce_queue_tags(tags):
     coerced_tags = []
     for tag in tags or []:
@@ -391,9 +397,7 @@ def _brevo_settings():
         or os.environ.get("BREVO_SENDER_EMAIL", "")
         or settings.DEFAULT_FROM_EMAIL
     )
-    sender_name = getattr(settings, "BREVO_SENDER_NAME", "") or os.environ.get(
-        "BREVO_SENDER_NAME", ""
-    )
+    sender_name = resolve_email_sender_name()
     reply_to = getattr(settings, "BREVO_REPLY_TO_EMAIL", "") or os.environ.get(
         "BREVO_REPLY_TO_EMAIL", ""
     )
