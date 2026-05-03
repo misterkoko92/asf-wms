@@ -1,5 +1,7 @@
 import re
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -331,10 +333,51 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'value="request_billing_preferences"')
         self.assertContains(response, 'value="upload_account_docs"')
 
+    def test_portal_account_uses_asf_default_partner_label(self):
+        response = self.client.get(reverse("portal:portal_account"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Compte association")
+        self.assertContains(
+            response,
+            '<label class="form-label" for="id_association_name">Association</label>',
+            html=True,
+        )
+        self.assertNotContains(response, "Compte partenaire")
+
     def test_portal_base_navigation_includes_billing_link(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("portal:portal_billing"))
+
+    def test_portal_shell_uses_asf_default_partner_label(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Portail association")
+        self.assertNotContains(response, "Portail partenaire")
+
+    def test_portal_partner_label_uses_runtime_vocabulary_config(self):
+        installation = SimpleNamespace(
+            vocabulary=SimpleNamespace(portal_partner_label="organisation")
+        )
+
+        with mock.patch(
+            "wms.templatetags.wms_vocabulary.get_installation_config",
+            return_value=installation,
+        ):
+            dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
+            account_response = self.client.get(reverse("portal:portal_account"))
+
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertEqual(account_response.status_code, 200)
+        self.assertContains(dashboard_response, "Portail organisation")
+        self.assertContains(account_response, "Compte organisation")
+        self.assertContains(
+            account_response,
+            '<label class="form-label" for="id_association_name">Organisation</label>',
+            html=True,
+        )
 
     def test_portal_shell_separates_primary_navigation_from_utility_and_cta(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
