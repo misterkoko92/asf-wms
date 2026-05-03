@@ -37,6 +37,7 @@ class InstallationConfigTests(SimpleTestCase):
             {
                 "organization_label",
                 "partner_label",
+                "portal_partner_label",
                 "volunteer_label",
                 "shipper_label",
                 "recipient_label",
@@ -93,6 +94,8 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.identity.contact_email, "messmed@aviation-sans-frontieres-fr.org")
         self.assertEqual(config.identity.sku_prefix, "ASF")
         self.assertEqual(config.identity.contact_reference_prefix, "ASF")
+        self.assertEqual(config.vocabulary.partner_label, "partenaire")
+        self.assertEqual(config.vocabulary.portal_partner_label, "association")
         self.assertEqual(config.vocabulary.volunteer_label, "benevole")
         self.assertEqual(config.notifications.email_subject_prefix, "ASF WMS -")
         self.assertEqual(config.notifications.email_sender_name, "ASF WMS")
@@ -271,6 +274,7 @@ print(json.dumps(loaded))
             InstallationVocabulary: {
                 "organization_label": str,
                 "partner_label": str,
+                "portal_partner_label": str,
                 "volunteer_label": str,
                 "shipper_label": str,
                 "recipient_label": str,
