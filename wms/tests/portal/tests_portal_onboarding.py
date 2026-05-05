@@ -1,6 +1,9 @@
+import importlib
+
 from django.contrib.auth import get_user_model
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 
 from contacts.models import Contact, ContactType
 from wms import models as wms_models
@@ -11,6 +14,11 @@ from wms.models import (
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentValidationStatus,
+)
+from wms.portal_access import (
+    PORTAL_SCOPE_SOURCE_GRANT,
+    PORTAL_SCOPE_SOURCE_LEGACY_ASSOCIATION,
+    PortalScope,
 )
 
 
@@ -154,3 +162,121 @@ class PortalOnboardingPreferenceModelTests(TestCase):
                 role=PortalAccessRole.SHIPPER_ADMIN,
                 shipper=self.shipper,
             ).full_clean()
+
+
+class PortalOnboardingHelperTests(PortalOnboardingPreferenceModelTests):
+    def _load_onboarding_module(self):
+        try:
+            return importlib.import_module("wms.application.portal.onboarding")
+        except ModuleNotFoundError as exc:
+            self.fail(f"wms.application.portal.onboarding module missing: {exc}")
+
+    def _build_request(self, scope):
+        request = RequestFactory().get("/portal/")
+        request.user = self.user
+        request.portal_scope = scope
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+        return request
+
+    def _shipper_scope(self):
+        return PortalScope(
+            source=PORTAL_SCOPE_SOURCE_GRANT,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=self.shipper,
+        )
+
+    def _recipient_scope(self):
+        return PortalScope(
+            source=PORTAL_SCOPE_SOURCE_GRANT,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=self.recipient_organization,
+        )
+
+    def _legacy_scope(self):
+        return PortalScope(
+            source=PORTAL_SCOPE_SOURCE_LEGACY_ASSOCIATION,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=self.shipper,
+            association_profile=self.profile,
+        )
+
+    def test_build_shipper_context_creates_default_preference_and_auto_opens(self):
+        onboarding = self._load_onboarding_module()
+        request = self._build_request(self._shipper_scope())
+
+        context = onboarding.build_portal_onboarding_context(request)
+
+        self.assertEqual(context["role"], PortalAccessRole.SHIPPER_ADMIN)
+        self.assertTrue(context["auto_open"])
+        self.assertTrue(context["show_on_next_login"])
+        self.assertEqual(context["title"], "Tutoriel expéditeur")
+        self.assertEqual(len(context["steps"]), 6)
+        self.assertIn("demande d'expédition", context["steps"][3]["body"])
+        self.assertTrue(
+            wms_models.PortalOnboardingPreference.objects.filter(
+                user=self.user,
+                role=PortalAccessRole.SHIPPER_ADMIN,
+                shipper=self.shipper,
+                show_on_next_login=True,
+            ).exists()
+        )
+
+    def test_build_recipient_context_uses_recipient_wizard(self):
+        onboarding = self._load_onboarding_module()
+        request = self._build_request(self._recipient_scope())
+
+        context = onboarding.build_portal_onboarding_context(request)
+
+        self.assertEqual(context["role"], PortalAccessRole.RECIPIENT_ADMIN)
+        self.assertEqual(context["title"], "Tutoriel destinataire")
+        self.assertEqual(len(context["steps"]), 5)
+        self.assertIn("fiche structure", context["steps"][1]["title"].lower())
+
+    def test_legacy_shipper_context_is_stored_on_association_profile_scope(self):
+        onboarding = self._load_onboarding_module()
+        request = self._build_request(self._legacy_scope())
+
+        context = onboarding.build_portal_onboarding_context(request)
+
+        self.assertTrue(context["auto_open"])
+        self.assertTrue(
+            wms_models.PortalOnboardingPreference.objects.filter(
+                user=self.user,
+                role=PortalAccessRole.SHIPPER_ADMIN,
+                association_profile=self.profile,
+            ).exists()
+        )
+
+    def test_mark_seen_suppresses_repeated_auto_open_only_for_current_session(self):
+        onboarding = self._load_onboarding_module()
+        request = self._build_request(self._shipper_scope())
+        self.assertTrue(onboarding.build_portal_onboarding_context(request)["auto_open"])
+
+        onboarding.mark_portal_onboarding_seen(request, show_on_next_login=True)
+
+        same_session_context = onboarding.build_portal_onboarding_context(request)
+        self.assertFalse(same_session_context["auto_open"])
+        preference = wms_models.PortalOnboardingPreference.objects.get(
+            user=self.user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=self.shipper,
+        )
+        self.assertTrue(preference.show_on_next_login)
+        self.assertIsNotNone(preference.last_seen_at)
+
+        next_session_request = self._build_request(self._shipper_scope())
+        next_session_context = onboarding.build_portal_onboarding_context(next_session_request)
+        self.assertTrue(next_session_context["auto_open"])
+
+    def test_unchecked_preference_disables_future_auto_open(self):
+        onboarding = self._load_onboarding_module()
+        request = self._build_request(self._recipient_scope())
+
+        onboarding.mark_portal_onboarding_seen(request, show_on_next_login=False)
+
+        next_session_request = self._build_request(self._recipient_scope())
+        context = onboarding.build_portal_onboarding_context(next_session_request)
+        self.assertFalse(context["auto_open"])
+        self.assertFalse(context["show_on_next_login"])
