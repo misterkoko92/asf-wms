@@ -94,6 +94,14 @@
             >
               {% trans "FAQ" %}
             </a>
+            <a
+              id="portal-tutorial-link"
+              class="portal-utility-link"
+              href="{% url 'portal:portal_faq' %}"
+              data-portal-onboarding-open="1"
+            >
+              {% trans "Tutoriel" %}
+            </a>
             {% if request.portal_scope.role == "shipper_admin" %}
               <a
                 id="portal-account-link"

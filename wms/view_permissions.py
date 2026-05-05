@@ -194,6 +194,10 @@ def _bind_portal_scope(request):
         change_url = reverse("portal:portal_change_password")
         if request.path != change_url:
             return redirect(change_url)
+    if request.method == "GET":
+        from .application.portal.onboarding import build_portal_onboarding_context
+
+        request.portal_onboarding = build_portal_onboarding_context(request)
     return None
 
 

@@ -445,6 +445,32 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, reverse("portal:portal_faq"))
         self.assertContains(response, "FAQ")
 
+    def test_portal_shell_exposes_onboarding_wizard_for_shipper_scope(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-onboarding-wizard"')
+        self.assertContains(response, 'data-portal-onboarding-auto-open="1"')
+        self.assertContains(response, 'data-portal-onboarding-preference-url="')
+        self.assertContains(response, reverse("portal:portal_onboarding_preference"))
+        self.assertContains(response, "Tutoriel expéditeur")
+        self.assertContains(response, "Créer un destinataire")
+        self.assertContains(response, "Créer une demande d&#x27;expédition / transport")
+        self.assertContains(response, "Continuer à me le montrer à la prochaine connexion")
+
+    def test_portal_shell_exposes_onboarding_tutorial_link_with_faq_fallback(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-tutorial-link"')
+        self.assertContains(response, 'data-portal-onboarding-open="1"')
+        self.assertContains(
+            response,
+            f'href="{reverse("portal:portal_faq")}"',
+            html=False,
+        )
+        self.assertContains(response, "Tutoriel")
+
     def test_portal_recipient_scope_home_uses_recipient_navigation_contract(self):
         recipient_organization = self._activate_recipient_scope()
         recipient_contact = Contact.objects.create(
@@ -529,6 +555,35 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="portal-faq-link"')
         self.assertContains(response, reverse("portal:portal_faq"))
         self.assertContains(response, "FAQ")
+
+    def test_portal_shell_exposes_onboarding_wizard_for_recipient_scope(self):
+        self._activate_recipient_scope()
+
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-onboarding-wizard"')
+        self.assertContains(response, 'data-portal-onboarding-auto-open="1"')
+        self.assertContains(response, "Tutoriel destinataire")
+        self.assertContains(response, "Vérifier la fiche structure")
+        self.assertContains(response, "Déclarer besoins et refus produits")
+        self.assertContains(response, "Documents structure manquants")
+
+    def test_portal_scope_select_does_not_render_onboarding_wizard(self):
+        recipient_organization = self._activate_recipient_scope()
+        self.client.force_login(self.user)
+        PortalAccessGrant.objects.create(
+            user=self.user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+
+        response = self.client.get(reverse("portal:portal_scope_select"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="portal-onboarding-wizard"')
+        self.assertNotContains(response, "Tutoriel expéditeur")
+        self.assertNotContains(response, "Tutoriel destinataire")
 
     def test_portal_recipient_profile_uses_bootstrap_forms_and_document_uploads(self):
         self._activate_recipient_scope()
