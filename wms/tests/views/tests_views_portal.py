@@ -1158,6 +1158,9 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "FAQ portail")
         self.assertContains(response, "Espace expéditeur")
         self.assertContains(response, "Espace destinataire")
+        self.assertContains(response, "Tutoriel guidé")
+        self.assertContains(response, "Continuer à me le montrer")
+        self.assertContains(response, "impossible de créer une commande")
 
     def test_portal_order_create_denies_recipient_scope(self):
         user = self._create_portal_user("portal-recipient-scope", "recipient-scope@example.com")
@@ -3360,6 +3363,8 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Espace destinataire")
         self.assertContains(response, "Modifier mes informations")
         self.assertContains(response, "Gérer les préférences produits")
+        self.assertContains(response, "Documents structure manquants")
+        self.assertContains(response, "un produit refusé peut bloquer")
 
     def test_portal_recipient_detail_shows_preference_coverage_in_product_table(self):
         recipient = self._create_synced_recipient()

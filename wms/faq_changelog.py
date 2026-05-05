@@ -2,6 +2,14 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 5, 5),
+        "pr_number": None,
+        "summary": (
+            "Tutoriels guidés du portail expéditeur et destinataire, affichage automatique "
+            "contrôlé par utilisateur et explication des principaux blocages de flux."
+        ),
+    },
+    {
         "date": date(2026, 4, 29),
         "pr_number": None,
         "summary": (

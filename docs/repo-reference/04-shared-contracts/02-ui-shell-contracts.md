@@ -65,6 +65,8 @@ Surfaces that reuse these contracts:
 - `templates/benevole/base.html`
 - `templates/includes/secondary_shell_masthead.html`
 - `templates/includes/secondary_shell_offcanvas.html`
+- `templates/portal/includes/onboarding_wizard.html`
+- `wms/static/portal/portal_onboarding.js`
 
 ### Current contract
 
@@ -72,6 +74,8 @@ Surfaces that reuse these contracts:
 - Page-level horizontal overflow must be blocked on mobile.
 - Wide tables and dense matrices keep horizontal scroll inside local wrappers.
 - Portal, planning, and benevole secondary shells reuse shared secondary-shell masthead/offcanvas includes.
+- Portal scoped pages render the onboarding wizard through `templates/portal/base.html`; the `Tutoriel` masthead link falls back to `/portal/faq/` without JavaScript.
+- `wms/static/portal/portal_onboarding.js` owns portal tutorial open/close, step navigation, and preference persistence.
 - Planning keeps legacy scan sidebar content but injects it through shared secondary-shell offcanvas.
 - Scan-camera controls must preserve active scan targets when switching cameras, stop live ZXing controls before restart, and ignore stale callbacks.
 - OCR activation is disabled until OCR engine assets are self-hosted and covered by CSP, cache, and regression-test updates.
@@ -80,6 +84,7 @@ Surfaces that reuse these contracts:
 
 - If secondary shell structure changes, update shared includes, base templates, and bootstrap/view tests together.
 - If shared masthead history navigation changes, keep scan/portal/planning/benevole shells aligned.
+- If portal onboarding shell behavior changes, keep `wms/application/portal/onboarding.py`, the preference endpoint, modal template, static asset, FAQ, and portal tests aligned.
 
 ---
 

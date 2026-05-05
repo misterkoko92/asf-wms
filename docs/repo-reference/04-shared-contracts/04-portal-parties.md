@@ -30,6 +30,8 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - `PortalAccessGrant` grants one active scope per row: `ShipmentShipper` or `ShipmentRecipientOrganization`.
 - `wms/portal_access.py` prefers explicit active grants and falls back to legacy `AssociationProfile` only when no explicit grant exists.
 - One scope auto-activates; multiple scopes require `/portal/scope-select/`.
+- `PortalOnboardingPreference` is scoped by user, role, and one active shipper / recipient organization / legacy association profile.
+- Portal onboarding session state suppresses repeat display only inside the current session; unchecking the tutorial checkbox disables future automatic display for that scope only.
 - `/portal/` branches by active scope: shipper cockpit or recipient home.
 - Recipient maintenance lives at `/portal/`, `/portal/recipient/profile/`, `/portal/recipient/preferences/`, and mirrored UI API endpoints.
 - `rebuild_recipient_party_graph --dry-run|--apply` repairs grants and stale projections.
