@@ -154,6 +154,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "scan/modules/table-tools.js")
         self.assertContains(response, "portal-bootstrap.css")
         self.assertContains(response, "portal-bootstrap-enabled")
+        self.assertContains(response, "portal_onboarding.js")
         self.assertNotContains(response, 'id="portal-ui-toggle"')
         self.assertNotContains(response, 'id="portal-ui-reset-default"')
         self.assertNotContains(response, "localStorage.getItem('wms-ui')")
@@ -470,6 +471,32 @@ class PortalBootstrapUiTests(TestCase):
             html=False,
         )
         self.assertContains(response, "Tutoriel")
+
+    def test_portal_onboarding_wizard_exposes_interaction_controls(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-onboarding-step-counter"')
+        self.assertContains(response, 'id="portal-onboarding-preference-form"')
+        self.assertContains(response, 'id="portal-onboarding-show-next"')
+        self.assertContains(response, "data-portal-onboarding-prev")
+        self.assertContains(response, "data-portal-onboarding-next")
+        self.assertContains(response, "data-portal-onboarding-done")
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+
+    def test_portal_onboarding_static_assets_define_interactions_and_styles(self):
+        js_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal_onboarding.js"
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        js_content = js_path.read_text(encoding="utf-8")
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn("data-portal-onboarding-open", js_content)
+        self.assertIn("data-portal-onboarding-next", js_content)
+        self.assertIn("show_on_next_login", js_content)
+        self.assertIn("fetch(preferenceUrl", js_content)
+        self.assertIn(".portal-bootstrap-enabled .portal-onboarding-modal", css_content)
+        self.assertIn(".portal-bootstrap-enabled .portal-onboarding-blockers", css_content)
+        self.assertIn(".portal-bootstrap-enabled .portal-onboarding-footer", css_content)
 
     def test_portal_recipient_scope_home_uses_recipient_navigation_contract(self):
         recipient_organization = self._activate_recipient_scope()
