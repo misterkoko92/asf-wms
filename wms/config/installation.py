@@ -36,6 +36,7 @@ class InstallationIdentity:
 class InstallationVocabulary:
     organization_label: str
     partner_label: str
+    portal_partner_label: str
     volunteer_label: str
     shipper_label: str
     recipient_label: str
@@ -108,6 +109,7 @@ def get_installation_config() -> InstallationConfig:
         vocabulary=InstallationVocabulary(
             organization_label="organisation",
             partner_label="partenaire",
+            portal_partner_label="association",
             volunteer_label="benevole",
             shipper_label="expediteur",
             recipient_label="destinataire",

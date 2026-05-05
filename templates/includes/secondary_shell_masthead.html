@@ -1,4 +1,4 @@
-{% load static i18n %}
+{% load static i18n wms_vocabulary %}
 {% if shell_variant == "planning" %}
   <header
     id="planning-masthead"
@@ -60,7 +60,8 @@
                 {% if request.portal_scope.role == "recipient_admin" %}
                   {% trans "Portail destinataire" %}
                 {% else %}
-                  {% trans "Portail association" %}
+                  {% portal_partner_label as portal_partner %}
+                  Portail {{ portal_partner }}
                 {% endif %}
               {% else %}
                 {% trans "Portail benevole" %}

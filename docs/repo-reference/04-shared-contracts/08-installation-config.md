@@ -48,6 +48,15 @@ capabilities, or integration descriptors.
   transport boundary before Brevo or SMTP send, while
   `wms.emailing.resolve_email_sender_name()` is consumed only by the Brevo API
   sender payload. SMTP sender behavior remains governed by `DEFAULT_FROM_EMAIL`.
+- `vocabulary.portal_partner_label` is the portal-specific noun for the
+  shipper/partner account label family. Its default is exactly `association` to
+  preserve current ASF portal output. It is intentionally separate from
+  `vocabulary.partner_label`, whose default remains `partenaire` and whose
+  broader semantics are not consumed by the portal shell/account surface.
+- Controlled runtime consumers of the portal partner vocabulary live only in the
+  portal shell/account templates: the portal fallback title, the non-recipient
+  portal masthead title, the portal account intro title, and the portal account
+  organization-name field label.
 
 ### Two categories of feature flags
 
@@ -71,12 +80,14 @@ requires both the descriptor and construction-time derivation.
 - This does not introduce an Organization, Tenant, Client, or installation model.
 - This does not add `organization_id`, tenant fields, migrations, database
   constraints, or tenant-aware query filtering.
-- This does not change templates, views, URLs, emails, print documents, customs
-  documents, donation documents, shipment flows, packing, planning, portal,
-  billing, APIs, or integrations.
+- Adding installation config values does not by itself change templates, views,
+  URLs, emails, print documents, customs documents, donation documents, shipment
+  flows, packing, planning, portal, billing, APIs, or integrations. Runtime
+  consumers must stay narrow, explicit, and covered by tests.
 - This does not restart or replace i18n work.
 - This module was intentionally unused by runtime code in the foundation PR.
-  The first controlled runtime use is the email subject prefix formatter.
+  Current controlled runtime consumers are limited to tested notification
+  formatting/sender boundaries and the narrow portal partner label family.
 
 ### Productization role
 
@@ -98,12 +109,15 @@ requires both the descriptor and construction-time derivation.
   updates runtime behavior and its regression tests.
 - Do not consume this module from runtime code without tests around the affected
   ASF workflow.
+- Do not consume broad vocabulary keys such as `partner_label` when a narrower
+  current-ASF label is needed to preserve visible behavior.
 - Do not use feature flags from this module to gate production behavior until
   the relevant workflow has targeted tests and rollback guidance.
 
 ### Reference tests
 
 - `wms/tests/config/tests_installation_config.py`
+- `wms/tests/views/tests_portal_bootstrap_ui.py`
 
 ---
 
@@ -117,8 +131,11 @@ These are roadmap aids, not behavior changes in the foundation PR.
   installation-specific values. The current implementation exposes the
   notification prefix and applies it in the email transport boundary; future
   work may externalize the value per installation.
-- Visible structural vocabulary: introduce a narrow vocabulary layer for labels
-  such as organization, partner, volunteer, shipper, and recipient.
+- Visible structural vocabulary: continue introducing narrow vocabulary
+  consumers one surface at a time. The portal partner label is the first
+  runtime vocabulary consumer; broader labels such as organization, partner,
+  volunteer, shipper, and recipient still require separate scope decisions and
+  tests before consumption.
 - Feature/capability flags: document or surface high-level module availability
   before using flags to hide behavior.
 - Integration capability documentation: show which provider handles email,

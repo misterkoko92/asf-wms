@@ -1,10 +1,11 @@
-{% load static i18n %}
+{% load static i18n wms_vocabulary %}
 {% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}{% trans "Portail association" %}{% endblock %}</title>
+  {% portal_partner_label as portal_partner %}
+  <title>{% block title %}Portail {{ portal_partner }}{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

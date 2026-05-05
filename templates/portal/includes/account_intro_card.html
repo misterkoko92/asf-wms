@@ -1,5 +1,6 @@
-{% load i18n %}
+{% load i18n wms_vocabulary %}
+{% portal_partner_label as portal_partner %}
 <div id="portal-account-intro" class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
-  <h2 class="portal-section-title ui-comp-title">{% trans "Compte association" %}</h2>
+  <h2 class="portal-section-title ui-comp-title">Compte {{ portal_partner }}</h2>
   <p class="scan-help">{% trans "Vous pouvez modifier toutes les informations de ce compte." %}</p>
 </div>

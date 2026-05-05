@@ -1,4 +1,4 @@
-{% load i18n wms_ui %}
+{% load i18n wms_ui wms_vocabulary %}
 <div id="portal-account-profile-card" class="scan-card portal-card card border-0 ui-comp-card">
   {% if account_form_errors %}
     <div class="scan-message error">
@@ -16,7 +16,8 @@
     <h3 class="portal-section-title ui-comp-title">{% trans "Informations principales" %}</h3>
     <div class="portal-grid-2">
       <div class="scan-field">
-        <label class="form-label" for="id_association_name">{% trans "Association" %}</label>
+        {% portal_partner_label as portal_partner %}
+        <label class="form-label" for="id_association_name">{{ portal_partner|capfirst }}</label>
         <input
           class="form-control"
           type="text"
