@@ -347,6 +347,118 @@ class PortalAccessGrant(models.Model):
         super().save(*args, **kwargs)
 
 
+class PortalOnboardingPreference(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="portal_onboarding_preferences",
+    )
+    role = models.CharField(
+        max_length=40,
+        choices=PortalAccessRole.choices,
+    )
+    shipper = models.ForeignKey(
+        "wms.ShipmentShipper",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="portal_onboarding_preferences",
+    )
+    recipient_organization = models.ForeignKey(
+        "wms.ShipmentRecipientOrganization",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="portal_onboarding_preferences",
+    )
+    association_profile = models.ForeignKey(
+        "wms.AssociationProfile",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="portal_onboarding_preferences",
+    )
+    show_on_next_login = models.BooleanField(default=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["user_id", "role", "id"]
+        constraints = [
+            _check_constraint_compat(
+                condition=(
+                    (
+                        models.Q(shipper__isnull=False)
+                        & models.Q(recipient_organization__isnull=True)
+                        & models.Q(association_profile__isnull=True)
+                    )
+                    | (
+                        models.Q(shipper__isnull=True)
+                        & models.Q(recipient_organization__isnull=False)
+                        & models.Q(association_profile__isnull=True)
+                    )
+                    | (
+                        models.Q(shipper__isnull=True)
+                        & models.Q(recipient_organization__isnull=True)
+                        & models.Q(association_profile__isnull=False)
+                    )
+                ),
+                name="wms_portal_onboarding_exactly_one_scope",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "shipper"],
+                condition=models.Q(shipper__isnull=False),
+                name="wms_portal_onboarding_unique_shipper",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "recipient_organization"],
+                condition=models.Q(recipient_organization__isnull=False),
+                name="wms_portal_onboarding_unique_recipient",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "association_profile"],
+                condition=models.Q(association_profile__isnull=False),
+                name="wms_portal_onboarding_unique_legacy_profile",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        target = self.shipper or self.recipient_organization or self.association_profile
+        return f"{self.user} - {self.role} - {target}"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        target_count = sum(
+            bool(value)
+            for value in (
+                self.shipper_id,
+                self.recipient_organization_id,
+                self.association_profile_id,
+            )
+        )
+        if target_count != 1:
+            message = "Choisissez exactement un scope portal."
+            errors["shipper"] = message
+            errors["recipient_organization"] = message
+            errors["association_profile"] = message
+
+        if self.role == PortalAccessRole.RECIPIENT_ADMIN:
+            if self.shipper_id or self.association_profile_id:
+                errors["role"] = "Un tutoriel destinataire requiert un scope destinataire."
+        elif self.role == PortalAccessRole.SHIPPER_ADMIN:
+            if self.recipient_organization_id:
+                errors["role"] = "Un tutoriel expediteur requiert un scope expediteur."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class AssociationContactTitle(models.TextChoices):
     MR = "mr", _("M.")
     MRS = "mrs", _("Mme")

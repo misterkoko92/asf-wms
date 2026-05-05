@@ -61,6 +61,10 @@ Portal-visible recipient/contact truth must stay aligned with internal canonical
 
 External users must understand status, next actions, and ownership clearly.
 
+### Onboarding Integrity
+
+Portal tutorial state must stay scoped by user, role, and active shipper / recipient / legacy association profile.
+
 ---
 
 ## Always Check
@@ -79,6 +83,7 @@ External users must understand status, next actions, and ownership clearly.
 - `wms/application/portal/order_use_cases.py`
 - `wms/application/portal/recipient_resolution.py`
 - `wms/application/portal/dashboard_queries.py`
+- `wms/application/portal/onboarding.py`
 
 ### Access / Scope
 
@@ -201,6 +206,8 @@ Choose nearest tests.
 ### Manual Verification Often Needed
 
 - login flow
+- first scoped portal page opens the expected expéditeur / destinataire tutorial
+- `Tutoriel` masthead link reopens the scoped tutorial on demand
 - submit sample order
 - edit recipient
 - switch scope if multi-grant user

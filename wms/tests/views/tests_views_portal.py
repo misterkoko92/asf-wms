@@ -47,6 +47,7 @@ from wms.models import (
     OrderStatus,
     PortalAccessGrant,
     PortalAccessRole,
+    PortalOnboardingPreference,
     Product,
     ProductCategory,
     ProductKitItem,
@@ -723,6 +724,130 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.url, self.dashboard_url)
         self._assert_browser_session()
 
+    def test_portal_onboarding_preference_post_requires_login(self):
+        response = self.client.post(reverse("portal:portal_onboarding_preference"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("portal:portal_login"), response.url)
+
+    def test_portal_onboarding_preference_post_requires_active_scope(self):
+        user = self._create_portal_user("portal-auth-onboarding-noscope", "noscope@example.com")
+        self.client.force_login(user)
+
+        response = self.client.post(reverse("portal:portal_onboarding_preference"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_portal_onboarding_preference_post_updates_active_shipper_scope(self):
+        user = self._create_portal_user("portal-auth-onboarding-shipper", "shipper-onb@example.com")
+        shipper = self._create_shipper(name="Onboarding Shipper")
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+
+        response = self.client.post(
+            reverse("portal:portal_onboarding_preference"),
+            {"show_on_next_login": "0"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"ok": True})
+        preference = PortalOnboardingPreference.objects.get(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        self.assertFalse(preference.show_on_next_login)
+        self.assertIsNotNone(preference.last_seen_at)
+
+    def test_portal_onboarding_preference_post_updates_active_recipient_scope(self):
+        user = self._create_portal_user(
+            "portal-auth-onboarding-recipient",
+            "recipient-onb@example.com",
+        )
+        recipient_organization = self._create_recipient_organization(name="Onboarding Recipient")
+        grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": grant.id,
+        }
+        session.save()
+
+        response = self.client.post(
+            reverse("portal:portal_onboarding_preference"),
+            {"show_on_next_login": "1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        preference = PortalOnboardingPreference.objects.get(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        self.assertTrue(preference.show_on_next_login)
+        self.assertIsNotNone(preference.last_seen_at)
+
+    def test_portal_onboarding_preference_post_updates_only_current_scope(self):
+        user = self._create_portal_user("portal-auth-onboarding-multi", "multi-onb@example.com")
+        shipper = self._create_shipper(name="Onboarding Multi Shipper")
+        recipient_organization = self._create_recipient_organization(
+            name="Onboarding Multi Recipient"
+        )
+        shipper_grant = PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.SHIPPER_ADMIN,
+            shipper=shipper,
+        )
+        PortalAccessGrant.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+        )
+        recipient_preference = PortalOnboardingPreference.objects.create(
+            user=user,
+            role=PortalAccessRole.RECIPIENT_ADMIN,
+            recipient_organization=recipient_organization,
+            show_on_next_login=True,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[ACTIVE_PORTAL_SCOPE_SESSION_KEY] = {
+            "source": PORTAL_SCOPE_SOURCE_GRANT,
+            "grant_id": shipper_grant.id,
+        }
+        session.save()
+
+        response = self.client.post(
+            reverse("portal:portal_onboarding_preference"),
+            {"show_on_next_login": "0"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            PortalOnboardingPreference.objects.get(
+                user=user,
+                role=PortalAccessRole.SHIPPER_ADMIN,
+                shipper=shipper,
+            ).show_on_next_login
+        )
+        recipient_preference.refresh_from_db()
+        self.assertTrue(recipient_preference.show_on_next_login)
+
     def test_portal_login_redirects_to_next_url_when_present(self):
         user = self._create_portal_user("portal-auth-d", "d@example.com")
         self._create_profile(user)
@@ -1033,6 +1158,9 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "FAQ portail")
         self.assertContains(response, "Espace expéditeur")
         self.assertContains(response, "Espace destinataire")
+        self.assertContains(response, "Tutoriel guidé")
+        self.assertContains(response, "Continuer à me le montrer")
+        self.assertContains(response, "impossible de créer une commande")
 
     def test_portal_order_create_denies_recipient_scope(self):
         user = self._create_portal_user("portal-recipient-scope", "recipient-scope@example.com")
@@ -3235,6 +3363,8 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Espace destinataire")
         self.assertContains(response, "Modifier mes informations")
         self.assertContains(response, "Gérer les préférences produits")
+        self.assertContains(response, "Documents structure manquants")
+        self.assertContains(response, "un produit refusé peut bloquer")
 
     def test_portal_recipient_detail_shows_preference_coverage_in_product_table(self):
         recipient = self._create_synced_recipient()

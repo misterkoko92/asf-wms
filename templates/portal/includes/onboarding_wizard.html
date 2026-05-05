@@ -1,0 +1,95 @@
+{% load i18n %}
+
+<div
+  id="portal-onboarding-wizard"
+  class="modal fade portal-onboarding-modal"
+  tabindex="-1"
+  aria-labelledby="portal-onboarding-title"
+  aria-describedby="portal-onboarding-step-counter"
+  data-portal-onboarding="1"
+  data-portal-onboarding-auto-open="{% if onboarding.auto_open %}1{% else %}0{% endif %}"
+  data-portal-onboarding-preference-url="{% url 'portal:portal_onboarding_preference' %}"
+  data-portal-onboarding-show-next="{% if onboarding.show_on_next_login %}1{% else %}0{% endif %}"
+  data-portal-onboarding-scope="{{ onboarding.scope_key }}"
+>
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <p class="portal-onboarding-eyebrow mb-1">{% trans "Portail ASF" %}</p>
+          <h2 id="portal-onboarding-title" class="modal-title">{{ onboarding.title }}</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans "Fermer" %}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="portal-onboarding-progress" aria-live="polite">
+          <span id="portal-onboarding-step-counter">
+            {% blocktrans with total=onboarding.steps|length %}Étape 1 / {{ total }}{% endblocktrans %}
+          </span>
+        </div>
+        <div class="portal-onboarding-steps">
+          {% for step in onboarding.steps %}
+            <section
+              class="portal-onboarding-step{% if forloop.first %} is-active{% endif %}"
+              data-portal-onboarding-step="{{ forloop.counter0 }}"
+              {% if not forloop.first %}hidden{% endif %}
+            >
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.body }}</p>
+              <p class="portal-onboarding-why">{{ step.why }}</p>
+              {% if step.blockers %}
+                <div class="portal-onboarding-blockers">
+                  <h4>{% trans "Points de blocage fréquents" %}</h4>
+                  <ul>
+                    {% for blocker in step.blockers %}
+                      <li>{{ blocker }}</li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              {% endif %}
+              {% if step.action_url or step.secondary_action_url %}
+                <div class="portal-onboarding-actions ui-comp-actions">
+                  {% if step.action_url %}
+                    <a class="btn btn-primary btn-sm" href="{{ step.action_url }}">{{ step.action_label }}</a>
+                  {% endif %}
+                  {% if step.secondary_action_url %}
+                    <a class="btn btn-tertiary btn-sm" href="{{ step.secondary_action_url }}">{{ step.secondary_action_label }}</a>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </section>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer portal-onboarding-footer">
+        <form id="portal-onboarding-preference-form" class="portal-onboarding-preference-form">
+          {% csrf_token %}
+          <div class="form-check">
+            <input
+              id="portal-onboarding-show-next"
+              class="form-check-input"
+              type="checkbox"
+              name="show_on_next_login"
+              value="1"
+              {% if onboarding.show_on_next_login %}checked{% endif %}
+            >
+            <label class="form-check-label" for="portal-onboarding-show-next">
+              {% trans "Continuer à me le montrer à la prochaine connexion" %}
+            </label>
+          </div>
+        </form>
+        <div class="portal-onboarding-nav ui-comp-actions">
+          <button type="button" class="btn btn-tertiary btn-sm" data-portal-onboarding-prev disabled>
+            {% trans "Précédent" %}
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" data-portal-onboarding-next>
+            {% trans "Suivant" %}
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" data-portal-onboarding-done hidden>
+            {% trans "Terminer" %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

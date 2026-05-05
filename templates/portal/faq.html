@@ -26,6 +26,24 @@
     </div>
 
     <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">{% trans "Tutoriel guidé" %}</h3>
+      <p class="scan-help">
+        {% trans "Un tutoriel guidé s'affiche automatiquement à la première connexion de chaque espace actif. Il reste proposé aux connexions suivantes tant que la case Continuer à me le montrer à la prochaine connexion reste cochée." %}
+      </p>
+      <ul class="mb-0">
+        <li>
+          {% trans "Décochez cette case dans le tutoriel si vous ne voulez plus l'affichage automatique à la prochaine connexion." %}
+        </li>
+        <li>
+          {% trans "Le lien Tutoriel dans le bandeau du portail permet de le relancer à la demande. Sans JavaScript, ce lien revient sur cette FAQ." %}
+        </li>
+        <li>
+          {% trans "Le contenu est séparé par rôle : parcours expéditeur pour préparer et suivre les demandes, parcours destinataire pour maintenir la fiche structure et les besoins produits." %}
+        </li>
+      </ul>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
       <h3 class="ui-comp-title">{% trans "Espace expéditeur" %}</h3>
       <p class="scan-help">
         {% trans "L'espace expéditeur sert à préparer les demandes de l'association, suivre les dossiers, gérer les destinataires, maintenir le compte et consulter la facturation." %}
@@ -42,6 +60,14 @@
           {% trans "ouvrez" %} <a href="{% url 'portal:portal_order_create' %}">{% trans "Nouvelle commande" %}</a>,
           {% trans "choisissez d'abord la destination, puis le destinataire proposé pour cette destination, saisissez les quantités voulues et terminez avec" %}
           <strong>{% trans "Envoyer la commande" %}</strong>.
+        </li>
+        <li>
+          <strong>{% trans "Blocages fréquents avant commande" %}</strong> :
+          {% trans "il est impossible de créer une commande ou de consulter les stocks/produits tant qu'aucun destinataire actif n'est enregistré avec un contact de réception valide." %}
+        </li>
+        <li>
+          <strong>{% trans "Blocages fréquents pendant une demande de transport" %}</strong> :
+          {% trans "la destination et le destinataire sont obligatoires, le destinataire est filtré selon la destination choisie, et une demande vide ne peut pas être envoyée." %}
         </li>
         <li>
           <strong>{% trans "Ajouter des documents à une commande validée" %}</strong> :
@@ -70,6 +96,7 @@
           {% trans "dans" %} <a href="{% url 'portal:portal_account' %}">{% trans "Compte" %}</a>,
           {% trans "utilisez la section" %} <strong>{% trans "Documents de vérification" %}</strong>
           {% trans "pour déposer de nouveaux fichiers et suivre leur statut." %}
+          {% trans "Un compte expéditeur en revue ASF ou avec documents non conformes peut rester bloqué temporairement." %}
         </li>
         <li>
           <strong>{% trans "Demander un changement de préférences de facturation" %}</strong> :
@@ -106,17 +133,20 @@
           {% trans "sur la page" %} <a href="{% url 'portal:portal_recipient_profile' %}">{% trans "Modifier mes informations" %}</a>,
           {% trans "utilisez la section" %} <strong>{% trans "Documents structure" %}</strong>
           {% trans "pour téléverser la preuve d'enregistrement et les statuts mis à jour." %}
+          {% trans "Documents structure manquants, documents non conformes ou revue ASF encore en attente peuvent ralentir le traitement." %}
         </li>
         <li>
           <strong>{% trans "Gérer les préférences produits" %}</strong> :
           {% trans "depuis la fiche ou directement via" %} <a href="{% url 'portal:portal_recipient_preferences' %}">{% trans "Gérer les préférences produits" %}</a>,
           {% trans "recherchez un produit, filtrez le catalogue si besoin, choisissez le statut, la quantité cible, la période et enregistrez chaque ligne." %}
+          {% trans "Demandé et autorisé nécessitent une quantité et une période ; refusé ne doit pas avoir de quantité ni de période." %}
         </li>
         <li>
           <strong>{% trans "Supprimer une règle explicite existante" %}</strong> :
           {% trans "dans la page" %} <a href="{% url 'portal:portal_recipient_preferences' %}">{% trans "Gérer les préférences produits" %}</a>,
           {% trans "utilisez le bouton" %} <strong>{% trans "Supprimer" %}</strong>
           {% trans "sur une ligne déjà explicitement définie pour retirer la règle." %}
+          {% trans "Côté préparation, un produit refusé peut bloquer une demande expéditeur ou une préparation ASF." %}
         </li>
         <li>
           <strong>{% trans "Changer d'espace" %}</strong> :
