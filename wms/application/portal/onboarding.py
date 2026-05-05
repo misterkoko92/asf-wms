@@ -193,6 +193,8 @@ def _mark_session_scope_seen(request, scope_key: str) -> None:
 
 def _preference_for_request(request):
     scope = getattr(request, "portal_scope", None)
+    if scope is None:
+        return None, ""
     scope_key, target = _scope_key_and_target(scope)
     if not scope_key or not target:
         return None, scope_key
