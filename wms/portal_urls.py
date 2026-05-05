@@ -14,6 +14,11 @@ urlpatterns = [
     ),
     path("logout/", views.portal_logout, name="portal_logout"),
     path("faq/", views.portal_faq, name="portal_faq"),
+    path(
+        "onboarding/preference/",
+        views.portal_onboarding_preference,
+        name="portal_onboarding_preference",
+    ),
     path("change-password/", views.portal_change_password, name="portal_change_password"),
     path(
         "set-password/<uidb64>/<token>/",
