@@ -6,7 +6,7 @@ SCAN_FAQ_CHANGE_LOG_ENTRIES = [
         "pr_number": None,
         "summary": (
             "Préférences produits portail : validation groupée des lignes modifiées, "
-            "compteur de changements et rejet sans sauvegarde partielle en cas d'erreur."
+            "compteur de changements et rejet sans sauvegarde partielle si une erreur survient."
         ),
     },
     {
