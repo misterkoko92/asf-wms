@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
+from django.utils.html import escape
 
 from wms.views_scan_misc import SCAN_SERVICE_WORKER_VERSION
 
@@ -75,7 +76,7 @@ class ScanMiscViewsTests(TestCase):
         self.assertIn("date", first_entry)
         self.assertIn("pr_number", first_entry)
         self.assertIn("summary", first_entry)
-        self.assertContains(response, first_entry["summary"])
+        self.assertContains(response, escape(first_entry["summary"]))
 
     def test_scan_ui_lab_renders_template(self):
         response = self.client.get(reverse("scan:scan_ui_lab"))
