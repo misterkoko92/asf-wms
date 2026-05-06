@@ -886,12 +886,12 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["next"], "")
 
-    def test_portal_logout_redirects_to_domain_root(self):
+    def test_portal_logout_redirects_to_portal_login(self):
         user = self._create_portal_user("portal-auth-e", "e@example.com")
         self.client.force_login(user)
         response = self.client.get(self.logout_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/")
+        self.assertEqual(response.url, self.login_url)
 
     def test_portal_set_password_rejects_invalid_token(self):
         user = self._create_portal_user("portal-auth-f", "f@example.com")
@@ -932,6 +932,35 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertFalse(profile.must_change_password)
         self.assertTrue(user.check_password("NewPass1234!"))
 
+    def test_portal_set_password_allows_later_email_login_after_logout(self):
+        user = self._create_portal_user("portal-auth-reset-login", "reset-login@example.com")
+        self._create_profile(user, must_change_password=True)
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        url = self._set_password_url(user)
+
+        response = self.client.post(
+            url,
+            {
+                "new_password1": "NewPass1234!",
+                "new_password2": "NewPass1234!",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+
+        self.client.get(self.logout_url)
+        login_response = self.client.post(
+            self.login_url,
+            {
+                "identifier": user.email,
+                "password": "NewPass1234!",
+            },
+        )
+
+        self.assertEqual(login_response.status_code, 302)
+        self.assertEqual(login_response.url, self.dashboard_url)
+
     def test_portal_change_password_updates_password_and_clears_flag(self):
         user = self._create_portal_user("portal-auth-i", "i@example.com")
         profile = self._create_profile(user, must_change_password=True)
@@ -953,6 +982,29 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         user.refresh_from_db()
         self.assertFalse(profile.must_change_password)
         self.assertTrue(user.check_password("OtherPass1234!"))
+
+    def test_portal_change_password_keeps_current_session_authenticated(self):
+        user = self._create_portal_user(
+            "portal-auth-session-password",
+            "session-password@example.com",
+        )
+        self._create_profile(user, must_change_password=True)
+        self.client.force_login(user)
+
+        post_response = self.client.post(
+            self.change_password_url,
+            {
+                "new_password1": "OtherPass1234!",
+                "new_password2": "OtherPass1234!",
+            },
+        )
+        self.assertEqual(post_response.status_code, 302)
+        self.assertEqual(post_response.url, self.dashboard_url)
+
+        account_response = self.client.get(reverse("portal:portal_account"))
+
+        self.assertEqual(account_response.status_code, 200)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), user.id)
 
 
 class PortalOrdersViewsTests(PortalBaseTestCase):

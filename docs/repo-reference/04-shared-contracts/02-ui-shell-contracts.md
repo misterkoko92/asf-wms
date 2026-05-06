@@ -77,6 +77,7 @@ Surfaces that reuse these contracts:
 - Portal scoped pages render the onboarding wizard through `templates/portal/base.html`; the `Tutoriel` masthead link falls back to `/portal/faq/` without JavaScript.
 - `wms/static/portal/portal_onboarding.js` owns portal tutorial open/close, step navigation, and preference persistence.
 - Planning keeps legacy scan sidebar content but injects it through shared secondary-shell offcanvas.
+- Logout and change-account actions return users to the expected entry point for the active surface: scan to `https://messmed.pythonanywhere.com/`, portal to `/portal/login/`, benevole to `/benevole/login/`, and shipment tracking access to its restricted tracking login.
 - Scan-camera controls must preserve active scan targets when switching cameras, stop live ZXing controls before restart, and ignore stale callbacks.
 - OCR activation is disabled until OCR engine assets are self-hosted and covered by CSP, cache, and regression-test updates.
 

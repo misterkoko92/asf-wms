@@ -146,13 +146,13 @@ class VolunteerAuthViewTests(TestCase):
         self.assertRedirects(response, reverse("volunteer:dashboard"))
         self._assert_browser_session()
 
-    def test_logout_redirects_to_domain_root(self):
+    def test_logout_redirects_to_volunteer_login(self):
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("volunteer:logout"))
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/")
+        self.assertEqual(response.url, reverse("volunteer:login"))
 
     def test_set_password_rejects_invalid_token(self):
         response = self.client.get(self._set_password_url(self.user, token="invalid-token"))
@@ -177,6 +177,52 @@ class VolunteerAuthViewTests(TestCase):
         self.profile.refresh_from_db()
         self.assertTrue(self.user.check_password("NewPass1234!"))
         self.assertFalse(self.profile.must_change_password)
+
+    def test_set_password_allows_later_email_login_after_logout(self):
+        self.profile.must_change_password = True
+        self.profile.save(update_fields=["must_change_password"])
+        self.user.set_unusable_password()
+        self.user.save(update_fields=["password"])
+
+        response = self.client.post(
+            self._set_password_url(self.user),
+            {
+                "new_password1": "NewPass1234!",  # pragma: allowlist secret
+                "new_password2": "NewPass1234!",  # pragma: allowlist secret
+            },
+        )
+
+        self.assertRedirects(response, reverse("volunteer:dashboard"))
+
+        self.client.get(reverse("volunteer:logout"))
+        login_response = self.client.post(
+            reverse("volunteer:login"),
+            {
+                "identifier": self.user.email,
+                "password": "NewPass1234!",  # pragma: allowlist secret
+            },
+        )
+
+        self.assertRedirects(login_response, reverse("volunteer:dashboard"))
+
+    def test_change_password_keeps_current_session_authenticated(self):
+        self.profile.must_change_password = True
+        self.profile.save(update_fields=["must_change_password"])
+        self.client.force_login(self.user)
+
+        post_response = self.client.post(
+            reverse("volunteer:change_password"),
+            {
+                "new_password1": "OtherPass1234!",  # pragma: allowlist secret
+                "new_password2": "OtherPass1234!",  # pragma: allowlist secret
+            },
+        )
+        self.assertRedirects(post_response, reverse("volunteer:dashboard"))
+
+        profile_response = self.client.get(reverse("volunteer:profile"))
+
+        self.assertEqual(profile_response.status_code, 200)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.id)
 
     def test_forgot_password_get_renders_form(self):
         response = self.client.get(reverse("volunteer:forgot_password"))

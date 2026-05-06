@@ -1,9 +1,6 @@
-from urllib.parse import urlencode
-
 from django.contrib.auth import logout
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
@@ -19,6 +16,7 @@ SHELL_CLASS_WIDE = "scan-shell-wide"
 SCAN_SW_ALLOWED_SCOPE = "/scan/"
 CACHE_CONTROL_NO_CACHE = "no-cache"
 SCAN_SERVICE_WORKER_VERSION = "63"
+SCAN_LOGOUT_REDIRECT_URL = "https://messmed.pythonanywhere.com/"
 
 SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v__VERSION__';
 const ASSETS = [
@@ -93,6 +91,10 @@ def _build_service_worker_response():
     return response
 
 
+def _redirect_to_production_home():
+    return redirect(SCAN_LOGOUT_REDIRECT_URL)
+
+
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_faq(request):
@@ -109,16 +111,14 @@ def scan_ui_lab(request):
 @require_http_methods(["GET"])
 def scan_change_account(request):
     logout(request)
-    login_url = reverse("admin:login")
-    next_url = reverse("scan:scan_root")
-    return redirect(f"{login_url}?{urlencode({'next': next_url})}")
+    return _redirect_to_production_home()
 
 
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_logout(request):
     logout(request)
-    return redirect("/")
+    return _redirect_to_production_home()
 
 
 def scan_service_worker(request):

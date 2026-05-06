@@ -2,6 +2,15 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 5, 6),
+        "pr_number": None,
+        "summary": (
+            "Authentification : déconnexion portail/bénévole vers leur connexion, "
+            "déconnexion/changement de compte scan vers l'accueil production et "
+            "session conservée après changement de mot de passe."
+        ),
+    },
+    {
         "date": date(2026, 5, 5),
         "pr_number": None,
         "summary": (
