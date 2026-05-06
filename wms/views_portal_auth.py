@@ -1,6 +1,12 @@
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth import (
+    authenticate,
+    get_user_model,
+    login,
+    logout,
+    update_session_auth_hash,
+)
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.tokens import default_token_generator
@@ -368,7 +374,7 @@ def portal_forgot_password(request):
 @login_required(login_url="portal:portal_login")
 def portal_logout(request):
     logout(request)
-    return redirect("/")
+    return redirect("portal:portal_login")
 
 
 @login_required(login_url="portal:portal_login")
@@ -434,7 +440,8 @@ def portal_set_password(request, uidb64, token):
 def portal_change_password(request):
     form = SetPasswordForm(request.user, request.POST or None)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        user = form.save()
+        update_session_auth_hash(request, user)
         _set_profile_password_changed(request.association_profile)
         messages.success(request, MESSAGE_PASSWORD_UPDATED)
         return redirect("portal:portal_dashboard")
