@@ -82,8 +82,12 @@ ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse association manquante.")
 ERROR_RECIPIENT_INVALID = _("Destinataire invalide.")
 ERROR_ORDER_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 ERROR_INBOUND_CARTON_COUNT_REQUIRED = _("Nombre de colis expéditeur requis.")
+ERROR_INBOUND_PALLET_COUNT_REQUIRED = _("Nombre de palettes requis pour l'enlèvement.")
 ERROR_INBOUND_OUT_OF_FORMAT_INVALID = _("Nombre de hors format invalide.")
 ERROR_INBOUND_ARRIVAL_MODE_REQUIRED = _("Mode d'arrivée des colis expéditeur requis.")
+ERROR_INBOUND_GUIDELINES_CONFIRMATION_REQUIRED = _(
+    "Certifiez que les colis respectent les consignes ASF."
+)
 ERROR_PICKUP_PHONE_REQUIRED = _("Au moins un numéro de téléphone est requis pour l'enlèvement.")
 ERROR_PICKUP_CONTACT_REQUIRED = _("Contact d'enlèvement requis.")
 ERROR_PICKUP_ADDRESS_REQUIRED = _("Adresse d'enlèvement requise.")
@@ -100,9 +104,20 @@ ERROR_PICKUP_CONFIRMATION_REQUIRED = _(
     "Confirmez avoir toutes les informations nécessaires à l'enlèvement."
 )
 
-MESSAGE_ORDER_SENT = _("Order sent.")
+MESSAGE_ORDER_SENT = _("Commande envoyée.")
 MESSAGE_ORDER_DOCUMENT_ADDED = _("Document ajouté.")
 MESSAGE_ORDER_DOCUMENTS_ADDED = _("Documents ajoutés.")
+
+PICKUP_OPEN_WEEKDAY_CHOICES = [
+    ("monday", _("Lundi")),
+    ("tuesday", _("Mardi")),
+    ("wednesday", _("Mercredi")),
+    ("thursday", _("Jeudi")),
+    ("friday", _("Vendredi")),
+    ("saturday", _("Samedi")),
+    ("sunday", _("Dimanche")),
+]
+PICKUP_OPEN_WEEKDAY_VALUES = {value for value, _label in PICKUP_OPEN_WEEKDAY_CHOICES}
 
 
 def _get_active_recipients(profile):
@@ -238,9 +253,12 @@ def _build_order_create_defaults():
         "recipient_id": "",
         "notes": "",
         "has_shipper_inbound": False,
+        "wants_stock_completion": False,
         "arrival_mode": "",
         "declared_carton_count": "",
+        "declared_pallet_count": "",
         "declared_out_of_format_count": "0",
+        "parcel_guidelines_confirmed": False,
         "pickup_address_book_entry_id": "",
         "save_pickup_address": False,
         "pickup_company_name": "",
@@ -254,6 +272,7 @@ def _build_order_create_defaults():
         "pickup_country": DEFAULT_COUNTRY,
         "pickup_available_from_date": "",
         "pickup_requested_for_date": "",
+        "pickup_open_weekdays": [],
         "pickup_opening_slot_1_start": "",
         "pickup_opening_slot_1_end": "",
         "pickup_has_midday_break": False,
@@ -282,6 +301,18 @@ def _format_optional_time(value):
     return value.strftime("%H:%M")
 
 
+def _normalize_pickup_open_weekdays(raw_values):
+    weekdays = []
+    seen = set()
+    for raw_value in raw_values or []:
+        value = str(raw_value or "").strip()
+        if value not in PICKUP_OPEN_WEEKDAY_VALUES or value in seen:
+            continue
+        seen.add(value)
+        weekdays.append(value)
+    return weekdays
+
+
 def _build_pickup_address_option(entry):
     label_parts = [
         entry.label,
@@ -304,6 +335,7 @@ def _build_pickup_address_option(entry):
         "pickup_postal_code": entry.pickup_postal_code or "",
         "pickup_city": entry.pickup_city or "",
         "pickup_country": entry.pickup_country or DEFAULT_COUNTRY,
+        "pickup_open_weekdays": list(entry.pickup_open_weekdays or []),
         "pickup_opening_slot_1_start": _format_optional_time(entry.pickup_opening_slot_1_start),
         "pickup_opening_slot_1_end": _format_optional_time(entry.pickup_opening_slot_1_end),
         "pickup_has_midday_break": bool(entry.pickup_has_midday_break),
@@ -363,6 +395,9 @@ def _apply_pickup_address_entry_to_form_data(form_data, *, entry, post_data):
         if value is not None:
             form_data[field_name] = value
 
+    if not form_data.get("pickup_open_weekdays"):
+        form_data["pickup_open_weekdays"] = list(entry.pickup_open_weekdays or [])
+
     for field_name in (
         "pickup_has_midday_break",
         "pickup_has_no_access_constraints",
@@ -388,6 +423,9 @@ def _validate_shipper_inbound(form_data, errors):
         errors.append(ERROR_INBOUND_OUT_OF_FORMAT_INVALID)
         out_of_format_count = 0
 
+    if not form_data["parcel_guidelines_confirmed"]:
+        errors.append(ERROR_INBOUND_GUIDELINES_CONFIRMATION_REQUIRED)
+
     arrival_mode = (form_data["arrival_mode"] or "").strip()
     allowed_modes = {choice[0] for choice in OrderInboundArrivalMode.choices}
     if arrival_mode not in allowed_modes:
@@ -396,7 +434,9 @@ def _validate_shipper_inbound(form_data, errors):
     payload = {
         "arrival_mode": arrival_mode,
         "declared_carton_count": carton_count or 0,
+        "declared_pallet_count": 0,
         "declared_out_of_format_count": out_of_format_count or 0,
+        "parcel_guidelines_confirmed": form_data["parcel_guidelines_confirmed"],
         "pickup_address_book_entry": form_data.get("pickup_address_book_entry"),
         "save_pickup_address": bool(form_data.get("save_pickup_address")),
         "notes": "",
@@ -404,6 +444,11 @@ def _validate_shipper_inbound(form_data, errors):
 
     if arrival_mode != OrderInboundArrivalMode.PICKUP_REQUESTED:
         return payload
+
+    pallet_count = parse_int_safe(form_data["declared_pallet_count"])
+    if pallet_count is None or pallet_count <= 0:
+        errors.append(ERROR_INBOUND_PALLET_COUNT_REQUIRED)
+        pallet_count = None
 
     if not form_data["pickup_contact_name"].strip():
         errors.append(ERROR_PICKUP_CONTACT_REQUIRED)
@@ -457,6 +502,7 @@ def _validate_shipper_inbound(form_data, errors):
     payload.update(
         {
             "pickup_company_name": form_data["pickup_company_name"].strip(),
+            "declared_pallet_count": pallet_count or 0,
             "pickup_contact_name": form_data["pickup_contact_name"].strip(),
             "pickup_contact_phone": form_data["pickup_contact_phone"].strip(),
             "pickup_contact_phone_2": form_data["pickup_contact_phone_2"].strip(),
@@ -467,6 +513,9 @@ def _validate_shipper_inbound(form_data, errors):
             "pickup_country": form_data["pickup_country"].strip() or DEFAULT_COUNTRY,
             "pickup_available_from_date": pickup_available_from_date,
             "pickup_requested_for_date": pickup_requested_for_date,
+            "pickup_open_weekdays": _normalize_pickup_open_weekdays(
+                form_data.get("pickup_open_weekdays") or []
+            ),
             "pickup_opening_slot_1_start": pickup_slot_1_start,
             "pickup_opening_slot_1_end": pickup_slot_1_end,
             "pickup_has_midday_break": form_data["pickup_has_midday_break"],
@@ -512,6 +561,19 @@ def _resolve_destination(profile, recipient_id, errors, *, selected_destination)
 
 def _requires_recipient_binding(*, profile, recipient_contact) -> bool:
     return bool(recipient_contact and recipient_contact != profile.contact)
+
+
+def _build_order_shipping_type_label(form_data):
+    if not form_data.get("has_shipper_inbound"):
+        return _("Stock ASF")
+
+    arrival_mode = (form_data.get("arrival_mode") or "").strip()
+    wants_stock = bool(form_data.get("wants_stock_completion"))
+    if arrival_mode == OrderInboundArrivalMode.DROPOFF_WAREHOUSE:
+        return _("Dépôt + Stock ASF") if wants_stock else _("Dépôt")
+    if arrival_mode == OrderInboundArrivalMode.PICKUP_REQUESTED:
+        return _("Enlèvement + Stock ASF") if wants_stock else _("Enlèvement")
+    return _("À sélectionner")
 
 
 def create_portal_order(
@@ -652,9 +714,11 @@ def _build_order_create_context(
         "category_filter_max_depth": category_filter_max_depth,
         "carton_format": carton_data,
         "pickup_address_options": pickup_address_options,
+        "pickup_open_weekday_choices": PICKUP_OPEN_WEEKDAY_CHOICES,
         "route_ready": route_ready,
         "selected_destination_label": selected_destination_label,
         "selected_recipient_label": selected_recipient_label,
+        "shipping_type_label": _build_order_shipping_type_label(form_data),
     }
 
 
@@ -822,13 +886,26 @@ def portal_order_create(request):
         _normalize_form_bool(
             form_data, "has_shipper_inbound", request.POST.get("has_shipper_inbound")
         )
+        _normalize_form_bool(
+            form_data,
+            "wants_stock_completion",
+            request.POST.get("wants_stock_completion"),
+        )
         form_data["arrival_mode"] = (request.POST.get("arrival_mode") or "").strip()
         form_data["declared_carton_count"] = (
             request.POST.get("declared_carton_count") or ""
         ).strip()
+        form_data["declared_pallet_count"] = (
+            request.POST.get("declared_pallet_count") or ""
+        ).strip()
         form_data["declared_out_of_format_count"] = (
             request.POST.get("declared_out_of_format_count") or "0"
         ).strip()
+        _normalize_form_bool(
+            form_data,
+            "parcel_guidelines_confirmed",
+            request.POST.get("parcel_guidelines_confirmed"),
+        )
         form_data["pickup_address_book_entry_id"] = (
             request.POST.get("pickup_address_book_entry_id") or ""
         ).strip()
@@ -856,6 +933,9 @@ def portal_order_create(request):
         form_data["pickup_requested_for_date"] = (
             request.POST.get("pickup_requested_for_date") or ""
         ).strip()
+        form_data["pickup_open_weekdays"] = _normalize_pickup_open_weekdays(
+            request.POST.getlist("pickup_open_weekdays")
+        )
         form_data["pickup_opening_slot_1_start"] = (
             request.POST.get("pickup_opening_slot_1_start") or ""
         ).strip()
@@ -931,52 +1011,57 @@ def portal_order_create(request):
             if form_data["recipient_id"] not in allowed_recipient_ids:
                 errors.append(ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION)
 
-        (
-            selected_ready_carton_ids,
-            ready_carton_quantities,
-            ready_carton_line_errors,
-            total_selected_ready_cartons,
-        ) = build_ready_carton_selection(
-            request.POST,
-            ready_carton_rows=ready_carton_rows,
-            field_prefix="ready_carton",
+        include_stock_selection = (
+            not form_data["has_shipper_inbound"] or form_data["wants_stock_completion"]
         )
-        (
-            selected_ready_kit_ids,
-            ready_kit_quantities,
-            ready_kit_line_errors,
-            total_selected_ready_kits,
-        ) = build_ready_carton_selection(
-            request.POST,
-            ready_carton_rows=ready_kit_rows,
-            field_prefix="ready_kit",
-        )
-        total_selected_ready_cartons += total_selected_ready_kits
+        if include_stock_selection:
+            (
+                selected_ready_carton_ids,
+                ready_carton_quantities,
+                ready_carton_line_errors,
+                total_selected_ready_cartons,
+            ) = build_ready_carton_selection(
+                request.POST,
+                ready_carton_rows=ready_carton_rows,
+                field_prefix="ready_carton",
+            )
+            (
+                selected_ready_kit_ids,
+                ready_kit_quantities,
+                ready_kit_line_errors,
+                total_selected_ready_kits,
+            ) = build_ready_carton_selection(
+                request.POST,
+                ready_carton_rows=ready_kit_rows,
+                field_prefix="ready_kit",
+            )
+            total_selected_ready_cartons += total_selected_ready_kits
 
-        all_ready_rows = build_ready_carton_rows(
-            selected_quantities={
-                **ready_carton_quantities,
-                **ready_kit_quantities,
-            },
-            line_errors={
-                **ready_carton_line_errors,
-                **ready_kit_line_errors,
-            },
-        )
-        ready_carton_rows, ready_kit_rows = split_ready_rows_into_kits(all_ready_rows)
+            all_ready_rows = build_ready_carton_rows(
+                selected_quantities={
+                    **ready_carton_quantities,
+                    **ready_kit_quantities,
+                },
+                line_errors={
+                    **ready_carton_line_errors,
+                    **ready_kit_line_errors,
+                },
+            )
+            ready_carton_rows, ready_kit_rows = split_ready_rows_into_kits(all_ready_rows)
 
-        line_items, line_quantities, line_errors = build_order_line_items(
-            request.POST,
-            product_options=product_options,
-            product_by_id=product_by_id,
-            available_by_id=available_by_id,
-        )
+            line_items, line_quantities, line_errors = build_order_line_items(
+                request.POST,
+                product_options=product_options,
+                product_by_id=product_by_id,
+                available_by_id=available_by_id,
+            )
         inbound_delivery_data = _validate_shipper_inbound(form_data, errors)
         if (
             not line_items
             and not selected_ready_carton_ids
             and not selected_ready_kit_ids
             and not inbound_delivery_data
+            and not form_data["has_shipper_inbound"]
         ):
             errors.append(ERROR_PRODUCT_REQUIRED)
 

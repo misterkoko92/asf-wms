@@ -412,6 +412,17 @@ body.portal-bootstrap-enabled {
   grid-template-columns: repeat(2, minmax(220px, 1fr));
 }
 
+.portal-bootstrap-enabled .portal-recipient-profile-subsection {
+  margin-top: var(--wms-field-gap);
+}
+
+.portal-bootstrap-enabled .portal-subsection-title {
+  margin: 0 0 var(--wms-space-unit);
+  font-size: var(--wms-font-size-body);
+  font-weight: 700;
+  color: var(--wms-color-text);
+}
+
 .portal-bootstrap-enabled .portal-recipient-flags {
   display: flex;
   gap: calc(var(--wms-space-unit) * 1.5);
@@ -451,6 +462,123 @@ body.portal-bootstrap-enabled {
 .portal-bootstrap-enabled .portal-recipient-cancel {
   margin-left: calc(var(--wms-space-unit) + 2px);
   font-weight: 600;
+}
+
+.portal-bootstrap-enabled .recipient-preference-table .recipient-preference-col--coverage {
+  width: 6.5rem;
+  min-width: 6.5rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.portal-bootstrap-enabled .recipient-preference-table {
+  min-width: 92rem;
+}
+
+.portal-bootstrap-enabled .recipient-preference-table .recipient-preference-col--notes {
+  width: 14rem;
+  min-width: 14rem;
+}
+
+.portal-bootstrap-enabled .recipient-preference-table .recipient-preference-col--action {
+  width: 10.5rem;
+  min-width: 10.5rem;
+  white-space: normal;
+}
+
+.portal-bootstrap-enabled .recipient-preference-table .recipient-preference-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--wms-space-unit) * 0.75);
+  min-width: 9rem;
+}
+
+.portal-bootstrap-enabled .recipient-preference-table .recipient-preference-actions .btn {
+  width: 100%;
+  white-space: normal;
+}
+
+.portal-bootstrap-enabled .recipient-preference-table tr.is-dirty > td {
+  background: var(--wms-status-info-bg);
+}
+
+.portal-bootstrap-enabled .recipient-preference-dirty-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--wms-status-info-border);
+  border-radius: var(--wms-badge-radius);
+  color: var(--wms-status-info-text);
+  background: var(--wms-status-info-bg);
+  font-size: var(--wms-badge-font-size);
+  font-weight: 700;
+}
+
+.portal-bootstrap-enabled .recipient-preference-row-errors {
+  margin-top: calc(var(--wms-space-unit) * 0.75);
+  padding: calc(var(--wms-space-unit) * 0.75);
+  font-size: var(--wms-font-size-small);
+}
+
+.portal-bootstrap-enabled .recipient-preferences-bulk-form {
+  margin-top: var(--wms-section-gap);
+}
+
+.portal-bootstrap-enabled .recipient-preferences-bulk-form.is-active {
+  min-height: 5.5rem;
+}
+
+.portal-bootstrap-enabled .recipient-preferences-bulk-actions {
+  position: fixed;
+  left: 50%;
+  bottom: max(var(--wms-space-unit), env(safe-area-inset-bottom));
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--wms-field-gap);
+  width: min(calc(100vw - 2rem), var(--wms-container-max-width));
+  box-sizing: border-box;
+  padding: var(--wms-field-gap);
+  border: var(--wms-card-border-width) solid var(--wms-card-border-color);
+  border-radius: var(--wms-card-radius);
+  background: var(--wms-card-bg);
+  box-shadow: 0 10px 30px rgba(47, 58, 54, 0.12);
+  transform: translateX(-50%);
+}
+
+.portal-bootstrap-enabled .recipient-preferences-bulk-actions[hidden] {
+  display: none;
+}
+
+.portal-bootstrap-enabled .recipient-preferences-bulk-actions__summary {
+  color: var(--wms-color-text-soft);
+  font-size: var(--wms-font-size-small);
+  font-weight: 700;
+}
+
+.portal-bootstrap-enabled .portal-category-filter-select.form-select {
+  flex: 1 1 16rem;
+  width: min(100%, 20rem);
+  min-width: min(100%, 16rem);
+}
+
+.portal-bootstrap-enabled .portal-pickup-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--wms-space-unit) * 0.75) calc(var(--wms-space-unit) * 1.5);
+  padding: var(--wms-input-padding-y) var(--wms-input-padding-x);
+  border: 1px solid var(--wms-input-border);
+  border-radius: var(--wms-input-radius);
+  background: var(--wms-input-bg);
+}
+
+.portal-bootstrap-enabled .portal-pickup-weekdays .form-check {
+  min-width: 7.25rem;
 }
 
 .portal-bootstrap-enabled .portal-onboarding-modal .modal-content {

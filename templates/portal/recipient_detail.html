@@ -63,9 +63,9 @@
         {% endfor %}
       </div>
     {% endif %}
-    {% if recipient_organization %}
-      <p class="scan-help">
-        {% trans "Pilotez les produits ligne par ligne. Passez une ligne à “Non précisé” pour retirer la règle explicite sans bloquer ce produit." %}
+      {% if recipient_organization %}
+        <p class="scan-help">
+        {% trans "Modifiez les lignes nécessaires puis validez toutes les modifications en une seule fois. Passez une ligne à “Non précisé” pour retirer la règle explicite sans bloquer ce produit." %}
       </p>
       {% include "includes/recipient_preference_filters.html" %}
       <div class="table-responsive">
@@ -77,16 +77,16 @@
               <th class="recipient-preference-col--status">{% trans "Statut" %}</th>
               <th class="recipient-preference-col--quantity text-nowrap">{% trans "Quantité cible" %}</th>
               <th class="recipient-preference-col--period">{% trans "Période" %}</th>
-              <th>{% trans "Livré" %}</th>
-              <th>{% trans "Pipeline" %}</th>
-              <th>{% trans "Reste a servir" %}</th>
+              <th class="recipient-preference-col--coverage text-nowrap">{% trans "Livré" %}</th>
+              <th class="recipient-preference-col--coverage text-nowrap">{% trans "En cours" %}</th>
+              <th class="recipient-preference-col--coverage text-nowrap">{% trans "Reste à servir" %}</th>
               <th class="recipient-preference-col--notes">{% trans "Notes" %}</th>
-              <th class="text-end">{% trans "Action" %}</th>
+              <th class="recipient-preference-col--action text-end">{% trans "Action" %}</th>
             </tr>
           </thead>
           <tbody>
             {% for row in recipient_product_rows %}
-              <tr>
+              <tr data-recipient-preference-row="{{ row.product.id }}">
                 <td class="recipient-preference-col--product">
                   <div class="fw-semibold">{{ row.product.name }}</div>
                   <div class="small text-body-secondary">
@@ -96,6 +96,13 @@
                       {% trans "Aucune règle explicite" %}
                     {% endif %}
                   </div>
+                  {% if row.form_errors %}
+                    <div class="scan-message error recipient-preference-row-errors">
+                      {% for error in row.form_errors %}
+                        <div>{{ error }}</div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
                 </td>
                 <td class="recipient-preference-col--estimate">{{ row.units_per_carton_estimate|default:"--" }}</td>
                 <td class="recipient-preference-col--status">
@@ -106,7 +113,15 @@
                       {% trans "Non précisé" %}
                     {% endif %}
                   {% else %}
-                    <select class="form-select ui-select--lg recipient-preference-input--status" id="status_{{ row.product.id }}" name="status" form="recipient-preference-form-{{ row.product.id }}">
+                    <input type="hidden" name="preference_product_ids" value="{{ row.product.id }}" form="recipient-preferences-bulk-form">
+                    <select
+                      class="form-select ui-select--lg recipient-preference-input--status"
+                      id="status_{{ row.product.id }}"
+                      name="preference_{{ row.product.id }}_status"
+                      form="recipient-preferences-bulk-form"
+                      data-recipient-preference-product="{{ row.product.id }}"
+                      data-initial-value="{{ row.form_data.status }}"
+                    >
                       {% for value, label in preference_status_choices %}
                         <option value="{{ value }}" {% if row.form_data.status == value %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
@@ -117,7 +132,18 @@
                   {% if recipient_shared_fields_read_only %}
                     {{ row.form_data.quantity_target|default:"-" }}
                   {% else %}
-                    <input class="form-control recipient-preference-input--quantity ui-number-input-compact" type="number" min="0" step="1" id="quantity_target_{{ row.product.id }}" name="quantity_target" value="{{ row.form_data.quantity_target }}" form="recipient-preference-form-{{ row.product.id }}">
+                    <input
+                      class="form-control recipient-preference-input--quantity ui-number-input-compact"
+                      type="number"
+                      min="0"
+                      step="1"
+                      id="quantity_target_{{ row.product.id }}"
+                      name="preference_{{ row.product.id }}_quantity_target"
+                      value="{{ row.form_data.quantity_target }}"
+                      form="recipient-preferences-bulk-form"
+                      data-recipient-preference-product="{{ row.product.id }}"
+                      data-initial-value="{{ row.form_data.quantity_target }}"
+                    >
                   {% endif %}
                 </td>
                 <td class="recipient-preference-col--period">
@@ -128,7 +154,14 @@
                       -
                     {% endif %}
                   {% else %}
-                    <select class="form-select ui-select--lg recipient-preference-input--period" id="period_unit_{{ row.product.id }}" name="period_unit" form="recipient-preference-form-{{ row.product.id }}">
+                    <select
+                      class="form-select ui-select--lg recipient-preference-input--period"
+                      id="period_unit_{{ row.product.id }}"
+                      name="preference_{{ row.product.id }}_period_unit"
+                      form="recipient-preferences-bulk-form"
+                      data-recipient-preference-product="{{ row.product.id }}"
+                      data-initial-value="{{ row.form_data.period_unit }}"
+                    >
                       <option value="">---------</option>
                       {% for value, label in preference_period_choices %}
                         <option value="{{ value }}" {% if row.form_data.period_unit == value %}selected{% endif %}>{{ label }}</option>
@@ -136,28 +169,31 @@
                     </select>
                   {% endif %}
                 </td>
-                <td>{% if row.coverage %}{{ row.coverage.delivered_quantity }}{% else %}-{% endif %}</td>
-                <td>{% if row.coverage %}{{ row.coverage.pipeline_quantity }}{% else %}-{% endif %}</td>
-                <td>{% if row.coverage %}{{ row.coverage.remaining_need }}{% else %}-{% endif %}</td>
+                <td class="recipient-preference-col--coverage">{% if row.coverage %}{{ row.coverage.delivered_quantity }}{% else %}-{% endif %}</td>
+                <td class="recipient-preference-col--coverage">{% if row.coverage %}{{ row.coverage.pipeline_quantity }}{% else %}-{% endif %}</td>
+                <td class="recipient-preference-col--coverage">{% if row.coverage %}{{ row.coverage.remaining_need }}{% else %}-{% endif %}</td>
                 <td class="recipient-preference-col--notes">
                   {% if recipient_shared_fields_read_only %}
                     {{ row.form_data.notes|default:"-" }}
                   {% else %}
-                    <textarea class="form-control recipient-preference-input--notes" id="notes_{{ row.product.id }}" name="notes" rows="2" form="recipient-preference-form-{{ row.product.id }}">{{ row.form_data.notes }}</textarea>
+                    <textarea
+                      class="form-control recipient-preference-input--notes"
+                      id="notes_{{ row.product.id }}"
+                      name="preference_{{ row.product.id }}_notes"
+                      rows="2"
+                      form="recipient-preferences-bulk-form"
+                      data-recipient-preference-product="{{ row.product.id }}"
+                      data-initial-value="{{ row.form_data.notes }}"
+                    >{{ row.form_data.notes }}</textarea>
                   {% endif %}
                 </td>
-                <td class="text-end">
+                <td class="recipient-preference-col--action text-end">
                   {% if recipient_shared_fields_read_only %}
                     -
                   {% else %}
-                    <form id="recipient-preference-form-{{ row.product.id }}" method="post" class="m-0">
-                      {% csrf_token %}
-                      <input type="hidden" name="product_id" value="{{ row.product.id }}">
-                      <input type="hidden" name="preference_q" value="{{ preference_query }}">
-                      <input type="hidden" name="preference_category" value="{{ preference_category_id }}">
-                      <input type="hidden" name="preference_sort" value="{{ preference_sort }}">
-                      <button type="submit" name="action" value="save_recipient_preference" class="btn btn-primary btn-sm">{% trans "Enregistrer la ligne" %}</button>
-                    </form>
+                    <div class="recipient-preference-actions">
+                      <span class="recipient-preference-dirty-indicator" data-recipient-preference-dirty-indicator="{{ row.product.id }}" hidden>{% trans "Modifié" %}</span>
+                    </div>
                   {% endif %}
                 </td>
               </tr>
@@ -169,6 +205,9 @@
           </tbody>
         </table>
       </div>
+      {% if not recipient_shared_fields_read_only %}
+        {% include "includes/recipient_preference_bulk_actions.html" %}
+      {% endif %}
     {% else %}
       <p class="scan-help mb-0">{% trans "Cette fiche n'est pas encore synchronisée avec la structure destinataire opérationnelle." %}</p>
     {% endif %}

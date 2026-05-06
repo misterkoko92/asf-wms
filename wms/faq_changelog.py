@@ -5,6 +5,32 @@ SCAN_FAQ_CHANGE_LOG_ENTRIES = [
         "date": date(2026, 5, 5),
         "pr_number": None,
         "summary": (
+            "Préférences produits portail : validation groupée des lignes modifiées, "
+            "compteur de changements et rejet sans sauvegarde partielle si une erreur survient."
+        ),
+    },
+    {
+        "date": date(2026, 5, 5),
+        "pr_number": None,
+        "summary": (
+            "Création de commande portail : consignes colis ASF, palette obligatoire "
+            "en enlèvement, complément Stock ASF optionnel et type d'expédition "
+            "calculé en récapitulatif."
+        ),
+    },
+    {
+        "date": date(2026, 5, 5),
+        "pr_number": None,
+        "summary": (
+            "Ajustements portail destinataire et expéditeur : navigation destinataire, "
+            "préférences produits lisibles, filtres catégories et jours d'ouverture "
+            "des enlèvements."
+        ),
+    },
+    {
+        "date": date(2026, 5, 5),
+        "pr_number": None,
+        "summary": (
             "Tutoriels guidés du portail expéditeur et destinataire, affichage automatique "
             "contrôlé par utilisateur et explication des principaux blocages de flux."
         ),

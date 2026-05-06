@@ -839,6 +839,7 @@ class AssociationPickupAddress(models.Model):
     pickup_country = models.CharField(max_length=80, default="France")
     pickup_opening_slot_1_start = models.TimeField(null=True, blank=True)
     pickup_opening_slot_1_end = models.TimeField(null=True, blank=True)
+    pickup_open_weekdays = models.JSONField(default=list, blank=True)
     pickup_has_midday_break = models.BooleanField(default=False)
     pickup_opening_slot_2_start = models.TimeField(null=True, blank=True)
     pickup_opening_slot_2_end = models.TimeField(null=True, blank=True)
@@ -864,7 +865,9 @@ class OrderInboundDelivery(models.Model):
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="inbound_delivery")
     arrival_mode = models.CharField(max_length=30, choices=OrderInboundArrivalMode.choices)
     declared_carton_count = models.PositiveIntegerField(default=0)
+    declared_pallet_count = models.PositiveIntegerField(default=0)
     declared_out_of_format_count = models.PositiveIntegerField(default=0)
+    parcel_guidelines_confirmed = models.BooleanField(default=False)
     pickup_address_book_entry = models.ForeignKey(
         AssociationPickupAddress,
         on_delete=models.SET_NULL,
@@ -892,6 +895,7 @@ class OrderInboundDelivery(models.Model):
     pickup_requested_for_date = models.DateField(null=True, blank=True)
     pickup_opening_slot_1_start = models.TimeField(null=True, blank=True)
     pickup_opening_slot_1_end = models.TimeField(null=True, blank=True)
+    pickup_open_weekdays = models.JSONField(default=list, blank=True)
     pickup_has_midday_break = models.BooleanField(default=False)
     pickup_opening_slot_2_start = models.TimeField(null=True, blank=True)
     pickup_opening_slot_2_end = models.TimeField(null=True, blank=True)

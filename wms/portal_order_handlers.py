@@ -103,6 +103,7 @@ def _sync_pickup_address_entry(*, profile, inbound_delivery, selected_entry, sav
         "pickup_postal_code": inbound_delivery.pickup_postal_code,
         "pickup_city": inbound_delivery.pickup_city,
         "pickup_country": inbound_delivery.pickup_country,
+        "pickup_open_weekdays": list(inbound_delivery.pickup_open_weekdays or []),
         "pickup_opening_slot_1_start": inbound_delivery.pickup_opening_slot_1_start,
         "pickup_opening_slot_1_end": inbound_delivery.pickup_opening_slot_1_end,
         "pickup_has_midday_break": inbound_delivery.pickup_has_midday_break,

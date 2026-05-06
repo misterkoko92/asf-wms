@@ -1,0 +1,101 @@
+{% load i18n %}
+
+<form
+  id="recipient-preferences-bulk-form"
+  method="post"
+  class="recipient-preferences-bulk-form"
+  data-recipient-preferences-bulk-form="1"
+>
+  {% csrf_token %}
+  <input type="hidden" name="preference_q" value="{{ preference_query }}">
+  <input type="hidden" name="preference_category" value="{{ preference_category_id }}">
+  <input type="hidden" name="preference_sort" value="{{ preference_sort }}">
+  <div
+    class="recipient-preferences-bulk-actions"
+    data-recipient-preferences-bulk-actions
+    hidden
+  >
+    <div class="recipient-preferences-bulk-actions__summary">
+      <span data-recipient-preferences-dirty-copy>{% trans "0 ligne modifiée" %}</span>
+    </div>
+    <button
+      id="recipient-preferences-bulk-submit"
+      type="submit"
+      name="action"
+      value="save_recipient_preferences_bulk"
+      class="btn btn-primary"
+      data-recipient-preferences-submit
+      disabled
+    >
+      {% trans "Valider les modifications (0 ligne)" %}
+    </button>
+  </div>
+</form>
+
+<script>
+  (function () {
+    const form = document.querySelector('[data-recipient-preferences-bulk-form="1"]');
+    const actions = document.querySelector('[data-recipient-preferences-bulk-actions]');
+    const submit = document.querySelector('[data-recipient-preferences-submit]');
+    const dirtyCopy = document.querySelector('[data-recipient-preferences-dirty-copy]');
+    if (!form || !actions || !submit || !dirtyCopy) {
+      return;
+    }
+
+    const fields = Array.from(document.querySelectorAll('[data-recipient-preference-product]'));
+    const rowsByProduct = new Map(
+      Array.from(document.querySelectorAll('[data-recipient-preference-row]')).map(row => [
+        row.dataset.recipientPreferenceRow,
+        row,
+      ])
+    );
+    const indicatorsByProduct = new Map(
+      Array.from(document.querySelectorAll('[data-recipient-preference-dirty-indicator]')).map(
+        indicator => [indicator.dataset.recipientPreferenceDirtyIndicator, indicator]
+      )
+    );
+
+    const getInitialValue = field => {
+      if (Object.prototype.hasOwnProperty.call(field.dataset, 'initialValue')) {
+        return field.dataset.initialValue || '';
+      }
+      return field.defaultValue || '';
+    };
+
+    const formatLineCount = count => `${count} ligne${count > 1 ? 's' : ''}`;
+
+    const syncDirtyState = () => {
+      const dirtyProducts = new Set();
+      fields.forEach(field => {
+        const productId = field.dataset.recipientPreferenceProduct;
+        if (!productId) {
+          return;
+        }
+        if ((field.value || '') !== getInitialValue(field)) {
+          dirtyProducts.add(productId);
+        }
+      });
+
+      rowsByProduct.forEach((row, productId) => {
+        row.classList.toggle('is-dirty', dirtyProducts.has(productId));
+      });
+      indicatorsByProduct.forEach((indicator, productId) => {
+        indicator.hidden = !dirtyProducts.has(productId);
+      });
+
+      const dirtyCount = dirtyProducts.size;
+      const lineCount = formatLineCount(dirtyCount);
+      dirtyCopy.textContent = `${lineCount} modifiée${dirtyCount > 1 ? 's' : ''}`;
+      submit.textContent = `Valider les modifications (${lineCount})`;
+      submit.disabled = dirtyCount === 0;
+      actions.hidden = dirtyCount === 0;
+      form.classList.toggle('is-active', dirtyCount > 0);
+    };
+
+    fields.forEach(field => {
+      field.addEventListener('input', syncDirtyState);
+      field.addEventListener('change', syncDirtyState);
+    });
+    syncDirtyState();
+  })();
+</script>

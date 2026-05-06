@@ -43,6 +43,7 @@ from wms.models import (
     Order,
     OrderDocument,
     OrderDocumentType,
+    OrderInboundArrivalMode,
     OrderReviewStatus,
     OrderStatus,
     PortalAccessGrant,
@@ -1302,6 +1303,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Kits disponibles")
         self.assertContains(response, "Filtrer produits")
         self.assertContains(response, "portal-filter-category-l1")
+        self.assertContains(response, 'data-all-categories-label="Toutes catégories"')
+        self.assertContains(response, "resetChildCategorySelects")
         self.assertContains(response, "Produits à l'unité")
         self.assertContains(response, "Étape 1")
         self.assertContains(response, "Étape 4")
@@ -1986,6 +1989,40 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         create_order_mock.assert_called_once()
         notify_mock.assert_called_once()
 
+    def test_portal_order_create_post_ignores_stock_lines_without_stock_completion(self):
+        fake_order = SimpleNamespace(id=124)
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            with mock.patch("wms.views_portal_orders.build_order_line_items") as line_items_mock:
+                with mock.patch(
+                    "wms.views_portal_orders.create_portal_order",
+                    return_value=fake_order,
+                ) as create_order_mock:
+                    with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+                        response = self.client.post(
+                            self.order_create_url,
+                            {
+                                "destination_id": str(self.destination.id),
+                                "recipient_id": str(self.delivery_recipient.id),
+                                "notes": "Inbound only",
+                                "has_shipper_inbound": "1",
+                                "arrival_mode": OrderInboundArrivalMode.DROPOFF_WAREHOUSE,
+                                "declared_carton_count": "4",
+                                "declared_out_of_format_count": "0",
+                                "parcel_guidelines_confirmed": "1",
+                                f"product_{self.product.id}_qty": "3",
+                            },
+                        )
+
+        self.assertEqual(response.status_code, 302)
+        line_items_mock.assert_not_called()
+        kwargs = create_order_mock.call_args.kwargs
+        self.assertEqual(kwargs["line_items"], [])
+        self.assertEqual(kwargs["ready_carton_ids"], [])
+        self.assertEqual(kwargs["inbound_delivery_data"]["declared_carton_count"], 4)
+
     def test_portal_order_create_post_supports_ready_cartons_and_unit_products(self):
         warehouse = Warehouse.objects.create(name="Portal Mixed Order Warehouse")
         location = Location.objects.create(
@@ -2545,6 +2582,25 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         payload.update(overrides)
         return payload
 
+    def _build_preference_bulk_payload(self, *row_payloads, **overrides):
+        payload = {
+            "action": "save_recipient_preferences_bulk",
+            "preference_product_ids": [],
+        }
+        for product, row_overrides in row_payloads:
+            payload["preference_product_ids"].append(str(product.id))
+            row_data = {
+                "status": "requested",
+                "quantity_target": "10",
+                "period_unit": "week",
+                "notes": "Urgent",
+            }
+            row_data.update(row_overrides)
+            for field_name, value in row_data.items():
+                payload[f"preference_{product.id}_{field_name}"] = value
+        payload.update(overrides)
+        return payload
+
     def _build_recipient_profile_payload(self, recipient_organization, **overrides):
         payload = {
             "action": "update_recipient_profile",
@@ -2699,7 +2755,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Compresses")
         self.assertContains(response, "Bandages")
         self.assertContains(response, "Non précisé")
-        self.assertContains(response, "Enregistrer la ligne")
+        self.assertContains(response, "Valider les modifications (0 ligne)")
         self.assertContains(response, "Recipient Detail")
         self.assertContains(response, "Lyon")
 
@@ -2860,6 +2916,106 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertIsNone(preference.quantity_target)
         self.assertEqual(preference.period_unit, "")
 
+    def test_portal_recipient_detail_post_saves_bulk_preference_changes(self):
+        recipient = self._create_synced_recipient()
+
+        response = self.client.post(
+            self._detail_url(recipient),
+            self._build_preference_bulk_payload(
+                (
+                    self.product,
+                    {
+                        "status": "requested",
+                        "quantity_target": "12",
+                        "period_unit": "week",
+                        "notes": "Besoin hebdo",
+                    },
+                ),
+                (
+                    self.other_product,
+                    {
+                        "status": "refused",
+                        "quantity_target": "",
+                        "period_unit": "",
+                        "notes": "Ne pas livrer",
+                    },
+                ),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self._detail_url(recipient))
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        preferences_by_product = {
+            preference.product_id: preference
+            for preference in recipient_organization.product_preferences.order_by("product_id")
+        }
+        self.assertEqual(set(preferences_by_product), {self.product.id, self.other_product.id})
+        requested_preference = preferences_by_product[self.product.id]
+        self.assertEqual(requested_preference.status, "requested")
+        self.assertEqual(requested_preference.quantity_target, 12)
+        self.assertEqual(requested_preference.period_unit, "week")
+        self.assertEqual(requested_preference.notes, "Besoin hebdo")
+        refused_preference = preferences_by_product[self.other_product.id]
+        self.assertEqual(refused_preference.status, "refused")
+        self.assertIsNone(refused_preference.quantity_target)
+        self.assertEqual(refused_preference.period_unit, "")
+        self.assertEqual(refused_preference.notes, "Ne pas livrer")
+
+    def test_portal_recipient_detail_bulk_post_rejects_invalid_batch_without_partial_save(
+        self,
+    ):
+        recipient = self._create_synced_recipient()
+
+        response = self.client.post(
+            self._detail_url(recipient),
+            self._build_preference_bulk_payload(
+                (
+                    self.product,
+                    {
+                        "status": "requested",
+                        "quantity_target": "12",
+                        "period_unit": "week",
+                        "notes": "Besoin hebdo",
+                    },
+                ),
+                (
+                    self.other_product,
+                    {
+                        "status": "requested",
+                        "quantity_target": "",
+                        "period_unit": "week",
+                        "notes": "Invalide",
+                    },
+                ),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            any(
+                "La quantite cible est requise" in error
+                for error in response.context["preference_errors"]
+            )
+        )
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=recipient.destination,
+        )
+        self.assertFalse(recipient_organization.product_preferences.exists())
+        rows_by_product_id = {
+            row["product"].id: row for row in response.context["recipient_product_rows"]
+        }
+        self.assertEqual(rows_by_product_id[self.product.id]["form_data"]["notes"], "Besoin hebdo")
+        self.assertEqual(
+            rows_by_product_id[self.other_product.id]["form_data"]["notes"],
+            "Invalide",
+        )
+        self.assertTrue(rows_by_product_id[self.other_product.id]["form_errors"])
+
     def test_portal_recipient_detail_post_updates_and_clears_preference_with_unspecified_status(
         self,
     ):
@@ -2990,7 +3146,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Gérer les préférences produits")
         self.assertContains(response, "Compresses")
         self.assertContains(response, "Bandages")
-        self.assertContains(response, "Enregistrer la ligne")
+        self.assertContains(response, "Valider les modifications (0 ligne)")
         self.assertContains(response, "Recipient Scope Home")
 
     def test_portal_recipient_preferences_show_units_per_carton_estimate_and_fallback(self):
@@ -3104,6 +3260,51 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(preference.source, "portal")
         self.assertEqual(preference.created_by, recipient_user)
         self.assertEqual(preference.updated_by, recipient_user)
+
+    def test_portal_recipient_preferences_post_saves_bulk_preference_changes_for_recipient_scope(
+        self,
+    ):
+        recipient = self._create_synced_recipient()
+        recipient_organization, recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.post(
+            self._recipient_preferences_url(),
+            self._build_preference_bulk_payload(
+                (
+                    self.product,
+                    {
+                        "status": "allowed",
+                        "quantity_target": "20",
+                        "period_unit": "month",
+                        "notes": "Autorisé mensuel",
+                    },
+                ),
+                (
+                    self.other_product,
+                    {
+                        "status": "refused",
+                        "quantity_target": "",
+                        "period_unit": "",
+                        "notes": "Non adapté",
+                    },
+                ),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self._recipient_preferences_url())
+        allowed_preference = recipient_organization.product_preferences.get(product=self.product)
+        self.assertEqual(allowed_preference.status, "allowed")
+        self.assertEqual(allowed_preference.quantity_target, 20)
+        self.assertEqual(allowed_preference.period_unit, "month")
+        self.assertEqual(allowed_preference.notes, "Autorisé mensuel")
+        self.assertEqual(allowed_preference.created_by, recipient_user)
+        refused_preference = recipient_organization.product_preferences.get(
+            product=self.other_product
+        )
+        self.assertEqual(refused_preference.status, "refused")
+        self.assertIsNone(refused_preference.quantity_target)
+        self.assertEqual(refused_preference.period_unit, "")
 
     def test_portal_recipient_preferences_post_deletes_explicit_preference(self):
         recipient = self._create_synced_recipient()
@@ -3466,7 +3667,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(coverage.delivered_quantity, 3)
         self.assertEqual(coverage.pipeline_quantity, 2)
         self.assertEqual(coverage.remaining_need, 5)
-        self.assertContains(response, "Reste a servir")
+        self.assertContains(response, "Reste à servir")
         self.assertContains(response, "5")
 
     def test_portal_recipients_post_validates_required_fields(self):

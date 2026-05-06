@@ -63,7 +63,10 @@
         </div>
       </div>
 
-      {% include "portal/includes/recipient_contact_fields.html" %}
+      <div id="portal-recipient-profile-contacts" class="portal-recipient-profile-subsection">
+        <h4 class="portal-subsection-title">{% trans "Contact principal" %}</h4>
+        {% include "portal/includes/recipient_contact_fields.html" %}
+      </div>
 
       <div class="scan-field">
         <label class="form-label" for="address_line1">{% trans "Adresse" %}</label>
