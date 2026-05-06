@@ -77,6 +77,7 @@ def build_recipient_preference_catalog_context(
     filter_state,
     build_form_data,
     preference_form_data_by_product_id=None,
+    preference_errors_by_product_id=None,
 ):
     query = (filter_state or {}).get("query", "")
     category_id = (filter_state or {}).get("category_id", "")
@@ -134,6 +135,10 @@ def build_recipient_preference_catalog_context(
             "form_data": (preference_form_data_by_product_id or {}).get(
                 effective_preference.product.pk,
                 build_form_data(effective_preference),
+            ),
+            "form_errors": (preference_errors_by_product_id or {}).get(
+                effective_preference.product.pk,
+                [],
             ),
             "coverage": coverages_by_product_id.get(effective_preference.product.pk),
             "units_per_carton_estimate": estimate_units_per_carton(

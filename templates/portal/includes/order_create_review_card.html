@@ -40,13 +40,9 @@
   <div class="row g-3 mt-1">
     <div class="col-md-4">
       <div class="scan-field mb-0">
-        <label class="form-label">{% trans "Flux structure" %}</label>
+        <label class="form-label">{% trans "Type d'expédition" %}</label>
         <div id="portal-order-create-summary-inbound" class="form-control">
-          {% if form_data.has_shipper_inbound %}
-            {% trans "Colis préparés par la structure" %}
-          {% else %}
-            {% trans "Non" %}
-          {% endif %}
+          {{ shipping_type_label }}
         </div>
       </div>
     </div>

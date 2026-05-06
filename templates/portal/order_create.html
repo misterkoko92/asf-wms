@@ -4,6 +4,8 @@
 {% block title %}{% trans "Nouvelle commande" %}{% endblock %}
 
 {% block content %}
+  {% trans "Toutes catégories" as all_categories_label %}
+  {% trans "Toutes sous-catégories" as all_subcategories_label %}
   {% include "portal/includes/order_create_intro_card.html" %}
 
   <form method="post" novalidate class="ui-comp-form" id="portal-order-create-form">
@@ -41,30 +43,58 @@
           <p class="scan-help mb-0">
             {% trans "Ajoutez des colis prêts, des kits ou des produits à préparer une fois l'itinéraire choisi." %}
           </p>
+          <div
+            id="portal-stock-completion-control"
+            class="form-check{% if not form_data.has_shipper_inbound %} d-none{% endif %}"
+          >
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="wants_stock_completion"
+              name="wants_stock_completion"
+              value="1"
+              {% if form_data.wants_stock_completion %}checked{% endif %}
+            >
+            <label class="form-check-label" for="wants_stock_completion">
+              {% trans "Je souhaite compléter mes colis avec des produits du stock ASF" %}
+            </label>
+          </div>
         </div>
 
         <div class="scan-field mt-3 mb-0">
           <label class="form-label">{% trans "Filtrer produits" %}</label>
-          <div id="portal-category-filters" class="scan-filter-actions ui-comp-actions">
-            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l1" data-filter-level="0">
-              <option value="">{% trans "Toutes catégories" %}</option>
+          <div
+            id="portal-category-filters"
+            class="scan-filter-actions ui-comp-actions"
+            data-all-categories-label="{{ all_categories_label }}"
+            data-all-subcategories-label="{{ all_subcategories_label }}"
+          >
+            <select class="form-select form-select-sm ui-select--sm portal-category-filter-select" id="portal-filter-category-l1" data-filter-level="0">
+              <option value="">{{ all_categories_label }}</option>
             </select>
-            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
-              <option value="">{% trans "Toutes sous-catégories (L2)" %}</option>
+            <select class="form-select form-select-sm ui-select--sm portal-category-filter-select" id="portal-filter-category-l2" data-filter-level="1" hidden>
+              <option value="">{{ all_subcategories_label }} (L2)</option>
             </select>
-            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
-              <option value="">{% trans "Toutes sous-catégories (L3)" %}</option>
+            <select class="form-select form-select-sm ui-select--sm portal-category-filter-select" id="portal-filter-category-l3" data-filter-level="2" hidden>
+              <option value="">{{ all_subcategories_label }} (L3)</option>
             </select>
-            <select class="form-select form-select-sm ui-select--sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
-              <option value="">{% trans "Toutes sous-catégories (L4)" %}</option>
+            <select class="form-select form-select-sm ui-select--sm portal-category-filter-select" id="portal-filter-category-l4" data-filter-level="3" hidden>
+              <option value="">{{ all_subcategories_label }} (L4)</option>
             </select>
           </div>
         </div>
       </div>
 
-      {% include "portal/includes/order_create_ready_cartons_card.html" %}
-      {% include "portal/includes/order_create_ready_kits_card.html" %}
-      {% include "portal/includes/order_create_unit_products_card.html" %}
+      <fieldset
+        id="portal-stock-selection-fields"
+        class="border-0 p-0 m-0{% if form_data.has_shipper_inbound and not form_data.wants_stock_completion %} d-none{% endif %}"
+        data-stock-selection-panel="1"
+        {% if form_data.has_shipper_inbound and not form_data.wants_stock_completion %}disabled{% endif %}
+      >
+        {% include "portal/includes/order_create_ready_cartons_card.html" %}
+        {% include "portal/includes/order_create_ready_kits_card.html" %}
+        {% include "portal/includes/order_create_unit_products_card.html" %}
+      </fieldset>
     </section>
 
     <section
@@ -203,6 +233,13 @@
       );
       const arrivalModeSelect = document.getElementById('arrival_mode');
       const pickupCollapse = document.getElementById('portal-order-create-pickup-collapse');
+      const palletCountField = document.getElementById('portal-order-create-pallet-count-field');
+      const palletCountInput = document.getElementById('declared_pallet_count');
+      const pickupInformationConfirmedInput = document.getElementById('pickup_information_confirmed');
+      const parcelGuidelinesConfirmedInput = document.getElementById('parcel_guidelines_confirmed');
+      const stockCompletionControl = document.getElementById('portal-stock-completion-control');
+      const stockCompletionToggle = document.getElementById('wants_stock_completion');
+      const stockSelectionFields = document.getElementById('portal-stock-selection-fields');
 
       const setCollapseState = (element, isOpen) => {
         if (!element) {
@@ -211,6 +248,42 @@
         element.classList.toggle('show', Boolean(isOpen));
         element.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
       };
+      const setRequired = (element, isRequired) => {
+        if (!element) {
+          return;
+        }
+        element.required = Boolean(isRequired);
+      };
+      const isStockSelectionEnabled = () => {
+        const hasInbound = Boolean(shipperInboundToggle && shipperInboundToggle.checked);
+        return !hasInbound || Boolean(stockCompletionToggle && stockCompletionToggle.checked);
+      };
+      const syncStockSelectionState = () => {
+        const hasInbound = Boolean(shipperInboundToggle && shipperInboundToggle.checked);
+        const enabled = isStockSelectionEnabled();
+        if (stockCompletionControl) {
+          stockCompletionControl.classList.toggle('d-none', !hasInbound);
+        }
+        if (stockSelectionFields) {
+          stockSelectionFields.classList.toggle('d-none', !enabled);
+          stockSelectionFields.disabled = !enabled;
+        }
+      };
+      const getShippingTypeLabel = () => {
+        const hasInbound = Boolean(shipperInboundToggle && shipperInboundToggle.checked);
+        if (!hasInbound) {
+          return 'Stock ASF';
+        }
+        const wantsStock = Boolean(stockCompletionToggle && stockCompletionToggle.checked);
+        const arrivalMode = arrivalModeSelect ? arrivalModeSelect.value : '';
+        if (arrivalMode === 'dropoff_warehouse') {
+          return wantsStock ? 'Dépôt + Stock ASF' : 'Dépôt';
+        }
+        if (arrivalMode === 'pickup_requested') {
+          return wantsStock ? 'Enlèvement + Stock ASF' : 'Enlèvement';
+        }
+        return 'À sélectionner';
+      };
 
       const syncInboundSections = () => {
         const hasInbound = Boolean(shipperInboundToggle && shipperInboundToggle.checked);
@@ -218,10 +291,15 @@
         const wantsPickup =
           hasInbound && arrivalModeSelect && arrivalModeSelect.value === 'pickup_requested';
         setCollapseState(pickupCollapse, wantsPickup);
+        if (palletCountField) {
+          palletCountField.classList.toggle('d-none', !wantsPickup);
+        }
+        setRequired(palletCountInput, wantsPickup);
+        setRequired(pickupInformationConfirmedInput, wantsPickup);
+        setRequired(parcelGuidelinesConfirmedInput, hasInbound);
+        syncStockSelectionState();
         if (reviewInboundEl) {
-          reviewInboundEl.textContent = hasInbound
-            ? 'Colis préparés par la structure'
-            : 'Non';
+          reviewInboundEl.textContent = getShippingTypeLabel();
         }
       };
 
@@ -231,7 +309,6 @@
       if (arrivalModeSelect) {
         arrivalModeSelect.addEventListener('change', syncInboundSections);
       }
-      syncInboundSections();
 
       const pickupAddressOptionsEl = document.getElementById('portal-pickup-address-options');
       const pickupAddressSelect = document.getElementById('pickup_address_book_entry_id');
@@ -255,6 +332,12 @@
         }
         field.value = value;
       };
+      const fillPickupWeekdays = values => {
+        const selectedValues = new Set((values || []).map(value => String(value)));
+        document.querySelectorAll('input[name="pickup_open_weekdays"]').forEach(input => {
+          input.checked = selectedValues.has(String(input.value));
+        });
+      };
 
       const applyPickupAddressEntry = entryId => {
         const entry = pickupAddressOptions.find(option => String(option.id) === String(entryId));
@@ -277,6 +360,7 @@
           'pickup_opening_slot_2_end',
           'pickup_access_constraints_details'
         ].forEach(fieldId => fillPickupField(fieldId, entry[fieldId]));
+        fillPickupWeekdays(entry.pickup_open_weekdays || []);
         [
           'pickup_has_midday_break',
           'pickup_has_no_access_constraints',
@@ -388,6 +472,21 @@
       };
 
       const updateTotals = () => {
+        if (!isStockSelectionEnabled()) {
+          if (totalEl) {
+            totalEl.textContent = '0';
+          }
+          if (readyTotalEl) {
+            readyTotalEl.textContent = '0';
+          }
+          if (reviewReadyTotalEl) {
+            reviewReadyTotalEl.textContent = '0';
+          }
+          if (reviewCartonTotalEl) {
+            reviewCartonTotalEl.textContent = '0';
+          }
+          return;
+        }
         let total = 0;
         rows.forEach(row => {
           total += updateRow(row);
@@ -434,6 +533,18 @@
           input.addEventListener('input', updateTotals);
         }
       });
+      if (shipperInboundToggle) {
+        shipperInboundToggle.addEventListener('change', updateTotals);
+      }
+      if (arrivalModeSelect) {
+        arrivalModeSelect.addEventListener('change', updateTotals);
+      }
+      if (stockCompletionToggle) {
+        stockCompletionToggle.addEventListener('change', () => {
+          syncInboundSections();
+          updateTotals();
+        });
+      }
 
       const categoryPathsByRowEl = document.getElementById('portal-category-paths-by-row');
       const categoryLabelsByIdEl = document.getElementById('portal-category-labels-by-id');
@@ -471,6 +582,13 @@
         document.getElementById('portal-filter-category-l3'),
         document.getElementById('portal-filter-category-l4'),
       ].filter(Boolean);
+      const categoryFiltersRoot = document.getElementById('portal-category-filters');
+      const allCategoriesLabel =
+        (categoryFiltersRoot && categoryFiltersRoot.dataset.allCategoriesLabel) ||
+        'Toutes catégories';
+      const allSubcategoriesLabel =
+        (categoryFiltersRoot && categoryFiltersRoot.dataset.allSubcategoriesLabel) ||
+        'Toutes sous-catégories';
       const filterableRows = Array.from(document.querySelectorAll('tr[data-filter-row-key]'));
 
       const categoryPrefixMatches = (path, prefix) =>
@@ -518,8 +636,8 @@
         empty.value = '';
         empty.textContent =
           level === 0
-            ? 'Toutes categories'
-            : `Toutes sous-categories (L${level + 1})`;
+            ? allCategoriesLabel
+            : `${allSubcategoriesLabel} (L${level + 1})`;
         select.appendChild(empty);
         options.forEach(([value, label]) => {
           const option = document.createElement('option');
@@ -531,6 +649,13 @@
           select.value = previousValue;
         } else {
           select.value = '';
+        }
+      };
+
+      const resetChildCategorySelects = level => {
+        for (let idx = level + 1; idx < categorySelects.length; idx += 1) {
+          categorySelects[idx].value = '';
+          categorySelects[idx].hidden = true;
         }
       };
 
@@ -582,8 +707,9 @@
         });
       };
 
-      categorySelects.forEach((select) => {
+      categorySelects.forEach((select, index) => {
         select.addEventListener('change', () => {
+          resetChildCategorySelects(index);
           updateCategorySelects();
           applyCategoryFilter();
         });
@@ -591,6 +717,7 @@
       updateCategorySelects();
       applyCategoryFilter();
       syncProgressiveSteps();
+      syncInboundSections();
       updateTotals();
     })();
   </script>

@@ -251,7 +251,7 @@ def _recipient_scope_preference_rows(recipient_organization):
     return [
         {
             "target_label": _recipient_scope_preference_target_label(preference),
-            "scope_type_label": "Produit" if preference.product_id else "Categorie",
+            "scope_type_label": "Produit" if preference.product_id else "Catégorie",
             "status_label": preference.get_status_display(),
             "quantity_target": preference.quantity_target,
             "period_unit_label": preference.get_period_unit_display()

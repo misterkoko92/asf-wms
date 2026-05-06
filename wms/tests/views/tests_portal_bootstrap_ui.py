@@ -261,10 +261,24 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="portal-order-create-review-card"')
         self.assertContains(response, 'id="portal-order-create-submit"')
         self.assertContains(response, 'id="portal-category-filters"')
+        self.assertContains(response, 'id="portal-stock-completion-control"')
+        self.assertContains(response, 'id="wants_stock_completion"')
+        self.assertContains(response, 'id="portal-stock-selection-fields"')
+        self.assertContains(response, 'data-stock-selection-panel="1"')
         self.assertContains(response, 'id="portal-recipient-options-data"')
         self.assertContains(response, 'id="portal-product-data"')
         self.assertNotContains(response, "(association)")
         self.assertNotContains(response, '"id": "self"')
+        self.assertContains(response, "Je prépare mes propres colis")
+        self.assertContains(response, "Vos colis doivent respecter les dimensions ASF")
+        self.assertContains(
+            response, "Je souhaite compléter mes colis avec des produits du stock ASF"
+        )
+        self.assertContains(response, "Je certifie que les colis respectent les consignes d'ASF")
+        self.assertContains(response, "Type d'expédition")
+        self.assertContains(response, "Stock ASF")
+        self.assertNotContains(response, "La structure prépare ses propres colis")
+        self.assertNotContains(response, "Flux structure")
         self.assertContains(response, "Colis disponibles")
         self.assertContains(response, "Kits disponibles")
         self.assertContains(response, "Produits à l'unité")
@@ -519,10 +533,26 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Portail destinataire")
         self.assertContains(response, 'id="portal-primary-nav"')
-        self.assertContains(response, "#portal-recipient-home-identity")
-        self.assertContains(response, "#portal-recipient-home-contacts")
-        self.assertContains(response, "#portal-recipient-home-documents")
-        self.assertContains(response, "#portal-recipient-home-preferences")
+        self.assertContains(
+            response,
+            f'href="{reverse("portal:portal_recipient_profile")}#portal-recipient-profile-contacts"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("portal:portal_recipient_profile")}#portal-recipient-profile-documents"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("portal:portal_recipient_preferences")}"',
+            html=False,
+        )
+        self.assertNotContains(
+            response,
+            f'href="{reverse("portal:portal_dashboard")}#portal-recipient-home-contacts"',
+            html=False,
+        )
         self.assertNotContains(response, reverse("portal:portal_billing"))
         self.assertNotContains(response, reverse("portal:portal_recipients"))
         self.assertNotContains(response, reverse("portal:portal_order_create"))
@@ -625,6 +655,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-control")
         self.assertContains(response, 'name="destination_id"')
         self.assertContains(response, 'name="structure_name"')
+        self.assertContains(response, 'id="portal-recipient-profile-contacts"')
+        self.assertContains(response, "Contact principal")
         self.assertContains(response, 'name="contact_title"')
         self.assertContains(response, 'name="emails"')
         self.assertContains(
@@ -659,6 +691,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(list_response.status_code, 200)
         self.assertContains(list_response, "table table-sm table-hover")
         self.assertContains(list_response, "FAC-2026-777")
+        self.assertContains(list_response, "Facture")
+        self.assertNotContains(list_response, "Invoice")
 
         detail_response = self.client.get(
             reverse("portal:portal_billing_detail", args=[billing_document.id])
@@ -667,6 +701,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(detail_response, "scan-card portal-card card border-0")
         self.assertContains(detail_response, "table table-sm table-hover")
         self.assertContains(detail_response, "btn btn-primary")
+        self.assertContains(detail_response, "Type: Facture")
 
     def test_portal_intro_cards_use_portal_page_intro_spacing_contract(self):
         billing_document = BillingDocument.objects.create(
@@ -821,9 +856,13 @@ class PortalBootstrapUiTests(TestCase):
             response,
             'class="form-control recipient-preference-input--quantity ui-number-input-compact"',
         )
-        self.assertContains(response, 'name="product_id"')
-        self.assertContains(response, 'name="status"')
-        self.assertContains(response, 'value="save_recipient_preference"')
+        self.assertContains(response, 'id="recipient-preferences-bulk-form"')
+        self.assertContains(response, 'data-recipient-preferences-bulk-form="1"')
+        self.assertContains(response, 'name="preference_product_ids"')
+        self.assertContains(response, 'value="save_recipient_preferences_bulk"')
+        self.assertContains(response, "Valider les modifications (0 ligne)")
+        self.assertNotContains(response, 'value="save_recipient_preference"')
+        self.assertNotContains(response, 'form="recipient-preference-form-')
         self.assertContains(response, 'id="id_preference_q"')
         self.assertContains(response, 'id="id_preference_sort"')
         self.assertContains(response, 'id="recipient-preference-category-l1"')
@@ -928,6 +967,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm align-middle")
         self.assertContains(response, "recipient-preference-table")
         self.assertContains(response, "recipient-preference-col--estimate")
+        self.assertContains(response, "recipient-preference-col--coverage")
+        self.assertContains(response, "recipient-preference-col--action")
         self.assertContains(response, "recipient-preference-estimate-heading")
         self.assertContains(response, "recipient-preference-input--status")
         self.assertContains(response, "recipient-preference-input--quantity")
@@ -939,9 +980,13 @@ class PortalBootstrapUiTests(TestCase):
             response,
             'class="form-control recipient-preference-input--quantity ui-number-input-compact"',
         )
-        self.assertContains(response, 'name="product_id"')
-        self.assertContains(response, 'name="status"')
-        self.assertContains(response, 'value="save_recipient_preference"')
+        self.assertContains(response, 'id="recipient-preferences-bulk-form"')
+        self.assertContains(response, 'data-recipient-preferences-bulk-form="1"')
+        self.assertContains(response, 'name="preference_product_ids"')
+        self.assertContains(response, 'value="save_recipient_preferences_bulk"')
+        self.assertContains(response, "Valider les modifications (0 ligne)")
+        self.assertNotContains(response, 'value="save_recipient_preference"')
+        self.assertNotContains(response, 'form="recipient-preference-form-')
         self.assertContains(response, 'value="delete_recipient_preference"')
         self.assertContains(response, 'id="id_preference_q"')
         self.assertContains(response, 'id="id_preference_sort"')
@@ -952,8 +997,25 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'name="preference_category"')
         self.assertContains(response, "Kit Recipient Preferences Bootstrap")
         self.assertContains(response, "Qté par colis (estimation)")
+        self.assertContains(response, "En cours")
+        self.assertNotContains(response, ">Pipeline<", html=False)
         self.assertContains(response, ">16<", html=False)
         self.assertContains(response, ">--<", html=False)
+
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertIn(
+            ".portal-bootstrap-enabled .recipient-preference-table .recipient-preference-col--action",
+            css_content,
+        )
+        self.assertIn(
+            ".portal-bootstrap-enabled .recipient-preference-table .recipient-preference-actions",
+            css_content,
+        )
+        self.assertIn(
+            ".portal-bootstrap-enabled .recipient-preferences-bulk-actions",
+            css_content,
+        )
 
     def test_portal_recipients_edit_exposes_product_preference_contract(self):
         recipient = AssociationRecipient.objects.get(structure_name="Structure Bootstrap")
@@ -1148,6 +1210,22 @@ class PortalBootstrapUiTests(TestCase):
             "border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;",
             css_content,
         )
+
+    def test_portal_recipient_preference_bulk_actions_stay_visible_in_viewport(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        match = re.search(
+            r"\.portal-bootstrap-enabled \.recipient-preferences-bulk-actions \{(?P<body>.*?)\n\}",
+            css_content,
+            re.S,
+        )
+
+        self.assertIsNotNone(match)
+        block = match.group("body")
+        self.assertIn("position: fixed;", block)
+        self.assertIn("left: 50%;", block)
+        self.assertIn("transform: translateX(-50%);", block)
+        self.assertIn("width: min(calc(100vw - 2rem), var(--wms-container-max-width));", block)
 
     def test_portal_shell_css_allows_page_scroll_outside_scan_fixed_height_shell(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"

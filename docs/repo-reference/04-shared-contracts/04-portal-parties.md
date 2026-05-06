@@ -149,12 +149,14 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - `refused` forbids quantity and period.
 - Overrides are append-only journaling.
 - Category-level `requested`/`allowed` supported; category-level `refused` invalid.
+- Portal product preference tables submit changed lines in one batch action; server validation is all-or-nothing and must preserve row input/errors on rejection.
 - Scan shipment create/edit blocks only explicit `refused` products and records overrides.
 
 ### Maintenance rule
 
 - If preference semantics change, update model validation, helper, portal/admin surfaces, scan metadata/JS, and tests.
 - Keep `unspecified` implicit.
+- Keep portal batch-save behavior aligned between recipient scope and shipper recipient-detail pages.
 
 ---
 
@@ -203,6 +205,10 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - Fulfillment/review hidden until destination and recipient are selected.
 - Server validation with valid route keeps later steps open.
 - Shipper-inbound checkbox remains compatibility entrypoint.
+- Pickup requests may snapshot optional opening weekdays on `OrderInboundDelivery` and reusable pickup address entries.
+- Shipper-prepared parcels require ASF parcel-guideline certification; pickup requests also require declared pallet count.
+- When shipper-prepared parcels are selected, stock ASF selection is opt-in and ignored server-side unless the stock-completion checkbox is checked.
+- Review displays a read-only shipping type derived from inbound mode and stock-completion intent: Stock ASF, Dépôt, Dépôt + Stock ASF, Enlèvement, or Enlèvement + Stock ASF.
 - Review card is only primary submit surface.
 
 ### Maintenance rule

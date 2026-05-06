@@ -73,7 +73,11 @@ SHIPPER_STEPS = [
         "why": "ASF utilise ces données pour organiser la préparation et le transport.",
         "blockers": [
             "Une demande vide ne peut pas être envoyée.",
-            "Un enlèvement requiert contact, téléphone, adresse, nombre de colis et confirmation.",
+            (
+                "Un enlèvement requiert contact, téléphone, adresse, nombre de colis, "
+                "nombre de palettes et confirmation."
+            ),
+            "Les colis préparés par la structure doivent respecter les consignes ASF et peuvent être contrôlés.",
             "Les lignes à stock nul peuvent être indisponibles ou seulement indicatives.",
         ],
     },

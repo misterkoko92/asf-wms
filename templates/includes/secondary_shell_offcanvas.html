@@ -42,13 +42,22 @@
           >
             {% trans "Identité" %}
           </a>
-          <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-contacts">
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_recipient_profile' %} is-active{% endif %}"
+            href="{% url 'portal:portal_recipient_profile' %}#portal-recipient-profile-contacts"
+          >
             {% trans "Contacts" %}
           </a>
-          <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-documents">
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_recipient_profile' %} is-active{% endif %}"
+            href="{% url 'portal:portal_recipient_profile' %}#portal-recipient-profile-documents"
+          >
             {% trans "Documents" %}
           </a>
-          <a class="portal-offcanvas-link" href="{% url 'portal:portal_dashboard' %}#portal-recipient-home-preferences">
+          <a
+            class="portal-offcanvas-link{% if current == 'portal_recipient_preferences' %} is-active{% endif %}"
+            href="{% url 'portal:portal_recipient_preferences' %}"
+          >
             {% trans "Préférences" %}
           </a>
         {% else %}

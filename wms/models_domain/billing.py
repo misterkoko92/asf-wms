@@ -12,22 +12,22 @@ from .equivalence import ShipmentUnitEquivalenceRule
 
 
 class AssociationBillingFrequency(models.TextChoices):
-    PER_SHIPMENT = "per_shipment", "Per shipment"
-    MONTHLY = "monthly", "Monthly"
-    QUARTERLY = "quarterly", "Quarterly"
-    HALF_YEARLY = "half_yearly", "Half-yearly"
-    YEARLY = "yearly", "Yearly"
+    PER_SHIPMENT = "per_shipment", "Par expédition"
+    MONTHLY = "monthly", "Mensuelle"
+    QUARTERLY = "quarterly", "Trimestrielle"
+    HALF_YEARLY = "half_yearly", "Semestrielle"
+    YEARLY = "yearly", "Annuelle"
 
 
 class AssociationBillingGroupingMode(models.TextChoices):
-    SINGLE_DOCUMENT = "single_document", "Single document"
-    PER_SHIPMENT = "per_shipment", "Per shipment document"
+    SINGLE_DOCUMENT = "single_document", "Document unique"
+    PER_SHIPMENT = "per_shipment", "Un document par expédition"
 
 
 class AssociationBillingChangeRequestStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    APPROVED = "approved", "Approved"
-    REJECTED = "rejected", "Rejected"
+    PENDING = "pending", "En attente"
+    APPROVED = "approved", "Validée"
+    REJECTED = "rejected", "Refusée"
 
 
 class BillingBaseUnitSource(models.TextChoices):
@@ -46,38 +46,38 @@ class BillingExtraUnitMode(models.TextChoices):
 
 
 class BillingDocumentKind(models.TextChoices):
-    QUOTE = "quote", "Quote"
-    INVOICE = "invoice", "Invoice"
-    CREDIT_NOTE = "credit_note", "Credit note"
+    QUOTE = "quote", "Devis"
+    INVOICE = "invoice", "Facture"
+    CREDIT_NOTE = "credit_note", "Avoir"
 
 
 class BillingDocumentStatus(models.TextChoices):
-    DRAFT = "draft", "Draft"
-    ISSUED = "issued", "Issued"
-    PARTIALLY_PAID = "partially_paid", "Partially paid"
-    PAID = "paid", "Paid"
-    CANCELLED = "cancelled", "Cancelled"
-    CANCELLED_OR_CORRECTED = "cancelled_or_corrected", "Cancelled / corrected"
+    DRAFT = "draft", "Brouillon"
+    ISSUED = "issued", "Émis"
+    PARTIALLY_PAID = "partially_paid", "Partiellement payé"
+    PAID = "paid", "Payé"
+    CANCELLED = "cancelled", "Annulé"
+    CANCELLED_OR_CORRECTED = "cancelled_or_corrected", "Annulé / corrigé"
 
 
 class BillingDocumentCorrectionState(models.TextChoices):
-    NONE = "none", "None"
-    IN_REVIEW = "in_review", "In review"
-    RESOLVED = "resolved", "Resolved"
+    NONE = "none", "Aucune"
+    IN_REVIEW = "in_review", "En revue"
+    RESOLVED = "resolved", "Résolue"
 
 
 class BillingPaymentMethod(models.TextChoices):
-    BANK_TRANSFER = "bank_transfer", "Bank transfer"
-    CHECK = "check", "Check"
-    CASH = "cash", "Cash"
-    CARD = "card", "Card"
-    OTHER = "other", "Other"
+    BANK_TRANSFER = "bank_transfer", "Virement bancaire"
+    CHECK = "check", "Chèque"
+    CASH = "cash", "Espèces"
+    CARD = "card", "Carte"
+    OTHER = "other", "Autre"
 
 
 class BillingIssueStatus(models.TextChoices):
-    OPEN = "open", "Open"
-    IN_REVIEW = "in_review", "In review"
-    RESOLVED = "resolved", "Resolved"
+    OPEN = "open", "Ouverte"
+    IN_REVIEW = "in_review", "En cours"
+    RESOLVED = "resolved", "Résolue"
 
 
 class BillingComputationProfile(models.Model):
@@ -286,9 +286,9 @@ class ReceiptShipmentAllocation(models.Model):
         super().clean()
         errors = {}
         if self.receipt_id and not self.receipt.source_contact_id:
-            errors["receipt"] = "Receipt source association is required."
+            errors["receipt"] = "L'association source de réception est obligatoire."
         if self.shipment_id and not self.shipment.shipper_contact_ref_id:
-            errors["shipment"] = "Shipment shipper association is required."
+            errors["shipment"] = "L'association expéditrice de l'expédition est obligatoire."
         if (
             self.receipt_id
             and self.shipment_id
@@ -296,7 +296,9 @@ class ReceiptShipmentAllocation(models.Model):
             and self.shipment.shipper_contact_ref_id
             and self.receipt.source_contact_id != self.shipment.shipper_contact_ref_id
         ):
-            errors["receipt"] = "All linked receipts must belong to the shipment association."
+            errors["receipt"] = (
+                "Toutes les réceptions liées doivent appartenir à l'association de l'expédition."
+            )
         if errors:
             raise ValidationError(errors)
 
@@ -380,7 +382,7 @@ class BillingDocument(models.Model):
             and (self.status == BillingDocumentStatus.ISSUED or self.issued_at is not None)
             and not (self.invoice_number or "").strip()
         ):
-            errors["invoice_number"] = "Invoice number is required for invoices."
+            errors["invoice_number"] = "Le numéro de facture est obligatoire pour les factures."
         if errors:
             raise ValidationError(errors)
 

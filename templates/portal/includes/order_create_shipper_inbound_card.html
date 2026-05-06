@@ -8,6 +8,9 @@
     <p class="scan-help mb-0">
       {% trans "Activez ce bloc si votre structure prépare déjà ses colis. Vous pourrez aussi compléter avec le stock ASF à l'étape suivante." %}
     </p>
+    <p class="scan-help mb-0">
+      {% blocktrans %}Vos colis doivent respecter les dimensions ASF : 40x30x30cm et 8kg maximum par colis. Si vos colis dépassent ces limites, merci de contacter en amont et de les compter en "hors format"{% endblocktrans %}
+    </p>
   </div>
 
   <div class="scan-field">
@@ -21,7 +24,7 @@
         {% if form_data.has_shipper_inbound %}checked{% endif %}
       >
       <label class="form-check-label" for="has_shipper_inbound">
-        {% trans "La structure prépare ses propres colis" %}
+        {% trans "Je prépare mes propres colis" %}
       </label>
     </div>
   </div>
@@ -41,11 +44,26 @@
     </div>
 
     <div class="row g-3">
-      <div class="col-md-6">
+      <div
+        id="portal-order-create-pallet-count-field"
+        class="col-md-4{% if not form_data.has_shipper_inbound or form_data.arrival_mode != "pickup_requested" %} d-none{% endif %}"
+      >
+        <label class="form-label" for="declared_pallet_count">{% trans "Nombre de palette" %}</label>
+        <input
+          class="form-control"
+          id="declared_pallet_count"
+          name="declared_pallet_count"
+          type="number"
+          min="1"
+          value="{{ form_data.declared_pallet_count }}"
+          {% if form_data.has_shipper_inbound and form_data.arrival_mode == "pickup_requested" %}required{% endif %}
+        >
+      </div>
+      <div class="col-md-4">
         <label class="form-label" for="declared_carton_count">{% trans "Nombre de colis" %}</label>
         <input class="form-control" id="declared_carton_count" name="declared_carton_count" type="number" min="0" value="{{ form_data.declared_carton_count }}">
       </div>
-      <div class="col-md-6">
+      <div class="col-md-4">
         <label class="form-label" for="declared_out_of_format_count">{% trans "Nombre de hors format" %}</label>
         <input class="form-control" id="declared_out_of_format_count" name="declared_out_of_format_count" type="number" min="0" value="{{ form_data.declared_out_of_format_count }}">
       </div>
@@ -153,6 +171,28 @@
       </div>
 
       <div class="scan-field mt-3">
+        <label class="form-label">{% trans "Jours d'ouverture" %}</label>
+        <div class="portal-pickup-weekdays">
+          {% for value, label in pickup_open_weekday_choices %}
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="pickup_open_weekday_{{ value }}"
+                name="pickup_open_weekdays"
+                value="{{ value }}"
+                {% if value in form_data.pickup_open_weekdays %}checked{% endif %}
+              >
+              <label class="form-check-label" for="pickup_open_weekday_{{ value }}">{{ label }}</label>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="scan-help">
+          {% trans "Merci de préciser dans les notes de contraintes d'accès s'il y a des particularités pour des dates spécifiques" %}
+        </div>
+      </div>
+
+      <div class="scan-field mt-3">
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="pickup_has_no_access_constraints" name="pickup_has_no_access_constraints" value="1" {% if form_data.pickup_has_no_access_constraints %}checked{% endif %}>
           <label class="form-check-label" for="pickup_has_no_access_constraints">{% trans "Aucune contrainte d'accès" %}</label>
@@ -178,8 +218,24 @@
         </div>
         <div class="form-check mt-2">
           <input class="form-check-input" type="checkbox" id="pickup_information_confirmed" name="pickup_information_confirmed" value="1" {% if form_data.pickup_information_confirmed %}checked{% endif %}>
-          <label class="form-check-label" for="pickup_information_confirmed">{% trans "Je confirme avoir toutes les informations nécessaires à l'enlèvement." %}</label>
+          <label class="form-check-label" for="pickup_information_confirmed">{% trans "Je confirme avoir renseigné toutes les informations nécessaires à l'enlèvement." %}</label>
         </div>
+      </div>
+    </div>
+    <div class="scan-field">
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="parcel_guidelines_confirmed"
+          name="parcel_guidelines_confirmed"
+          value="1"
+          {% if form_data.parcel_guidelines_confirmed %}checked{% endif %}
+          {% if form_data.has_shipper_inbound %}required{% endif %}
+        >
+        <label class="form-check-label" for="parcel_guidelines_confirmed">
+          {% trans "Je certifie que les colis respectent les consignes d'ASF et j'accepte un contrôle aléatoire de mes colis. En cas de non conformité, des frais de reconditionnement pourront être appliqués." %}
+        </label>
       </div>
     </div>
   </div>
