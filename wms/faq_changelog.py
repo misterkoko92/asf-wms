@@ -2,6 +2,15 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 5, 7),
+        "pr_number": None,
+        "summary": (
+            "Demande de compte expéditeur : premier destinataire optionnel avec "
+            "documents destinataire, et filtre des produits commandés dans la "
+            "création de commande portail."
+        ),
+    },
+    {
         "date": date(2026, 5, 6),
         "pr_number": 198,
         "summary": (

@@ -450,6 +450,7 @@
       const readyRows = Array.from(document.querySelectorAll('tr[data-ready-carton-stock]'));
       const totalEl = document.getElementById('carton-estimate-total');
       const readyTotalEl = document.getElementById('ready-carton-estimate-total');
+      const orderedOnlyToggle = document.getElementById('portal-order-show-ordered-only');
 
       const updateRow = row => {
         const productId = row.dataset.productId;
@@ -524,7 +525,10 @@
       rows.forEach(row => {
         const input = row.querySelector('input[type="number"]');
         if (input) {
-          input.addEventListener('input', updateTotals);
+          input.addEventListener('input', () => {
+            updateTotals();
+            applyProductRowFilters();
+          });
         }
       });
       readyRows.forEach(row => {
@@ -693,17 +697,18 @@
         }
       };
 
-      const applyCategoryFilter = () => {
+      const applyProductRowFilters = () => {
         const prefix = getSelectedPrefix();
+        const orderedOnly = Boolean(orderedOnlyToggle && orderedOnlyToggle.checked);
         filterableRows.forEach(row => {
           const rowKey = row.dataset.filterRowKey || '';
           const paths = categoryPathsByRow[rowKey] || [];
-          if (!prefix.length) {
-            row.style.display = '';
-            return;
-          }
-          const matches = paths.some(path => categoryPrefixMatches(path, prefix));
-          row.style.display = matches ? '' : 'none';
+          const matchesCategory = !prefix.length
+            || paths.some(path => categoryPrefixMatches(path, prefix));
+          const input = row.querySelector('input[type="number"]');
+          const quantity = parseInt(input && input.value ? input.value : '0', 10) || 0;
+          const matchesOrderedQuantity = !orderedOnly || quantity > 0;
+          row.style.display = matchesCategory && matchesOrderedQuantity ? '' : 'none';
         });
       };
 
@@ -711,11 +716,14 @@
         select.addEventListener('change', () => {
           resetChildCategorySelects(index);
           updateCategorySelects();
-          applyCategoryFilter();
+          applyProductRowFilters();
         });
       });
+      if (orderedOnlyToggle) {
+        orderedOnlyToggle.addEventListener('change', applyProductRowFilters);
+      }
       updateCategorySelects();
-      applyCategoryFilter();
+      applyProductRowFilters();
       syncProgressiveSteps();
       syncInboundSections();
       updateTotals();

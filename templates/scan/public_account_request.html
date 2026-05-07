@@ -117,6 +117,31 @@
       const requestedUsernameInput = document.getElementById("requested_username");
       const password1Input = document.getElementById("password1");
       const password2Input = document.getElementById("password2");
+      const firstRecipientSection = document.getElementById("first-recipient-section");
+      const firstRecipientEnabledInput = document.getElementById("first_recipient_enabled");
+      const firstRecipientDetails = document.getElementById("first-recipient-details");
+      const firstRecipientRequiredFields = [
+        "first_recipient_destination_id",
+        "first_recipient_structure_name",
+        "first_recipient_address_line1",
+        "first_recipient_legal_form",
+        "first_recipient_beneficiary_count",
+      ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
+
+      const setFirstRecipientRequired = (required) => {
+        firstRecipientRequiredFields.forEach((field) => {
+          field.required = required;
+        });
+      };
+
+      const setFirstRecipientDisabled = (disabled) => {
+        if (!firstRecipientDetails) {
+          return;
+        }
+        firstRecipientDetails.querySelectorAll("input, select, textarea").forEach((field) => {
+          field.disabled = disabled;
+        });
+      };
 
       const setAssociationRequired = (required) => {
         if (associationNameInput) associationNameInput.required = required;
@@ -138,6 +163,8 @@
         const isAssociation = accountType === ACCOUNT_TYPE_ASSOCIATION
           || accountType === ACCOUNT_TYPE_SHIPPER
           || accountType === ACCOUNT_TYPE_RECIPIENT;
+        const isShipper = accountType === ACCOUNT_TYPE_ASSOCIATION
+          || accountType === ACCOUNT_TYPE_SHIPPER;
         const isRecipient = accountType === ACCOUNT_TYPE_RECIPIENT;
         const isUser = accountType === ACCOUNT_TYPE_USER;
 
@@ -150,10 +177,21 @@
         if (userSection) {
           userSection.hidden = !isUser;
         }
+        if (firstRecipientSection) {
+          firstRecipientSection.hidden = !isShipper;
+        }
+        const firstRecipientEnabled = Boolean(
+          isShipper && firstRecipientEnabledInput && firstRecipientEnabledInput.checked
+        );
+        if (firstRecipientDetails) {
+          firstRecipientDetails.hidden = !firstRecipientEnabled;
+        }
 
         setAssociationRequired(isAssociation);
         setRecipientRequired(isRecipient);
         setUserRequired(isUser);
+        setFirstRecipientRequired(firstRecipientEnabled);
+        setFirstRecipientDisabled(!firstRecipientEnabled);
       };
 
       const findContact = (name) => {
@@ -210,6 +248,9 @@
 
       if (accountTypeInput) {
         accountTypeInput.addEventListener("change", toggleSections);
+      }
+      if (firstRecipientEnabledInput) {
+        firstRecipientEnabledInput.addEventListener("change", toggleSections);
       }
       toggleSections();
     })();

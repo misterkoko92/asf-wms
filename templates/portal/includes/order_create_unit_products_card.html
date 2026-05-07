@@ -5,6 +5,17 @@
     <p class="scan-help">
       {% trans "Le stock affiché reste indicatif pour le moment." %}
     </p>
+    <div class="form-check mb-2">
+      <input
+        class="form-check-input"
+        type="checkbox"
+        id="portal-order-show-ordered-only"
+        data-order-product-quantity-filter="1"
+      >
+      <label class="form-check-label" for="portal-order-show-ordered-only">
+        {% trans "Afficher uniquement les produits commandés" %}
+      </label>
+    </div>
     <div class="portal-products-panel">
       <div class="scan-table-wrap portal-products-table-wrap">
         <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">

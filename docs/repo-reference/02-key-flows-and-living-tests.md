@@ -254,6 +254,7 @@ Read this flow when touching:
 - Public account request review is scan-first via `/scan/contacts/validations/` and `/scan/account-validations/`; Django admin is fallback only.
 - Recipient public account requests choose exactly one delivery stop because recipient portal access is scoped to one `ShipmentRecipientOrganization`.
 - Recipient approval provisions the recipient organization, minimal active recipient contact, `PortalAccessGrant(recipient_admin)`, and default ASF shipper binding together.
+- Shipper public account requests can carry one optional initial delivery recipient payload and recipient structure documents; approval provisions it as a validated shipper-linked delivery contact so the first order can start once the shipper account is validated.
 - If operator corrects `shipper` to `recipient`, `requested_account_type` preserves original type and `review_snapshot` stores reviewed payload.
 - Portal access resolves explicit `PortalAccessGrant` first, then legacy `AssociationProfile` fallback.
 - `/portal/` branches by active scope: shipper cockpit or recipient home.
@@ -345,6 +346,7 @@ Read this flow when touching:
 ### Critical Contracts
 
 - Portal shipper order may contain ASF-stock lines, declared shipper inbound delivery, or both.
+- Portal shipper order product rows can be filtered client-side to show only rows with quantity greater than zero; the filter must compose with category filters and must not remove selected quantities from the submitted form.
 - Portal order submission and ASF review do not require supporting documents up front.
 - Document completeness blocks later shipment readiness when the shipment depends on those documents.
 - One order may link multiple shipment dossiers through `OrderShipmentLink`.

@@ -7,13 +7,14 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.validators import EmailValidator
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactType, RecipientLegalForm
 
 from .client_ip import get_client_ip
 from .contact_payloads import build_shipper_contact_payload
@@ -22,6 +23,7 @@ from .document_scan_queue import queue_document_scan
 from .emailing import get_admin_emails, get_group_emails, send_or_enqueue_email_safe
 from .models import (
     AccountDocument,
+    AccountDocumentScope,
     AccountDocumentType,
     Destination,
     DocumentReviewStatus,
@@ -45,6 +47,18 @@ ERROR_ACCOUNT_TYPE_INVALID = "Type de profil invalide."
 ERROR_EMAIL_REQUIRED = "Email requis."
 ERROR_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_DESTINATION_REQUIRED = "Escale de livraison requise."
+ERROR_FIRST_RECIPIENT_DESTINATION_REQUIRED = "Premier destinataire: escale requise."
+ERROR_FIRST_RECIPIENT_STRUCTURE_REQUIRED = "Premier destinataire: nom de la structure requis."
+ERROR_FIRST_RECIPIENT_ADDRESS_REQUIRED = "Premier destinataire: adresse requise."
+ERROR_FIRST_RECIPIENT_LEGAL_FORM_REQUIRED = "Premier destinataire: forme juridique requise."
+ERROR_FIRST_RECIPIENT_LEGAL_FORM_INVALID = "Premier destinataire: forme juridique invalide."
+ERROR_FIRST_RECIPIENT_BENEFICIARY_COUNT_REQUIRED = (
+    "Premier destinataire: nombre de bénéficiaires requis."
+)
+ERROR_FIRST_RECIPIENT_BENEFICIARY_COUNT_INVALID = (
+    "Premier destinataire: nombre de bénéficiaires invalide."
+)
+ERROR_FIRST_RECIPIENT_EMAIL_INVALID = "Premier destinataire: email invalide."
 ERROR_USERNAME_REQUIRED = "Nom d'utilisateur requis."
 ERROR_PASSWORD_REQUIRED = "Mot de passe requis."  # nosec B105
 ERROR_PASSWORD_CONFIRMATION_REQUIRED = (  # nosec B105
@@ -66,6 +80,10 @@ DOC_UPLOAD_FIELD_MAPPINGS = (
     (AccountDocumentType.REGISTRATION_PROOF, "doc_registration"),
     (AccountDocumentType.ACTIVITY_REPORT, "doc_report"),
 )
+INITIAL_RECIPIENT_DOC_UPLOAD_FIELD_MAPPINGS = (
+    (AccountDocumentType.REGISTRATION_PROOF, "first_recipient_doc_registration_proof"),
+    (AccountDocumentType.STATUTES, "first_recipient_doc_statutes"),
+)
 
 ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 
@@ -85,6 +103,21 @@ def _build_account_request_form_defaults():
         "city": "",
         "country": DEFAULT_COUNTRY,
         "destination_id": "",
+        "first_recipient_enabled": False,
+        "first_recipient_destination_id": "",
+        "first_recipient_structure_name": "",
+        "first_recipient_contact_first_name": "",
+        "first_recipient_contact_last_name": "",
+        "first_recipient_email": "",
+        "first_recipient_phone": "",
+        "first_recipient_address_line1": "",
+        "first_recipient_address_line2": "",
+        "first_recipient_postal_code": "",
+        "first_recipient_city": "",
+        "first_recipient_country": DEFAULT_COUNTRY,
+        "first_recipient_legal_form": "",
+        "first_recipient_beneficiary_count": "",
+        "first_recipient_notes": "",
         "notes": "",
         "contact_id": "",
     }
@@ -107,6 +140,37 @@ def _extract_account_request_form_data(post_data):
         "city": (post_data.get("city") or "").strip(),
         "country": (post_data.get("country") or DEFAULT_COUNTRY).strip(),
         "destination_id": (post_data.get("destination_id") or "").strip(),
+        "first_recipient_enabled": bool(post_data.get("first_recipient_enabled")),
+        "first_recipient_destination_id": (
+            post_data.get("first_recipient_destination_id") or ""
+        ).strip(),
+        "first_recipient_structure_name": (
+            post_data.get("first_recipient_structure_name") or ""
+        ).strip(),
+        "first_recipient_contact_first_name": (
+            post_data.get("first_recipient_contact_first_name") or ""
+        ).strip(),
+        "first_recipient_contact_last_name": (
+            post_data.get("first_recipient_contact_last_name") or ""
+        ).strip(),
+        "first_recipient_email": (post_data.get("first_recipient_email") or "").strip(),
+        "first_recipient_phone": (post_data.get("first_recipient_phone") or "").strip(),
+        "first_recipient_address_line1": (
+            post_data.get("first_recipient_address_line1") or ""
+        ).strip(),
+        "first_recipient_address_line2": (
+            post_data.get("first_recipient_address_line2") or ""
+        ).strip(),
+        "first_recipient_postal_code": (post_data.get("first_recipient_postal_code") or "").strip(),
+        "first_recipient_city": (post_data.get("first_recipient_city") or "").strip(),
+        "first_recipient_country": (
+            post_data.get("first_recipient_country") or DEFAULT_COUNTRY
+        ).strip(),
+        "first_recipient_legal_form": (post_data.get("first_recipient_legal_form") or "").strip(),
+        "first_recipient_beneficiary_count": (
+            post_data.get("first_recipient_beneficiary_count") or ""
+        ).strip(),
+        "first_recipient_notes": (post_data.get("first_recipient_notes") or "").strip(),
         "notes": (post_data.get("notes") or "").strip(),
         "contact_id": (post_data.get("contact_id") or "").strip(),
     }
@@ -129,6 +193,10 @@ def _is_structure_request(form_data):
 
 def _is_user_request(form_data):
     return form_data.get("account_type") == PublicAccountRequestType.USER
+
+
+def _has_initial_recipient_payload(form_data):
+    return bool(form_data.get("first_recipient_enabled")) and _is_shipper_request(form_data)
 
 
 def _append_password_validation_errors(form_data, errors):
@@ -180,6 +248,7 @@ def _append_required_field_errors(form_data, errors, *, allow_user_request):
             errors.append(ERROR_ADDRESS_REQUIRED)
         if _is_recipient_request(form_data) and not form_data["destination_id"]:
             errors.append(ERROR_DESTINATION_REQUIRED)
+        _append_initial_recipient_errors(form_data, errors)
         return
 
     if not form_data["requested_username"]:
@@ -187,7 +256,72 @@ def _append_required_field_errors(form_data, errors, *, allow_user_request):
     _append_password_validation_errors(form_data, errors)
 
 
-def _collect_account_request_uploads(files, errors, *, account_type):
+def _append_initial_recipient_errors(form_data, errors):
+    if not _has_initial_recipient_payload(form_data):
+        return
+
+    destination_id = parse_int(form_data.get("first_recipient_destination_id"))
+    if (
+        destination_id is None
+        or not Destination.objects.filter(
+            pk=destination_id,
+            is_active=True,
+        ).exists()
+    ):
+        errors.append(ERROR_FIRST_RECIPIENT_DESTINATION_REQUIRED)
+
+    if not form_data.get("first_recipient_structure_name"):
+        errors.append(ERROR_FIRST_RECIPIENT_STRUCTURE_REQUIRED)
+    if not form_data.get("first_recipient_address_line1"):
+        errors.append(ERROR_FIRST_RECIPIENT_ADDRESS_REQUIRED)
+
+    legal_form = form_data.get("first_recipient_legal_form")
+    valid_legal_forms = {choice for choice, _label in RecipientLegalForm.choices}
+    if not legal_form:
+        errors.append(ERROR_FIRST_RECIPIENT_LEGAL_FORM_REQUIRED)
+    elif legal_form not in valid_legal_forms:
+        errors.append(ERROR_FIRST_RECIPIENT_LEGAL_FORM_INVALID)
+
+    beneficiary_count_raw = form_data.get("first_recipient_beneficiary_count")
+    if not beneficiary_count_raw:
+        errors.append(ERROR_FIRST_RECIPIENT_BENEFICIARY_COUNT_REQUIRED)
+    else:
+        beneficiary_count = parse_int(beneficiary_count_raw)
+        if beneficiary_count is None or beneficiary_count < 0:
+            errors.append(ERROR_FIRST_RECIPIENT_BENEFICIARY_COUNT_INVALID)
+
+    email = form_data.get("first_recipient_email")
+    if email:
+        try:
+            EmailValidator()(email)
+        except ValidationError:
+            errors.append(ERROR_FIRST_RECIPIENT_EMAIL_INVALID)
+
+
+def _build_initial_recipient_payload(form_data):
+    if not _has_initial_recipient_payload(form_data):
+        return {}
+    return {
+        "destination_id": parse_int(form_data["first_recipient_destination_id"]),
+        "structure_name": form_data["first_recipient_structure_name"],
+        "contact_first_name": form_data["first_recipient_contact_first_name"],
+        "contact_last_name": form_data["first_recipient_contact_last_name"],
+        "email": form_data["first_recipient_email"],
+        "phone": form_data["first_recipient_phone"],
+        "address_line1": form_data["first_recipient_address_line1"],
+        "address_line2": form_data["first_recipient_address_line2"],
+        "postal_code": form_data["first_recipient_postal_code"],
+        "city": form_data["first_recipient_city"],
+        "country": form_data["first_recipient_country"] or DEFAULT_COUNTRY,
+        "legal_form": form_data["first_recipient_legal_form"],
+        "beneficiary_count": parse_int(form_data["first_recipient_beneficiary_count"]),
+        "notes": form_data["first_recipient_notes"],
+        "is_delivery_contact": True,
+    }
+
+
+def _collect_account_request_uploads(files, errors, *, form_data):
+    account_type = form_data["account_type"]
     if account_type not in {
         PublicAccountRequestType.ASSOCIATION,
         PublicAccountRequestType.SHIPPER,
@@ -205,7 +339,7 @@ def _collect_account_request_uploads(files, errors, *, account_type):
         if validation_error:
             errors.append(validation_error)
             continue
-        uploads.append((doc_type, file_obj))
+        uploads.append((AccountDocumentScope.ACCOUNT, doc_type, file_obj))
 
     for file_obj in files.getlist("doc_other"):
         if not file_obj:
@@ -214,7 +348,18 @@ def _collect_account_request_uploads(files, errors, *, account_type):
         if validation_error:
             errors.append(validation_error)
             continue
-        uploads.append((AccountDocumentType.OTHER, file_obj))
+        uploads.append((AccountDocumentScope.ACCOUNT, AccountDocumentType.OTHER, file_obj))
+
+    if _has_initial_recipient_payload(form_data):
+        for doc_type, field_name in INITIAL_RECIPIENT_DOC_UPLOAD_FIELD_MAPPINGS:
+            file_obj = files.get(field_name)
+            if not file_obj:
+                continue
+            validation_error = validate_upload(file_obj)
+            if validation_error:
+                errors.append(validation_error)
+                continue
+            uploads.append((AccountDocumentScope.INITIAL_RECIPIENT, doc_type, file_obj))
 
     return uploads
 
@@ -280,15 +425,17 @@ def _create_account_request(*, link, contact, form_data):
         requested_password_hash=(
             make_password(form_data["password1"]) if not is_structure_request else ""
         ),
+        initial_recipient_payload=_build_initial_recipient_payload(form_data),
         notes=form_data["notes"],
     )
 
 
 def _create_account_request_documents(*, account_request, contact, uploads):
-    for doc_type, file_obj in uploads:
+    for document_scope, doc_type, file_obj in uploads:
         document = AccountDocument.objects.create(
             association_contact=contact,
             account_request=account_request,
+            document_scope=document_scope,
             doc_type=doc_type,
             status=DocumentReviewStatus.PENDING,
             file=file_obj,
@@ -332,6 +479,7 @@ def _render_account_request_form(
             "ACCOUNT_TYPE_RECIPIENT": PublicAccountRequestType.RECIPIENT,
             "ACCOUNT_TYPE_USER": PublicAccountRequestType.USER,
             "show_user_account_type": show_user_account_type,
+            "recipient_legal_form_choices": RecipientLegalForm.choices,
         },
     )
 
@@ -477,7 +625,7 @@ def handle_account_request_form(
         uploads = _collect_account_request_uploads(
             request.FILES,
             errors,
-            account_type=form_data["account_type"],
+            form_data=form_data,
         )
 
         if _has_pending_request_for_email(form_data["email"]):

@@ -96,6 +96,7 @@ from .models_domain.planning import (
 )
 from .models_domain.portal import (
     AccountDocument,
+    AccountDocumentScope,
     AccountDocumentType,
     AssociationContactTitle,
     AssociationPickupAddress,
@@ -299,6 +300,7 @@ __all__ = [
     "PublicAccountRequestStatus",
     "PublicAccountRequestType",
     "PublicAccountRequest",
+    "AccountDocumentScope",
     "AssociationProfile",
     "PortalAccessRole",
     "PortalAccessGrant",

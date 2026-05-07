@@ -24,6 +24,27 @@
           -
         {% endif %}
       </dd>
+      {% if account_request.initial_recipient_payload %}
+        <dt class="col-sm-3">Premier destinataire</dt>
+        <dd class="col-sm-9">
+          <strong>{{ account_request.initial_recipient_payload.structure_name }}</strong><br>
+          {% if account_request.initial_recipient_payload.contact_first_name or account_request.initial_recipient_payload.contact_last_name %}
+            {{ account_request.initial_recipient_payload.contact_first_name }} {{ account_request.initial_recipient_payload.contact_last_name }}<br>
+          {% endif %}
+          {% if account_request.initial_recipient_payload.email %}
+            {{ account_request.initial_recipient_payload.email }}<br>
+          {% endif %}
+          {% if account_request.initial_recipient_payload.phone %}
+            {{ account_request.initial_recipient_payload.phone }}<br>
+          {% endif %}
+          {{ account_request.initial_recipient_payload.address_line1 }}<br>
+          {% if account_request.initial_recipient_payload.address_line2 %}
+            {{ account_request.initial_recipient_payload.address_line2 }}<br>
+          {% endif %}
+          {{ account_request.initial_recipient_payload.postal_code }} {{ account_request.initial_recipient_payload.city }} {{ account_request.initial_recipient_payload.country }}<br>
+          <span class="scan-help">Contact de réception activé à la validation.</span>
+        </dd>
+      {% endif %}
       <dt class="col-sm-3">Documents</dt>
       <dd class="col-sm-9">
         <div class="scan-table-wrap table-responsive">
@@ -31,6 +52,7 @@
             <thead>
               <tr>
                 <th>Type</th>
+                <th>Usage</th>
                 <th>Statut</th>
                 <th>Fichier</th>
               </tr>
@@ -39,6 +61,7 @@
               {% for document in account_request.documents.all %}
                 <tr>
                   <td>{{ document.get_doc_type_display }}</td>
+                  <td>{{ document.get_document_scope_display }}</td>
                   <td>{{ document.get_status_display }}</td>
                   <td>
                     {% if document.file and document.scan_status == "clean" %}
@@ -58,7 +81,7 @@
                 </tr>
               {% empty %}
                 <tr>
-                  <td colspan="3">Aucun document</td>
+                  <td colspan="4">Aucun document</td>
                 </tr>
               {% endfor %}
             </tbody>

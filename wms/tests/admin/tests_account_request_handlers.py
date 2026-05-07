@@ -371,6 +371,140 @@ class AccountRequestFormHandlerTests(TestCase):
         self.assertEqual(request_obj.account_type, "recipient")
         self.assertEqual(request_obj.destination_id, self.destination.id)
 
+    def test_shipper_form_explains_optional_first_recipient(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Renseignez dès maintenant votre premier destinataire")
+        self.assertContains(response, "Contact de réception")
+        self.assertContains(response, 'name="first_recipient_enabled"')
+        self.assertContains(response, 'name="first_recipient_structure_name"')
+        self.assertContains(response, 'name="first_recipient_doc_registration_proof"')
+        self.assertContains(response, 'name="first_recipient_doc_statutes"')
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
+    def test_shipper_form_stores_optional_first_recipient_payload(self, _get_admin_emails_mock):
+        payload = self._payload(
+            first_recipient_enabled="1",
+            first_recipient_destination_id=str(self.destination.id),
+            first_recipient_structure_name="Hopital Premier",
+            first_recipient_contact_first_name="Aicha",
+            first_recipient_contact_last_name="Traore",
+            first_recipient_email="aicha.traore@example.org",
+            first_recipient_phone="+22370000000",
+            first_recipient_address_line1="1 Avenue Hopital",
+            first_recipient_address_line2="Service logistique",
+            first_recipient_postal_code="BP 12",
+            first_recipient_city="Bamako",
+            first_recipient_country="Mali",
+            first_recipient_legal_form="association",
+            first_recipient_beneficiary_count="120",
+            first_recipient_notes="Premier destinataire",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        request_obj = PublicAccountRequest.objects.get(email="association@example.com")
+        self.assertEqual(
+            request_obj.initial_recipient_payload,
+            {
+                "destination_id": self.destination.id,
+                "structure_name": "Hopital Premier",
+                "contact_first_name": "Aicha",
+                "contact_last_name": "Traore",
+                "email": "aicha.traore@example.org",
+                "phone": "+22370000000",
+                "address_line1": "1 Avenue Hopital",
+                "address_line2": "Service logistique",
+                "postal_code": "BP 12",
+                "city": "Bamako",
+                "country": "Mali",
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "notes": "Premier destinataire",
+                "is_delivery_contact": True,
+            },
+        )
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
+    def test_shipper_form_stores_optional_first_recipient_documents(
+        self,
+        _get_admin_emails_mock,
+    ):
+        payload = self._payload(
+            first_recipient_enabled="1",
+            first_recipient_destination_id=str(self.destination.id),
+            first_recipient_structure_name="Hopital Premier",
+            first_recipient_address_line1="1 Avenue Hopital",
+            first_recipient_legal_form="association",
+            first_recipient_beneficiary_count="120",
+        )
+        payload["first_recipient_doc_registration_proof"] = SimpleUploadedFile(
+            "recipient-registration.pdf",
+            b"%PDF-1.4 recipient registration",
+            content_type="application/pdf",
+        )
+        payload["first_recipient_doc_statutes"] = SimpleUploadedFile(
+            "recipient-statutes.pdf",
+            b"%PDF-1.4 recipient statutes",
+            content_type="application/pdf",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        request_obj = PublicAccountRequest.objects.get(email="association@example.com")
+        documents = AccountDocument.objects.filter(account_request=request_obj).order_by("doc_type")
+        self.assertEqual(documents.count(), 2)
+        self.assertEqual(
+            {document.doc_type for document in documents},
+            {
+                AccountDocumentType.REGISTRATION_PROOF,
+                AccountDocumentType.STATUTES,
+            },
+        )
+        self.assertEqual(
+            {document.document_scope for document in documents},
+            {"initial_recipient"},
+        )
+        self.assertEqual(
+            IntegrationEvent.objects.filter(
+                source="wms.document_scan",
+                event_type="scan_document",
+            ).count(),
+            2,
+        )
+
+    def test_shipper_form_requires_first_recipient_core_fields_when_enabled(self):
+        response = self.client.post(
+            self.url,
+            self._payload(
+                first_recipient_enabled="1",
+                first_recipient_destination_id="",
+                first_recipient_structure_name="",
+                first_recipient_address_line1="",
+                first_recipient_legal_form="",
+                first_recipient_beneficiary_count="",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Premier destinataire: escale requise.", response.context["errors"])
+        self.assertIn(
+            "Premier destinataire: nom de la structure requis.", response.context["errors"]
+        )
+        self.assertIn("Premier destinataire: adresse requise.", response.context["errors"])
+        self.assertIn("Premier destinataire: forme juridique requise.", response.context["errors"])
+        self.assertIn(
+            "Premier destinataire: nombre de bénéficiaires requis.",
+            response.context["errors"],
+        )
+
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=300)
     def test_form_releases_throttle_slot_when_request_creation_fails(self):
         with mock.patch(
