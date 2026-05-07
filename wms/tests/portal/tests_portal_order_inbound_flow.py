@@ -200,6 +200,15 @@ class PortalOrderInboundFlowTests(PortalBaseTestCase):
             "Merci de préciser dans les notes de contraintes d'accès s'il y a des particularités pour des dates spécifiques",
         )
 
+    def test_portal_order_create_exposes_ordered_products_filter(self):
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Afficher uniquement les produits commandés")
+        self.assertContains(response, 'id="portal-order-show-ordered-only"')
+        self.assertContains(response, 'data-order-product-quantity-filter="1"')
+        self.assertContains(response, "applyProductRowFilters")
+
     def test_portal_order_create_persists_pickup_open_weekdays(self):
         payload = self._base_payload()
         payload.update(

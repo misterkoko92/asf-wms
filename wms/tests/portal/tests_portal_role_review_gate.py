@@ -7,14 +7,19 @@ from django.urls import reverse
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.admin_account_request_approval import approve_account_request
 from wms.models import (
+    AccountDocument,
+    AccountDocumentType,
     AssociationProfile,
     AssociationRecipient,
     Destination,
+    DocumentScanStatus,
     PortalAccessGrant,
     PortalAccessRole,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
+    RecipientStructureDocument,
+    RecipientStructureDocumentType,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
@@ -210,6 +215,134 @@ class PortalRoleReviewGateTests(TestCase):
         shipper = ShipmentShipper.objects.get(organization=account_request.contact)
         self.assertTrue(shipper.is_active)
         self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
+
+    def test_approve_shipper_account_request_provisions_first_delivery_recipient(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-role-review-recipient",
+            email="admin-role-review-recipient@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Association With First Recipient",
+            email="with-first-recipient@example.org",
+            phone="",
+            address_line1="1 Rue Pending",
+            address_line2="",
+            postal_code="",
+            city="Paris",
+            country="France",
+            initial_recipient_payload={
+                "destination_id": self.destination.id,
+                "structure_name": "Hopital Premier",
+                "contact_first_name": "Aicha",
+                "contact_last_name": "Traore",
+                "email": "aicha.traore@example.org",
+                "phone": "+22370000000",
+                "address_line1": "1 Avenue Hopital",
+                "address_line2": "",
+                "postal_code": "",
+                "city": "Bamako",
+                "country": "Mali",
+                "legal_form": "association",
+                "beneficiary_count": 120,
+                "notes": "Premier destinataire",
+                "is_delivery_contact": True,
+            },
+        )
+        AccountDocument.objects.create(
+            account_request=account_request,
+            doc_type=AccountDocumentType.REGISTRATION_PROOF,
+            document_scope="initial_recipient",
+            file=SimpleUploadedFile(
+                "recipient-registration.pdf",
+                b"%PDF-1.4 recipient registration",
+                content_type="application/pdf",
+            ),
+            scan_status=DocumentScanStatus.CLEAN,
+        )
+        AccountDocument.objects.create(
+            account_request=account_request,
+            doc_type=AccountDocumentType.STATUTES,
+            document_scope="initial_recipient",
+            file=SimpleUploadedFile(
+                "recipient-statutes.pdf",
+                b"%PDF-1.4 recipient statutes",
+                content_type="application/pdf",
+            ),
+            scan_status=DocumentScanStatus.CLEAN,
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        account_request.refresh_from_db()
+        approved_user = get_user_model().objects.get(email=account_request.email)
+        profile = AssociationProfile.objects.get(user=approved_user)
+        profile.must_change_password = False
+        profile.save(update_fields=["must_change_password"])
+
+        recipient = AssociationRecipient.objects.get(
+            association_contact=account_request.contact,
+            structure_name="Hopital Premier",
+        )
+        self.assertTrue(recipient.is_delivery_contact)
+        self.assertEqual(recipient.contact_first_name, "Aicha")
+        self.assertEqual(recipient.contact_last_name, "Traore")
+
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=self.destination,
+        )
+        self.assertEqual(
+            recipient_organization.validation_status,
+            ShipmentValidationStatus.VALIDATED,
+        )
+        recipient_documents = RecipientStructureDocument.objects.filter(
+            contact=recipient.synced_contact,
+        ).order_by("doc_type")
+        self.assertEqual(
+            {document.doc_type for document in recipient_documents},
+            {
+                RecipientStructureDocumentType.REGISTRATION_PROOF,
+                RecipientStructureDocumentType.STATUTES,
+            },
+        )
+        self.assertEqual(
+            {document.scan_status for document in recipient_documents},
+            {DocumentScanStatus.PENDING},
+        )
+        self.assertTrue(
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper__organization=account_request.contact,
+                recipient_organization=recipient_organization,
+                is_active=True,
+            ).exists()
+        )
+
+        self.client.force_login(approved_user)
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 200)
+        options_by_id = {
+            str(option["id"]): option
+            for option in response.context["recipient_options_all"]
+            if option["id"] != "self"
+        }
+        self.assertEqual(
+            options_by_id[str(recipient.id)]["allowed_destination_ids"],
+            [self.destination.id],
+        )
 
     def test_approve_recipient_account_request_creates_recipient_scope_and_asf_binding(self):
         admin_user = get_user_model().objects.create_user(

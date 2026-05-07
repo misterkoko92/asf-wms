@@ -62,6 +62,7 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - Legacy `association` remains shipper-equivalent.
 - Recipient requests carry exactly one destination.
 - Recipient approval creates/reactivates organization contact, destination-scoped recipient organization, active recipient contact, and `PortalAccessGrant(recipient_admin)`.
+- Shipper requests may include one optional first recipient payload and recipient structure documents; if present, approval creates/reactivates the destination-scoped recipient organization, an active delivery contact, a shipper-recipient link with that contact as default, and transfers the recipient documents to the provisioned structure.
 - Default ASF shipper binding is resolved through shared helper.
 - Public account review is scan-first; admin is fallback.
 - `requested_account_type` preserves original request when operator changes final type.

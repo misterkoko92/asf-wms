@@ -95,5 +95,120 @@
     <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
   </div>
 
+  <section id="first-recipient-section" class="ui-comp-panel">
+    <h3 class="ui-comp-title">{% trans "Premier destinataire" %}</h3>
+    <p class="scan-help">
+      {% trans "Renseignez dès maintenant votre premier destinataire avec l'option “Contact de réception” activée pour utiliser immédiatement votre compte après validation, ou faites-le à la première connexion." %}
+    </p>
+    <div class="scan-field">
+      <label class="form-check-label" for="first_recipient_enabled">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="first_recipient_enabled"
+          name="first_recipient_enabled"
+          value="1"
+          {% if form_data.first_recipient_enabled %}checked{% endif %}
+        >
+        {% trans "Renseigner un premier destinataire" %}
+      </label>
+    </div>
+
+    <div id="first-recipient-details" {% if not form_data.first_recipient_enabled %}hidden{% endif %}>
+      <div class="scan-field">
+        <label class="form-label" for="first_recipient_destination_id">{% trans "Escale de livraison" %}</label>
+        <select class="form-select ui-select--md" id="first_recipient_destination_id" name="first_recipient_destination_id">
+          <option value="">{% trans "Choisir une escale" %}</option>
+          {% for destination in destinations %}
+            <option value="{{ destination.id }}" {% if form_data.first_recipient_destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
+              {{ destination.city }} ({{ destination.iata_code }}){% if destination.country %} - {{ destination.country }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="first_recipient_structure_name">{% trans "Nom de la structure destinataire" %}</label>
+        <input class="form-control" type="text" id="first_recipient_structure_name" name="first_recipient_structure_name" value="{{ form_data.first_recipient_structure_name }}">
+      </div>
+      <div class="scan-field">
+        <label class="form-label">{% trans "Option activée" %}</label>
+        <label class="form-check-label">
+          <input class="form-check-input" type="checkbox" checked disabled>
+          {% trans "Contact de réception" %}
+        </label>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="first_recipient_contact_first_name">{% trans "Prénom référent" %}</label>
+          <input class="form-control" type="text" id="first_recipient_contact_first_name" name="first_recipient_contact_first_name" value="{{ form_data.first_recipient_contact_first_name }}">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="first_recipient_contact_last_name">{% trans "Nom référent" %}</label>
+          <input class="form-control" type="text" id="first_recipient_contact_last_name" name="first_recipient_contact_last_name" value="{{ form_data.first_recipient_contact_last_name }}">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="first_recipient_email">{% trans "Email référent" %}</label>
+          <input class="form-control" type="email" id="first_recipient_email" name="first_recipient_email" value="{{ form_data.first_recipient_email }}">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="first_recipient_phone">{% trans "Téléphone référent" %}</label>
+          <input class="form-control" type="text" id="first_recipient_phone" name="first_recipient_phone" value="{{ form_data.first_recipient_phone }}">
+        </div>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="first_recipient_address_line1">{% trans "Adresse destinataire" %}</label>
+        <input class="form-control" type="text" id="first_recipient_address_line1" name="first_recipient_address_line1" value="{{ form_data.first_recipient_address_line1 }}">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="first_recipient_address_line2">{% trans "Complément adresse" %}</label>
+        <input class="form-control" type="text" id="first_recipient_address_line2" name="first_recipient_address_line2" value="{{ form_data.first_recipient_address_line2 }}">
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="first_recipient_postal_code">{% trans "Code postal" %}</label>
+          <input class="form-control" type="text" id="first_recipient_postal_code" name="first_recipient_postal_code" value="{{ form_data.first_recipient_postal_code }}">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="first_recipient_city">{% trans "Ville" %}</label>
+          <input class="form-control" type="text" id="first_recipient_city" name="first_recipient_city" value="{{ form_data.first_recipient_city }}">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="first_recipient_country">{% trans "Pays" %}</label>
+          <input class="form-control" type="text" id="first_recipient_country" name="first_recipient_country" value="{{ form_data.first_recipient_country|default:'France' }}">
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="first_recipient_legal_form">{% trans "Forme juridique" %}</label>
+          <select class="form-select ui-select--md" id="first_recipient_legal_form" name="first_recipient_legal_form">
+            <option value="">{% trans "Choisir..." %}</option>
+            {% for value, label in recipient_legal_form_choices %}
+              <option value="{{ value }}" {% if form_data.first_recipient_legal_form == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="first_recipient_beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
+          <input class="form-control" type="number" min="0" step="1" id="first_recipient_beneficiary_count" name="first_recipient_beneficiary_count" value="{{ form_data.first_recipient_beneficiary_count }}">
+        </div>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="first_recipient_notes">{% trans "Notes destinataire" %}</label>
+        <textarea class="form-control" id="first_recipient_notes" name="first_recipient_notes" rows="2">{{ form_data.first_recipient_notes }}</textarea>
+      </div>
+      <div class="ui-comp-panel">
+        <h4 class="ui-comp-title h6">{% trans "Documents du destinataire" %}</h4>
+        <div class="scan-field">
+          <label class="form-label" for="first_recipient_doc_registration_proof">{% trans "Preuve d'enregistrement du destinataire" %}</label>
+          <input class="form-control" type="file" id="first_recipient_doc_registration_proof" name="first_recipient_doc_registration_proof" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="first_recipient_doc_statutes">{% trans "Statut du destinataire" %}</label>
+          <input class="form-control" type="file" id="first_recipient_doc_statutes" name="first_recipient_doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+        </div>
+      </div>
+    </div>
+  </section>
+
   {% include "scan/includes/public_account_request_documents.html" %}
 </section>

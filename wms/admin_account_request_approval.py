@@ -17,6 +17,10 @@ from .account_request_review_service import (
     provision_recipient_review_runtime,
     resolve_review_destination,
 )
+from .application.parties.use_cases import (
+    update_recipient_shared_profile,
+    upsert_recipient_structure_documents,
+)
 from .default_shipper_bindings import _resolve_default_shipper
 from .portal_permissions import assign_association_portal_group
 from .shipment_party_setup import ensure_shipment_shipper
@@ -26,6 +30,10 @@ ACCOUNT_ACCESS_USER_NOT_FOUND = gettext_lazy("Utilisateur introuvable.")
 ACCOUNT_ACCESS_MISSING_BASE_URL = gettext_lazy(
     "SITE_BASE_URL non configurée, utiliser l'URL du site."
 )
+INITIAL_RECIPIENT_DOCUMENT_TYPE_MAP = {
+    models.AccountDocumentType.REGISTRATION_PROOF: models.RecipientStructureDocumentType.REGISTRATION_PROOF,
+    models.AccountDocumentType.STATUTES: models.RecipientStructureDocumentType.STATUTES,
+}
 
 
 def describe_account_request_skip_reason(reason):
@@ -90,6 +98,85 @@ def _ensure_portal_user(*, user_model, existing_user, account_request):
     if user_updates:
         user.save(update_fields=user_updates)
     return user
+
+
+def _initial_recipient_payload(account_request) -> dict:
+    payload = getattr(account_request, "initial_recipient_payload", None) or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _initial_recipient_document_files(account_request) -> dict:
+    files_by_type = {}
+    documents = (
+        account_request.documents.filter(
+            document_scope=models.AccountDocumentScope.INITIAL_RECIPIENT,
+            doc_type__in=INITIAL_RECIPIENT_DOCUMENT_TYPE_MAP,
+        )
+        .exclude(file="")
+        .order_by("id")
+    )
+    for document in documents:
+        recipient_doc_type = INITIAL_RECIPIENT_DOCUMENT_TYPE_MAP.get(document.doc_type)
+        if recipient_doc_type:
+            files_by_type[recipient_doc_type] = document.file
+    return files_by_type
+
+
+def _provision_initial_recipient_documents(*, contact, account_request):
+    files_by_type = _initial_recipient_document_files(account_request)
+    if not files_by_type:
+        return []
+    return upsert_recipient_structure_documents(
+        contact=contact,
+        files_by_type=files_by_type,
+        uploaded_by=getattr(account_request, "reviewed_by", None),
+        queue_scan=True,
+    )
+
+
+def _provision_initial_delivery_recipient(*, shipper_contact, account_request):
+    payload = _initial_recipient_payload(account_request)
+    if not payload:
+        return None
+
+    destination = models.Destination.objects.filter(
+        pk=payload.get("destination_id"),
+        is_active=True,
+    ).first()
+    if destination is None:
+        return None
+
+    result = update_recipient_shared_profile(
+        association_contact=shipper_contact,
+        destination=destination,
+        structure_name=payload.get("structure_name", ""),
+        contact_first_name=payload.get("contact_first_name", ""),
+        contact_last_name=payload.get("contact_last_name", ""),
+        emails=payload.get("email", ""),
+        phones=payload.get("phone", ""),
+        address_line1=payload.get("address_line1", ""),
+        address_line2=payload.get("address_line2", ""),
+        postal_code=payload.get("postal_code", ""),
+        city=payload.get("city", ""),
+        country=payload.get("country", "") or "France",
+        legal_form=payload.get("legal_form", ""),
+        beneficiary_count=payload.get("beneficiary_count"),
+        notes=payload.get("notes", ""),
+        notify_deliveries=False,
+        is_delivery_contact=True,
+        persist_projection=True,
+        prefer_existing_structure=True,
+        set_as_default=True,
+    )
+    recipient_organization = result.recipient_organization
+    if recipient_organization.validation_status != models.ShipmentValidationStatus.REJECTED:
+        recipient_organization.validation_status = models.ShipmentValidationStatus.VALIDATED
+        recipient_organization.save(update_fields=["validation_status"])
+    _provision_initial_recipient_documents(
+        contact=result.synced_contact,
+        account_request=account_request,
+    )
+    return result
 
 
 def approve_account_request(
@@ -230,10 +317,15 @@ def approve_account_request(
             profile.save(update_fields=["contact", "must_change_password"])
             assign_association_portal_group(user)
             ensure_shipment_shipper(contact)
+            _provision_initial_delivery_recipient(
+                shipper_contact=contact,
+                account_request=account_request,
+            )
 
         models.AccountDocument.objects.filter(
             account_request=account_request,
             association_contact__isnull=True,
+            document_scope=models.AccountDocumentScope.ACCOUNT,
         ).update(association_contact=contact)
 
         account_request.save(

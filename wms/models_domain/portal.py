@@ -174,6 +174,7 @@ class PublicAccountRequest(models.Model):
     requested_username = models.CharField(max_length=150, blank=True)
     requested_password_hash = models.CharField(max_length=128, blank=True)
     notes = models.TextField(blank=True)
+    initial_recipient_payload = models.JSONField(default=dict, blank=True)
     review_snapshot = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -679,6 +680,11 @@ class AccountDocumentType(models.TextChoices):
     OTHER = "other", "Autre"
 
 
+class AccountDocumentScope(models.TextChoices):
+    ACCOUNT = "account", "Compte expéditeur"
+    INITIAL_RECIPIENT = "initial_recipient", "Premier destinataire"
+
+
 class RecipientStructureDocumentType(models.TextChoices):
     REGISTRATION_PROOF = "registration_proof", "Preuve d'enregistrement"
     STATUTES = "statutes", "Statut"
@@ -698,6 +704,11 @@ class AccountDocument(models.Model):
         related_name="documents",
         null=True,
         blank=True,
+    )
+    document_scope = models.CharField(
+        max_length=40,
+        choices=AccountDocumentScope.choices,
+        default=AccountDocumentScope.ACCOUNT,
     )
     doc_type = models.CharField(max_length=40, choices=AccountDocumentType.choices)
     status = models.CharField(
