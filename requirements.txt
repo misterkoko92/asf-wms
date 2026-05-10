@@ -2,7 +2,7 @@ absl-py==2.4.0
 asgiref==3.11.1
 certifi==2026.2.25
 cffi==2.0.0 ; platform_python_implementation != 'PyPy'
-charset-normalizer==3.4.5
+charset-normalizer==3.4.7
 colorama==0.4.6 ; sys_platform == 'win32'
 cryptography==46.0.7
 defusedxml==0.7.1
