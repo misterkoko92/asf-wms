@@ -3,13 +3,17 @@ from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
 
 import qrcode
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 
+from ..config import get_installation_config
 from ..text_utils import normalize_category_name, normalize_title, normalize_upper
+
+
+def resolve_sku_prefix() -> str:
+    return get_installation_config().identity.sku_prefix
 
 
 class ProductCategory(models.Model):
@@ -137,7 +141,7 @@ class Product(models.Model):
         return f"{self.sku} - {self.name}"
 
     def generate_sku(self) -> str:
-        prefix = getattr(settings, "SKU_PREFIX", "ASF")
+        prefix = resolve_sku_prefix()
         temp = uuid.uuid4().hex[:8].upper()
         return f"{prefix}-{temp}"
 

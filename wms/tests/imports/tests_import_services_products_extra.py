@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from unittest import mock
+
 from django.test import TestCase
 
 from wms.import_services_products import (
@@ -51,6 +54,21 @@ class ImportProductsExtraTests(TestCase):
 
         self.assertTrue(created)
         self.assertTrue(product.sku.startswith("ASF-"))
+        self.assertRegex(product.sku, r"^ASF-[A-F0-9]{8}$")
+        self.assertEqual(warnings, [])
+
+    def test_import_product_row_auto_generates_sku_with_installation_prefix(self):
+        installation = SimpleNamespace(identity=SimpleNamespace(sku_prefix="ORG"))
+
+        with mock.patch(
+            "wms.models_domain.catalog.get_installation_config",
+            return_value=installation,
+        ):
+            product, created, warnings = import_product_row({"name": "Produit Sans SKU"})
+
+        self.assertTrue(created)
+        self.assertTrue(product.sku.startswith("ORG-"))
+        self.assertRegex(product.sku, r"^ORG-[A-F0-9]{8}$")
         self.assertEqual(warnings, [])
 
     def test_import_product_row_rejects_duplicate_rack_color_in_same_warehouse(self):
