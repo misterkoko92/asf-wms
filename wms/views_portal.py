@@ -25,6 +25,8 @@ from .views_portal_orders import (
     portal_dashboard,
     portal_order_create,
     portal_order_detail,
+    portal_order_draft_autosave,
+    portal_order_draft_clear,
 )
 
 AUTH_EXPORTS = (
@@ -39,6 +41,8 @@ AUTH_EXPORTS = (
 ORDER_EXPORTS = (
     "portal_dashboard",
     "portal_order_create",
+    "portal_order_draft_autosave",
+    "portal_order_draft_clear",
     "portal_order_detail",
 )
 

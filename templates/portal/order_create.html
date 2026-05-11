@@ -8,8 +8,22 @@
   {% trans "Toutes sous-catégories" as all_subcategories_label %}
   {% include "portal/includes/order_create_intro_card.html" %}
 
-  <form method="post" novalidate class="ui-comp-form" id="portal-order-create-form">
+  <form
+    method="post"
+    novalidate
+    class="ui-comp-form"
+    id="portal-order-create-form"
+    data-draft-autosave-url="{% url 'portal:portal_order_draft_autosave' %}"
+    data-draft-clear-url="{% url 'portal:portal_order_draft_clear' %}"
+  >
     {% csrf_token %}
+    <div class="portal-products-actions ui-comp-actions mb-3">
+      <span id="portal-order-draft-status" class="scan-help" aria-live="polite"></span>
+      <button id="portal-order-draft-clear" type="button" class="btn btn-outline-secondary">
+        {% trans "Effacer le brouillon en cours et créer une nouvelle commande" %}
+      </button>
+    </div>
+
     <section
       id="portal-order-create-routing-step"
       class="portal-order-step"
@@ -119,6 +133,7 @@
 
   <script>
     (function() {
+      const orderCreateForm = document.getElementById('portal-order-create-form');
       const destinationSelect = document.getElementById('destination_id');
       const recipientSelect = document.getElementById('recipient_id');
       const fulfillmentStep = document.getElementById('portal-order-create-fulfillment-step');
@@ -128,6 +143,8 @@
       const reviewInboundEl = document.getElementById('portal-order-create-summary-inbound');
       const reviewReadyTotalEl = document.getElementById('portal-order-create-review-ready-total');
       const reviewCartonTotalEl = document.getElementById('portal-order-create-review-carton-total');
+      const draftStatusEl = document.getElementById('portal-order-draft-status');
+      const clearDraftButton = document.getElementById('portal-order-draft-clear');
       const recipientOptionsEl = document.getElementById('portal-recipient-options-data');
       let recipientOptions = [];
       try {
@@ -156,6 +173,170 @@
         }
         const nextValue = String(value || '').trim();
         element.textContent = nextValue || element.dataset.emptyLabel || 'À sélectionner';
+      };
+      const setDraftStatus = message => {
+        if (draftStatusEl) {
+          draftStatusEl.textContent = message || '';
+        }
+      };
+      const getCsrfToken = () => {
+        const input = orderCreateForm
+          ? orderCreateForm.querySelector('input[name="csrfmiddlewaretoken"]')
+          : null;
+        return input ? input.value : '';
+      };
+      const getFieldValue = fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field) {
+          return '';
+        }
+        if (field.type === 'checkbox') {
+          return Boolean(field.checked);
+        }
+        return field.value || '';
+      };
+      const collectQuantities = prefix => {
+        if (!orderCreateForm) {
+          return {};
+        }
+        const quantities = {};
+        orderCreateForm
+          .querySelectorAll(`input[name^="${prefix}_"][name$="_qty"]`)
+          .forEach(input => {
+            const value = String(input.value || '').trim();
+            if (!value) {
+              return;
+            }
+            const name = String(input.name || '');
+            const key = name.slice(prefix.length + 1, -4);
+            if (key) {
+              quantities[key] = value;
+            }
+          });
+        return quantities;
+      };
+      const collectOrderDraftPayload = () => {
+        const formFieldIds = [
+          'destination_id',
+          'recipient_id',
+          'notes',
+          'has_shipper_inbound',
+          'wants_stock_completion',
+          'arrival_mode',
+          'declared_carton_count',
+          'declared_pallet_count',
+          'declared_out_of_format_count',
+          'parcel_guidelines_confirmed',
+          'pickup_address_book_entry_id',
+          'save_pickup_address',
+          'pickup_company_name',
+          'pickup_contact_name',
+          'pickup_contact_phone',
+          'pickup_contact_phone_2',
+          'pickup_address_line1',
+          'pickup_address_line2',
+          'pickup_postal_code',
+          'pickup_city',
+          'pickup_country',
+          'pickup_available_from_date',
+          'pickup_requested_for_date',
+          'pickup_opening_slot_1_start',
+          'pickup_opening_slot_1_end',
+          'pickup_has_midday_break',
+          'pickup_opening_slot_2_start',
+          'pickup_opening_slot_2_end',
+          'pickup_has_no_access_constraints',
+          'pickup_access_constraints_details',
+          'tail_lift_required',
+          'pallet_truck_required',
+          'pickup_information_confirmed'
+        ];
+        const formData = {};
+        formFieldIds.forEach(fieldId => {
+          formData[fieldId] = getFieldValue(fieldId);
+        });
+        formData.pickup_open_weekdays = Array.from(
+          document.querySelectorAll('input[name="pickup_open_weekdays"]:checked')
+        ).map(input => input.value);
+
+        return {
+          form_data: formData,
+          line_quantities: collectQuantities('product'),
+          ready_carton_quantities: collectQuantities('ready_carton'),
+          ready_kit_quantities: collectQuantities('ready_kit')
+        };
+      };
+
+      let draftAutosaveTimer = null;
+      let draftAutosaveDisabled = false;
+      const saveOrderDraft = () => {
+        if (
+          !orderCreateForm ||
+          !orderCreateForm.dataset.draftAutosaveUrl ||
+          draftAutosaveDisabled
+        ) {
+          return;
+        }
+        window.clearTimeout(draftAutosaveTimer);
+        setDraftStatus('Enregistrement du brouillon...');
+        fetch(orderCreateForm.dataset.draftAutosaveUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ payload: collectOrderDraftPayload() })
+        })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('draft_autosave_failed');
+            }
+            return response.json();
+          })
+          .then(() => setDraftStatus('Brouillon enregistré'))
+          .catch(() => setDraftStatus('Enregistrement impossible'));
+      };
+      const scheduleOrderDraftAutosave = () => {
+        if (
+          !orderCreateForm ||
+          !orderCreateForm.dataset.draftAutosaveUrl ||
+          draftAutosaveDisabled
+        ) {
+          return;
+        }
+        window.clearTimeout(draftAutosaveTimer);
+        draftAutosaveTimer = window.setTimeout(saveOrderDraft, 700);
+      };
+      const clearCurrentDraft = () => {
+        if (!orderCreateForm || !orderCreateForm.dataset.draftClearUrl) {
+          return;
+        }
+        if (
+          !window.confirm('Effacer le brouillon en cours et créer une nouvelle commande ?')
+        ) {
+          return;
+        }
+        draftAutosaveDisabled = true;
+        window.clearTimeout(draftAutosaveTimer);
+        setDraftStatus('Effacement du brouillon...');
+        fetch(orderCreateForm.dataset.draftClearUrl, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('draft_clear_failed');
+            }
+            window.location.assign(window.location.pathname);
+          })
+          .catch(() => {
+            draftAutosaveDisabled = false;
+            setDraftStatus('Effacement impossible');
+          });
       };
       const getSelectedOptionLabel = select =>
         select && select.selectedOptions && select.selectedOptions.length
@@ -451,6 +632,17 @@
       const totalEl = document.getElementById('carton-estimate-total');
       const readyTotalEl = document.getElementById('ready-carton-estimate-total');
       const orderedOnlyToggle = document.getElementById('portal-order-show-ordered-only');
+      const preventNumberInputWheelChanges = input => {
+        input.addEventListener('wheel', event => {
+          if (document.activeElement === input) {
+            event.preventDefault();
+          }
+        }, { passive: false });
+      };
+
+      document
+        .querySelectorAll('#portal-order-create-form input[type="number"]')
+        .forEach(preventNumberInputWheelChanges);
 
       const updateRow = row => {
         const productId = row.dataset.productId;
@@ -721,6 +913,25 @@
       });
       if (orderedOnlyToggle) {
         orderedOnlyToggle.addEventListener('change', applyProductRowFilters);
+      }
+      if (orderCreateForm) {
+        orderCreateForm.addEventListener('input', event => {
+          if (event.target && event.target.matches('input, select, textarea')) {
+            scheduleOrderDraftAutosave();
+          }
+        });
+        orderCreateForm.addEventListener('change', event => {
+          if (event.target && event.target.matches('input, select, textarea')) {
+            scheduleOrderDraftAutosave();
+          }
+        });
+        orderCreateForm.addEventListener('submit', () => {
+          draftAutosaveDisabled = true;
+          window.clearTimeout(draftAutosaveTimer);
+        });
+      }
+      if (clearDraftButton) {
+        clearDraftButton.addEventListener('click', clearCurrentDraft);
       }
       updateCategorySelects();
       applyProductRowFilters();

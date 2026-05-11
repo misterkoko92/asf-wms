@@ -112,6 +112,53 @@ class Order(models.Model):
         return self.reference or f"Order {self.id}"
 
 
+class PortalOrderDraftStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    SUBMITTED = "submitted", "Submitted"
+    ABANDONED = "abandoned", "Abandoned"
+
+
+class PortalOrderDraft(models.Model):
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="portal_order_drafts",
+    )
+    association_contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.CASCADE,
+        related_name="portal_order_drafts",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PortalOrderDraftStatus.choices,
+        default=PortalOrderDraftStatus.ACTIVE,
+    )
+    payload = models.JSONField(default=dict, blank=True)
+    submitted_order = models.ForeignKey(
+        "Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="portal_source_drafts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["created_by", "association_contact"],
+                condition=models.Q(status=PortalOrderDraftStatus.ACTIVE),
+                name="wms_portal_order_draft_one_active",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"Brouillon commande portail {self.created_by_id}/{self.association_contact_id}"
+
+
 class PublicOrderLink(models.Model):
     label = models.CharField(max_length=200, blank=True)
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)

@@ -52,6 +52,8 @@ Correct organization / recipient context must remain explicit.
 ### Submission Integrity
 
 Orders created in portal must reach operations accurately.
+In-progress order drafts may be persisted for recovery, but they must stay outside
+operational queues, notifications, stock reservation, and real order creation until submit.
 
 ### Sync Integrity
 

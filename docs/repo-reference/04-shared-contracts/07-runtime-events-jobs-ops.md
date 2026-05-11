@@ -16,6 +16,13 @@ Read this file when touching policies, notifications, durable outbox, jobs, pilo
 ### Current contract
 
 - One business event may notify admin groups, association contacts, shipment parties, or volunteers.
+- Portal shipper recipient creation that leaves a `ShipmentRecipientOrganization` pending
+  validation notifies superusers plus `ACCOUNT_REQUEST_VALIDATION_GROUP_NAME` and links to
+  the scan recipient validation detail.
+- Portal order admin notifications link staff to `/scan/orders-view/` and the precise
+  `/scan/orders/<id>/` dossier rather than portal or Django admin routes.
+- Portal order drafts are recovery state only; autosave and clear-draft actions must not
+  emit notifications or runtime integration events.
 - Operational docs and env vars depend on same routing rules.
 
 ### Maintenance rule

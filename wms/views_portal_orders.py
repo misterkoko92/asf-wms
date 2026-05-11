@@ -1,7 +1,11 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
@@ -31,6 +35,8 @@ from .models import (
     OrderInboundArrivalMode,
     OrderReviewStatus,
     PortalAccessRole,
+    PortalOrderDraft,
+    PortalOrderDraftStatus,
     ProductCategory,
 )
 from .order_helpers import (
@@ -311,6 +317,109 @@ def _normalize_pickup_open_weekdays(raw_values):
         seen.add(value)
         weekdays.append(value)
     return weekdays
+
+
+def _stringify_draft_value(raw_value, *, max_length=5000):
+    if raw_value is None:
+        return ""
+    value = str(raw_value).strip()
+    if len(value) > max_length:
+        return value[:max_length]
+    return value
+
+
+def _sanitize_draft_quantities(raw_quantities):
+    if not isinstance(raw_quantities, dict):
+        return {}
+    quantities = {}
+    for raw_key, raw_value in raw_quantities.items():
+        key = _stringify_draft_value(raw_key, max_length=120)
+        value = _stringify_draft_value(raw_value, max_length=40)
+        if key and value:
+            quantities[key] = value
+    return quantities
+
+
+def _sanitize_order_draft_payload(raw_payload):
+    if not isinstance(raw_payload, dict):
+        raw_payload = {}
+
+    defaults = _build_order_create_defaults()
+    raw_form_data = raw_payload.get("form_data")
+    if not isinstance(raw_form_data, dict):
+        raw_form_data = {}
+
+    form_data = {}
+    for key, default_value in defaults.items():
+        raw_value = raw_form_data.get(key, default_value)
+        if isinstance(default_value, bool):
+            form_data[key] = _is_checked(raw_value)
+        elif isinstance(default_value, list):
+            values = raw_value if isinstance(raw_value, list) else [raw_value]
+            form_data[key] = _normalize_pickup_open_weekdays(values)
+        else:
+            form_data[key] = _stringify_draft_value(raw_value)
+
+    return {
+        "form_data": form_data,
+        "line_quantities": _sanitize_draft_quantities(raw_payload.get("line_quantities")),
+        "ready_carton_quantities": _sanitize_draft_quantities(
+            raw_payload.get("ready_carton_quantities")
+        ),
+        "ready_kit_quantities": _sanitize_draft_quantities(raw_payload.get("ready_kit_quantities")),
+    }
+
+
+def _get_active_portal_order_draft(*, profile, user):
+    return (
+        PortalOrderDraft.objects.filter(
+            association_contact=profile.contact,
+            created_by=user,
+            status=PortalOrderDraftStatus.ACTIVE,
+        )
+        .order_by("-updated_at", "-id")
+        .first()
+    )
+
+
+def _mark_active_order_drafts_submitted(*, profile, user, order):
+    PortalOrderDraft.objects.filter(
+        association_contact=profile.contact,
+        created_by=user,
+        status=PortalOrderDraftStatus.ACTIVE,
+    ).update(
+        status=PortalOrderDraftStatus.SUBMITTED,
+        submitted_order=order,
+        updated_at=timezone.now(),
+    )
+
+
+def _apply_order_draft_to_form_state(
+    draft,
+    *,
+    form_data,
+    line_quantities,
+    ready_carton_quantities,
+    ready_kit_quantities,
+):
+    payload = _sanitize_order_draft_payload(draft.payload)
+    form_data.update(payload["form_data"])
+    line_quantities.update(payload["line_quantities"])
+    ready_carton_quantities.update(payload["ready_carton_quantities"])
+    ready_kit_quantities.update(payload["ready_kit_quantities"])
+
+
+def _sum_selected_ready_cartons_from_rows(rows):
+    total = 0
+    for row in rows:
+        quantity = parse_int_safe(row.get("quantity"))
+        available = int(row.get("available_stock") or 0)
+        if quantity is None or quantity <= 0:
+            continue
+        if available and quantity > available:
+            continue
+        total += quantity
+    return total
 
 
 def _build_pickup_address_option(entry):
@@ -1120,6 +1229,11 @@ def portal_order_create(request):
             except StockError as exc:
                 errors.append(str(exc))
             else:
+                _mark_active_order_drafts_submitted(
+                    profile=profile,
+                    user=request.user,
+                    order=order,
+                )
                 send_portal_order_notifications(
                     request,
                     profile=profile,
@@ -1128,9 +1242,35 @@ def portal_order_create(request):
                 messages.success(request, MESSAGE_ORDER_SENT)
                 return redirect("portal:portal_order_detail", order_id=order.id)
     else:
+        active_draft = _get_active_portal_order_draft(profile=profile, user=request.user)
+        if active_draft is not None:
+            _apply_order_draft_to_form_state(
+                active_draft,
+                form_data=form_data,
+                line_quantities=line_quantities,
+                ready_carton_quantities=ready_carton_quantities,
+                ready_kit_quantities=ready_kit_quantities,
+            )
+            all_ready_rows = build_ready_carton_rows(
+                selected_quantities={
+                    **ready_carton_quantities,
+                    **ready_kit_quantities,
+                }
+            )
+            ready_carton_rows, ready_kit_rows = split_ready_rows_into_kits(all_ready_rows)
+            total_selected_ready_cartons = _sum_selected_ready_cartons_from_rows(
+                ready_carton_rows
+            ) + _sum_selected_ready_cartons_from_rows(ready_kit_rows)
+
+        selected_destination = destination_by_id.get(form_data["destination_id"])
+        allowed_recipient_ids = _allowed_recipient_option_ids(
+            selected_destination=selected_destination,
+            allowed_destination_ids_by_recipient=allowed_destination_ids_by_recipient,
+        )
         recipient_options = _filter_recipient_options(
             recipient_options_all,
             form_data["destination_id"],
+            allowed_recipient_ids=allowed_recipient_ids,
         )
 
     return render(
@@ -1153,6 +1293,57 @@ def portal_order_create(request):
             pickup_address_options=pickup_address_options,
         ),
     )
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["POST"])
+def portal_order_draft_autosave(request):
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
+
+    if not isinstance(body, dict):
+        return JsonResponse({"ok": False, "error": "invalid_payload"}, status=400)
+
+    payload = body.get("payload", body)
+    if not isinstance(payload, dict):
+        return JsonResponse({"ok": False, "error": "invalid_payload"}, status=400)
+
+    profile = request.association_profile
+    draft, _created = PortalOrderDraft.objects.update_or_create(
+        association_contact=profile.contact,
+        created_by=request.user,
+        status=PortalOrderDraftStatus.ACTIVE,
+        defaults={
+            "payload": _sanitize_order_draft_payload(payload),
+            "submitted_order": None,
+        },
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "draft_id": draft.id,
+            "updated_at": draft.updated_at.isoformat(),
+        }
+    )
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["POST"])
+def portal_order_draft_clear(request):
+    profile = request.association_profile
+    cleared_count = PortalOrderDraft.objects.filter(
+        association_contact=profile.contact,
+        created_by=request.user,
+        status=PortalOrderDraftStatus.ACTIVE,
+    ).update(
+        status=PortalOrderDraftStatus.ABANDONED,
+        updated_at=timezone.now(),
+    )
+    return JsonResponse({"ok": True, "cleared_count": cleared_count})
 
 
 @login_required(login_url="portal:portal_login")

@@ -193,6 +193,7 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 ### Primary runtime sources
 
 - `wms/views_portal_orders.py`
+- `wms/models_domain/portal.py`
 - `templates/portal/order_create.html`
 - portal order-create includes
 
@@ -205,13 +206,17 @@ Read this file when touching portal access, recipient sync, shipment-party graph
   - review and submit
 - Fulfillment/review hidden until destination and recipient are selected.
 - Server validation with valid route keeps later steps open.
+- Active `PortalOrderDraft` state is restored on GET for the same user and association contact.
+- Autosave writes only `PortalOrderDraft.payload`; it must not create `Order`, reserve stock, enqueue scan work, or send emails.
+- The explicit clear-draft action abandons the active draft and reloads a blank order form.
+- Successful submit creates the real order through the normal portal use case and marks the active draft `submitted`.
 - Shipper-inbound checkbox remains compatibility entrypoint.
 - Pickup requests may snapshot optional opening weekdays on `OrderInboundDelivery` and reusable pickup address entries.
 - Shipper-prepared parcels require ASF parcel-guideline certification; pickup requests also require declared pallet count.
 - When shipper-prepared parcels are selected, stock ASF selection is opt-in and ignored server-side unless the stock-completion checkbox is checked.
 - Review displays a read-only shipping type derived from inbound mode and stock-completion intent: Stock ASF, Dépôt, Dépôt + Stock ASF, Enlèvement, or Enlèvement + Stock ASF.
-- Review card is only primary submit surface.
+- The explicit draft-clear action must remain reachable even before route completion.
 
 ### Maintenance rule
 
-- If route/inbound/ready-carton/unit-product semantics change, align views, includes, tests, and optional smoke tests.
+- If route/inbound/draft/ready-carton/unit-product semantics change, align views, includes, tests, and optional smoke tests.

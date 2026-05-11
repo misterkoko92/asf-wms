@@ -262,6 +262,12 @@ Read this flow when touching:
 - Legacy shipper pages remain guarded by active portal scope.
 - Portal shell navigation adapts by active scope.
 - Shipper recipient create/update writes canonical shipment-party graph first and refreshes `AssociationRecipient` only as compatibility projection.
+- Shipper recipient creation that leaves the destination-scoped recipient validation pending
+  sends the same staff validation alert family as account requests and links to the scan
+  recipient validation detail.
+- Portal order creation keeps an active per-user/association draft for in-progress input;
+  draft autosave must not trigger scan queues, email notifications, stock reservation, or
+  order creation before final submit.
 - Scan/admin recipient shared-field edits route through the same application use-case layer.
 - Non-shipment contact history categories stay in legacy contact CRUD and do not create shipment-party runtime rows by themselves.
 - `rebuild_recipient_party_graph --dry-run|--apply` is the deterministic repair path for explicit shipper grants or legacy projection rebuilds.
@@ -278,6 +284,7 @@ Read this flow when touching:
 - `wms/tests/portal/tests_portal_access_grants.py`
 - `wms/tests/admin/tests_account_request_handlers.py`
 - `wms/tests/portal/tests_portal_role_review_gate.py`
+- `wms/tests/portal/tests_portal_order_inbound_flow.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/core/tests_parties_use_cases.py`
 - `wms/tests/portal/tests_portal_order_handlers.py`
@@ -347,6 +354,7 @@ Read this flow when touching:
 
 - Portal shipper order may contain ASF-stock lines, declared shipper inbound delivery, or both.
 - Portal shipper order product rows can be filtered client-side to show only rows with quantity greater than zero; the filter must compose with category filters and must not remove selected quantities from the submitted form.
+- Portal shipper order numeric inputs must not change quantities through accidental mouse/trackpad wheel events while focused.
 - Portal order submission and ASF review do not require supporting documents up front.
 - Document completeness blocks later shipment readiness when the shipment depends on those documents.
 - One order may link multiple shipment dossiers through `OrderShipmentLink`.

@@ -1,3 +1,6 @@
+import logging
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -5,6 +8,7 @@ from django.core.validators import EmailValidator
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
@@ -27,6 +31,7 @@ from .country_choices import DEFAULT_COUNTRY, build_country_choices, is_known_co
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
 from .document_uploads import validate_document_upload
+from .emailing import get_admin_emails, get_group_emails, send_or_enqueue_email_safe
 from .models import (
     AccountDocument,
     AccountDocumentType,
@@ -50,7 +55,7 @@ from .models import (
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
 )
-from .portal_helpers import get_contact_address
+from .portal_helpers import build_public_base_url, get_contact_address
 from .recipient_preference_view_helpers import (
     build_recipient_preference_catalog_context,
     build_recipient_preference_filter_url,
@@ -71,11 +76,18 @@ from .view_permissions import (
 )
 from .view_utils import sorted_choices
 
+LOGGER = logging.getLogger(__name__)
+
 TEMPLATE_RECIPIENTS = "portal/recipients.html"
 TEMPLATE_RECIPIENT_DETAIL = "portal/recipient_detail.html"
 TEMPLATE_RECIPIENT_PREFERENCES = "portal/recipient_preferences.html"
 TEMPLATE_RECIPIENT_PROFILE = "portal/recipient_profile.html"
 TEMPLATE_ACCOUNT = "portal/account.html"
+TEMPLATE_RECIPIENT_VALIDATION_ADMIN_NOTIFICATION = (
+    "emails/recipient_validation_admin_notification.txt"
+)
+
+ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 
 ACTION_CREATE_RECIPIENT = "create_recipient"
 ACTION_UPDATE_RECIPIENT = "update_recipient"
@@ -111,6 +123,7 @@ MESSAGE_UPDATE_NOTIFICATIONS_DEPRECATED = _(
 MESSAGE_DOCUMENT_ADDED = _("Document ajouté.")
 MESSAGE_DOCUMENTS_ADDED = _("Documents ajoutés.")
 MESSAGE_BILLING_PREFERENCES_REQUESTED = _("Demande de préférences de facturation envoyée.")
+SUBJECT_RECIPIENT_VALIDATION_PENDING = _("ASF WMS - Nouveau destinataire en attente de validation")
 ERROR_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 ERROR_RECIPIENT_DESTINATION_REQUIRED = _("Escale de livraison requise.")
 ERROR_RECIPIENT_STRUCTURE_REQUIRED = _("Nom de la structure requis.")
@@ -565,7 +578,65 @@ def _create_recipient(profile, form_data, *, uploaded_by=None, files=None):
             uploaded_by=uploaded_by,
             files=files or {},
         )
-    return result.legacy_projection
+    return result
+
+
+def _recipient_validation_contact_details(result):
+    shipment_contact = getattr(result, "shipment_contact", None)
+    contact = getattr(shipment_contact, "contact", None)
+    synced_contact = getattr(result, "synced_contact", None)
+    return {
+        "email": (getattr(contact, "email", "") or getattr(synced_contact, "email", "") or ""),
+        "phone": (getattr(contact, "phone", "") or getattr(synced_contact, "phone", "") or ""),
+    }
+
+
+def _queue_recipient_validation_notification(request, *, profile, result):
+    recipient_organization = getattr(result, "recipient_organization", None)
+    if recipient_organization is None:
+        return
+    if recipient_organization.validation_status != ShipmentValidationStatus.PENDING:
+        return
+
+    admin_recipients = get_admin_emails() + get_group_emails(
+        getattr(
+            settings,
+            "ACCOUNT_REQUEST_VALIDATION_GROUP_NAME",
+            ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT,
+        ),
+        require_staff=True,
+    )
+    if not admin_recipients:
+        return
+
+    contact_details = _recipient_validation_contact_details(result)
+    base_url = build_public_base_url(request)
+    scan_url = f"{base_url}{reverse('scan:scan_recipient_validation_detail', args=[recipient_organization.id])}"
+    message = render_to_string(
+        TEMPLATE_RECIPIENT_VALIDATION_ADMIN_NOTIFICATION,
+        {
+            "association_name": profile.contact.name,
+            "recipient_name": recipient_organization.organization.name,
+            "destination": recipient_organization.destination,
+            "email": contact_details["email"],
+            "phone": contact_details["phone"],
+            "scan_url": scan_url,
+        },
+    )
+
+    def _send_notification():
+        sent = send_or_enqueue_email_safe(
+            subject=SUBJECT_RECIPIENT_VALIDATION_PENDING,
+            message=message,
+            recipient=admin_recipients,
+        )
+        if not sent:
+            LOGGER.warning(
+                "Recipient validation notification was not sent nor queued for %s",
+                recipient_organization.id,
+            )
+
+    transaction.on_commit(_send_notification)
 
 
 def _update_recipient(recipient, form_data):
@@ -1260,11 +1331,16 @@ def portal_recipients(request):
                     _update_recipient(editing_recipient, form_data)
                     messages.success(request, MESSAGE_RECIPIENT_UPDATED)
                 else:
-                    _create_recipient(
+                    recipient_result = _create_recipient(
                         profile,
                         form_data,
                         uploaded_by=request.user,
                         files=request.FILES,
+                    )
+                    _queue_recipient_validation_notification(
+                        request,
+                        profile=profile,
+                        result=recipient_result,
                     )
                     messages.success(request, MESSAGE_RECIPIENT_ADDED)
                 return redirect("portal:portal_recipients")
