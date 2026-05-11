@@ -16,7 +16,8 @@ SUBJECT_NEW_ORDER = _("ASF WMS - Nouvelle commande")
 SUBJECT_ORDER_CONFIRMATION = _("ASF WMS - Commande reçue")
 
 ROUTE_PORTAL_ORDER_DETAIL = "portal:portal_order_detail"
-ROUTE_ADMIN_ORDER_CHANGELIST = "admin:wms_order_changelist"
+ROUTE_SCAN_ORDERS_VIEW = "scan:scan_orders_view"
+ROUTE_SCAN_ORDER_DETAIL = "scan:scan_order_detail"
 
 
 def _order_reference(order):
@@ -26,10 +27,12 @@ def _order_reference(order):
 def _build_portal_order_urls(request, order):
     base_url = build_public_base_url(request)
     summary_path = reverse(ROUTE_PORTAL_ORDER_DETAIL, args=[order.id])
-    admin_path = reverse(ROUTE_ADMIN_ORDER_CHANGELIST)
+    scan_orders_path = reverse(ROUTE_SCAN_ORDERS_VIEW)
+    scan_order_path = reverse(ROUTE_SCAN_ORDER_DETAIL, args=[order.id])
     return {
         "summary_url": f"{base_url}{summary_path}",
-        "admin_url": f"{base_url}{admin_path}",
+        "scan_orders_url": f"{base_url}{scan_orders_path}",
+        "scan_order_url": f"{base_url}{scan_order_path}",
     }
 
 
@@ -39,8 +42,8 @@ def _build_admin_notification_context(request, profile, order, urls):
         "email": profile.contact.email or request.user.email,
         "phone": profile.contact.phone,
         "order_reference": _order_reference(order),
-        "summary_url": urls["summary_url"],
-        "admin_url": urls["admin_url"],
+        "scan_orders_url": urls["scan_orders_url"],
+        "scan_order_url": urls["scan_order_url"],
     }
 
 

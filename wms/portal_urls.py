@@ -28,6 +28,16 @@ urlpatterns = [
     path("request-account/", views.portal_account_request, name="portal_account_request"),
     path("", views.portal_dashboard, name="portal_dashboard"),
     path("orders/new/", views.portal_order_create, name="portal_order_create"),
+    path(
+        "orders/draft/autosave/",
+        views.portal_order_draft_autosave,
+        name="portal_order_draft_autosave",
+    ),
+    path(
+        "orders/draft/clear/",
+        views.portal_order_draft_clear,
+        name="portal_order_draft_clear",
+    ),
     path("orders/<int:order_id>/", views.portal_order_detail, name="portal_order_detail"),
     path("billing/", views.portal_billing, name="portal_billing"),
     path("billing/<int:document_id>/", views.portal_billing_detail, name="portal_billing_detail"),

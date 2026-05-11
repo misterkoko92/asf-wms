@@ -119,6 +119,8 @@ from .models_domain.portal import (
     PortalAccessGrant,
     PortalAccessRole,
     PortalOnboardingPreference,
+    PortalOrderDraft,
+    PortalOrderDraftStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,

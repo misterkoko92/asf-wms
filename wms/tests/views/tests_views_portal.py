@@ -4,7 +4,7 @@ from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, Group
 from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
@@ -3842,6 +3842,52 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(
             shipment_recipient.validation_status,
             "pending",
+        )
+
+    def test_portal_recipients_post_notifies_staff_when_recipient_waits_validation(self):
+        get_user_model().objects.create_superuser(
+            username="recipient-validation-admin",
+            email="recipient-validation-admin@example.com",
+            password="pass1234",
+        )
+        validation_group = Group.objects.get_or_create(name="Account_User_Validation")[0]
+        validation_staff = get_user_model().objects.create_user(
+            username="recipient-validation-staff",
+            email="recipient-validation-staff@example.com",
+            password="pass1234",
+            is_staff=True,
+        )
+        validation_group.user_set.add(validation_staff)
+        payload = self._build_recipient_payload(
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=AssociationRecipient.objects.get().synced_contact,
+            destination=self.destination,
+        )
+        event = IntegrationEvent.objects.filter(
+            status=IntegrationStatus.PENDING,
+            payload__subject="ASF WMS - Nouveau destinataire en attente de validation",
+        ).first()
+        self.assertIsNotNone(event)
+        self.assertEqual(
+            set(event.payload.get("recipient", [])),
+            {
+                "recipient-validation-admin@example.com",
+                "recipient-validation-staff@example.com",
+            },
+        )
+        self.assertIn(
+            reverse("scan:scan_recipient_validation_detail", args=[shipment_recipient.id]),
+            event.payload.get("message", ""),
         )
 
     def test_portal_recipients_post_create_uses_canonical_shared_profile_use_case(self):

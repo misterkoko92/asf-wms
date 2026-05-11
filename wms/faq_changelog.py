@@ -2,6 +2,16 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 5, 11),
+        "pr_number": None,
+        "summary": (
+            "Portail commande : champs quantité protégés contre les changements au scroll, "
+            "brouillon restaurable avec effacement explicite, mail nouvelle commande "
+            "relié à la file scan, et alerte scan quand un destinataire ajouté attend "
+            "validation ASF."
+        ),
+    },
+    {
         "date": date(2026, 5, 7),
         "pr_number": None,
         "summary": (

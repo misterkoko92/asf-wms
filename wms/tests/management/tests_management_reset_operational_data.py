@@ -24,6 +24,7 @@ from wms.models import (
     PlanningParameterSet,
     PortalAccessGrant,
     PortalAccessRole,
+    PortalOrderDraft,
     Product,
     PublicAccountRequest,
     Receipt,
@@ -311,6 +312,12 @@ class ResetOperationalDataCommandTests(TestCase):
             receipt=receipt,
         )
         OrderShipmentLink.objects.create(order=order, shipment=shipment, created_by=self.user)
+        portal_order_draft = PortalOrderDraft.objects.create(
+            created_by=self.user,
+            association_contact=self.association,
+            payload={"form_data": {"notes": "reset draft"}},
+            submitted_order=order,
+        )
 
         call_command("reset_operational_data", "--apply", stdout=stdout)
 
@@ -337,6 +344,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(Order.objects.exists())
         self.assertFalse(OrderInboundDelivery.objects.exists())
         self.assertFalse(OrderShipmentLink.objects.exists())
+        self.assertFalse(PortalOrderDraft.objects.filter(pk=portal_order_draft.pk).exists())
         self.assertFalse(Receipt.objects.exists())
         self.assertFalse(Shipment.objects.exists())
         self.assertTrue(Warehouse.objects.filter(pk=self.warehouse.pk).exists())

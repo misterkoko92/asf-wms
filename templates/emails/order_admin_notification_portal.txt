@@ -5,8 +5,8 @@
 {% trans "Téléphone" %}: {{ phone|default:"-" }}
 {% trans "Référence" %}: {{ order_reference }}
 
-{% trans "Récapitulatif" %}:
-{{ summary_url }}
+{% trans "File de validation scan" %}:
+{{ scan_orders_url }}
 
-{% trans "Admin" %}:
-{{ admin_url }}
+{% trans "Dossier commande scan" %}:
+{{ scan_order_url }}

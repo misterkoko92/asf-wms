@@ -17,20 +17,28 @@ Date: 2026-02-20
 - Destinataires admin: superusers + groupe `ORDER_NOTIFICATION_GROUP_NAME` (defaut `Mail_Order_Staff`).
 - Confirmation association maintenue.
 - Fichiers: `wms/order_notifications.py`, `wms/public_order_handlers.py`.
+- Pour les commandes portail, le mail admin pointe vers `/scan/orders-view/` et le dossier
+  `/scan/orders/<id>/`, pas vers le portail ni l'admin Django.
 
 4. Validation commande et changement de statut commande:
 - Destinataires: superusers + association liee a la commande.
 - Fichier: `wms/signals.py` (`_notify_order_status_change`).
 
-5. Suivi expedition - changement de statut shipment:
+5. Creation destinataire portail en attente de validation:
+- Destinataires admin: superusers + groupe `ACCOUNT_REQUEST_VALIDATION_GROUP_NAME`
+  (defaut `Account_User_Validation`).
+- Le mail pointe vers la validation scan du destinataire.
+- Fichier: `wms/views_portal_account.py`.
+
+6. Suivi expedition - changement de statut shipment:
 - Destinataires admin: superusers + groupe `Shipment_Status_Update`.
 - Fichier: `wms/signals.py` (`_notify_shipment_status_change`).
 
-6. Suivi expedition - statuts `Planifie`, `Expedie`, `Recu escale`, `Livre`:
+7. Suivi expedition - statuts `Planifie`, `Expedie`, `Recu escale`, `Livre`:
 - Destinataires: expediteur + destinataire.
 - Fichier: `wms/signals.py` (`_queue_shipment_party_notification`).
 
-7. Suivi expedition - correspondant:
+8. Suivi expedition - correspondant:
 - `Planifie`: groupe `Shipment_Status_Update_Correspondant` + correspondant shipment.
 - `OK mise a bord`: groupe `Shipment_Status_Update_Correspondant` + correspondant shipment.
 - Fichier: `wms/signals.py` (`_queue_shipment_correspondant_notification`).
@@ -64,6 +72,8 @@ Groupes assures:
 - `wms/tests/emailing/tests_signal_notifications_queue.py`
 - `wms/tests/emailing/tests_signals_extra.py`
 - `wms/tests/emailing/tests_email_flows_e2e.py`
+- `wms/tests/emailing/tests_notifications_queue.py`
+- `wms/tests/views/tests_views_portal.py`
 
 ## 5) Difference commande publique vs commande portail
 

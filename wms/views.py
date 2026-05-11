@@ -16,6 +16,8 @@ from .views_portal import (
     portal_onboarding_preference,
     portal_order_create,
     portal_order_detail,
+    portal_order_draft_autosave,
+    portal_order_draft_clear,
     portal_recipient_detail,
     portal_recipient_preferences,
     portal_recipient_profile,

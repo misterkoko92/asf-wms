@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -6,12 +7,19 @@ from django.urls import reverse
 from wms.models import (
     AssociationPickupAddress,
     DocumentScanStatus,
+    IntegrationEvent,
+    Location,
     Order,
     OrderDocumentType,
     OrderInboundArrivalMode,
     OrderReviewStatus,
+    PortalOrderDraft,
+    PortalOrderDraftStatus,
+    Product,
+    ProductLot,
     ShipmentRecipientOrganization,
     ShipmentValidationStatus,
+    Warehouse,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.tests.views.tests_views_portal import PortalBaseTestCase
@@ -35,6 +43,25 @@ class PortalOrderInboundFlowTests(PortalBaseTestCase):
     def setUp(self):
         self.client.force_login(self.user)
         self.order_create_url = reverse("portal:portal_order_create")
+        self.draft_autosave_url = reverse("portal:portal_order_draft_autosave")
+        self.draft_clear_url = reverse("portal:portal_order_draft_clear")
+
+    def _create_stock_product(self, *, sku="DRAFT-SKU", name="Produit brouillon"):
+        product = Product.objects.create(sku=sku, name=name, weight_g=100)
+        warehouse = Warehouse.objects.create(name=f"Entrepôt {sku}")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code=f"LOT-{sku}",
+            quantity_on_hand=1000,
+            location=location,
+        )
+        return product
 
     def _base_payload(self):
         return {
@@ -46,6 +73,127 @@ class PortalOrderInboundFlowTests(PortalBaseTestCase):
             "declared_out_of_format_count": "1",
             "parcel_guidelines_confirmed": "1",
         }
+
+    def test_portal_order_draft_autosave_stores_payload_without_creating_order(self):
+        product = self._create_stock_product()
+        order_count = Order.objects.count()
+        event_count = IntegrationEvent.objects.count()
+
+        response = self.client.post(
+            self.draft_autosave_url,
+            data=json.dumps(
+                {
+                    "payload": {
+                        "form_data": {
+                            "destination_id": str(self.delivery_recipient.destination_id),
+                            "recipient_id": str(self.delivery_recipient.id),
+                            "notes": "Brouillon autosave",
+                            "has_shipper_inbound": False,
+                            "wants_stock_completion": False,
+                        },
+                        "line_quantities": {str(product.id): "500"},
+                    }
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Order.objects.count(), order_count)
+        self.assertEqual(IntegrationEvent.objects.count(), event_count)
+        draft = PortalOrderDraft.objects.get()
+        self.assertEqual(draft.created_by, self.user)
+        self.assertEqual(draft.association_contact, self.profile.contact)
+        self.assertEqual(draft.status, PortalOrderDraftStatus.ACTIVE)
+        self.assertEqual(draft.payload["line_quantities"][str(product.id)], "500")
+        self.assertEqual(draft.payload["form_data"]["notes"], "Brouillon autosave")
+
+    def test_portal_order_create_restores_active_draft_on_get(self):
+        product = self._create_stock_product(sku="DRAFT-RESTORE")
+        PortalOrderDraft.objects.create(
+            created_by=self.user,
+            association_contact=self.profile.contact,
+            payload={
+                "form_data": {
+                    "destination_id": str(self.delivery_recipient.destination_id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                    "notes": "Notes restaurées",
+                    "has_shipper_inbound": False,
+                    "wants_stock_completion": False,
+                },
+                "line_quantities": {str(product.id): "498"},
+            },
+        )
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["form_data"]["destination_id"],
+            str(self.delivery_recipient.destination_id),
+        )
+        self.assertEqual(response.context["form_data"]["notes"], "Notes restaurées")
+        self.assertEqual(response.context["line_quantities"][str(product.id)], "498")
+        self.assertContains(response, f'name="product_{product.id}_qty"', html=False)
+        self.assertContains(response, 'value="498"', html=False)
+
+    def test_portal_order_draft_clear_abandons_current_draft_and_starts_blank_order(self):
+        PortalOrderDraft.objects.create(
+            created_by=self.user,
+            association_contact=self.profile.contact,
+            payload={
+                "form_data": {
+                    "destination_id": str(self.delivery_recipient.destination_id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                    "notes": "Brouillon à effacer",
+                },
+                "line_quantities": {},
+            },
+        )
+
+        response = self.client.get(self.order_create_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Effacer le brouillon en cours et créer une nouvelle commande",
+        )
+        self.assertContains(response, "Brouillon à effacer")
+
+        response = self.client.post(self.draft_clear_url)
+
+        self.assertEqual(response.status_code, 200)
+        draft = PortalOrderDraft.objects.get()
+        self.assertEqual(draft.status, PortalOrderDraftStatus.ABANDONED)
+
+        response = self.client.get(self.order_create_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form_data"]["notes"], "")
+        self.assertNotContains(response, "Brouillon à effacer")
+
+    def test_portal_order_create_marks_active_draft_submitted_after_successful_submit(self):
+        draft = PortalOrderDraft.objects.create(
+            created_by=self.user,
+            association_contact=self.profile.contact,
+            payload={
+                "form_data": {
+                    "destination_id": str(self.delivery_recipient.destination_id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                    "notes": "Commande finale",
+                },
+                "line_quantities": {},
+            },
+        )
+        payload = self._base_payload()
+        payload["arrival_mode"] = OrderInboundArrivalMode.DROPOFF_WAREHOUSE
+
+        with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+            response = self.client.post(self.order_create_url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        draft.refresh_from_db()
+        order = Order.objects.filter(association_contact=self.profile.contact).latest("id")
+        self.assertEqual(draft.status, PortalOrderDraftStatus.SUBMITTED)
+        self.assertEqual(draft.submitted_order, order)
 
     def test_portal_order_create_supports_shipper_inbound_dropoff_without_documents(self):
         payload = self._base_payload()
@@ -208,6 +356,13 @@ class PortalOrderInboundFlowTests(PortalBaseTestCase):
         self.assertContains(response, 'id="portal-order-show-ordered-only"')
         self.assertContains(response, 'data-order-product-quantity-filter="1"')
         self.assertContains(response, "applyProductRowFilters")
+
+    def test_portal_order_create_prevents_number_inputs_from_changing_on_wheel(self):
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "preventNumberInputWheelChanges")
+        self.assertContains(response, "event.preventDefault()")
 
     def test_portal_order_create_persists_pickup_open_weekdays(self):
         payload = self._base_payload()

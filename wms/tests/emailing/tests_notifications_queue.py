@@ -357,6 +357,10 @@ class PortalOrderNotificationsQueueTests(TestCase):
         admin_payload = payload_by_subject.get("ASF WMS - Nouvelle commande")
         self.assertIsNotNone(admin_payload)
         self.assertEqual(admin_payload.get("recipient"), ["admin@example.com"])
+        self.assertIn("/scan/orders-view/", admin_payload.get("message", ""))
+        self.assertIn(f"/scan/orders/{self.order.id}/", admin_payload.get("message", ""))
+        self.assertNotIn("/portal/orders/", admin_payload.get("message", ""))
+        self.assertNotIn("/admin/wms/order/", admin_payload.get("message", ""))
 
         confirmation_payload = payload_by_subject.get("ASF WMS - Commande reçue")
         self.assertIsNotNone(confirmation_payload)

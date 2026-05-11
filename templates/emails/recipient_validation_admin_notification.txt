@@ -1,0 +1,10 @@
+{% load i18n %}{% trans "Nouveau destinataire en attente de validation" %}
+
+{% trans "Expéditeur" %}: {{ association_name }}
+{% trans "Destinataire" %}: {{ recipient_name }}
+{% trans "Destination" %}: {{ destination }}
+{% trans "Email" %}: {{ email|default:"-" }}
+{% trans "Téléphone" %}: {{ phone|default:"-" }}
+
+{% trans "Voir dans la file de validation scan" %}:
+{{ scan_url }}
