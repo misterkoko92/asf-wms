@@ -383,13 +383,14 @@ def _get_active_portal_order_draft(*, profile, user):
 
 
 def _mark_active_order_drafts_submitted(*, profile, user, order):
+    submitted_order = order if isinstance(order, Order) else None
     PortalOrderDraft.objects.filter(
         association_contact=profile.contact,
         created_by=user,
         status=PortalOrderDraftStatus.ACTIVE,
     ).update(
         status=PortalOrderDraftStatus.SUBMITTED,
-        submitted_order=order,
+        submitted_order=submitted_order,
         updated_at=timezone.now(),
     )
 
