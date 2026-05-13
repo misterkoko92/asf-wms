@@ -1,5 +1,6 @@
-{% load static i18n wms_vocabulary %}
+{% load static i18n wms_vocabulary wms_identity %}
 {% if shell_variant == "planning" %}
+  {% product_display_name as shell_product_name %}
   <header
     id="planning-masthead"
     class="scan-header ui-comp-panel"
@@ -18,7 +19,7 @@
         >
           Menu
         </button>
-        <a href="{% url 'planning:run_list' %}" class="scan-brand-link" aria-label="ASF WMS Planning">
+        <a href="{% url 'planning:run_list' %}" class="scan-brand-link" aria-label="{{ shell_product_name }} Planning">
           <span class="scan-brand-title">{% trans "Planning" %}</span>
         </a>
       </div>

@@ -57,6 +57,19 @@ capabilities, or integration descriptors.
   portal shell/account templates: the portal fallback title, the non-recipient
   portal masthead title, the portal account intro title, and the portal account
   organization-name field label.
+- `identity.product_display_name` is the narrow visible product/application
+  name for approved shell surfaces only. Its ASF default is exactly `ASF WMS`.
+- `identity.organization_brand_name` is the narrow short operator/brand label
+  for approved shell surfaces only. Its ASF default is exactly `ASF`; it must
+  not be used for full institutional strings such as Aviation Sans Frontières or
+  Aviation Sans Frontières France.
+- PR11 shell identity composition stays template-local and non-generic. Existing
+  surrounding literals remain in the touched templates; there is no shared
+  composition helper, word-order logic, preposition logic, casing logic, or i18n
+  format-string contract for these labels.
+- `identity.organization_full_name`, print/PDF identity, legal/trust/footer
+  identity, scan branding, PWA identity, shipper/reference namespace behavior,
+  emails, and contact routing are outside the PR11 shell identity scope.
 
 ### Two categories of feature flags
 
@@ -87,7 +100,8 @@ requires both the descriptor and construction-time derivation.
 - This does not restart or replace i18n work.
 - This module was intentionally unused by runtime code in the foundation PR.
   Current controlled runtime consumers are limited to tested notification
-  formatting/sender boundaries and the narrow portal partner label family.
+  formatting/sender boundaries, the narrow portal partner label family, and
+  approved shell/site product or short-brand identity surfaces.
 
 ### Productization role
 

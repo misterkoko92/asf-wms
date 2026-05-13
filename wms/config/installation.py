@@ -7,6 +7,8 @@ from django.conf import settings
 ASF_ORG_FULL_NAME = "Aviation Sans Frontieres"
 ASF_ORG_SHORT_NAME = "ASF"
 ASF_APPLICATION_DISPLAY_NAME = "ASF-WMS"
+ASF_PRODUCT_DISPLAY_NAME = "ASF WMS"
+ASF_ORG_BRAND_NAME = "ASF"
 ASF_CONTACT_EMAIL = "messmed@aviation-sans-frontieres-fr.org"
 ASF_SKU_PREFIX = "ASF"
 ASF_EMAIL_SUBJECT_PREFIX = "ASF WMS -"
@@ -30,6 +32,8 @@ class InstallationIdentity:
     contact_email: str
     sku_prefix: str
     contact_reference_prefix: str
+    product_display_name: str
+    organization_brand_name: str
 
 
 @dataclass(frozen=True)
@@ -153,6 +157,14 @@ def _build_identity() -> InstallationIdentity:
         contact_reference_prefix=_setting_text(
             "CONTACT_REFERENCE_PREFIX",
             sku_prefix,
+        ),
+        product_display_name=_setting_text(
+            "PRODUCT_DISPLAY_NAME",
+            ASF_PRODUCT_DISPLAY_NAME,
+        ),
+        organization_brand_name=_setting_text(
+            "ORG_BRAND_NAME",
+            ASF_ORG_BRAND_NAME,
         ),
     )
 
