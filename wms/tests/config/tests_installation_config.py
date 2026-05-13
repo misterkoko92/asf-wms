@@ -22,15 +22,17 @@ class InstallationConfigTests(SimpleTestCase):
             {"identity", "vocabulary", "features", "integrations", "notifications"},
         )
         self.assertEqual(
-            set(config.identity.__dataclass_fields__),
-            {
+            list(config.identity.__dataclass_fields__),
+            [
                 "organization_full_name",
                 "organization_short_name",
                 "application_display_name",
                 "contact_email",
                 "sku_prefix",
                 "contact_reference_prefix",
-            },
+                "product_display_name",
+                "organization_brand_name",
+            ],
         )
         self.assertEqual(
             set(config.vocabulary.__dataclass_fields__),
@@ -94,6 +96,8 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.identity.contact_email, "messmed@aviation-sans-frontieres-fr.org")
         self.assertEqual(config.identity.sku_prefix, "ASF")
         self.assertEqual(config.identity.contact_reference_prefix, "ASF")
+        self.assertEqual(config.identity.product_display_name, "ASF WMS")
+        self.assertEqual(config.identity.organization_brand_name, "ASF")
         self.assertEqual(config.vocabulary.partner_label, "partenaire")
         self.assertEqual(config.vocabulary.portal_partner_label, "association")
         self.assertEqual(config.vocabulary.volunteer_label, "benevole")
@@ -243,6 +247,18 @@ print(json.dumps(loaded))
 
         self.assertEqual(config.identity.organization_short_name, "ASF")
 
+    @override_settings(
+        PRODUCT_DISPLAY_NAME=" Client Operations ",
+        ORG_BRAND_NAME=" ClientOrg ",
+    )
+    def test_shell_identity_fields_reflect_installation_overrides(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(config.identity.product_display_name, "Client Operations")
+        self.assertEqual(config.identity.organization_brand_name, "ClientOrg")
+
     def test_public_sentinel_for_expected_shape(self):
         from wms.config.installation import (
             InstallationConfig,
@@ -270,6 +286,8 @@ print(json.dumps(loaded))
                 "contact_email": str,
                 "sku_prefix": str,
                 "contact_reference_prefix": str,
+                "product_display_name": str,
+                "organization_brand_name": str,
             },
             InstallationVocabulary: {
                 "organization_label": str,

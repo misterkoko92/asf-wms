@@ -1,5 +1,6 @@
-{% load static i18n %}
+{% load static i18n wms_identity %}
 {% get_current_language as LANGUAGE_CODE %}
+{% product_display_name as shell_product_name %}
 <!doctype html>
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
@@ -36,7 +37,7 @@
           >
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
               <div>
-                <strong class="ui-comp-title">ASF WMS</strong><br>
+                <strong class="ui-comp-title">{{ shell_product_name }}</strong><br>
                 {% trans "Planning" %}
               </div>
               <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_dashboard' %}">

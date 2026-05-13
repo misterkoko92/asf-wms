@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 
@@ -33,6 +33,8 @@ class HomePageTests(TestCase):
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<title>ASF WMS</title>", html=True)
+        self.assertContains(response, "<span>ASF WMS</span>", html=True)
         self.assertContains(response, "Plateforme logistique")
         self.assertContains(
             response,
@@ -51,6 +53,15 @@ class HomePageTests(TestCase):
         self.assertNotContains(response, "Flux recommande")
         self.assertNotContains(response, "Ouvrir Scan PWA")
         self.assertNotContains(response, "Aller a l administration")
+
+    @override_settings(PRODUCT_DISPLAY_NAME="Client Operations")
+    def test_home_page_uses_configured_product_display_name_in_shell_branding(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<title>Client Operations</title>", html=True)
+        self.assertContains(response, "<span>Client Operations</span>", html=True)
+        self.assertNotContains(response, "<title>ASF WMS</title>", html=True)
 
     def test_password_help_page_exists(self):
         response = self.client.get(reverse("password_help"))

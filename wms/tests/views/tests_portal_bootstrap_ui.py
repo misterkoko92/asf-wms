@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode
 
@@ -465,6 +465,7 @@ class PortalBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="portal-onboarding-wizard"')
+        self.assertContains(response, "Portail ASF")
         self.assertContains(response, 'data-portal-onboarding-auto-open="1"')
         self.assertContains(response, 'data-portal-onboarding-preference-url="')
         self.assertContains(response, reverse("portal:portal_onboarding_preference"))
@@ -472,6 +473,15 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "Créer un destinataire")
         self.assertContains(response, "Créer une demande d&#x27;expédition / transport")
         self.assertContains(response, "Continuer à me le montrer à la prochaine connexion")
+
+    @override_settings(ORG_BRAND_NAME="ClientOrg")
+    def test_portal_onboarding_uses_configured_short_brand_name_in_shell_eyebrow(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-onboarding-wizard"')
+        self.assertContains(response, "Portail ClientOrg")
+        self.assertNotContains(response, "Portail WHITELABEL_PROBE_BRAND")
 
     def test_portal_shell_exposes_onboarding_tutorial_link_with_faq_fallback(self):
         response = self.client.get(reverse("portal:portal_dashboard"))

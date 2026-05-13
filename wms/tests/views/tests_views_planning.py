@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.http import FileResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from tools.planning_comm_helper import excel_runtime
@@ -887,6 +887,24 @@ class PlanningViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="scan-shell')
         self.assertContains(response, 'id="planning-page-header"')
+        self.assertContains(response, '<strong class="ui-comp-title">ASF WMS</strong>', html=True)
+        self.assertContains(response, 'aria-label="ASF WMS Planning"')
+
+    @override_settings(PRODUCT_DISPLAY_NAME="Client Operations")
+    def test_planning_shell_composes_configured_product_display_name_with_planning_literal(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<strong class="ui-comp-title">Client Operations</strong>',
+            html=True,
+        )
+        self.assertContains(response, 'aria-label="Client Operations Planning"')
+        self.assertNotContains(response, 'aria-label="ASF WMS Planning"')
 
     def test_version_detail_exposes_priorities_and_section_navigation(self):
         data = self.make_operator_version()
