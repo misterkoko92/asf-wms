@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import typing
@@ -19,7 +20,14 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertTrue(dataclasses.is_dataclass(config))
         self.assertEqual(
             set(config.__dataclass_fields__),
-            {"identity", "vocabulary", "features", "integrations", "notifications"},
+            {
+                "identity",
+                "vocabulary",
+                "features",
+                "integrations",
+                "notifications",
+                "references",
+            },
         )
         self.assertEqual(
             list(config.identity.__dataclass_fields__),
@@ -71,6 +79,10 @@ class InstallationConfigTests(SimpleTestCase):
             set(config.notifications.__dataclass_fields__),
             {"email_subject_prefix", "email_sender_name"},
         )
+        self.assertEqual(
+            set(config.references.__dataclass_fields__),
+            {"contact_identifier_generated_prefix"},
+        )
 
     @override_settings(
         ORG_NAME="Aviation Sans Frontieres",
@@ -96,6 +108,7 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.identity.contact_email, "messmed@aviation-sans-frontieres-fr.org")
         self.assertEqual(config.identity.sku_prefix, "ASF")
         self.assertEqual(config.identity.contact_reference_prefix, "ASF")
+        self.assertEqual(config.references.contact_identifier_generated_prefix, "ASF-C")
         self.assertEqual(config.identity.product_display_name, "ASF WMS")
         self.assertEqual(config.identity.organization_brand_name, "ASF")
         self.assertEqual(config.vocabulary.partner_label, "partenaire")
@@ -115,7 +128,7 @@ class InstallationConfigTests(SimpleTestCase):
 
         config = get_installation_config()
 
-        for section_name in ("identity", "vocabulary", "notifications"):
+        for section_name in ("identity", "vocabulary", "notifications", "references"):
             section = getattr(config, section_name)
             for field_name in section.__dataclass_fields__:
                 self.assertIsInstance(getattr(section, field_name), str)
@@ -139,6 +152,17 @@ class InstallationConfigTests(SimpleTestCase):
 
         with self.assertRaises(dataclasses.FrozenInstanceError):
             config.notifications.email_subject_prefix = "OTHER -"
+
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            config.references.contact_identifier_generated_prefix = "OTHER-C"
+
+    @override_settings(CONTACT_IDENTIFIER_GENERATED_PREFIX="FBN-C")
+    def test_references_fields_reflect_installation_overrides(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(config.references.contact_identifier_generated_prefix, "FBN-C")
 
     @override_settings(BREVO_SENDER_NAME=" Client Sender ")
     def test_email_sender_name_reflects_existing_brevo_sender_name_setting(self):
@@ -232,6 +256,13 @@ print(json.dumps(loaded))
             [sys.executable, "-c", script],
             check=True,
             capture_output=True,
+            env={
+                **os.environ,
+                "DJANGO_SECRET_KEY": (
+                    "local-config-test-key-not-production-"
+                    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                ),
+            },
             text=True,
         )
 
@@ -266,6 +297,7 @@ print(json.dumps(loaded))
             InstallationIdentity,
             InstallationIntegrations,
             InstallationNotifications,
+            InstallationReferences,
             InstallationVocabulary,
             IntegrationDescriptor,
             get_installation_config,
@@ -278,6 +310,7 @@ print(json.dumps(loaded))
                 "features": InstallationFeatureFlags,
                 "integrations": InstallationIntegrations,
                 "notifications": InstallationNotifications,
+                "references": InstallationReferences,
             },
             InstallationIdentity: {
                 "organization_full_name": str,
@@ -321,6 +354,9 @@ print(json.dumps(loaded))
             InstallationNotifications: {
                 "email_subject_prefix": str,
                 "email_sender_name": str,
+            },
+            InstallationReferences: {
+                "contact_identifier_generated_prefix": str,
             },
         }
 

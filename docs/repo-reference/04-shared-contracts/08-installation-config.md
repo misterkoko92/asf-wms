@@ -48,6 +48,23 @@ capabilities, or integration descriptors.
   transport boundary before Brevo or SMTP send, while
   `wms.emailing.resolve_email_sender_name()` is consumed only by the Brevo API
   sender payload. SMTP sender behavior remains governed by `DEFAULT_FROM_EMAIL`.
+- `references.contact_identifier_generated_prefix` is the installation-level
+  generated contact identifier prefix. Its ASF default is exactly `ASF-C`, so
+  generated contact identifiers continue to render as `ASF-C-{pk:08d}` by
+  default, including examples such as `ASF-C-00000001`.
+- The reference prefix applies only to the generated branch of
+  `Contact.asf_id`, through `contacts.asf_ids.build_generated_asf_id()`. It does
+  not apply to manually entered, imported, historical, or special values.
+- `references.contact_identifier_generated_prefix` is validated at first use by
+  the contact identifier generation helper. Empty values, any whitespace,
+  leading `-`, and trailing `-` fail loudly with `ValueError`; invalid
+  configured values must not silently fall back to `ASF-C`.
+- `Contact.asf_id` remains the technical field name. The model field, database
+  column, form field name, URLs, variables, lookup semantics, and import/export
+  column names are not renamed by the references config.
+- Existing non-empty contact identifiers are not rewritten when the generated
+  prefix changes. This includes manual values, imported values, legacy values,
+  historical `ASF-C-*` values, and special values such as `ASF-ORG-ROOT`.
 - `vocabulary.portal_partner_label` is the portal-specific noun for the
   shipper/partner account label family. Its default is exactly `association` to
   preserve current ASF portal output. It is intentionally separate from
@@ -70,6 +87,8 @@ capabilities, or integration descriptors.
 - `identity.organization_full_name`, print/PDF identity, legal/trust/footer
   identity, scan branding, PWA identity, shipper/reference namespace behavior,
   emails, and contact routing are outside the PR11 shell identity scope.
+- Visible contact identifier labels such as `ASF ID` and `ID ASF` are outside
+  the generated-prefix scope and are intentionally deferred to PR13b.
 
 ### Two categories of feature flags
 
@@ -97,6 +116,10 @@ requires both the descriptor and construction-time derivation.
   URLs, emails, print documents, customs documents, donation documents, shipment
   flows, packing, planning, portal, billing, APIs, or integrations. Runtime
   consumers must stay narrow, explicit, and covered by tests.
+- Generated contact identifier configuration does not change visible labels
+  (`ASF ID` / `ID ASF`), contact import/export columns (`asf_id` / `id_asf`),
+  default shipper behavior, `ASF-ORG-ROOT`, API headers, print/PDF output, or
+  persisted planning communication values such as `email_asf`.
 - This does not restart or replace i18n work.
 - This module was intentionally unused by runtime code in the foundation PR.
   Current controlled runtime consumers are limited to tested notification

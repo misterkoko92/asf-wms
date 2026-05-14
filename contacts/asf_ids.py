@@ -1,10 +1,24 @@
 from django.db.models import Q
 
+from wms.config import get_installation_config
+
+
+def resolve_contact_identifier_generated_prefix() -> str:
+    prefix = get_installation_config().references.contact_identifier_generated_prefix
+    if not isinstance(prefix, str) or not prefix:
+        raise ValueError("Contact identifier generated prefix must not be empty.")
+    if any(char.isspace() for char in prefix):
+        raise ValueError("Contact identifier generated prefix must not contain whitespace.")
+    if prefix.startswith("-") or prefix.endswith("-"):
+        raise ValueError("Contact identifier generated prefix must not start or end with '-'.")
+    return prefix
+
 
 def build_generated_asf_id(contact_pk: int | None) -> str:
     if not contact_pk:
         raise ValueError("Contact primary key is required.")
-    return f"ASF-C-{contact_pk:08d}"
+    prefix = resolve_contact_identifier_generated_prefix()
+    return f"{prefix}-{contact_pk:08d}"
 
 
 def ensure_contact_asf_id(contact) -> str:

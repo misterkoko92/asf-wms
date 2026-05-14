@@ -1,4 +1,6 @@
 from io import StringIO
+from types import SimpleNamespace
+from unittest import mock
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -82,3 +84,30 @@ class BackfillContactAsfIdsCommandTests(TestCase):
         second_output = second_stdout.getvalue()
         self.assertIn("- Contacts missing asf_id: 0", second_output)
         self.assertIn("- Contacts backfilled: 0", second_output)
+
+    def test_apply_backfills_missing_contacts_with_installation_reference_prefix(self):
+        legacy_org = Contact.objects.create(
+            name="Legacy Client Org",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        preserved = Contact.objects.create(
+            name="Preserved Client Org",
+            contact_type=ContactType.ORGANIZATION,
+            asf_id="LEGACY-XYZ-42",
+        )
+        Contact.objects.filter(pk=legacy_org.pk).update(asf_id=None)
+        installation = SimpleNamespace(
+            references=SimpleNamespace(contact_identifier_generated_prefix="FBN-C")
+        )
+        stdout = StringIO()
+
+        with mock.patch(
+            "contacts.asf_ids.get_installation_config",
+            return_value=installation,
+        ):
+            call_command("backfill_contact_asf_ids", "--apply", stdout=stdout)
+
+        legacy_org.refresh_from_db()
+        preserved.refresh_from_db()
+        self.assertEqual(legacy_org.asf_id, f"FBN-C-{legacy_org.pk:08d}")
+        self.assertEqual(preserved.asf_id, "LEGACY-XYZ-42")
