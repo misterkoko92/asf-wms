@@ -65,6 +65,18 @@ capabilities, or integration descriptors.
 - Existing non-empty contact identifiers are not rewritten when the generated
   prefix changes. This includes manual values, imported values, legacy values,
   historical `ASF-C-*` values, and special values such as `ASF-ORG-ROOT`.
+- `references.contact_identifier_label` is the installation-level visible label
+  for narrow contact identifier display surfaces whose ASF wording is exactly
+  `ASF ID`. Controlled consumers are the explicit contact admin form label and
+  the shipment tracking access recovery / pending-created email templates.
+- `references.tracking_contact_identifier_label` is the installation-level
+  visible label for the public shipment tracking identifier prompt whose ASF
+  wording is exactly `ID ASF`. Controlled consumers are the tracking identifier
+  helper and the gateway form that already delegates to that helper.
+- Contact identifier label configuration does not set
+  `Contact.asf_id.verbose_name`, rename Django model/admin metadata, alter
+  gettext catalogs, scan placeholder/prose, import/export columns, generated
+  prefixes, stored values, or print/PDF output.
 - `vocabulary.portal_partner_label` is the portal-specific noun for the
   shipper/partner account label family. Its default is exactly `association` to
   preserve current ASF portal output. It is intentionally separate from
@@ -86,9 +98,7 @@ capabilities, or integration descriptors.
   format-string contract for these labels.
 - `identity.organization_full_name`, print/PDF identity, legal/trust/footer
   identity, scan branding, PWA identity, shipper/reference namespace behavior,
-  emails, and contact routing are outside the PR11 shell identity scope.
-- Visible contact identifier labels such as `ASF ID` and `ID ASF` are outside
-  the generated-prefix scope and are intentionally deferred to PR13b.
+  and contact routing are outside the PR11 shell identity scope.
 
 ### Two categories of feature flags
 
@@ -120,11 +130,16 @@ requires both the descriptor and construction-time derivation.
   (`ASF ID` / `ID ASF`), contact import/export columns (`asf_id` / `id_asf`),
   default shipper behavior, `ASF-ORG-ROOT`, API headers, print/PDF output, or
   persisted planning communication values such as `email_asf`.
+- Contact identifier label configuration does not change generated identifiers,
+  contact import/export columns (`asf_id` / `id_asf`), default shipper behavior,
+  `ASF-ORG-ROOT`, API headers, print/PDF output, scan branding/prose, or
+  persisted planning communication values such as `email_asf`.
 - This does not restart or replace i18n work.
 - This module was intentionally unused by runtime code in the foundation PR.
   Current controlled runtime consumers are limited to tested notification
-  formatting/sender boundaries, the narrow portal partner label family, and
-  approved shell/site product or short-brand identity surfaces.
+  formatting/sender boundaries, the narrow contact identifier label surfaces,
+  the narrow portal partner label family, and approved shell/site product or
+  short-brand identity surfaces.
 
 ### Productization role
 

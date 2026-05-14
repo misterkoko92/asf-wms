@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from contacts.models import Contact, ContactType
 from wms.forms_admin_contacts_contact import ContactCrudForm
@@ -195,6 +195,17 @@ class ContactCrudFormTests(TestCase):
 
         self.assertIn(("partner", "Partenaire"), form.fields["business_type"].choices)
         self.assertIn(("other", "Autre"), form.fields["business_type"].choices)
+
+    def test_asf_id_label_preserves_asf_default(self):
+        form = ContactCrudForm()
+
+        self.assertEqual(form.fields["asf_id"].label, "ASF ID")
+
+    @override_settings(CONTACT_IDENTIFIER_LABEL="Contact ref.")
+    def test_asf_id_label_uses_installation_reference_label(self):
+        form = ContactCrudForm()
+
+        self.assertEqual(form.fields["asf_id"].label, "Contact ref.")
 
     def test_business_type_choices_are_sorted_alphabetically(self):
         form = ContactCrudForm()

@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact, ContactType, RecipientLegalForm
 
+from .config import get_installation_config
 from .country_choices import DEFAULT_COUNTRY, build_country_choices
 from .forms_admin_contacts_destination import DUPLICATE_ACTION_CHOICES
 from .models import Destination, ShipmentShipper
@@ -135,6 +136,7 @@ class ContactCrudForm(forms.Form):
     def __init__(self, *args, allowed_business_types=None, **kwargs):
         self.allowed_business_types = tuple(allowed_business_types or ())
         super().__init__(*args, **kwargs)
+        self.fields["asf_id"].label = get_installation_config().references.contact_identifier_label
         self.fields["business_type"].choices = build_business_type_choices(
             allowed_business_types=self.allowed_business_types or None
         )
