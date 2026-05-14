@@ -11,8 +11,10 @@ ASF_PRODUCT_DISPLAY_NAME = "ASF WMS"
 ASF_ORG_BRAND_NAME = "ASF"
 ASF_CONTACT_EMAIL = "messmed@aviation-sans-frontieres-fr.org"
 ASF_SKU_PREFIX = "ASF"
+ASF_CONTACT_IDENTIFIER_GENERATED_PREFIX = "ASF-C"
 ASF_EMAIL_SUBJECT_PREFIX = "ASF WMS -"
 ASF_EMAIL_SENDER_NAME = "ASF WMS"
+_MISSING_SETTING = object()
 
 _PLACEHOLDER_VALUES = {
     "",
@@ -94,12 +96,18 @@ class InstallationNotifications:
 
 
 @dataclass(frozen=True)
+class InstallationReferences:
+    contact_identifier_generated_prefix: str
+
+
+@dataclass(frozen=True)
 class InstallationConfig:
     identity: InstallationIdentity
     vocabulary: InstallationVocabulary
     features: InstallationFeatureFlags
     integrations: InstallationIntegrations
     notifications: InstallationNotifications
+    references: InstallationReferences
 
 
 def get_installation_config() -> InstallationConfig:
@@ -131,6 +139,12 @@ def get_installation_config() -> InstallationConfig:
         notifications=InstallationNotifications(
             email_subject_prefix=ASF_EMAIL_SUBJECT_PREFIX,
             email_sender_name=_setting_text("BREVO_SENDER_NAME", ASF_EMAIL_SENDER_NAME),
+        ),
+        references=InstallationReferences(
+            contact_identifier_generated_prefix=_raw_setting_text(
+                "CONTACT_IDENTIFIER_GENERATED_PREFIX",
+                ASF_CONTACT_IDENTIFIER_GENERATED_PREFIX,
+            ),
         ),
     )
 
@@ -230,12 +244,20 @@ def _setting_text(name: str, default: str) -> str:
     return text
 
 
+def _raw_setting_text(name: str, default: str) -> str:
+    value = getattr(settings, name, _MISSING_SETTING)
+    if value is _MISSING_SETTING:
+        return default
+    return str(value)
+
+
 __all__ = [
     "InstallationConfig",
     "InstallationFeatureFlags",
     "InstallationIdentity",
     "InstallationIntegrations",
     "InstallationNotifications",
+    "InstallationReferences",
     "InstallationVocabulary",
     "IntegrationDescriptor",
     "get_installation_config",

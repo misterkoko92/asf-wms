@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from unittest import mock
+
 from django.test import TestCase
 
 from contacts.models import Contact, ContactAddress, ContactType
@@ -169,6 +172,45 @@ class ContactModelsTests(TestCase):
         contact.refresh_from_db()
 
         self.assertEqual(contact.asf_id, f"ASF-C-{contact.pk:08d}")
+
+    def test_save_generates_asf_id_with_installation_reference_prefix(self):
+        installation = SimpleNamespace(
+            references=SimpleNamespace(contact_identifier_generated_prefix="FBN-C")
+        )
+
+        with mock.patch(
+            "contacts.asf_ids.get_installation_config",
+            return_value=installation,
+        ):
+            contact = Contact.objects.create(
+                name="Generated Client Org",
+                contact_type=ContactType.ORGANIZATION,
+            )
+        contact.refresh_from_db()
+
+        self.assertEqual(contact.asf_id, f"FBN-C-{contact.pk:08d}")
+
+    def test_existing_asf_id_is_not_rewritten_by_configured_prefix(self):
+        contact = Contact.objects.create(
+            name="Legacy Org",
+            contact_type=ContactType.ORGANIZATION,
+            asf_id="LEGACY-XYZ-42",
+        )
+        contact.refresh_from_db()
+
+        self.assertEqual(contact.asf_id, "LEGACY-XYZ-42")
+
+        installation = SimpleNamespace(
+            references=SimpleNamespace(contact_identifier_generated_prefix="FBN-C")
+        )
+        with mock.patch(
+            "contacts.asf_ids.get_installation_config",
+            return_value=installation,
+        ):
+            contact.save()
+        contact.refresh_from_db()
+
+        self.assertEqual(contact.asf_id, "LEGACY-XYZ-42")
 
     def test_save_with_org_address_flag_but_no_organization_keeps_no_address(self):
         person = Contact.objects.create(
