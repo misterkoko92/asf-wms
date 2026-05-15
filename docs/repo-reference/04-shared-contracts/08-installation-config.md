@@ -96,9 +96,20 @@ capabilities, or integration descriptors.
   surrounding literals remain in the touched templates; there is no shared
   composition helper, word-order logic, preposition logic, casing logic, or i18n
   format-string contract for these labels.
-- `identity.organization_full_name`, print/PDF identity, legal/trust/footer
-  identity, scan branding, PWA identity, shipper/reference namespace behavior,
-  and contact routing are outside the PR11 shell identity scope.
+- `identity.organization_full_name` is the long organization-name declaration.
+  Its ASF default is exactly `Aviation Sans Frontieres`, and existing `ORG_NAME`
+  environment overrides continue to flow through the installation config layer.
+  Placeholder values such as the raw settings fallback `ORG_NAME` normalize to
+  the ASF default through the existing installation-config placeholder contract.
+- `identity.organization_full_name` has one narrow runtime consumer in document
+  context construction: `wms.documents.build_org_context()` uses it only for the
+  existing `org_name` print context key. This is a replacement for the legacy
+  direct `settings.ORG_NAME` read and does not introduce a new print header,
+  footer, logo, address, contact line, public-utility statement, legal/signatory
+  field, or broad print/PDF identity contract.
+- Other print/PDF identity, legal/trust/footer identity, scan branding, PWA
+  identity, shipper/reference namespace behavior, and contact routing remain
+  outside the PR11 shell identity scope.
 
 ### Two categories of feature flags
 
