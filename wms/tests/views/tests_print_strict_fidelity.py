@@ -1,6 +1,6 @@
 from unittest import mock
 
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 
 from wms.models import Carton, Shipment
 from wms.shipment_view_helpers import (
@@ -53,6 +53,30 @@ class PrintStrictFidelityTests(TestCase):
         self.assertNotIn("Ville :", content)
         self.assertNotIn("Pays :", content)
         self.assertNotIn('class="print-footer"', content)
+
+    @override_settings(ORG_NAME=" Client Relief ")
+    def test_render_humanitarian_certificate_uses_normalized_existing_org_name(self):
+        shipment = self._create_shipment()
+
+        response = render_shipment_document(self.request, shipment, "humanitarian_certificate")
+
+        content = response.content.decode()
+        self.assertIn("Organisation: Client Relief", content)
+        self.assertNotIn("Organisation:  Client Relief ", content)
+
+    @override_settings(ORG_NAME="Client Relief")
+    def test_org_name_override_does_not_add_base_document_or_donation_output(self):
+        shipment = self._create_shipment()
+
+        donation_response = render_shipment_document(
+            self.request,
+            shipment,
+            "donation_certificate",
+        )
+        customs_response = render_shipment_document(self.request, shipment, "customs")
+
+        self.assertNotIn("Client Relief", donation_response.content.decode())
+        self.assertNotIn("Client Relief", customs_response.content.decode())
 
     def test_render_shipment_note_preserves_legacy_sheet_sections(self):
         shipment = self._create_shipment()

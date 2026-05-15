@@ -2,12 +2,14 @@ from django.conf import settings
 
 from contacts.models import ContactType
 
+from .config import get_installation_config
 from .models import CartonItem
 
 
 def build_org_context():
+    installation = get_installation_config()
     return {
-        "org_name": getattr(settings, "ORG_NAME", "ORG_NAME"),
+        "org_name": installation.identity.organization_full_name,
         "org_address": getattr(settings, "ORG_ADDRESS", ""),
         "org_contact": getattr(settings, "ORG_CONTACT", ""),
         "org_signatory": getattr(settings, "ORG_SIGNATORY", ""),

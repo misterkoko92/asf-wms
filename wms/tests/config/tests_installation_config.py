@@ -129,6 +129,22 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.integrations.document_scan.provider, "clamav")
         self.assertEqual(config.integrations.flight_provider.provider, "airfrance_klm")
 
+    @override_settings(ORG_NAME=" Client Relief ")
+    def test_organization_full_name_reflects_org_name_override(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(config.identity.organization_full_name, "Client Relief")
+
+    @override_settings(ORG_NAME="ORG_NAME")
+    def test_organization_full_name_normalizes_org_name_placeholder(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(config.identity.organization_full_name, "Aviation Sans Frontieres")
+
     def test_public_values_have_stable_expected_types(self):
         from wms.config import get_installation_config
 
@@ -152,6 +168,9 @@ class InstallationConfigTests(SimpleTestCase):
         from wms.config import get_installation_config
 
         config = get_installation_config()
+
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            config.identity.organization_full_name = "OTHER"
 
         with self.assertRaises(dataclasses.FrozenInstanceError):
             config.identity.organization_short_name = "OTHER"

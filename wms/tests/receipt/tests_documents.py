@@ -1,12 +1,13 @@
 from types import SimpleNamespace
 from unittest import mock
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from contacts.models import Contact, ContactType
 from wms.documents import (
     _format_contact_address,
     build_contact_info,
+    build_org_context,
     build_shipment_type_labels,
 )
 from wms.models import (
@@ -65,6 +66,24 @@ class DocumentsHelpersTests(TestCase):
 
 
 class DocumentsFormattingTests(SimpleTestCase):
+    @override_settings(ORG_NAME="Aviation Sans Frontieres")
+    def test_build_org_context_uses_asf_org_name(self):
+        context = build_org_context()
+
+        self.assertEqual(context["org_name"], "Aviation Sans Frontieres")
+
+    @override_settings(ORG_NAME=" Client Relief ")
+    def test_build_org_context_uses_installation_identity_org_name_override(self):
+        context = build_org_context()
+
+        self.assertEqual(context["org_name"], "Client Relief")
+
+    @override_settings(ORG_NAME="ORG_NAME")
+    def test_build_org_context_uses_installation_identity_placeholder_fallback(self):
+        context = build_org_context()
+
+        self.assertEqual(context["org_name"], "Aviation Sans Frontieres")
+
     def test_format_contact_address_handles_none_and_optional_lines(self):
         self.assertEqual(_format_contact_address(None), "")
 
