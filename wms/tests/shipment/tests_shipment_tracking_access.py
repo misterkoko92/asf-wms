@@ -245,6 +245,26 @@ class ShipmentTrackingAccessGrantTests(TestCase):
         )
         self.assertEqual(resolve_tracking_proof_mode(proof_no_photo=False, proof_file=None), "")
 
+    @override_settings(TRACKING_CONTACT_IDENTIFIER_LABEL="Tracking ref.")
+    def test_tracking_helper_uses_configured_label_for_contact_roles_only(self):
+        self.assertEqual(
+            tracking_identifier_label_for_role(ShipmentTrackingAccessRole.SHIPPER),
+            "Tracking ref.",
+        )
+        self.assertEqual(
+            tracking_identifier_label_for_role(ShipmentTrackingAccessRole.RECIPIENT),
+            "Tracking ref.",
+        )
+        self.assertEqual(
+            tracking_identifier_label_for_role(ShipmentTrackingAccessRole.CORRESPONDENT),
+            "Tracking ref.",
+        )
+        self.assertEqual(
+            tracking_identifier_label_for_role(ShipmentTrackingAccessRole.VOLUNTEER),
+            "ID bénévole",
+        )
+        self.assertEqual(tracking_identifier_label_for_role("unknown"), "Identifiant")
+
     def test_default_escale_stays_cdg_until_boarding_then_uses_destination_iata(self):
         user = get_user_model().objects.create_user(
             username="tracking-escale",

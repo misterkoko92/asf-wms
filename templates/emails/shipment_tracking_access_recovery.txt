@@ -1,6 +1,6 @@
 Expédition {{ shipment.reference }}
 Rôle : {{ role_label }}
-ASF ID : {{ identifier }}
+{{ contact_identifier_label }} : {{ identifier }}
 {% if escale_code %}Escale : {{ escale_code }}{% endif %}
 
 Connexion : {{ login_url }}

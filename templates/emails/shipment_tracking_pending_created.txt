@@ -3,7 +3,7 @@ Expédition {{ shipment.reference }}
 Votre accès de suivi a été créé avec un statut pending / en attente.
 
 Rôle : {{ role_label }}
-ASF ID : {{ identifier }}
+{{ contact_identifier_label }} : {{ identifier }}
 
 Définir le mot de passe : {{ set_password_url }}
 Connexion : {{ login_url }}

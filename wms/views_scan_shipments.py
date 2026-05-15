@@ -26,6 +26,7 @@ from .carton_view_helpers import (
     build_cartons_ready_rows,
     get_carton_capacity_cm3,
 )
+from .config import get_installation_config
 from .emailing import send_or_enqueue_email_safe
 from .forms import (
     ScanPackForm,
@@ -1057,6 +1058,9 @@ def _send_pending_tracking_access_email(*, request, shipment, grant):
             "shipment": shipment,
             "grant": grant,
             "identifier": identifier,
+            "contact_identifier_label": (
+                get_installation_config().references.contact_identifier_label
+            ),
             "role_label": grant.get_role_display(),
             "login_url": login_url,
             "set_password_url": set_password_url,

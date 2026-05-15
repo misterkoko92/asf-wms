@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.db.models import Q
 from django.utils import timezone
 
+from .config import get_installation_config
 from .models import (
     ShipmentTrackingAccessGrant,
     ShipmentTrackingAccessRole,
@@ -128,7 +129,7 @@ def tracking_identifier_label_for_role(role: str) -> str:
     if role == ShipmentTrackingAccessRole.VOLUNTEER:
         return "ID bénévole"
     if role in TRACKING_CONTACT_ROLES:
-        return "ID ASF"
+        return get_installation_config().references.tracking_contact_identifier_label
     return "Identifiant"
 
 

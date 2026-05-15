@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from contacts.models import Contact
 from wms.forms import (
@@ -27,6 +27,22 @@ class ShipmentTrackingGatewayFormTests(TestCase):
         form = ShipmentTrackingGatewayForm(selected_role=ShipmentTrackingAccessRole.SHIPPER)
 
         self.assertEqual(form.fields["identifier"].label, "ID ASF")
+
+    @override_settings(TRACKING_CONTACT_IDENTIFIER_LABEL="Tracking ref.")
+    def test_gateway_form_uses_configured_identifier_label_for_contact_roles(self):
+        form = ShipmentTrackingGatewayForm(selected_role=ShipmentTrackingAccessRole.SHIPPER)
+
+        self.assertEqual(form.fields["identifier"].label, "Tracking ref.")
+
+    @override_settings(TRACKING_CONTACT_IDENTIFIER_LABEL="Tracking ref.")
+    def test_gateway_form_keeps_non_contact_identifier_labels(self):
+        volunteer_form = ShipmentTrackingGatewayForm(
+            selected_role=ShipmentTrackingAccessRole.VOLUNTEER
+        )
+        fallback_form = ShipmentTrackingGatewayForm()
+
+        self.assertEqual(volunteer_form.fields["identifier"].label, "ID bénévole")
+        self.assertEqual(fallback_form.fields["identifier"].label, "Identifiant")
 
 
 class ShipmentTrackingRecoveryFormTests(TestCase):

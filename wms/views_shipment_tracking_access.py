@@ -20,6 +20,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
 from .client_ip import get_client_ip
+from .config import get_installation_config
 from .emailing import send_or_enqueue_email_safe
 from .forms import ShipmentTrackingAccessRecoveryForm
 from .models import (
@@ -339,6 +340,9 @@ def _send_tracking_access_recovery_email(*, request, shipment, grant, escale_cod
             "shipment": shipment,
             "grant": grant,
             "identifier": identifier,
+            "contact_identifier_label": (
+                get_installation_config().references.contact_identifier_label
+            ),
             "role_label": grant.get_role_display(),
             "escale_code": (escale_code or "").strip().upper(),
             "login_url": login_url,

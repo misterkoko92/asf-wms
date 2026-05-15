@@ -12,6 +12,8 @@ ASF_ORG_BRAND_NAME = "ASF"
 ASF_CONTACT_EMAIL = "messmed@aviation-sans-frontieres-fr.org"
 ASF_SKU_PREFIX = "ASF"
 ASF_CONTACT_IDENTIFIER_GENERATED_PREFIX = "ASF-C"
+ASF_CONTACT_IDENTIFIER_LABEL = "ASF ID"
+ASF_TRACKING_CONTACT_IDENTIFIER_LABEL = "ID ASF"
 ASF_EMAIL_SUBJECT_PREFIX = "ASF WMS -"
 ASF_EMAIL_SENDER_NAME = "ASF WMS"
 _MISSING_SETTING = object()
@@ -98,6 +100,8 @@ class InstallationNotifications:
 @dataclass(frozen=True)
 class InstallationReferences:
     contact_identifier_generated_prefix: str
+    contact_identifier_label: str
+    tracking_contact_identifier_label: str
 
 
 @dataclass(frozen=True)
@@ -144,6 +148,14 @@ def get_installation_config() -> InstallationConfig:
             contact_identifier_generated_prefix=_raw_setting_text(
                 "CONTACT_IDENTIFIER_GENERATED_PREFIX",
                 ASF_CONTACT_IDENTIFIER_GENERATED_PREFIX,
+            ),
+            contact_identifier_label=_raw_setting_text(
+                "CONTACT_IDENTIFIER_LABEL",
+                ASF_CONTACT_IDENTIFIER_LABEL,
+            ),
+            tracking_contact_identifier_label=_raw_setting_text(
+                "TRACKING_CONTACT_IDENTIFIER_LABEL",
+                ASF_TRACKING_CONTACT_IDENTIFIER_LABEL,
             ),
         ),
     )
