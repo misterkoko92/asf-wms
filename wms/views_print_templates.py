@@ -26,6 +26,7 @@ from .models import (
 from .print_context import (
     build_label_context,
     build_preview_context,
+    build_print_footer_context,
     build_product_label_context,
     build_sample_label_context,
 )
@@ -750,4 +751,8 @@ def scan_print_template_preview(request):
         billing_document=billing_document,
     )
     blocks = render_layout_from_layout(layout_data, context)
-    return render(request, TEMPLATE_DYNAMIC_DOCUMENT, {"blocks": blocks})
+    return render(
+        request,
+        TEMPLATE_DYNAMIC_DOCUMENT,
+        {"blocks": blocks, **build_print_footer_context()},
+    )

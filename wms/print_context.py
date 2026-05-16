@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from django.utils import timezone
 
 from .billing_document_handlers import build_billing_document_render_payload
+from .config import get_installation_config
 from .documents import (
     build_carton_rows,
     build_contact_info,
@@ -34,6 +35,10 @@ class ShipmentLabelSlot:
 
 def _normalized_text(value):
     return str(value or "").strip()
+
+
+def build_print_footer_context():
+    return {"print_footer": get_installation_config().print}
 
 
 def _shipment_party_snapshot_entry(shipment, party_key):
@@ -329,6 +334,7 @@ def build_shipment_document_context(shipment, doc_type):
 
     return {
         **build_org_context(),
+        **build_print_footer_context(),
         "document_ref": f"DOC-{shipment.reference}-{doc_type}".upper(),
         "document_date": timezone.localdate(),
         "shipment_ref": shipment.reference,
@@ -389,6 +395,7 @@ def build_carton_document_context(shipment, carton):
         )
 
     return {
+        **build_print_footer_context(),
         "document_date": timezone.localdate(),
         "shipment_ref": shipment.reference,
         "carton_code": carton.code,
@@ -403,6 +410,7 @@ def build_carton_document_context(shipment, carton):
 def build_contact_sheet_context(shipment):
     context = build_shipment_document_context(shipment, "contact_label")
     return {
+        **build_print_footer_context(),
         "document_date": context["document_date"],
         "shipment_ref": context["shipment_ref"],
         "destination_address": context["destination_address"],
@@ -451,6 +459,7 @@ def build_carton_picking_context(carton):
         key=lambda row: (row["label"], row["location"]),
     )
     return {
+        **build_print_footer_context(),
         "document_date": timezone.localdate(),
         "carton_code": carton.code,
         "item_rows": item_rows,
@@ -538,6 +547,7 @@ def build_sample_document_context(doc_type):
     ]
     return {
         **build_org_context(),
+        **build_print_footer_context(),
         "document_ref": "DOC-TEST",
         "document_date": today,
         "shipment_ref": "YY0001",
@@ -685,6 +695,7 @@ def build_billing_document_context(billing_document, doc_type):
         document_date = timezone.localdate()
     return {
         **build_org_context(),
+        **build_print_footer_context(),
         "document_ref": billing_payload["number"],
         "document_date": document_date,
         "billing": billing_payload,
@@ -746,6 +757,7 @@ def build_sample_billing_document_context(doc_type):
     }
     return {
         **build_org_context(),
+        **build_print_footer_context(),
         "document_ref": billing_payload["number"],
         "document_date": today,
         "billing": billing_payload,

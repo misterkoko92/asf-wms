@@ -4,20 +4,36 @@ import re
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase, override_settings
 
+from wms.config import get_installation_config
 from wms.documents import build_org_context
-
-FOOTER_LINES = (
-    "https://aviation-sans-frontieres.org/messmed // " "messmed@aviation-sans-frontières-fr.org",
-    "Siège: Bat 293, Porte 1150, Orly Fret 768 - 94398 Orly Aérogare Cedex - "
-    "Tel: (33) 1 49 75 74 36",
-    "Magasin: Bat. 7200, Porte 2D520, rue de la Remise - 95700 ROISSY en France - "
-    "Tél: (33) 1 74 25 03 22",
-    "Association reconnue d'utilité publique par décret du 12 novembre 1993",
-)
+from wms.print_context import build_print_footer_context
 
 PRINT_BASE_TEMPLATES = (
     "print/base_document.html",
     "print/base_a5.html",
+)
+
+FOOTER_SETTING_CASES = (
+    (
+        "PRINT_HTML_FOOTER_PUBLIC_CONTACT_LINE",
+        "html_footer_public_contact_line",
+        "PR20 public contact footer override",
+    ),
+    (
+        "PRINT_HTML_FOOTER_HEADQUARTERS_LINE",
+        "html_footer_headquarters_line",
+        "PR20 headquarters footer override",
+    ),
+    (
+        "PRINT_HTML_FOOTER_WAREHOUSE_LINE",
+        "html_footer_warehouse_line",
+        "PR20 warehouse footer override",
+    ),
+    (
+        "PRINT_HTML_FOOTER_LEGAL_NOTICE_LINE",
+        "html_footer_legal_notice_line",
+        "PR20 legal notice footer override",
+    ),
 )
 
 ORG_NAME_PROBE = "TEST ORG FULL NAME PR17"
@@ -31,9 +47,25 @@ _FOOTER_RE = re.compile(
 _FOOTER_LINE_RE = re.compile(r"<div>(?P<line>.*?)</div>", re.DOTALL)
 
 
+def _configured_footer_lines():
+    footer = get_installation_config().print
+    return (
+        footer.html_footer_public_contact_line,
+        footer.html_footer_headquarters_line,
+        footer.html_footer_warehouse_line,
+        footer.html_footer_legal_notice_line,
+    )
+
+
 class HtmlPrintFooterIdentityTests(SimpleTestCase):
     def _render_footer_lines(self, template_name, context=None):
-        rendered = render_to_string(template_name, context or {})
+        rendered = render_to_string(
+            template_name,
+            {
+                **build_print_footer_context(),
+                **(context or {}),
+            },
+        )
         footer_match = _FOOTER_RE.search(rendered)
         if footer_match is None:
             return ()
@@ -42,19 +74,19 @@ class HtmlPrintFooterIdentityTests(SimpleTestCase):
             for line in _FOOTER_LINE_RE.findall(footer_match.group("footer"))
         )
 
-    def test_base_document_renders_current_hardcoded_footer_lines(self):
+    def test_base_document_renders_configured_footer_lines(self):
         self.assertEqual(
             self._render_footer_lines("print/base_document.html"),
-            FOOTER_LINES,
+            _configured_footer_lines(),
         )
 
-    def test_base_a5_renders_current_hardcoded_footer_lines(self):
+    def test_base_a5_renders_configured_footer_lines(self):
         self.assertEqual(
             self._render_footer_lines("print/base_a5.html"),
-            FOOTER_LINES,
+            _configured_footer_lines(),
         )
 
-    def test_hide_footer_removes_current_hardcoded_footer_lines(self):
+    def test_hide_footer_removes_configured_footer_lines(self):
         for template_name in PRINT_BASE_TEMPLATES:
             with self.subTest(template_name=template_name):
                 self.assertEqual(
@@ -75,12 +107,12 @@ class HtmlPrintFooterIdentityTests(SimpleTestCase):
             with self.subTest(template_name=template_name):
                 footer_lines = self._render_footer_lines(template_name, context)
                 footer_text = "\n".join(footer_lines)
-                self.assertEqual(footer_lines, FOOTER_LINES)
+                self.assertEqual(footer_lines, _configured_footer_lines())
                 self.assertNotIn(ORG_CONTACT_PROBE, footer_text)
                 self.assertNotIn(ORG_ADDRESS_PROBE, footer_text)
 
     @override_settings(ORG_NAME=ORG_NAME_PROBE)
-    def test_org_name_feeds_context_but_not_hardcoded_footer_contract(self):
+    def test_org_name_feeds_context_but_not_footer_contract(self):
         context = build_org_context()
         self.assertEqual(context["org_name"], ORG_NAME_PROBE)
 
@@ -88,5 +120,22 @@ class HtmlPrintFooterIdentityTests(SimpleTestCase):
             with self.subTest(template_name=template_name):
                 footer_lines = self._render_footer_lines(template_name, context)
                 footer_text = "\n".join(footer_lines)
-                self.assertEqual(footer_lines, FOOTER_LINES)
+                self.assertEqual(footer_lines, _configured_footer_lines())
                 self.assertNotIn(ORG_NAME_PROBE, footer_text)
+
+    def test_print_footer_settings_override_each_footer_line_in_base_templates(self):
+        for setting_name, field_name, override_value in FOOTER_SETTING_CASES:
+            with self.subTest(setting_name=setting_name):
+                with override_settings(**{setting_name: override_value}):
+                    expected_lines = _configured_footer_lines()
+                    self.assertIn(override_value, expected_lines)
+                    self.assertEqual(
+                        getattr(get_installation_config().print, field_name),
+                        override_value,
+                    )
+                    for template_name in PRINT_BASE_TEMPLATES:
+                        with self.subTest(template_name=template_name):
+                            self.assertEqual(
+                                self._render_footer_lines(template_name),
+                                expected_lines,
+                            )

@@ -18,6 +18,7 @@ from .print_context import (
     build_carton_document_context,
     build_contact_sheet_context,
     build_label_context,
+    build_print_footer_context,
     build_shipment_document_context,
 )
 from .print_renderer import get_template_layout, render_layout_from_layout
@@ -97,7 +98,11 @@ def _render_document_with_layout(request, *, doc_type, context, default_template
     layout_override = get_template_layout(doc_type)
     if layout_override:
         blocks = render_layout_from_layout(layout_override, context)
-        return render(request, TEMPLATE_DYNAMIC_DOCUMENT, {"blocks": blocks})
+        return render(
+            request,
+            TEMPLATE_DYNAMIC_DOCUMENT,
+            {"blocks": blocks, **build_print_footer_context()},
+        )
     return render(request, default_template, context)
 
 
