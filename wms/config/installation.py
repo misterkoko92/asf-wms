@@ -16,6 +16,20 @@ ASF_CONTACT_IDENTIFIER_LABEL = "ASF ID"
 ASF_TRACKING_CONTACT_IDENTIFIER_LABEL = "ID ASF"
 ASF_EMAIL_SUBJECT_PREFIX = "ASF WMS -"
 ASF_EMAIL_SENDER_NAME = "ASF WMS"
+ASF_PRINT_HTML_FOOTER_PUBLIC_CONTACT_LINE = (
+    "https://aviation-sans-frontieres.org/messmed // " "messmed@aviation-sans-frontières-fr.org"
+)
+ASF_PRINT_HTML_FOOTER_HEADQUARTERS_LINE = (
+    "Siège: Bat 293, Porte 1150, Orly Fret 768 - "
+    "94398 Orly Aérogare Cedex - Tel: (33) 1 49 75 74 36"
+)
+ASF_PRINT_HTML_FOOTER_WAREHOUSE_LINE = (
+    "Magasin: Bat. 7200, Porte 2D520, rue de la Remise - "
+    "95700 ROISSY en France - Tél: (33) 1 74 25 03 22"
+)
+ASF_PRINT_HTML_FOOTER_LEGAL_NOTICE_LINE = (
+    "Association reconnue d'utilité publique par décret du 12 novembre 1993"
+)
 _MISSING_SETTING = object()
 
 _PLACEHOLDER_VALUES = {
@@ -98,6 +112,14 @@ class InstallationNotifications:
 
 
 @dataclass(frozen=True)
+class InstallationPrint:
+    html_footer_public_contact_line: str
+    html_footer_headquarters_line: str
+    html_footer_warehouse_line: str
+    html_footer_legal_notice_line: str
+
+
+@dataclass(frozen=True)
 class InstallationReferences:
     contact_identifier_generated_prefix: str
     contact_identifier_label: str
@@ -112,6 +134,7 @@ class InstallationConfig:
     integrations: InstallationIntegrations
     notifications: InstallationNotifications
     references: InstallationReferences
+    print: InstallationPrint
 
 
 def get_installation_config() -> InstallationConfig:
@@ -156,6 +179,24 @@ def get_installation_config() -> InstallationConfig:
             tracking_contact_identifier_label=_raw_setting_text(
                 "TRACKING_CONTACT_IDENTIFIER_LABEL",
                 ASF_TRACKING_CONTACT_IDENTIFIER_LABEL,
+            ),
+        ),
+        print=InstallationPrint(
+            html_footer_public_contact_line=_setting_text(
+                "PRINT_HTML_FOOTER_PUBLIC_CONTACT_LINE",
+                ASF_PRINT_HTML_FOOTER_PUBLIC_CONTACT_LINE,
+            ),
+            html_footer_headquarters_line=_setting_text(
+                "PRINT_HTML_FOOTER_HEADQUARTERS_LINE",
+                ASF_PRINT_HTML_FOOTER_HEADQUARTERS_LINE,
+            ),
+            html_footer_warehouse_line=_setting_text(
+                "PRINT_HTML_FOOTER_WAREHOUSE_LINE",
+                ASF_PRINT_HTML_FOOTER_WAREHOUSE_LINE,
+            ),
+            html_footer_legal_notice_line=_setting_text(
+                "PRINT_HTML_FOOTER_LEGAL_NOTICE_LINE",
+                ASF_PRINT_HTML_FOOTER_LEGAL_NOTICE_LINE,
             ),
         ),
     )
@@ -269,6 +310,7 @@ __all__ = [
     "InstallationIdentity",
     "InstallationIntegrations",
     "InstallationNotifications",
+    "InstallationPrint",
     "InstallationReferences",
     "InstallationVocabulary",
     "IntegrationDescriptor",

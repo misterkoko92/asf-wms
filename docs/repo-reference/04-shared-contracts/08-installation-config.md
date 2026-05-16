@@ -111,6 +111,32 @@ capabilities, or integration descriptors.
   identity, shipper/reference namespace behavior, and contact routing remain
   outside the PR11 shell identity scope.
 
+### Print namespace
+
+`installation.print` is currently a narrow print-rendering policy namespace.
+Its first contract is limited to the four HTML print footer line fields below.
+
+| Key | Exact ASF default | Description |
+|---|---|---|
+| `print.html_footer_public_contact_line` | `https://aviation-sans-frontieres.org/messmed // messmed@aviation-sans-frontières-fr.org` | Public service URL and email footer line. |
+| `print.html_footer_headquarters_line` | `Siège: Bat 293, Porte 1150, Orly Fret 768 - 94398 Orly Aérogare Cedex - Tel: (33) 1 49 75 74 36` | Headquarters address and phone footer line. |
+| `print.html_footer_warehouse_line` | `Magasin: Bat. 7200, Porte 2D520, rue de la Remise - 95700 ROISSY en France - Tél: (33) 1 74 25 03 22` | Warehouse address and phone footer line. |
+| `print.html_footer_legal_notice_line` | `Association reconnue d'utilité publique par décret du 12 novembre 1993` | Public-utility legal notice footer line. |
+
+These fields are foundation-only until consumed in a later PR. Adding them does
+not change print rendering, templates, document generation, PDF conversion,
+gettext catalogs, or any visible runtime behavior.
+
+The four fields are HTML print footer contract fields. They intentionally do not
+reuse `ORG_CONTACT`, `ORG_ADDRESS`, or `ORG_NAME`: those settings do not carry
+the current four-line footer contract and must not become hidden fallback
+sources for footer policy.
+
+Do not broaden `installation.print` into a generic document identity namespace
+without a dedicated decision. Footer text, donation certificates, customs
+documents, XLSX/Graph print packs, logos, stamps, role labels, legal identity,
+and broader document metadata have different contracts and review risks.
+
 ### Two categories of feature flags
 
 Feature flags in `InstallationFeatureFlags` have two semantic categories.
