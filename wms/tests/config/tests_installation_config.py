@@ -27,6 +27,7 @@ class InstallationConfigTests(SimpleTestCase):
                 "integrations",
                 "notifications",
                 "references",
+                "print",
             },
         )
         self.assertEqual(
@@ -87,6 +88,15 @@ class InstallationConfigTests(SimpleTestCase):
                 "tracking_contact_identifier_label",
             },
         )
+        self.assertEqual(
+            list(config.print.__dataclass_fields__),
+            [
+                "html_footer_public_contact_line",
+                "html_footer_headquarters_line",
+                "html_footer_warehouse_line",
+                "html_footer_legal_notice_line",
+            ],
+        )
 
     @override_settings(
         ORG_NAME="Aviation Sans Frontieres",
@@ -115,6 +125,31 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.references.contact_identifier_generated_prefix, "ASF-C")
         self.assertEqual(config.references.contact_identifier_label, "ASF ID")
         self.assertEqual(config.references.tracking_contact_identifier_label, "ID ASF")
+        self.assertEqual(
+            config.print.html_footer_public_contact_line,
+            (
+                "https://aviation-sans-frontieres.org/messmed // "
+                "messmed@aviation-sans-frontières-fr.org"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_headquarters_line,
+            (
+                "Siège: Bat 293, Porte 1150, Orly Fret 768 - "
+                "94398 Orly Aérogare Cedex - Tel: (33) 1 49 75 74 36"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_warehouse_line,
+            (
+                "Magasin: Bat. 7200, Porte 2D520, rue de la Remise - "
+                "95700 ROISSY en France - Tél: (33) 1 74 25 03 22"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_legal_notice_line,
+            "Association reconnue d'utilité publique par décret du 12 novembre 1993",
+        )
         self.assertEqual(config.identity.product_display_name, "ASF WMS")
         self.assertEqual(config.identity.organization_brand_name, "ASF")
         self.assertEqual(config.vocabulary.partner_label, "partenaire")
@@ -150,7 +185,7 @@ class InstallationConfigTests(SimpleTestCase):
 
         config = get_installation_config()
 
-        for section_name in ("identity", "vocabulary", "notifications", "references"):
+        for section_name in ("identity", "vocabulary", "notifications", "references", "print"):
             section = getattr(config, section_name)
             for field_name in section.__dataclass_fields__:
                 self.assertIsInstance(getattr(section, field_name), str)
@@ -187,6 +222,18 @@ class InstallationConfigTests(SimpleTestCase):
         with self.assertRaises(dataclasses.FrozenInstanceError):
             config.references.tracking_contact_identifier_label = "Tracking ref"
 
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            config.print.html_footer_public_contact_line = "https://example.org/contact"
+
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            config.print.html_footer_headquarters_line = "Headquarters"
+
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            config.print.html_footer_warehouse_line = "Warehouse"
+
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            config.print.html_footer_legal_notice_line = "Legal notice"
+
     @override_settings(
         CONTACT_IDENTIFIER_GENERATED_PREFIX="FBN-C",
         CONTACT_IDENTIFIER_LABEL="Contact ref.",
@@ -200,6 +247,129 @@ class InstallationConfigTests(SimpleTestCase):
         self.assertEqual(config.references.contact_identifier_generated_prefix, "FBN-C")
         self.assertEqual(config.references.contact_identifier_label, "Contact ref.")
         self.assertEqual(config.references.tracking_contact_identifier_label, "Référence suivi")
+
+    def test_print_footer_defaults_are_exact_current_asf_lines(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(
+            config.print.html_footer_public_contact_line,
+            (
+                "https://aviation-sans-frontieres.org/messmed // "
+                "messmed@aviation-sans-frontières-fr.org"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_headquarters_line,
+            (
+                "Siège: Bat 293, Porte 1150, Orly Fret 768 - "
+                "94398 Orly Aérogare Cedex - Tel: (33) 1 49 75 74 36"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_warehouse_line,
+            (
+                "Magasin: Bat. 7200, Porte 2D520, rue de la Remise - "
+                "95700 ROISSY en France - Tél: (33) 1 74 25 03 22"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_legal_notice_line,
+            "Association reconnue d'utilité publique par décret du 12 novembre 1993",
+        )
+
+    def test_print_footer_fields_reflect_independent_installation_overrides(self):
+        from wms.config import get_installation_config
+
+        defaults = {
+            "html_footer_public_contact_line": (
+                "https://aviation-sans-frontieres.org/messmed // "
+                "messmed@aviation-sans-frontières-fr.org"
+            ),
+            "html_footer_headquarters_line": (
+                "Siège: Bat 293, Porte 1150, Orly Fret 768 - "
+                "94398 Orly Aérogare Cedex - Tel: (33) 1 49 75 74 36"
+            ),
+            "html_footer_warehouse_line": (
+                "Magasin: Bat. 7200, Porte 2D520, rue de la Remise - "
+                "95700 ROISSY en France - Tél: (33) 1 74 25 03 22"
+            ),
+            "html_footer_legal_notice_line": (
+                "Association reconnue d'utilité publique par décret du 12 novembre 1993"
+            ),
+        }
+        cases = {
+            "PRINT_HTML_FOOTER_PUBLIC_CONTACT_LINE": (
+                "html_footer_public_contact_line",
+                "https://client.example/contact // hello@example.org",
+            ),
+            "PRINT_HTML_FOOTER_HEADQUARTERS_LINE": (
+                "html_footer_headquarters_line",
+                "Siège: 10 rue Test - 75000 Paris - Tel: (33) 1 23 45 67 89",
+            ),
+            "PRINT_HTML_FOOTER_WAREHOUSE_LINE": (
+                "html_footer_warehouse_line",
+                "Magasin: Zone A, Porte B - 69000 Lyon - Tél: (33) 4 00 00 00 00",
+            ),
+            "PRINT_HTML_FOOTER_LEGAL_NOTICE_LINE": (
+                "html_footer_legal_notice_line",
+                "Association déclarée - RNA W123456789",
+            ),
+        }
+
+        for setting_name, (field_name, override_value) in cases.items():
+            with (
+                self.subTest(setting_name=setting_name),
+                self.settings(**{setting_name: override_value}),
+            ):
+                footer_config = get_installation_config().print
+
+                for default_field_name, default_value in defaults.items():
+                    expected_value = (
+                        override_value if default_field_name == field_name else default_value
+                    )
+                    self.assertEqual(
+                        getattr(footer_config, default_field_name),
+                        expected_value,
+                    )
+
+    @override_settings(
+        PRINT_HTML_FOOTER_PUBLIC_CONTACT_LINE="",
+        PRINT_HTML_FOOTER_HEADQUARTERS_LINE="   ",
+        PRINT_HTML_FOOTER_WAREHOUSE_LINE=None,
+        PRINT_HTML_FOOTER_LEGAL_NOTICE_LINE=" ORG_CONTACT ",
+    )
+    def test_print_footer_fields_fall_back_for_empty_whitespace_none_and_placeholders(self):
+        from wms.config import get_installation_config
+
+        config = get_installation_config()
+
+        self.assertEqual(
+            config.print.html_footer_public_contact_line,
+            (
+                "https://aviation-sans-frontieres.org/messmed // "
+                "messmed@aviation-sans-frontières-fr.org"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_headquarters_line,
+            (
+                "Siège: Bat 293, Porte 1150, Orly Fret 768 - "
+                "94398 Orly Aérogare Cedex - Tel: (33) 1 49 75 74 36"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_warehouse_line,
+            (
+                "Magasin: Bat. 7200, Porte 2D520, rue de la Remise - "
+                "95700 ROISSY en France - Tél: (33) 1 74 25 03 22"
+            ),
+        )
+        self.assertEqual(
+            config.print.html_footer_legal_notice_line,
+            "Association reconnue d'utilité publique par décret du 12 novembre 1993",
+        )
 
     @override_settings(BREVO_SENDER_NAME=" Client Sender ")
     def test_email_sender_name_reflects_existing_brevo_sender_name_setting(self):
@@ -334,6 +504,7 @@ print(json.dumps(loaded))
             InstallationIdentity,
             InstallationIntegrations,
             InstallationNotifications,
+            InstallationPrint,
             InstallationReferences,
             InstallationVocabulary,
             IntegrationDescriptor,
@@ -348,6 +519,7 @@ print(json.dumps(loaded))
                 "integrations": InstallationIntegrations,
                 "notifications": InstallationNotifications,
                 "references": InstallationReferences,
+                "print": InstallationPrint,
             },
             InstallationIdentity: {
                 "organization_full_name": str,
@@ -396,6 +568,12 @@ print(json.dumps(loaded))
                 "contact_identifier_generated_prefix": str,
                 "contact_identifier_label": str,
                 "tracking_contact_identifier_label": str,
+            },
+            InstallationPrint: {
+                "html_footer_public_contact_line": str,
+                "html_footer_headquarters_line": str,
+                "html_footer_warehouse_line": str,
+                "html_footer_legal_notice_line": str,
             },
         }
 
