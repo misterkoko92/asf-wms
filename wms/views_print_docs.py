@@ -29,6 +29,7 @@ from .print_context import (
     build_carton_document_context,
     build_carton_picking_context,
     build_label_context,
+    build_print_footer_context,
     build_shipment_document_context,
     build_shipment_preparatory_label_slots,
 )
@@ -149,6 +150,7 @@ def _build_standalone_carton_context(carton):
             }
         )
     return {
+        **build_print_footer_context(),
         "document_date": timezone.localdate(),
         "shipment_ref": "-",
         "carton_code": carton.code,
@@ -162,7 +164,11 @@ def _render_carton_document_with_layout(request, context):
     layout_override = get_template_layout("packing_list_carton")
     if layout_override:
         blocks = render_layout_from_layout(layout_override, context)
-        return render(request, TEMPLATE_DYNAMIC_DOCUMENT, {"blocks": blocks})
+        return render(
+            request,
+            TEMPLATE_DYNAMIC_DOCUMENT,
+            {"blocks": blocks, **build_print_footer_context()},
+        )
     return render(request, TEMPLATE_PACKING_LIST_CARTON, context)
 
 
@@ -239,6 +245,7 @@ def _build_cartons_picking_context(carton_ids):
     if not cartons:
         return None
     return {
+        **build_print_footer_context(),
         "carton_ids": [carton.id for carton in cartons],
         "carton_codes": [carton.code for carton in cartons],
         "carton_blocks": [build_carton_picking_context(carton) for carton in cartons],
@@ -980,6 +987,7 @@ def scan_cartons_view_bundle(request, bundle_key):
             request,
             TEMPLATE_CARTON_PACKING_LISTS_CONTINUOUS,
             {
+                **build_print_footer_context(),
                 "bundle_title": _("Lot listes colisage"),
                 "carton_contexts": [_build_standalone_carton_context(carton) for carton in cartons],
             },
@@ -989,6 +997,7 @@ def scan_cartons_view_bundle(request, bundle_key):
             request,
             TEMPLATE_SHIPMENT_CARTON_LISTS_A4_FOUR_UP,
             {
+                **build_print_footer_context(),
                 "bundle_title": _("Lot listes colisage A4"),
                 "carton_pages": _build_standalone_carton_list_pages(cartons),
             },

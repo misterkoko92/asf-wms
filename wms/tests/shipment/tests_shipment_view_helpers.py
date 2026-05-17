@@ -6,6 +6,7 @@ from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
 from contacts.models import Contact, ContactType
+from wms.config import get_installation_config
 from wms.models import (
     Carton,
     Document,
@@ -299,7 +300,9 @@ class ShipmentViewHelpersTests(TestCase):
                     ) as render_mock:
                         response = render_shipment_document(self.request, shipment, "shipment_note")
         self.assertEqual(response.content.decode(), "print/dynamic_document.html")
-        self.assertEqual(render_mock.call_args.args[2], {"blocks": [{"type": "header"}]})
+        render_context = render_mock.call_args.args[2]
+        self.assertEqual(render_context["blocks"], [{"type": "header"}])
+        self.assertEqual(render_context["print_footer"], get_installation_config().print)
 
     def test_render_shipment_document_uses_default_template_without_layout(self):
         shipment = self._create_shipment()

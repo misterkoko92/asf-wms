@@ -123,9 +123,8 @@ Its first contract is limited to the four HTML print footer line fields below.
 | `print.html_footer_warehouse_line` | `Magasin: Bat. 7200, Porte 2D520, rue de la Remise - 95700 ROISSY en France - Tél: (33) 1 74 25 03 22` | Warehouse address and phone footer line. |
 | `print.html_footer_legal_notice_line` | `Association reconnue d'utilité publique par décret du 12 novembre 1993` | Public-utility legal notice footer line. |
 
-These fields are foundation-only until consumed in a later PR. Adding them does
-not change print rendering, templates, document generation, PDF conversion,
-gettext catalogs, or any visible runtime behavior.
+These fields are consumed by the shared HTML print footers in
+`templates/print/base_document.html` and `templates/print/base_a5.html`.
 
 The four fields are HTML print footer contract fields. They intentionally do not
 reuse `ORG_CONTACT`, `ORG_ADDRESS`, or `ORG_NAME`: those settings do not carry
