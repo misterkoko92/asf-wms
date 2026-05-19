@@ -3,6 +3,15 @@ from datetime import date
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
         "date": date(2026, 5, 19),
+        "pr_number": 219,
+        "summary": (
+            "Commandes scan : correction de la validation de la répartition "
+            "multi-expéditions pour accepter une expédition 14 colis ou une "
+            "répartition 10/4 quand les champs visibles sont cohérents."
+        ),
+    },
+    {
+        "date": date(2026, 5, 19),
         "pr_number": None,
         "summary": (
             "Commandes scan : création d'expédition rendue idempotente, préparation "
