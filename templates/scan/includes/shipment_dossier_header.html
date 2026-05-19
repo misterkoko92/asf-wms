@@ -47,6 +47,18 @@
           Voir les colis
         </a>
         {% if can_edit %}
+          {% if order_workflow_summary.can_prepare_all_cartons %}
+            <form method="post" action="{{ order_workflow_summary.prepare_all_cartons_url }}" class="d-inline-flex">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="create_shipment_and_cartons">
+              <button
+                type="submit"
+                class="scan-scan-btn btn btn-warning shipment-dossier-action shipment-dossier-action--prepare-order"
+              >
+                Créer tous les colis
+              </button>
+            </form>
+          {% endif %}
           <a
             class="scan-scan-btn btn btn-primary shipment-dossier-action shipment-dossier-action--edit"
             href="?mode=edit#shipment-dossier-edit-panel"

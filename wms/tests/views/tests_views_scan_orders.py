@@ -392,6 +392,62 @@ class ScanOrdersViewsTests(TestCase):
         self.assertContains(response, "Créer les colis et l&#x27;expédition")
         self.assertContains(response, "Lignes de commande")
 
+    def test_scan_order_detail_get_renders_multi_shipment_confirmation(self):
+        order = Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association Detail",
+            destination_address="4 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.APPROVED,
+            status=OrderStatus.RESERVED,
+        )
+
+        with mock.patch(
+            "wms.order_view_helpers.estimate_order_preparation_carton_count",
+            return_value=(32, ["Produit test: poids/volume manquants."]),
+        ):
+            response = self.client.get(
+                reverse("scan:scan_order_detail", args=[order.id]),
+                {"prepare_confirm": "1"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "La commande va générer 32 colis")
+        self.assertContains(response, 'name="shipment_count"')
+        self.assertContains(response, 'value="4"')
+        self.assertContains(response, 'name="cartons_per_shipment"', count=4)
+        self.assertContains(response, 'value="10"', count=3)
+        self.assertContains(response, 'value="2"')
+        self.assertContains(response, "Produit test: poids/volume manquants.")
+
+    def test_scan_shipment_dossier_exposes_create_all_cartons_for_linked_order(self):
+        product = Product.objects.create(sku="SHIP-ORDER-1", name="Produit commande")
+        shipment = Shipment.objects.create(
+            reference="EXP-ORDER-HEADER",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+        )
+        order = Order.objects.create(
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            review_status=OrderReviewStatus.APPROVED,
+            status=OrderStatus.RESERVED,
+            shipment=shipment,
+        )
+        OrderLine.objects.create(order=order, product=product, quantity=2, reserved_quantity=2)
+        OrderShipmentLink.objects.create(order=order, shipment=shipment, created_by=self.staff_user)
+
+        response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Créer tous les colis")
+        self.assertContains(response, reverse("scan:scan_order_detail", args=[order.id]))
+
     def test_scan_order_detail_returns_404_for_unknown_order(self):
         response = self.client.get(reverse("scan:scan_order_detail", args=[999999]))
 
@@ -494,17 +550,9 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(rows[0]["shipper_received_unassigned_carton_count"], 1)
         self.assertEqual(rows[0]["linked_shipments"][0]["reference"], shipment.reference)
 
-    def test_scan_orders_view_create_shipment_uses_force_new_for_approved_order(self):
+    def test_scan_orders_view_create_shipment_reuses_existing_approved_order_shipment(self):
         existing_shipment = Shipment.objects.create(
             reference="EXP-ORDERS-EXISTING",
-            status=ShipmentStatus.DRAFT,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            destination_address="1 Rue Test",
-            destination_country="France",
-        )
-        new_shipment = Shipment.objects.create(
-            reference="EXP-ORDERS-NEW",
             status=ShipmentStatus.DRAFT,
             shipper_name="Sender",
             recipient_name="Recipient",
@@ -524,7 +572,7 @@ class ScanOrdersViewsTests(TestCase):
         with (
             mock.patch(
                 "wms.order_view_handlers.create_shipment_for_order",
-                return_value=new_shipment,
+                return_value=existing_shipment,
             ) as create_shipment_mock,
             mock.patch("wms.order_view_handlers.attach_order_documents_to_shipment") as attach_mock,
         ):
@@ -537,8 +585,11 @@ class ScanOrdersViewsTests(TestCase):
             )
 
         self.assertEqual(response.status_code, 302)
-        create_shipment_mock.assert_called_once_with(order=order, force_new=True)
-        attach_mock.assert_called_once_with(order, new_shipment)
+        create_shipment_mock.assert_called_once_with(order=order)
+        attach_mock.assert_called_once_with(order, existing_shipment)
+        self.assertEqual(
+            response.url, reverse("scan:scan_shipment_edit", args=[existing_shipment.id])
+        )
 
     def test_scan_preparateur_order_select_lists_only_approved_orders(self):
         preparateur = self._create_preparateur()

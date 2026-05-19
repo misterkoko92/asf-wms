@@ -47,6 +47,8 @@ from .models import (
     Destination,
     Document,
     DocumentType,
+    OrderReviewStatus,
+    OrderStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
@@ -626,6 +628,19 @@ def _build_shipment_order_workflow_summary(shipment):
     order = resolve_linked_order_for_shipment(shipment)
     if order is None:
         return None
+    remaining_total = sum(line.remaining_quantity for line in order.lines.all())
+    can_prepare_all_cartons = (
+        order.review_status == OrderReviewStatus.APPROVED
+        and order.status in {OrderStatus.RESERVED, OrderStatus.PREPARING}
+        and remaining_total > 0
+    )
+    base_summary = {
+        "order_id": order.id,
+        "reference_label": order.reference or f"CMD-{order.id}",
+        "remaining_total": remaining_total,
+        "can_prepare_all_cartons": can_prepare_all_cartons,
+        "prepare_all_cartons_url": reverse("scan:scan_order_detail", args=[order.id]),
+    }
     try:
         inbound_delivery = order.inbound_delivery
     except AttributeError:
@@ -634,7 +649,7 @@ def _build_shipment_order_workflow_summary(shipment):
         inbound_delivery = None
     if inbound_delivery is None:
         return {
-            "reference_label": order.reference or f"CMD-{order.id}",
+            **base_summary,
             "declared_carton_count": 0,
             "unassigned_shipper_carton_count": 0,
             "has_inbound_delivery": False,
@@ -642,7 +657,7 @@ def _build_shipment_order_workflow_summary(shipment):
     receipt = getattr(inbound_delivery, "receipt", None)
     shipper_cartons = list(receipt.shipper_cartons.all()) if receipt is not None else []
     return {
-        "reference_label": order.reference or f"CMD-{order.id}",
+        **base_summary,
         "receipt_reference": getattr(receipt, "reference", ""),
         "declared_carton_count": int(getattr(inbound_delivery, "declared_carton_count", 0) or 0),
         "unassigned_shipper_carton_count": sum(

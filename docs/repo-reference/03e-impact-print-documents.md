@@ -167,6 +167,13 @@ Distinguish:
 
 Do not confuse the two.
 
+### If Editing Picking Documents
+
+Keep the two picking scopes distinct:
+
+- carton picking: one carton, grouped by product/lot and location
+- shipment `Picking Général`: all cartons in one shipment, with product, quantity, location, and carton code on each row
+
 ### If Editing Shared Party Fields
 
 Also verify:

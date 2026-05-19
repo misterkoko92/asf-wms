@@ -9,7 +9,10 @@ from wms.domain.orders import (
     assign_ready_cartons_to_order,
     consume_reserved_stock,
     create_shipment_for_order,
+    default_order_shipment_carton_counts,
+    estimate_order_preparation_carton_count,
     prepare_order,
+    recommended_order_shipment_count,
     release_reserved_stock,
     reserve_stock_for_order,
 )
@@ -943,6 +946,138 @@ class DomainOrdersExtraTests(TestCase):
             ):
                 with self.assertRaisesMessage(StockError, "Produit manquant dans la commande."):
                     prepare_order(user=self.user, order=order)
+
+    def test_prepare_order_applies_measurement_defaults_with_warning(self):
+        order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=2)
+        self._create_lot(
+            product=self.product,
+            code="LOT-MISSING-MEASUREMENTS",
+            quantity_on_hand=4,
+        )
+        CartonFormat.objects.create(
+            name="Default",
+            length_cm=40,
+            width_cm=30,
+            height_cm=20,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        reserve_stock_for_order(order=order)
+
+        warnings = []
+        prepare_order(user=self.user, order=order, packing_warnings=warnings)
+
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.READY)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("poids/volume manquants", warnings[0])
+        self.assertIsNone(self.product.weight_g)
+        self.assertIsNone(self.product.volume_cm3)
+
+    def test_estimates_cartons_and_recommends_shipments_by_batches_of_ten(self):
+        order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=32)
+        self.product.weight_g = 100
+        self.product.length_cm = 10
+        self.product.width_cm = 10
+        self.product.height_cm = 10
+        self.product.save(update_fields=["weight_g", "length_cm", "width_cm", "height_cm"])
+        CartonFormat.objects.create(
+            name="One unit",
+            length_cm=10,
+            width_cm=10,
+            height_cm=10,
+            max_weight_g=1000,
+            is_default=True,
+        )
+        self._create_lot(product=self.product, code="LOT-ESTIMATE", quantity_on_hand=40)
+        reserve_stock_for_order(order=order)
+
+        estimated_count, warnings = estimate_order_preparation_carton_count(order)
+
+        self.assertEqual(estimated_count, 32)
+        self.assertEqual(warnings, [])
+        self.assertEqual(recommended_order_shipment_count(estimated_count), 4)
+
+    def test_prepare_order_distributes_generated_cartons_across_requested_shipments(self):
+        order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=12)
+        self.product.weight_g = 100
+        self.product.length_cm = 10
+        self.product.width_cm = 10
+        self.product.height_cm = 10
+        self.product.save(update_fields=["weight_g", "length_cm", "width_cm", "height_cm"])
+        CartonFormat.objects.create(
+            name="One unit",
+            length_cm=10,
+            width_cm=10,
+            height_cm=10,
+            max_weight_g=1000,
+            is_default=True,
+        )
+        self._create_lot(product=self.product, code="LOT-MULTI", quantity_on_hand=20)
+        reserve_stock_for_order(order=order)
+
+        created_cartons = []
+        prepared_shipments = []
+        prepare_order(
+            user=self.user,
+            order=order,
+            shipment_count=2,
+            created_cartons=created_cartons,
+            prepared_shipments=prepared_shipments,
+        )
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.READY)
+        self.assertEqual(len(created_cartons), 12)
+        self.assertEqual(len(prepared_shipments), 2)
+        linked_shipments = [
+            link.shipment
+            for link in OrderShipmentLink.objects.filter(order=order)
+            .select_related("shipment")
+            .order_by("id")
+        ]
+        self.assertEqual([shipment.carton_set.count() for shipment in linked_shipments], [10, 2])
+
+    def test_prepare_order_uses_manual_carton_distribution_per_shipment(self):
+        order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=32)
+        self.product.weight_g = 100
+        self.product.length_cm = 10
+        self.product.width_cm = 10
+        self.product.height_cm = 10
+        self.product.save(update_fields=["weight_g", "length_cm", "width_cm", "height_cm"])
+        CartonFormat.objects.create(
+            name="One unit",
+            length_cm=10,
+            width_cm=10,
+            height_cm=10,
+            max_weight_g=1000,
+            is_default=True,
+        )
+        self._create_lot(product=self.product, code="LOT-MANUAL-SPLIT", quantity_on_hand=40)
+        reserve_stock_for_order(order=order)
+
+        prepare_order(
+            user=self.user,
+            order=order,
+            shipment_count=4,
+            shipment_carton_counts=[7, 10, 5, 10],
+        )
+
+        linked_shipments = [
+            link.shipment
+            for link in OrderShipmentLink.objects.filter(order=order)
+            .select_related("shipment")
+            .order_by("id")
+        ]
+        self.assertEqual(
+            [shipment.carton_set.count() for shipment in linked_shipments], [7, 10, 5, 10]
+        )
+
+    def test_default_order_shipment_carton_counts_uses_batches_of_ten_and_overflow_last(self):
+        self.assertEqual(default_order_shipment_carton_counts(32, 4), [10, 10, 10, 2])
+        self.assertEqual(default_order_shipment_carton_counts(32, 3), [10, 10, 12])
+        self.assertEqual(default_order_shipment_carton_counts(2, 4), [2, 0, 0, 0])
 
     def test_prepare_order_uses_selected_volunteer_for_created_cartons(self):
         order, _line = self._create_order(

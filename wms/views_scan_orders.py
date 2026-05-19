@@ -170,7 +170,15 @@ def scan_order_detail(request, order_id):
         response = handle_order_detail_action(request, order=order)
         if response:
             return response
-    detail = build_order_detail_payload(order)
+    include_prepare_confirmation = (request.GET.get("prepare_confirm") or "").strip() == "1"
+    try:
+        detail = build_order_detail_payload(
+            order,
+            include_prepare_confirmation=include_prepare_confirmation,
+        )
+    except StockError as exc:
+        messages.error(request, str(exc))
+        return redirect("scan:scan_order_detail", order_id=order.id)
     return _render_order_detail(request, detail=detail)
 
 
