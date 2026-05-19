@@ -81,6 +81,8 @@ def _prepare_shipment_and_cartons(request, *, order):
     shipment_carton_counts = None
     if confirmed_multi_shipment:
         requested_carton_counts = _carton_counts_from_request(request)
+        if requested_carton_counts is not None:
+            shipment_count = len(requested_carton_counts)
         try:
             shipment_carton_counts = normalize_order_shipment_carton_counts(
                 estimated_carton_count,

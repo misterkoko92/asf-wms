@@ -327,6 +327,47 @@ class OrderViewHandlersTests(TestCase):
             "Produit test: poids/volume manquants.",
         )
 
+    def test_handle_order_detail_action_uses_distribution_count_when_shipment_count_is_stale(
+        self,
+    ):
+        for carton_counts, expected_shipment_count in ((["14"], 1), (["10", "4"], 2)):
+            with self.subTest(carton_counts=carton_counts):
+                shipment = self._create_shipment()
+                order = self._create_order(
+                    review_status=OrderReviewStatus.APPROVED,
+                    status=OrderStatus.RESERVED,
+                    shipment=shipment,
+                )
+                request = self.factory.post(
+                    f"/scan/orders/{order.id}/",
+                    {
+                        "action": "create_shipment_and_cartons",
+                        "multi_shipment_confirmed": "1",
+                        "shipment_count": "3",
+                        "cartons_per_shipment": carton_counts,
+                    },
+                )
+                request.user = SimpleNamespace(username="scan-order-handler")
+
+                with mock.patch(
+                    "wms.order_view_handlers.estimate_order_preparation_carton_count",
+                    return_value=(14, []),
+                ):
+                    with mock.patch("wms.order_view_handlers.prepare_order") as prepare_mock:
+                        with mock.patch("wms.order_view_handlers.messages.success"):
+                            response = handle_order_detail_action(request, order=order)
+
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, f"/scan/shipment/{shipment.id}/edit/")
+                self.assertEqual(
+                    prepare_mock.call_args.kwargs["shipment_count"],
+                    expected_shipment_count,
+                )
+                self.assertEqual(
+                    prepare_mock.call_args.kwargs["shipment_carton_counts"],
+                    [int(value) for value in carton_counts],
+                )
+
     def test_handle_order_detail_action_rejects_distribution_when_total_does_not_match(self):
         order = self._create_order(
             review_status=OrderReviewStatus.APPROVED,
