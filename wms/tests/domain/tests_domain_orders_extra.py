@@ -11,6 +11,7 @@ from wms.domain.orders import (
     create_shipment_for_order,
     default_order_shipment_carton_counts,
     estimate_order_preparation_carton_count,
+    normalize_order_shipment_carton_counts,
     prepare_order,
     recommended_order_shipment_count,
     release_reserved_stock,
@@ -1078,6 +1079,22 @@ class DomainOrdersExtraTests(TestCase):
         self.assertEqual(default_order_shipment_carton_counts(32, 4), [10, 10, 10, 2])
         self.assertEqual(default_order_shipment_carton_counts(32, 3), [10, 10, 12])
         self.assertEqual(default_order_shipment_carton_counts(2, 4), [2, 0, 0, 0])
+
+    def test_recommended_order_shipment_count_uses_one_for_empty_order(self):
+        self.assertEqual(recommended_order_shipment_count(0), 1)
+
+    def test_normalize_order_shipment_carton_counts_defaults_when_missing(self):
+        self.assertEqual(normalize_order_shipment_carton_counts(5, 2, None), [5, 0])
+
+    def test_normalize_order_shipment_carton_counts_rejects_invalid_values(self):
+        with self.assertRaisesMessage(StockError, "valeur invalide"):
+            normalize_order_shipment_carton_counts(5, 2, ["x", 5])
+        with self.assertRaisesMessage(StockError, "valeur invalide"):
+            normalize_order_shipment_carton_counts(5, 2, [-1, 6])
+        with self.assertRaisesMessage(StockError, "2 expéditions"):
+            normalize_order_shipment_carton_counts(5, 2, [5])
+        with self.assertRaisesMessage(StockError, "4 colis au lieu de 5"):
+            normalize_order_shipment_carton_counts(5, 2, [2, 2])
 
     def test_prepare_order_uses_selected_volunteer_for_created_cartons(self):
         order, _line = self._create_order(

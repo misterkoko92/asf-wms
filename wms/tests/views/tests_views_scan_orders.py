@@ -39,6 +39,7 @@ from wms.preparateur_orders import (
     get_preparateur_selected_order,
     mark_preparateur_plan_carton_ready,
 )
+from wms.services import StockError
 
 
 class ScanOrdersViewsTests(TestCase):
@@ -419,6 +420,28 @@ class ScanOrdersViewsTests(TestCase):
         self.assertContains(response, 'value="10"', count=3)
         self.assertContains(response, 'value="2"')
         self.assertContains(response, "Produit test: poids/volume manquants.")
+
+    def test_scan_order_detail_redirects_when_prepare_confirmation_fails(self):
+        order = Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association Detail",
+            destination_address="4 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.APPROVED,
+            status=OrderStatus.RESERVED,
+        )
+
+        with mock.patch(
+            "wms.views_scan_orders.build_order_detail_payload",
+            side_effect=StockError("Stock insuffisant."),
+        ):
+            response = self.client.get(
+                reverse("scan:scan_order_detail", args=[order.id]),
+                {"prepare_confirm": "1"},
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_order_detail", args=[order.id]))
 
     def test_scan_shipment_dossier_exposes_create_all_cartons_for_linked_order(self):
         product = Product.objects.create(sku="SHIP-ORDER-1", name="Produit commande")
