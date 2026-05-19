@@ -78,6 +78,32 @@ class PrintDocsViewsTests(TestCase):
         CartonItem.objects.create(carton=carton, product_lot=lot, quantity=2)
         return carton
 
+    def _create_shipment_with_picking_item(self):
+        warehouse = Warehouse.objects.create(name="Picking WH", code="PICK")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="B",
+            aisle="02",
+            shelf="003",
+        )
+        product = Product.objects.create(
+            sku="SKU-PICK-GEN",
+            name="Produit picking general",
+            default_location=location,
+            weight_g=500,
+            volume_cm3=250,
+            qr_code_image="qr_codes/test.png",
+        )
+        lot = ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-PICK-GEN",
+            quantity_on_hand=10,
+            location=location,
+        )
+        shipment, cartons = self._create_shipment_with_cartons("C-PICK-001")
+        CartonItem.objects.create(carton=cartons[0], product_lot=lot, quantity=6)
+        return shipment
+
     def test_scan_shipment_document_routes_packed_doc_to_pack_engine(self):
         shipment = self._create_shipment()
         with mock.patch(
@@ -99,6 +125,23 @@ class PrintDocsViewsTests(TestCase):
             carton=None,
             variant="shipment",
         )
+
+    def test_scan_shipment_view_document_renders_general_picking(self):
+        shipment = self._create_shipment_with_picking_item()
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_view_document",
+                kwargs={"shipment_id": shipment.id, "document_key": "picking"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Liste picking - expédition")
+        self.assertContains(response, "Produit Picking General")
+        self.assertContains(response, "6")
+        self.assertContains(response, "B - 02 - 003")
+        self.assertContains(response, "C-PICK-001")
 
     def test_scan_shipment_document_returns_helper_job_payload_when_requested(self):
         shipment = self._create_shipment()

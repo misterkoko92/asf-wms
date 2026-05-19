@@ -19,6 +19,7 @@ from wms.print_context import (
     build_sample_product_label_context,
     build_sample_product_qr_label_context,
     build_shipment_document_context,
+    build_shipment_picking_context,
     build_shipment_preparatory_label_slots,
     effective_shipment_carton_count,
     resolve_rack_color,
@@ -577,6 +578,62 @@ class PrintContextTests(SimpleTestCase):
         self.assertEqual(context["item_rows"][0]["quantity"], 1)
         self.assertEqual(context["item_rows"][1]["location"], "Z1 - A1 - S1")
         self.assertEqual(context["item_rows"][1]["quantity"], 5)
+
+    def test_build_shipment_picking_context_lists_product_location_and_carton_code(self):
+        product = SimpleNamespace(id=1, name="Mask", brand="Brand")
+        location = SimpleNamespace(id=10, zone="Z1", aisle="A1", shelf="S1")
+        lot = SimpleNamespace(product=product, location=location, lot_code="L1")
+        carton_a = SimpleNamespace(
+            id=1,
+            code="C-001",
+            cartonitem_set=SimpleNamespace(
+                select_related=lambda *_args: [
+                    SimpleNamespace(product_lot=lot, quantity=2),
+                    SimpleNamespace(product_lot=lot, quantity=3),
+                ]
+            ),
+        )
+        carton_b = SimpleNamespace(
+            id=2,
+            code="C-002",
+            cartonitem_set=SimpleNamespace(
+                select_related=lambda *_args: [SimpleNamespace(product_lot=lot, quantity=4)]
+            ),
+        )
+        shipment = SimpleNamespace(
+            reference="SHP-100",
+            carton_set=_FakeCartonSet([carton_a, carton_b]),
+        )
+
+        with mock.patch(
+            "wms.print_context.build_product_group_key",
+            side_effect=lambda _p, _lot: ("group", "L1"),
+        ):
+            with mock.patch(
+                "wms.print_context.build_product_label",
+                return_value="Mask - Lot L1",
+            ):
+                context = build_shipment_picking_context(shipment)
+
+        self.assertEqual(context["shipment_ref"], "SHP-100")
+        self.assertEqual(context["carton_codes"], ["C-001", "C-002"])
+        self.assertEqual(
+            context["item_rows"],
+            [
+                {
+                    "label": "Mask - Lot L1",
+                    "quantity": 5,
+                    "location": "Z1 - A1 - S1",
+                    "carton_code": "C-001",
+                },
+                {
+                    "label": "Mask - Lot L1",
+                    "quantity": 4,
+                    "location": "Z1 - A1 - S1",
+                    "carton_code": "C-002",
+                },
+            ],
+        )
 
     def test_build_label_context(self):
         shipment = SimpleNamespace(

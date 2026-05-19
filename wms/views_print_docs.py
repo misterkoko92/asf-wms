@@ -31,6 +31,7 @@ from .print_context import (
     build_label_context,
     build_print_footer_context,
     build_shipment_document_context,
+    build_shipment_picking_context,
     build_shipment_preparatory_label_slots,
 )
 from .print_delivery import wants_browser_print, wants_external_pdf
@@ -60,6 +61,7 @@ from .view_permissions import scan_staff_required
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
 TEMPLATE_PACKING_LIST_CARTON = "print/liste_colisage_carton.html"
 TEMPLATE_PICKING_LIST_CARTON = "print/picking_list_carton.html"
+TEMPLATE_PICKING_LIST_SHIPMENT = "print/picking_list_shipment.html"
 TEMPLATE_SHIPMENT_PRINT_BUNDLE = "scan/shipment_print_bundle.html"
 TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT = "scan/shipment_print_bundle_lot.html"
 TEMPLATE_CARTON_PRINT_BUNDLE_LOT = "scan/carton_print_bundle_lot.html"
@@ -1048,6 +1050,12 @@ def scan_shipment_view_document(request, shipment_id, document_key):
         "packing_list": "packing_list_shipment",
         "contact": "contact_label",
     }
+    if normalized_key == "picking":
+        return render(
+            request,
+            TEMPLATE_PICKING_LIST_SHIPMENT,
+            build_shipment_picking_context(shipment),
+        )
     if normalized_key in html_doc_types and not wants_external_pdf(request):
         return render_shipment_document(request, shipment, html_doc_types[normalized_key])
     if normalized_key == "contact":

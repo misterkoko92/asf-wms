@@ -1,0 +1,92 @@
+{% extends "print/base_document.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Picking expédition" %}{% endblock %}
+
+{% block extra_style %}
+  .print-body { padding-bottom: 0; }
+  .picking-sheet {
+    border: 1px solid var(--wms-print-picking-sheet-border);
+    border-radius: 4mm;
+    padding: 5mm 5mm 4mm;
+    background: var(--wms-print-picking-sheet-bg);
+  }
+  .picking-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6mm;
+    margin-bottom: 4mm;
+  }
+  .picking-head h1 {
+    margin: 0;
+  }
+  .picking-meta {
+    margin: 0;
+    padding: 1.5mm 2.5mm;
+    border: 1px solid var(--wms-print-picking-meta-border);
+    border-radius: 3mm;
+    background: var(--wms-print-picking-meta-bg);
+    font-size: 9.5pt;
+    color: var(--wms-print-picking-meta-text);
+  }
+  .picking-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2mm;
+    background: var(--wms-print-color-surface);
+  }
+  .picking-table th,
+  .picking-table td {
+    border: 1px solid var(--wms-print-table-border);
+    padding: 2.2mm 2mm;
+    font-size: 9.5pt;
+    vertical-align: top;
+  }
+  .picking-table th {
+    background: var(--wms-print-table-header-bg);
+    color: var(--wms-print-table-header-text);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 8.7pt;
+  }
+  .picking-table tbody tr:nth-child(even) {
+    background: var(--wms-print-table-row-alt-bg);
+  }
+{% endblock %}
+
+{% block body %}
+  <section class="picking-sheet">
+    <div class="picking-head">
+      <h1>{% trans "Liste picking - expédition" %}</h1>
+      <p class="picking-meta">
+        {% trans "Expédition" %}: {{ shipment_ref }} · {% trans "Colis" %}: {{ carton_codes|join:", " }}
+      </p>
+    </div>
+
+    <table class="picking-table">
+      <thead>
+        <tr>
+          <th>{% trans "Produit" %}</th>
+          <th>{% trans "Quantité" %}</th>
+          <th>{% trans "Emplacement (Rack - Étagère - Bac)" %}</th>
+          <th>{% trans "Numéro de colis" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in item_rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.quantity }}</td>
+            <td>{{ row.location }}</td>
+            <td>{{ row.carton_code }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4">{% trans "Aucun produit à picker pour cette expédition." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

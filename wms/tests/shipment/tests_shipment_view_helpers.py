@@ -200,7 +200,12 @@ class ShipmentViewHelpersTests(TestCase):
                 "Imprimer bon d'expédition",
                 "Imprimer document douane",
                 "Imprimer liste générale",
+                "Picking Général",
             ],
+        )
+        self.assertEqual(
+            actions["paper_print_actions"][3]["url"],
+            f"/scan/shipment/{shipment.id}/view-doc/picking/",
         )
         self.assertEqual(len(actions["carton_print_rows"]), 1)
         self.assertEqual(actions["carton_print_rows"][0]["code"], carton.code)
@@ -208,6 +213,7 @@ class ShipmentViewHelpersTests(TestCase):
             [item["label"] for item in actions["carton_print_rows"][0]["actions"]],
             [
                 "Liste colisage",
+                "Picking",
                 "Étiquette colis",
                 "Étiquette contact",
                 "Attestation donation",
@@ -231,10 +237,14 @@ class ShipmentViewHelpersTests(TestCase):
         )
         self.assertEqual(
             actions["carton_print_rows"][0]["actions"][1]["url"],
-            f"/scan/shipment/{shipment.id}/labels/{carton.id}/?delivery=html",
+            f"/scan/carton/{carton.id}/picking/",
         )
         self.assertEqual(
             actions["carton_print_rows"][0]["actions"][2]["url"],
+            f"/scan/shipment/{shipment.id}/labels/{carton.id}/?delivery=html",
+        )
+        self.assertEqual(
+            actions["carton_print_rows"][0]["actions"][3]["url"],
             f"/scan/shipment/{shipment.id}/carton/{carton.id}/contact-label/",
         )
         self.assertEqual(

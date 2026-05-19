@@ -2,6 +2,11 @@ from django.urls import reverse
 
 from .models import OrderDocumentType, OrderReviewStatus, OrderStatus
 from .order_helpers import build_order_creator_info
+from .services import (
+    default_order_shipment_carton_counts,
+    estimate_order_preparation_carton_count,
+    recommended_order_shipment_count,
+)
 from .status_presenters import (
     present_order_review_status,
     present_order_shipment_status,
@@ -140,6 +145,20 @@ def _inbound_workflow_summary(order):
     }
 
 
+def _build_prepare_confirmation(order):
+    estimated_carton_count, warnings = estimate_order_preparation_carton_count(order)
+    recommended_shipment_count = recommended_order_shipment_count(estimated_carton_count)
+    return {
+        "estimated_carton_count": estimated_carton_count,
+        "recommended_shipment_count": recommended_shipment_count,
+        "default_carton_counts": default_order_shipment_carton_counts(
+            estimated_carton_count,
+            recommended_shipment_count,
+        ),
+        "warnings": warnings,
+    }
+
+
 def build_orders_view_rows(orders_qs):
     wanted_docs = {
         OrderDocumentType.DONATION_ATTESTATION,
@@ -202,10 +221,13 @@ def build_orders_view_rows(orders_qs):
     return rows
 
 
-def build_order_detail_payload(order):
+def build_order_detail_payload(order, *, include_prepare_confirmation=False):
     row = build_orders_view_rows([order])[0]
     order_lines = list(order.lines.select_related("product").all())
     remaining_total = sum(line.remaining_quantity for line in order_lines)
+    prepare_confirmation = (
+        _build_prepare_confirmation(order) if include_prepare_confirmation else None
+    )
     return {
         **row,
         "order_status_display": present_order_status(order),
@@ -220,6 +242,7 @@ def build_order_detail_payload(order):
         "destination_summary": _build_destination_summary(order),
         "can_prepare_shipment_and_cartons": _can_prepare_shipment_and_cartons(order),
         "prepare_shipment_and_cartons_label": "Créer les colis et l'expédition",
+        "prepare_confirmation": prepare_confirmation,
         "order_lines": order_lines,
         "remaining_total": remaining_total,
     }

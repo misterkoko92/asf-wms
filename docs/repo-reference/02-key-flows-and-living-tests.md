@@ -126,6 +126,7 @@ Read this flow when touching:
 - Prepared shipment creation can store `planned_carton_count` without attaching cartons; this planned count is document-only and must not make the shipment ready or create `Carton` rows.
 - Prepared shipment batch creation is all-or-nothing and creates one independent document-first shipment per row.
 - Shipment `paper` bundle order remains: `Bon d'expédition`, `Document douane`, `Liste colisage générale` twice.
+- Shipment dossier `Picking Général` is a shipment-level picking document showing product, quantity, location, and carton code across all cartons in that shipment.
 - Shipment `standard_labels` means one A4 portrait page per carton with donation certificate, shipment label, contact label, and carton packing list.
 - Shipment `preparatory_labels` means one A4 portrait page per planned/real slot with donation certificate, shipment label, and contact label only; it intentionally omits carton packing lists for virtual slots.
 - `carton_lists` remains continuous-roll; `carton_lists_a4` remains direct printable A4.
@@ -359,6 +360,8 @@ Read this flow when touching:
 - Document completeness blocks later shipment readiness when the shipment depends on those documents.
 - One order may link multiple shipment dossiers through `OrderShipmentLink`.
 - `order.shipment` remains a compatibility pointer for older surfaces.
+- Scan quick actions for order shipment creation reuse an existing linked shipment by default; creating several shipments for one order must be an explicit operator choice.
+- Order preparation may split generated cartons across several linked shipments, defaulting to a recommendation of 10 cartons per shipment while allowing operators to override both the shipment count and the carton count assigned to each shipment.
 - `scan/receive-association/` can attach a receipt to order inbound delivery and materialize declared shipper cartons.
 - Legacy scan order flow is split:
   - `/scan/orders-view/` = queue

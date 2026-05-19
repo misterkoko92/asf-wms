@@ -43,10 +43,27 @@ LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 }
+RECOMMENDED_CARTONS_PER_SHIPMENT = 10
 
 
 def _normalized_text(value):
     return (value or "").strip()
+
+
+def _positive_int(value, *, default=1):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _non_negative_int(value, *, default=0):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 0 else default
 
 
 def _active_contact(contact):
@@ -239,6 +256,152 @@ def create_shipment_for_order(*, order: Order, force_new: bool = False):
         order.shipment = shipment
         order.save(update_fields=["shipment"])
     return shipment
+
+
+def _order_linked_shipments(order: Order):
+    shipments = []
+    seen = set()
+    if order.shipment_id:
+        shipments.append(order.shipment)
+        seen.add(order.shipment_id)
+        OrderShipmentLink.objects.get_or_create(
+            order=order,
+            shipment=order.shipment,
+            defaults={"created_by": order.created_by},
+        )
+    for link in (
+        OrderShipmentLink.objects.filter(order=order).select_related("shipment").order_by("id")
+    ):
+        shipment = link.shipment
+        if shipment.id in seen:
+            continue
+        shipments.append(shipment)
+        seen.add(shipment.id)
+    return shipments
+
+
+def _ensure_order_shipment_count(order: Order, shipment_count: int):
+    create_shipment_for_order(order=order)
+    shipments = _order_linked_shipments(order)
+    target_count = _positive_int(shipment_count, default=1)
+    while len(shipments) < target_count:
+        shipment = create_shipment_for_order(order=order, force_new=True)
+        shipments.append(shipment)
+    return shipments
+
+
+def _order_preparation_carton_size():
+    carton_format = CartonFormat.objects.filter(is_default=True).first()
+    if carton_format is None:
+        carton_format = CartonFormat.objects.first()
+    if carton_format is None:
+        raise StockError("Format de carton manquant.")
+    return {
+        "length_cm": carton_format.length_cm,
+        "width_cm": carton_format.width_cm,
+        "height_cm": carton_format.height_cm,
+        "max_weight_g": carton_format.max_weight_g,
+    }
+
+
+def _remaining_order_line_items(order: Order):
+    return [
+        {"product": line.product, "quantity": line.remaining_quantity}
+        for line in order.lines.select_related("product")
+        if line.remaining_quantity > 0
+    ]
+
+
+def estimate_order_preparation_carton_count(order: Order):
+    line_items = _remaining_order_line_items(order)
+    if not line_items:
+        return 0, []
+    bins, errors, warnings = build_packing_bins(
+        line_items,
+        _order_preparation_carton_size(),
+        apply_defaults=True,
+    )
+    if errors:
+        raise StockError(errors[0])
+    return len(bins or []), warnings
+
+
+def recommended_order_shipment_count(carton_count: int):
+    carton_count = max(0, _positive_int(carton_count, default=0))
+    if carton_count <= 0:
+        return 1
+    return max(
+        1,
+        (carton_count + RECOMMENDED_CARTONS_PER_SHIPMENT - 1) // RECOMMENDED_CARTONS_PER_SHIPMENT,
+    )
+
+
+def default_order_shipment_carton_counts(carton_count: int, shipment_count=None):
+    carton_count = max(0, _non_negative_int(carton_count, default=0))
+    target_count = _positive_int(
+        shipment_count,
+        default=recommended_order_shipment_count(carton_count),
+    )
+    counts = []
+    remaining = carton_count
+    for shipment_index in range(target_count):
+        if remaining <= 0:
+            counts.append(0)
+            continue
+        if shipment_index == target_count - 1:
+            count = remaining
+        else:
+            count = min(RECOMMENDED_CARTONS_PER_SHIPMENT, remaining)
+        counts.append(count)
+        remaining -= count
+    return counts
+
+
+def normalize_order_shipment_carton_counts(carton_count, shipment_count, shipment_carton_counts):
+    carton_count = max(0, _non_negative_int(carton_count, default=0))
+    target_count = _positive_int(shipment_count, default=1)
+    if shipment_carton_counts is None:
+        return default_order_shipment_carton_counts(carton_count, target_count)
+    normalized_counts = []
+    for raw_count in shipment_carton_counts:
+        try:
+            count = int(raw_count)
+        except (TypeError, ValueError) as exc:
+            raise StockError("La répartition des colis contient une valeur invalide.") from exc
+        if count < 0:
+            raise StockError("La répartition des colis contient une valeur invalide.")
+        normalized_counts.append(count)
+    if len(normalized_counts) != target_count:
+        raise StockError(f"La répartition doit contenir {target_count} expéditions.")
+    distributed_total = sum(normalized_counts)
+    if distributed_total != carton_count:
+        raise StockError(
+            f"La répartition indique {distributed_total} colis au lieu de {carton_count}."
+        )
+    return normalized_counts
+
+
+def _shipment_for_generated_carton(
+    *, carton_index, carton_count, shipments, shipment_carton_counts=None
+):
+    if not shipments:
+        raise StockError("Expédition introuvable.")
+    shipment_count = len(shipments)
+    if shipment_count == 1 or carton_count <= 0:
+        return shipments[0]
+    if shipment_carton_counts is not None:
+        upper_bound = 0
+        for shipment_index, carton_limit in enumerate(shipment_carton_counts):
+            upper_bound += carton_limit
+            if carton_index < upper_bound:
+                return shipments[min(shipment_index, shipment_count - 1)]
+        return shipments[-1]
+    recommended_count = recommended_order_shipment_count(carton_count)
+    if shipment_count >= recommended_count:
+        shipment_index = carton_index // RECOMMENDED_CARTONS_PER_SHIPMENT
+    else:
+        shipment_index = (carton_index * shipment_count) // carton_count
+    return shipments[min(shipment_index, shipment_count - 1)]
 
 
 def reserve_stock_for_order(*, order: Order):
@@ -495,44 +658,61 @@ def prepare_order(
     *,
     user,
     order: Order,
+    shipment_count=1,
     prepared_by_user=None,
     volunteer_profile=None,
     actor_user=None,
     created_cartons=None,
+    packing_warnings=None,
+    prepared_shipments=None,
+    shipment_carton_counts=None,
 ):
     if order.status not in {OrderStatus.RESERVED, OrderStatus.PREPARING}:
         raise StockError("Commande non réservée.")
-    shipment = create_shipment_for_order(order=order)
-    if getattr(shipment, "is_disputed", False):
-        raise StockError("Expédition en litige: préparation impossible.")
-    if shipment.status in LOCKED_SHIPMENT_STATUSES:
-        raise StockError("Expédition verrouillée: préparation impossible.")
+    shipments = _ensure_order_shipment_count(order, _positive_int(shipment_count, default=1))
+    if prepared_shipments is not None:
+        prepared_shipments.extend(shipments)
+    for shipment in shipments:
+        if getattr(shipment, "is_disputed", False):
+            raise StockError("Expédition en litige: préparation impossible.")
+        if shipment.status in LOCKED_SHIPMENT_STATUSES:
+            raise StockError("Expédition verrouillée: préparation impossible.")
     assigned = assign_ready_cartons_to_order(order=order)
 
     remaining_lines = [
         line for line in order.lines.select_related("product") if line.remaining_quantity > 0
     ]
     if remaining_lines:
-        carton_format = CartonFormat.objects.filter(is_default=True).first()
-        if carton_format is None:
-            carton_format = CartonFormat.objects.first()
-        if carton_format is None:
-            raise StockError("Format de carton manquant.")
-        carton_size = {
-            "length_cm": carton_format.length_cm,
-            "width_cm": carton_format.width_cm,
-            "height_cm": carton_format.height_cm,
-            "max_weight_g": carton_format.max_weight_g,
-        }
+        carton_size = _order_preparation_carton_size()
         line_items = [
             {"product": line.product, "quantity": line.remaining_quantity}
             for line in remaining_lines
         ]
         line_by_product = {line.product_id: line for line in remaining_lines}
-        bins, errors, warnings = build_packing_bins(line_items, carton_size)
+        bins, errors, warnings = build_packing_bins(
+            line_items,
+            carton_size,
+            apply_defaults=True,
+        )
         if errors:
             raise StockError(errors[0])
-        for bin_data in bins:
+        if packing_warnings is not None:
+            packing_warnings.extend(warnings)
+        carton_count = len(bins or [])
+        carton_distribution = None
+        if shipment_carton_counts is not None:
+            carton_distribution = normalize_order_shipment_carton_counts(
+                carton_count,
+                len(shipments),
+                shipment_carton_counts,
+            )
+        for carton_index, bin_data in enumerate(bins):
+            shipment = _shipment_for_generated_carton(
+                carton_index=carton_index,
+                carton_count=carton_count,
+                shipments=shipments,
+                shipment_carton_counts=carton_distribution,
+            )
             carton = None
             for entry in bin_data["items"].values():
                 line = line_by_product.get(entry["product"].id)
@@ -557,5 +737,6 @@ def prepare_order(
     else:
         order.status = OrderStatus.PREPARING
     order.save(update_fields=["status"])
-    sync_shipment_ready_state(shipment)
+    for shipment in shipments:
+        sync_shipment_ready_state(shipment)
     return assigned

@@ -213,6 +213,10 @@ def build_shipment_dossier_print_actions(shipment):
             "label": _("Imprimer liste générale"),
             "url": reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "packing_list"]),
         },
+        {
+            "label": _("Picking Général"),
+            "url": reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "picking"]),
+        },
     ]
     carton_print_rows = []
     for carton in shipment.carton_set.all().order_by("code"):
@@ -225,6 +229,10 @@ def build_shipment_dossier_print_actions(shipment):
                         "url": _html_delivery_url(
                             reverse(DOC_ROUTE_CARTON, args=[shipment.id, carton.id])
                         ),
+                    },
+                    {
+                        "label": _("Picking"),
+                        "url": reverse("scan:scan_carton_picking", args=[carton.id]),
                     },
                     {
                         "label": _("Étiquette colis"),

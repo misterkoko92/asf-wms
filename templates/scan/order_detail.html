@@ -74,6 +74,137 @@
 
   <div class="scan-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title">{% trans "Actions métier" %}</h3>
+    {% if detail.prepare_confirmation %}
+      <div class="scan-message warning ui-comp-alert mb-3">
+        <strong>{% trans "Préparation multi-expéditions" %}</strong>
+        <p class="mb-2">
+          {% blocktrans with carton_count=detail.prepare_confirmation.estimated_carton_count trimmed %}
+            La commande va générer {{ carton_count }} colis. Combien d'expédition souhaitez vous créer ?
+          {% endblocktrans %}
+        </p>
+        {% if detail.prepare_confirmation.warnings %}
+          <ul class="mb-2">
+            {% for warning in detail.prepare_confirmation.warnings %}
+              <li>{{ warning }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <form method="post" class="ui-comp-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_shipment_and_cartons">
+          <input type="hidden" name="multi_shipment_confirmed" value="1">
+          <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+            <div class="scan-field mb-0">
+              <label class="form-label" for="id_shipment_count">{% trans "Nombre d'expéditions" %}</label>
+              <input
+                id="id_shipment_count"
+                class="form-control form-control-sm"
+                type="number"
+                min="1"
+                step="1"
+                name="shipment_count"
+                value="{{ detail.prepare_confirmation.recommended_shipment_count }}"
+              >
+              <div class="scan-help">
+                {% blocktrans with default_count=detail.prepare_confirmation.recommended_shipment_count trimmed %}
+                  Par défaut : {{ default_count }}. La recommandation est 10 colis par expédition, sans limite stricte.
+                {% endblocktrans %}
+              </div>
+            </div>
+          </div>
+          <div
+            id="shipment-carton-distribution"
+            class="scan-meta-grid mb-3"
+            data-carton-count="{{ detail.prepare_confirmation.estimated_carton_count }}"
+          >
+            {% for count in detail.prepare_confirmation.default_carton_counts %}
+              <div class="scan-field mb-0" data-shipment-carton-row>
+                <label class="form-label" for="id_cartons_per_shipment_{{ forloop.counter }}">
+                  {% blocktrans with number=forloop.counter trimmed %}Expédition {{ number }}{% endblocktrans %}
+                </label>
+                <input
+                  id="id_cartons_per_shipment_{{ forloop.counter }}"
+                  class="form-control form-control-sm"
+                  type="number"
+                  min="0"
+                  step="1"
+                  name="cartons_per_shipment"
+                  value="{{ count }}"
+                >
+              </div>
+            {% endfor %}
+          </div>
+          <div class="scan-help mb-3">
+            {% blocktrans with carton_count=detail.prepare_confirmation.estimated_carton_count trimmed %}
+              La somme des champs doit rester égale à {{ carton_count }} colis.
+            {% endblocktrans %}
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <button type="submit" class="btn btn-warning btn-sm">{% trans "Créer les expéditions et les colis" %}</button>
+            <a class="btn btn-tertiary btn-sm" href="{% url 'scan:scan_order_detail' detail.order.id %}">{% trans "Annuler" %}</a>
+          </div>
+        </form>
+        <script>
+          (function () {
+            var shipmentCountInput = document.getElementById("id_shipment_count");
+            var distribution = document.getElementById("shipment-carton-distribution");
+            if (!shipmentCountInput || !distribution) {
+              return;
+            }
+            var totalCartons = parseInt(distribution.getAttribute("data-carton-count") || "0", 10) || 0;
+            function defaultCounts(count) {
+              var values = [];
+              var remaining = totalCartons;
+              for (var index = 0; index < count; index += 1) {
+                var value = 0;
+                if (remaining > 0) {
+                  value = index === count - 1 ? remaining : Math.min(10, remaining);
+                }
+                values.push(value);
+                remaining -= value;
+              }
+              return values;
+            }
+            function renderDistribution() {
+              var count = parseInt(shipmentCountInput.value || "1", 10);
+              if (!count || count < 1) {
+                count = 1;
+                shipmentCountInput.value = "1";
+              }
+              var currentInputs = distribution.querySelectorAll("input[name='cartons_per_shipment']");
+              if (currentInputs.length === count) {
+                return;
+              }
+              var values = defaultCounts(count);
+              distribution.innerHTML = "";
+              values.forEach(function (value, index) {
+                var wrapper = document.createElement("div");
+                wrapper.className = "scan-field mb-0";
+                wrapper.setAttribute("data-shipment-carton-row", "");
+                var label = document.createElement("label");
+                var inputId = "id_cartons_per_shipment_" + (index + 1);
+                label.className = "form-label";
+                label.setAttribute("for", inputId);
+                label.textContent = "Expédition " + (index + 1);
+                var input = document.createElement("input");
+                input.id = inputId;
+                input.className = "form-control form-control-sm";
+                input.type = "number";
+                input.min = "0";
+                input.step = "1";
+                input.name = "cartons_per_shipment";
+                input.value = String(value);
+                wrapper.appendChild(label);
+                wrapper.appendChild(input);
+                distribution.appendChild(wrapper);
+              });
+            }
+            shipmentCountInput.addEventListener("change", renderDistribution);
+            shipmentCountInput.addEventListener("input", renderDistribution);
+          }());
+        </script>
+      </div>
+    {% endif %}
     <div class="ui-comp-actions">
       {% if detail.can_create_shipment %}
         <form method="post">
@@ -82,7 +213,7 @@
           <button type="submit" class="btn btn-success btn-sm">{{ detail.create_shipment_label }}</button>
         </form>
       {% endif %}
-      {% if detail.can_prepare_shipment_and_cartons %}
+      {% if detail.can_prepare_shipment_and_cartons and not detail.prepare_confirmation %}
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="create_shipment_and_cartons">

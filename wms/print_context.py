@@ -467,6 +467,46 @@ def build_carton_picking_context(carton):
     }
 
 
+def build_shipment_picking_context(shipment):
+    rows_by_key = {}
+    cartons = list(shipment.carton_set.all().order_by("code", "id"))
+    for carton in cartons:
+        for item in carton.cartonitem_set.select_related(
+            "product_lot__product",
+            "product_lot__location",
+        ):
+            product = item.product_lot.product
+            location = item.product_lot.location
+            if location:
+                location_label = f"{location.zone} - {location.aisle} - {location.shelf}"
+            else:
+                location_label = "-"
+            lot_code = item.product_lot.lot_code
+            group_key = build_product_group_key(product, lot_code)
+            key = (carton.code, group_key, location.id if location else None)
+            if key not in rows_by_key:
+                rows_by_key[key] = {
+                    "label": build_product_label(product, lot_code),
+                    "quantity": item.quantity,
+                    "location": location_label,
+                    "carton_code": carton.code,
+                }
+            else:
+                rows_by_key[key]["quantity"] += item.quantity
+    item_rows = sorted(
+        rows_by_key.values(),
+        key=lambda row: (row["location"], row["label"], row["carton_code"]),
+    )
+    return {
+        **build_print_footer_context(),
+        "document_date": timezone.localdate(),
+        "shipment_ref": shipment.reference,
+        "carton_codes": [carton.code for carton in cartons],
+        "item_rows": item_rows,
+        "hide_footer": True,
+    }
+
+
 def build_label_context(shipment, *, position, total):
     city, iata, _label = _build_destination_info(shipment)
     label_city = (city or shipment.destination_address or "").upper()

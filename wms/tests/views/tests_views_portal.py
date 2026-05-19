@@ -2330,6 +2330,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertIsNotNone(order.shipment_id)
         self.assertIsNotNone(order.recipient_contact_id)
         self.assertEqual(order.shipper_contact_id, self.profile.contact_id)
+        existing_shipment_id = order.shipment_id
+        self.assertEqual(order.shipment_links.count(), 1)
 
         staff_user = self._create_portal_user("scan-staff", "scan-staff@example.com")
         staff_user.is_staff = True
@@ -2357,14 +2359,16 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
         order.refresh_from_db()
         self.assertIsNotNone(order.shipment_id)
-        created_shipment_link = order.shipment_links.order_by("-id").first()
-        self.assertIsNotNone(created_shipment_link)
-        self.assertEqual(order.shipment_links.count(), 2)
+        self.assertEqual(order.shipment_id, existing_shipment_id)
+        existing_shipment_link = order.shipment_links.order_by("-id").first()
+        self.assertIsNotNone(existing_shipment_link)
+        self.assertEqual(existing_shipment_link.shipment_id, existing_shipment_id)
+        self.assertEqual(order.shipment_links.count(), 1)
         self.assertEqual(
             create_response.url,
             reverse(
                 "scan:scan_shipment_edit",
-                kwargs={"shipment_id": created_shipment_link.shipment_id},
+                kwargs={"shipment_id": existing_shipment_link.shipment_id},
             ),
         )
 
