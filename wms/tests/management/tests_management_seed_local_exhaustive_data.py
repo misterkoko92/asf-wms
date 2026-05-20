@@ -5,6 +5,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from wms.application.portal.readiness import build_shipper_readiness
 from wms.models import (
     AccountDocument,
     AssociationBillingChangeRequest,
@@ -114,6 +115,23 @@ class SeedLocalExhaustiveDataCommandTests(TestCase):
                 channel=CommunicationChannel.WHATSAPP,
             ).exists()
         )
+
+    def test_command_seeds_shipper_accounts_ready_for_portal_orders(self):
+        call_command("seed_local_exhaustive_data", "--scenario=users")
+
+        profiles = AssociationProfile.objects.filter(user__username__contains="users").order_by(
+            "user__username"
+        )
+        self.assertGreaterEqual(profiles.count(), 2)
+        for profile in profiles:
+            readiness = build_shipper_readiness(profile)
+            self.assertTrue(
+                readiness.is_ready,
+                msg=(
+                    f"{profile.user.username} missing "
+                    f"{[requirement.label for requirement in readiness.missing_requirements]}"
+                ),
+            )
 
     def test_command_marks_seeded_local_shippers_and_recipients_as_validated(self):
         call_command("seed_local_exhaustive_data", "--scenario=users")
