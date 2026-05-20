@@ -539,6 +539,65 @@ class AssociationContactTitle(models.TextChoices):
     SERGENT = "sgt", _("Sergent")
 
 
+class StopoverFeasibilityRequesterType(models.TextChoices):
+    SHIPPER = "shipper", "Expediteur"
+    RECIPIENT = "recipient", "Destinataire"
+
+
+class StopoverFeasibilityRequestStatus(models.TextChoices):
+    NEW = "new", "Nouvelle"
+    REVIEWED = "reviewed", "Etudiee"
+    CLOSED = "closed", "Cloturee"
+
+
+class StopoverFeasibilityRequest(models.Model):
+    requester_type = models.CharField(
+        max_length=20,
+        choices=StopoverFeasibilityRequesterType.choices,
+    )
+    requested_stopovers = models.TextField()
+    structure_name = models.CharField(max_length=200)
+    legal_form = models.CharField(
+        max_length=30,
+        choices=RecipientLegalForm.choices,
+    )
+    beneficiary_count = models.PositiveIntegerField()
+    contact_title = models.CharField(
+        max_length=10,
+        choices=AssociationContactTitle.choices,
+    )
+    contact_last_name = models.CharField(max_length=120)
+    contact_first_name = models.CharField(max_length=120)
+    contact_email = models.EmailField()
+    contact_phone = models.CharField(max_length=40)
+    address_line1 = models.CharField(max_length=200)
+    address_line2 = models.CharField(max_length=200, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    city = models.CharField(max_length=120)
+    country = models.CharField(max_length=80)
+    message = models.TextField(blank=True)
+    source = models.CharField(max_length=80, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=StopoverFeasibilityRequestStatus.choices,
+        default=StopoverFeasibilityRequestStatus.NEW,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stopover_feasibility_requests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.structure_name} - {self.requested_stopovers}"
+
+
 class AssociationPortalContact(models.Model):
     profile = models.ForeignKey(
         AssociationProfile,
