@@ -9,6 +9,7 @@ from wms.admin_account_request_approval import approve_account_request
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
+    AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
     Destination,
@@ -215,6 +216,75 @@ class PortalRoleReviewGateTests(TestCase):
         shipper = ShipmentShipper.objects.get(organization=account_request.contact)
         self.assertTrue(shipper.is_active)
         self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
+
+    def test_approve_shipper_account_request_provisions_operational_contacts(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-role-review-contacts",
+            email="admin-role-review-contacts@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Association With Contacts",
+            email="contacts-association@example.org",
+            phone="0102030405",
+            address_line1="1 Rue Contacts",
+            city="Paris",
+            country="France",
+            contact_payloads={
+                "admin": {
+                    "title": "mr",
+                    "first_name": "Marc",
+                    "last_name": "DURAND",
+                    "email": "admin-contact@example.org",
+                    "phone": "0600000001",
+                    "address_line1": "1 Rue Admin",
+                    "address_line2": "",
+                    "postal_code": "75001",
+                    "city": "Paris",
+                    "country": "France",
+                },
+                "preparation": {
+                    "title": "mrs",
+                    "first_name": "Claire",
+                    "last_name": "MARTIN",
+                    "email": "prep-contact@example.org",
+                    "phone": "0600000002",
+                    "address_line1": "2 Rue Prep",
+                    "address_line2": "",
+                    "postal_code": "75002",
+                    "city": "Paris",
+                    "country": "France",
+                },
+            },
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        profile = AssociationProfile.objects.get(contact=account_request.contact)
+        contacts = list(profile.portal_contacts.order_by("position"))
+        self.assertEqual(len(contacts), 2)
+        self.assertEqual(contacts[0].email, "admin-contact@example.org")
+        self.assertEqual(contacts[0].emails, "admin-contact@example.org")
+        self.assertEqual(contacts[0].phones, "0600000001")
+        self.assertTrue(contacts[0].is_administrative)
+        self.assertEqual(contacts[0].address_line1, "1 Rue Admin")
+        self.assertEqual(contacts[1].email, "prep-contact@example.org")
+        self.assertTrue(contacts[1].is_shipping)
+        self.assertEqual(
+            profile.notification_emails, "admin-contact@example.org,prep-contact@example.org"
+        )
 
     def test_approve_shipper_account_request_provisions_first_delivery_recipient(self):
         admin_user = get_user_model().objects.create_user(

@@ -159,6 +159,8 @@ ERROR_ASSOCIATION_NAME_REQUIRED = _("Nom de l'association requis.")
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse requise.")
 ERROR_CONTACT_ROWS_LIMIT = _("Maximum %(count)s contacts.")
 ERROR_CONTACT_REQUIRED = _("Ajoutez au moins un contact email.")
+ERROR_ADMIN_CONTACT_REQUIRED = _("Ajoutez au moins un contact administratif.")
+ERROR_PREPARATION_CONTACT_REQUIRED = _("Ajoutez au moins un contact préparation/logistique.")
 ERROR_BILLING_PREFERENCES_INVALID = _(
     "Choisissez une périodicité et un mode de regroupement valides."
 )
@@ -1115,6 +1117,13 @@ def _build_default_contact_row(*, index):
         "first_name": "",
         "phone": "",
         "email": "",
+        "phones": "",
+        "emails": "",
+        "address_line1": "",
+        "address_line2": "",
+        "postal_code": "",
+        "city": "",
+        "country": DEFAULT_COUNTRY,
         "is_administrative": False,
         "is_shipping": False,
         "is_billing": False,
@@ -1135,6 +1144,13 @@ def _build_contact_rows(profile):
                 "first_name": contact.first_name or "",
                 "phone": contact.phone or "",
                 "email": contact.email or "",
+                "phones": contact.phones or contact.phone or "",
+                "emails": contact.emails or contact.email or "",
+                "address_line1": contact.address_line1 or "",
+                "address_line2": contact.address_line2 or "",
+                "postal_code": contact.postal_code or "",
+                "city": contact.city or "",
+                "country": contact.country or DEFAULT_COUNTRY,
                 "is_administrative": contact.is_administrative,
                 "is_shipping": contact.is_shipping,
                 "is_billing": contact.is_billing,
@@ -1171,6 +1187,35 @@ def _extract_contact_rows(post_data):
             "first_name": (post_data.get(f"contact_{index}_first_name") or "").strip(),
             "phone": (post_data.get(f"contact_{index}_phone") or "").strip(),
             "email": (post_data.get(f"contact_{index}_email") or "").strip(),
+            "phones": (
+                post_data.get(f"contact_{index}_phones")
+                or post_data.get(f"contact_{index}_phone")
+                or ""
+            ).strip(),
+            "emails": (
+                post_data.get(f"contact_{index}_emails")
+                or post_data.get(f"contact_{index}_email")
+                or ""
+            ).strip(),
+            "address_line1": (
+                post_data.get(f"contact_{index}_address_line1")
+                or post_data.get("address_line1")
+                or ""
+            ).strip(),
+            "address_line2": (
+                post_data.get(f"contact_{index}_address_line2")
+                or post_data.get("address_line2")
+                or ""
+            ).strip(),
+            "postal_code": (
+                post_data.get(f"contact_{index}_postal_code") or post_data.get("postal_code") or ""
+            ).strip(),
+            "city": (post_data.get(f"contact_{index}_city") or post_data.get("city") or "").strip(),
+            "country": (
+                post_data.get(f"contact_{index}_country")
+                or post_data.get("country")
+                or DEFAULT_COUNTRY
+            ).strip(),
             "is_administrative": bool(post_data.get(f"contact_{index}_is_administrative")),
             "is_shipping": bool(post_data.get(f"contact_{index}_is_shipping")),
             "is_billing": bool(post_data.get(f"contact_{index}_is_billing")),
@@ -1182,6 +1227,9 @@ def _extract_contact_rows(post_data):
                 row["first_name"],
                 row["phone"],
                 row["email"],
+                row["address_line1"],
+                row["city"],
+                row["country"],
                 row["is_administrative"],
                 row["is_shipping"],
                 row["is_billing"],
@@ -1191,6 +1239,20 @@ def _extract_contact_rows(post_data):
             continue
         if not row["email"]:
             errors.append(_("Ligne %(index)s: email requis.") % {"index": index + 1})
+        if not row["phone"]:
+            errors.append(_("Ligne %(index)s: téléphone requis.") % {"index": index + 1})
+        if not row["title"]:
+            errors.append(_("Ligne %(index)s: titre requis.") % {"index": index + 1})
+        if not row["last_name"]:
+            errors.append(_("Ligne %(index)s: nom requis.") % {"index": index + 1})
+        if not row["first_name"]:
+            errors.append(_("Ligne %(index)s: prénom requis.") % {"index": index + 1})
+        if not row["address_line1"]:
+            errors.append(_("Ligne %(index)s: adresse requise.") % {"index": index + 1})
+        if not row["city"]:
+            errors.append(_("Ligne %(index)s: ville requise.") % {"index": index + 1})
+        if not row["country"]:
+            errors.append(_("Ligne %(index)s: pays requis.") % {"index": index + 1})
         if not (row["is_administrative"] or row["is_shipping"] or row["is_billing"]):
             errors.append(_("Ligne %(index)s: cochez au moins un type.") % {"index": index + 1})
         rows.append(row)
@@ -1198,6 +1260,10 @@ def _extract_contact_rows(post_data):
     if not rows:
         errors.append(ERROR_CONTACT_REQUIRED)
         rows = [_build_default_contact_row(index=0)]
+    if not any(row["is_administrative"] for row in rows):
+        errors.append(ERROR_ADMIN_CONTACT_REQUIRED)
+    if not any(row["is_shipping"] for row in rows):
+        errors.append(ERROR_PREPARATION_CONTACT_REQUIRED)
     return rows, errors
 
 

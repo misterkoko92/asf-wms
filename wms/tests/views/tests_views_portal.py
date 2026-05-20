@@ -4400,6 +4400,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 "contact_1_first_name": "Claire",
                 "contact_1_phone": "0600000001",
                 "contact_1_email": "billing@example.com",
+                "contact_1_is_shipping": "1",
                 "contact_1_is_billing": "1",
             },
         )
@@ -4421,8 +4422,12 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         contacts = list(self.profile.portal_contacts.order_by("position"))
         self.assertEqual(len(contacts), 2)
         self.assertEqual(contacts[0].email, "admin@example.com")
+        self.assertEqual(contacts[0].emails, "admin@example.com")
+        self.assertEqual(contacts[0].phones, "0600000000")
+        self.assertEqual(contacts[0].address_line1, "10 Rue Update")
         self.assertTrue(contacts[0].is_administrative)
         self.assertEqual(contacts[1].email, "billing@example.com")
+        self.assertTrue(contacts[1].is_shipping)
         self.assertTrue(contacts[1].is_billing)
 
     def test_portal_account_updates_profile_via_shared_use_case(self):
@@ -4449,6 +4454,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                     "contact_0_phone": "0600000000",
                     "contact_0_email": "admin@example.com",
                     "contact_0_is_administrative": "1",
+                    "contact_0_is_shipping": "1",
                 },
             )
 
@@ -4503,6 +4509,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 "contact_1_first_name": "Claire",
                 "contact_1_phone": "0600000099",
                 "contact_1_email": "billing@example.com",
+                "contact_1_is_shipping": "1",
                 "contact_1_is_billing": "1",
             },
         )
@@ -4513,6 +4520,36 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             [contact.id for contact in contacts], [first_contact.id, second_contact.id]
         )
         self.assertEqual(contacts[1].phone, "0600000099")
+
+    def test_portal_account_update_profile_requires_admin_and_preparation_contacts(self):
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "update_profile",
+                "association_name": "Association X",
+                "association_email": "x@example.com",
+                "association_phone": "0601020304",
+                "address_line1": "10 Rue Update",
+                "address_line2": "",
+                "postal_code": "75011",
+                "city": "Paris",
+                "country": "France",
+                "contact_count": "1",
+                "contact_0_title": "mr",
+                "contact_0_last_name": "Durand",
+                "contact_0_first_name": "Marc",
+                "contact_0_phone": "0600000000",
+                "contact_0_email": "admin@example.com",
+                "contact_0_is_administrative": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Ajoutez au moins un contact préparation/logistique.",
+            response.context["account_form_errors"],
+        )
+        self.assertEqual(AssociationPortalContact.objects.count(), 0)
 
     def test_portal_account_update_profile_requires_contact_type(self):
         response = self.client.post(
