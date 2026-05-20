@@ -7,11 +7,11 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.template.loader import render_to_string
 
-from .account_request_handlers import ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT
 from .emailing import get_admin_emails, get_group_emails, send_or_enqueue_email_safe
 from .models import StopoverFeasibilityRequest
 
 LOGGER = logging.getLogger(__name__)
+ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 TEMPLATE_STOPOVER_FEASIBILITY_REQUEST_ADMIN = "emails/stopover_feasibility_request_admin.txt"
 SUBJECT_STOPOVER_FEASIBILITY_REQUEST = "Demande nouvelle escale"
 

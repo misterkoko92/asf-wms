@@ -1,6 +1,103 @@
 {% load i18n %}
 
 <section id="association-fields" data-account-section="{{ ACCOUNT_TYPE_ASSOCIATION }}">
+  <div class="scan-field" id="destination-field-wrapper" hidden>
+    <label class="form-label" for="destination_id">{% trans "Escale de livraison" %}</label>
+    <select class="form-select ui-select--md" id="destination_id" name="destination_id">
+      <option value="">{% trans "Choisir une escale" %}</option>
+      {% for destination in destinations %}
+        <option value="{{ destination.id }}" data-country="{{ destination.country }}" {% if form_data.destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
+          {{ destination.city }} ({{ destination.iata_code }}){% if destination.country %} - {{ destination.country }}{% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    <p class="scan-help">
+      {% trans "Autre escale : nous ne desservons que les escales présentes dans la liste ci dessus. Néanmoins, merci de nous préciser votre demande en indiquant bien la ou les escale(s) souhaitées. Nous ferons une étude pour voir la faisabilité." %}
+    </p>
+  </div>
+  <details class="ui-comp-panel" id="other-stopover-panel">
+    <summary>{% trans "Autre escale" %}</summary>
+    <div class="row g-3 mt-2">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_requester_type">{% trans "Type de profil" %}</label>
+        <select class="form-select ui-select--md" id="stopover_requester_type" name="stopover_requester_type">
+          <option value="shipper">{% trans "Expéditeur" %}</option>
+          <option value="recipient">{% trans "Destinataire" %}</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_requested_stopovers">{% trans "Escale(s) souhaitée(s)" %}</label>
+        <input class="form-control" type="text" id="stopover_requested_stopovers" name="stopover_requested_stopovers">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_structure_name">{% trans "Nom de la structure" %}</label>
+        <input class="form-control" type="text" id="stopover_structure_name" name="stopover_structure_name">
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="stopover_legal_form">{% trans "Forme juridique" %}</label>
+        <select class="form-select ui-select--md" id="stopover_legal_form" name="stopover_legal_form">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in recipient_legal_form_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="stopover_beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
+        <input class="form-control" type="number" min="0" step="1" id="stopover_beneficiary_count" name="stopover_beneficiary_count">
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="stopover_contact_title">{% trans "Titre" %}</label>
+        <select class="form-select ui-select--md" id="stopover_contact_title" name="stopover_contact_title">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in association_contact_title_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_contact_first_name">{% trans "Prénom" %}</label>
+        <input class="form-control" type="text" id="stopover_contact_first_name" name="stopover_contact_first_name">
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="stopover_contact_last_name">{% trans "NOM" %}</label>
+        <input class="form-control" type="text" id="stopover_contact_last_name" name="stopover_contact_last_name">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_contact_email">{% trans "Email" %}</label>
+        <input class="form-control" type="email" id="stopover_contact_email" name="stopover_contact_email">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_contact_phone">{% trans "Téléphone" %}</label>
+        <input class="form-control" type="text" id="stopover_contact_phone" name="stopover_contact_phone">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="stopover_address_line1">{% trans "Adresse" %}</label>
+        <input class="form-control" type="text" id="stopover_address_line1" name="stopover_address_line1">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_postal_code">{% trans "Code postal" %}</label>
+        <input class="form-control" type="text" id="stopover_postal_code" name="stopover_postal_code">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_city">{% trans "Ville" %}</label>
+        <input class="form-control" type="text" id="stopover_city" name="stopover_city">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_country">{% trans "Pays" %}</label>
+        <input class="form-control" type="text" id="stopover_country" name="stopover_country">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="stopover_message">{% trans "Message" %}</label>
+        <textarea class="form-control" id="stopover_message" name="stopover_message" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="ui-comp-actions mt-3">
+      <button class="btn btn-primary" type="submit" name="form_action" value="stopover_request" formnovalidate>
+        {% trans "Envoyer" %}
+      </button>
+    </div>
+  </details>
   <div class="scan-field">
     <label class="form-label" for="association_name">{% trans "Nom de la structure" %}</label>
     <input
@@ -18,16 +115,22 @@
     <label class="form-label" for="phone">{% trans "Téléphone" %}</label>
     <input class="form-control" type="text" id="phone" name="phone" value="{{ form_data.phone }}">
   </div>
-  <div class="scan-field" id="destination-field-wrapper" hidden>
-    <label class="form-label" for="destination_id">{% trans "Escale de livraison" %}</label>
-    <select class="form-select ui-select--md" id="destination_id" name="destination_id">
-      <option value="">{% trans "Choisir une escale" %}</option>
-      {% for destination in destinations %}
-        <option value="{{ destination.id }}" {% if form_data.destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
-          {{ destination.city }} ({{ destination.iata_code }}){% if destination.country %} - {{ destination.country }}{% endif %}
-        </option>
-      {% endfor %}
-    </select>
+  <div id="recipient-structure-fields" hidden>
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="legal_form">{% trans "Forme juridique" %}</label>
+        <select class="form-select ui-select--md" id="legal_form" name="legal_form">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in recipient_legal_form_choices %}
+            <option value="{{ value }}" {% if form_data.legal_form == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
+        <input class="form-control" type="number" min="0" step="1" id="beneficiary_count" name="beneficiary_count" value="{{ form_data.beneficiary_count }}">
+      </div>
+    </div>
   </div>
   <div class="scan-field">
     <label class="form-label" for="line1">{% trans "Adresse" %}</label>
@@ -95,6 +198,123 @@
     <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
   </div>
 
+  <section id="recipient-contact-fields" class="ui-comp-panel" hidden>
+    <h3 class="ui-comp-title">{% trans "Contact réception" %}</h3>
+    <div class="row g-3">
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="recipient_contact_title">{% trans "Titre" %}</label>
+        <select class="form-select ui-select--md" id="recipient_contact_title" name="recipient_contact_title">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in association_contact_title_choices %}
+            <option value="{{ value }}" {% if form_data.recipient_contact_title == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="recipient_contact_first_name">{% trans "Prénom" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_first_name" name="recipient_contact_first_name" value="{{ form_data.recipient_contact_first_name }}">
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="recipient_contact_last_name">{% trans "NOM" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_last_name" name="recipient_contact_last_name" value="{{ form_data.recipient_contact_last_name }}">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="recipient_contact_email">{% trans "Email" %}</label>
+        <input class="form-control" type="email" id="recipient_contact_email" name="recipient_contact_email" value="{{ form_data.recipient_contact_email }}">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="recipient_contact_phone">{% trans "Téléphone" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_phone" name="recipient_contact_phone" value="{{ form_data.recipient_contact_phone }}">
+      </div>
+    </div>
+  </section>
+
+  <section id="shipper-contact-fields" class="ui-comp-panel">
+    <h3 class="ui-comp-title">{% trans "Contact administratif" %}</h3>
+    <div class="row g-3">
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="admin_contact_title">{% trans "Titre" %}</label>
+        <select class="form-select ui-select--md" id="admin_contact_title" name="admin_contact_title">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in association_contact_title_choices %}
+            <option value="{{ value }}" {% if form_data.admin_contact_title == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="admin_contact_first_name">{% trans "Prénom" %}</label>
+        <input class="form-control" type="text" id="admin_contact_first_name" name="admin_contact_first_name" value="{{ form_data.admin_contact_first_name }}">
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="admin_contact_last_name">{% trans "NOM" %}</label>
+        <input class="form-control" type="text" id="admin_contact_last_name" name="admin_contact_last_name" value="{{ form_data.admin_contact_last_name }}">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="admin_contact_email">{% trans "Email" %}</label>
+        <input class="form-control" type="email" id="admin_contact_email" name="admin_contact_email" value="{{ form_data.admin_contact_email }}">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="admin_contact_phone">{% trans "Téléphone" %}</label>
+        <input class="form-control" type="text" id="admin_contact_phone" name="admin_contact_phone" value="{{ form_data.admin_contact_phone }}">
+      </div>
+    </div>
+    <input type="hidden" id="admin_contact_address_line1" name="admin_contact_address_line1" value="{{ form_data.admin_contact_address_line1|default:form_data.line1 }}">
+    <input type="hidden" id="admin_contact_address_line2" name="admin_contact_address_line2" value="{{ form_data.admin_contact_address_line2|default:form_data.line2 }}">
+    <input type="hidden" id="admin_contact_postal_code" name="admin_contact_postal_code" value="{{ form_data.admin_contact_postal_code|default:form_data.postal_code }}">
+    <input type="hidden" id="admin_contact_city" name="admin_contact_city" value="{{ form_data.admin_contact_city|default:form_data.city }}">
+    <input type="hidden" id="admin_contact_country" name="admin_contact_country" value="{{ form_data.admin_contact_country|default:form_data.country }}">
+
+    <div class="scan-field">
+      <label class="form-check-label" for="use_admin_for_preparation">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="use_admin_for_preparation"
+          name="use_admin_for_preparation"
+          value="1"
+          {% if form_data.use_admin_for_preparation %}checked{% endif %}
+        >
+        {% trans "Utiliser les informations du contact administratif pour la préparation" %}
+      </label>
+    </div>
+  </section>
+
+  <section id="preparation-contact-fields" class="ui-comp-panel">
+    <h3 class="ui-comp-title">{% trans "Contact préparation" %}</h3>
+    <div class="row g-3">
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="preparation_contact_title">{% trans "Titre" %}</label>
+        <select class="form-select ui-select--md" id="preparation_contact_title" name="preparation_contact_title">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in association_contact_title_choices %}
+            <option value="{{ value }}" {% if form_data.preparation_contact_title == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="preparation_contact_first_name">{% trans "Prénom" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_first_name" name="preparation_contact_first_name" value="{{ form_data.preparation_contact_first_name }}">
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="preparation_contact_last_name">{% trans "NOM" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_last_name" name="preparation_contact_last_name" value="{{ form_data.preparation_contact_last_name }}">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="preparation_contact_email">{% trans "Email" %}</label>
+        <input class="form-control" type="email" id="preparation_contact_email" name="preparation_contact_email" value="{{ form_data.preparation_contact_email }}">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="preparation_contact_phone">{% trans "Téléphone" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_phone" name="preparation_contact_phone" value="{{ form_data.preparation_contact_phone }}">
+      </div>
+    </div>
+    <input type="hidden" id="preparation_contact_address_line1" name="preparation_contact_address_line1" value="{{ form_data.preparation_contact_address_line1|default:form_data.line1 }}">
+    <input type="hidden" id="preparation_contact_address_line2" name="preparation_contact_address_line2" value="{{ form_data.preparation_contact_address_line2|default:form_data.line2 }}">
+    <input type="hidden" id="preparation_contact_postal_code" name="preparation_contact_postal_code" value="{{ form_data.preparation_contact_postal_code|default:form_data.postal_code }}">
+    <input type="hidden" id="preparation_contact_city" name="preparation_contact_city" value="{{ form_data.preparation_contact_city|default:form_data.city }}">
+    <input type="hidden" id="preparation_contact_country" name="preparation_contact_country" value="{{ form_data.preparation_contact_country|default:form_data.country }}">
+  </section>
+
   <section id="first-recipient-section" class="ui-comp-panel">
     <h3 class="ui-comp-title">{% trans "Premier destinataire" %}</h3>
     <p class="scan-help">
@@ -120,7 +340,7 @@
         <select class="form-select ui-select--md" id="first_recipient_destination_id" name="first_recipient_destination_id">
           <option value="">{% trans "Choisir une escale" %}</option>
           {% for destination in destinations %}
-            <option value="{{ destination.id }}" {% if form_data.first_recipient_destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
+            <option value="{{ destination.id }}" data-country="{{ destination.country }}" {% if form_data.first_recipient_destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
               {{ destination.city }} ({{ destination.iata_code }}){% if destination.country %} - {{ destination.country }}{% endif %}
             </option>
           {% endfor %}
@@ -138,6 +358,15 @@
         </label>
       </div>
       <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="first_recipient_contact_title">{% trans "Titre référent" %}</label>
+          <select class="form-select ui-select--md" id="first_recipient_contact_title" name="first_recipient_contact_title">
+            <option value="">{% trans "Choisir..." %}</option>
+            {% for value, label in association_contact_title_choices %}
+              <option value="{{ value }}" {% if form_data.first_recipient_contact_title == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="col-12 col-md-6">
           <label class="form-label" for="first_recipient_contact_first_name">{% trans "Prénom référent" %}</label>
           <input class="form-control" type="text" id="first_recipient_contact_first_name" name="first_recipient_contact_first_name" value="{{ form_data.first_recipient_contact_first_name }}">

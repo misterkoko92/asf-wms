@@ -21,6 +21,7 @@ from wms.models import (
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
+    StopoverFeasibilityRequest,
 )
 
 
@@ -182,6 +183,17 @@ class AccountRequestFormHandlerTests(TestCase):
             "country": "France",
             "notes": "Demande de test",
             "contact_id": "",
+            "admin_contact_title": "mr",
+            "admin_contact_first_name": "Admin",
+            "admin_contact_last_name": "TEST",
+            "admin_contact_email": "admin.association@example.com",
+            "admin_contact_phone": "0102030405",
+            "admin_contact_address_line1": "1 Rue Admin",
+            "admin_contact_address_line2": "",
+            "admin_contact_postal_code": "75001",
+            "admin_contact_city": "Paris",
+            "admin_contact_country": "France",
+            "use_admin_for_preparation": "1",
         }
         payload.update(overrides)
         return payload
@@ -211,6 +223,36 @@ class AccountRequestFormHandlerTests(TestCase):
             "notes": "Recipient request",
             "contact_id": "",
             "destination_id": str(self.destination.id),
+            "legal_form": "association",
+            "beneficiary_count": "75",
+            "recipient_contact_title": "mrs",
+            "recipient_contact_first_name": "Aicha",
+            "recipient_contact_last_name": "TRAORE",
+            "recipient_contact_email": "reception-recipient@example.com",
+            "recipient_contact_phone": "+22370000001",
+        }
+        payload.update(overrides)
+        return payload
+
+    def _other_stopover_payload(self, **overrides):
+        payload = {
+            "form_action": "stopover_request",
+            "requester_type": "recipient",
+            "requested_stopovers": "Goma",
+            "structure_name": "Hopital Goma",
+            "legal_form": "association",
+            "beneficiary_count": "90",
+            "contact_title": "mr",
+            "contact_first_name": "Jean",
+            "contact_last_name": "KABILA",
+            "contact_email": "jean.kabila@example.org",
+            "contact_phone": "+243810000000",
+            "address_line1": "1 Avenue Goma",
+            "address_line2": "",
+            "postal_code": "",
+            "city": "Goma",
+            "country": "RDC",
+            "message": "Demande de desserte ponctuelle.",
         }
         payload.update(overrides)
         return payload
@@ -360,16 +402,90 @@ class AccountRequestFormHandlerTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Escale de livraison requise.", response.context["errors"])
 
+    def test_recipient_form_rejects_destination_without_active_correspondent(self):
+        self.correspondent.is_active = False
+        self.correspondent.save(update_fields=["is_active"])
+
+        response = self.client.post(self.url, self._recipient_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Escale de livraison requise.", response.context["errors"])
+
+    def test_recipient_form_requires_structure_compliance_and_reception_contact(self):
+        response = self.client.post(
+            self.url,
+            self._recipient_payload(
+                legal_form="",
+                beneficiary_count="",
+                recipient_contact_title="",
+                recipient_contact_first_name="",
+                recipient_contact_last_name="",
+                recipient_contact_email="",
+                recipient_contact_phone="",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Forme juridique requise.", response.context["errors"])
+        self.assertIn("Nombre de bénéficiaires requis.", response.context["errors"])
+        self.assertIn("Contact réception: titre requis.", response.context["errors"])
+        self.assertIn("Contact réception: prénom requis.", response.context["errors"])
+        self.assertIn("Contact réception: nom requis.", response.context["errors"])
+        self.assertIn("Contact réception: email requis.", response.context["errors"])
+        self.assertIn("Contact réception: téléphone requis.", response.context["errors"])
+
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
     @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
     def test_recipient_form_creates_request_with_destination(self, _get_admin_emails_mock):
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(self.url, self._recipient_payload())
+            response = self.client.post(self.url, self._recipient_payload(country=""))
 
         self.assertEqual(response.status_code, 302)
         request_obj = PublicAccountRequest.objects.get(email="recipient@example.com")
         self.assertEqual(request_obj.account_type, "recipient")
         self.assertEqual(request_obj.destination_id, self.destination.id)
+        self.assertEqual(request_obj.country, self.destination.country)
+        self.assertEqual(
+            request_obj.contact_payloads["recipient_reception"]["email"],
+            "reception-recipient@example.com",
+        )
+
+    def test_shipper_form_requires_admin_and_preparation_contacts(self):
+        response = self.client.post(
+            self.url,
+            self._payload(
+                use_admin_for_preparation="",
+                admin_contact_email="",
+                preparation_contact_email="",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Contact administratif: email requis.", response.context["errors"])
+        self.assertIn("Contact préparation: email requis.", response.context["errors"])
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
+    def test_shipper_form_reuses_admin_contact_for_preparation(self, _get_admin_emails_mock):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, self._payload())
+
+        self.assertEqual(response.status_code, 302)
+        request_obj = PublicAccountRequest.objects.get(email="association@example.com")
+        self.assertEqual(
+            request_obj.contact_payloads["admin"],
+            request_obj.contact_payloads["preparation"],
+        )
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.send_or_enqueue_email_safe", return_value=True)
+    def test_other_stopover_request_does_not_create_account_request(self, _send_mock):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, self._other_stopover_payload())
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(StopoverFeasibilityRequest.objects.count(), 1)
+        self.assertEqual(PublicAccountRequest.objects.count(), 0)
 
     def test_shipper_form_explains_optional_first_recipient(self):
         response = self.client.get(self.url)
@@ -389,6 +505,7 @@ class AccountRequestFormHandlerTests(TestCase):
             first_recipient_enabled="1",
             first_recipient_destination_id=str(self.destination.id),
             first_recipient_structure_name="Hopital Premier",
+            first_recipient_contact_title="mrs",
             first_recipient_contact_first_name="Aicha",
             first_recipient_contact_last_name="Traore",
             first_recipient_email="aicha.traore@example.org",
@@ -413,6 +530,7 @@ class AccountRequestFormHandlerTests(TestCase):
             {
                 "destination_id": self.destination.id,
                 "structure_name": "Hopital Premier",
+                "contact_title": "mrs",
                 "contact_first_name": "Aicha",
                 "contact_last_name": "Traore",
                 "email": "aicha.traore@example.org",
@@ -439,6 +557,11 @@ class AccountRequestFormHandlerTests(TestCase):
             first_recipient_enabled="1",
             first_recipient_destination_id=str(self.destination.id),
             first_recipient_structure_name="Hopital Premier",
+            first_recipient_contact_title="mrs",
+            first_recipient_contact_first_name="Aicha",
+            first_recipient_contact_last_name="Traore",
+            first_recipient_email="aicha.traore@example.org",
+            first_recipient_phone="+22370000000",
             first_recipient_address_line1="1 Avenue Hopital",
             first_recipient_legal_form="association",
             first_recipient_beneficiary_count="120",
@@ -487,6 +610,11 @@ class AccountRequestFormHandlerTests(TestCase):
                 first_recipient_enabled="1",
                 first_recipient_destination_id="",
                 first_recipient_structure_name="",
+                first_recipient_contact_title="",
+                first_recipient_contact_first_name="",
+                first_recipient_contact_last_name="",
+                first_recipient_email="",
+                first_recipient_phone="",
                 first_recipient_address_line1="",
                 first_recipient_legal_form="",
                 first_recipient_beneficiary_count="",

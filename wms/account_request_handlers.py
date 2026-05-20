@@ -16,6 +16,7 @@ from django.utils.translation import gettext as _
 
 from contacts.models import Contact, ContactType, RecipientLegalForm
 
+from .application.portal.destination_options import served_destination_queryset
 from .client_ip import get_client_ip
 from .contact_payloads import build_shipper_contact_payload
 from .document_scan import DocumentScanStatus
@@ -25,7 +26,7 @@ from .models import (
     AccountDocument,
     AccountDocumentScope,
     AccountDocumentType,
-    Destination,
+    AssociationContactTitle,
     DocumentReviewStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
@@ -33,6 +34,7 @@ from .models import (
 )
 from .portal_helpers import build_public_base_url
 from .scan_helpers import parse_int
+from .stopover_request_handlers import submit_stopover_feasibility_request
 from .upload_utils import validate_upload
 
 LOGGER = logging.getLogger(__name__)
@@ -47,9 +49,18 @@ ERROR_ACCOUNT_TYPE_INVALID = "Type de profil invalide."
 ERROR_EMAIL_REQUIRED = "Email requis."
 ERROR_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_DESTINATION_REQUIRED = "Escale de livraison requise."
+ERROR_LEGAL_FORM_REQUIRED = "Forme juridique requise."
+ERROR_LEGAL_FORM_INVALID = "Forme juridique invalide."
+ERROR_BENEFICIARY_COUNT_REQUIRED = "Nombre de bénéficiaires requis."
+ERROR_BENEFICIARY_COUNT_INVALID = "Nombre de bénéficiaires invalide."
 ERROR_FIRST_RECIPIENT_DESTINATION_REQUIRED = "Premier destinataire: escale requise."
 ERROR_FIRST_RECIPIENT_STRUCTURE_REQUIRED = "Premier destinataire: nom de la structure requis."
 ERROR_FIRST_RECIPIENT_ADDRESS_REQUIRED = "Premier destinataire: adresse requise."
+ERROR_FIRST_RECIPIENT_CONTACT_TITLE_REQUIRED = "Premier destinataire: titre référent requis."
+ERROR_FIRST_RECIPIENT_CONTACT_FIRST_NAME_REQUIRED = "Premier destinataire: prénom référent requis."
+ERROR_FIRST_RECIPIENT_CONTACT_LAST_NAME_REQUIRED = "Premier destinataire: nom référent requis."
+ERROR_FIRST_RECIPIENT_CONTACT_EMAIL_REQUIRED = "Premier destinataire: email référent requis."
+ERROR_FIRST_RECIPIENT_CONTACT_PHONE_REQUIRED = "Premier destinataire: téléphone référent requis."
 ERROR_FIRST_RECIPIENT_LEGAL_FORM_REQUIRED = "Premier destinataire: forme juridique requise."
 ERROR_FIRST_RECIPIENT_LEGAL_FORM_INVALID = "Premier destinataire: forme juridique invalide."
 ERROR_FIRST_RECIPIENT_BENEFICIARY_COUNT_REQUIRED = (
@@ -74,6 +85,9 @@ ERROR_THROTTLE_LIMIT = (
 )
 
 SUCCESS_ACCOUNT_REQUEST_SENT = "Demande envoyee. L'equipe ASF validera votre compte."
+SUCCESS_STOPOVER_REQUEST_SENT = (
+    "Demande nouvelle escale envoyee. L'equipe ASF etudiera la faisabilite."
+)
 
 DOC_UPLOAD_FIELD_MAPPINGS = (
     (AccountDocumentType.STATUTES, "doc_statutes"),
@@ -90,6 +104,7 @@ ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 
 def _build_account_request_form_defaults():
     return {
+        "form_action": "account_request",
         "account_type": PublicAccountRequestType.SHIPPER,
         "association_name": "",
         "requested_username": "",
@@ -103,9 +118,38 @@ def _build_account_request_form_defaults():
         "city": "",
         "country": DEFAULT_COUNTRY,
         "destination_id": "",
+        "legal_form": "",
+        "beneficiary_count": "",
+        "recipient_contact_title": "",
+        "recipient_contact_first_name": "",
+        "recipient_contact_last_name": "",
+        "recipient_contact_email": "",
+        "recipient_contact_phone": "",
+        "admin_contact_title": "",
+        "admin_contact_first_name": "",
+        "admin_contact_last_name": "",
+        "admin_contact_email": "",
+        "admin_contact_phone": "",
+        "admin_contact_address_line1": "",
+        "admin_contact_address_line2": "",
+        "admin_contact_postal_code": "",
+        "admin_contact_city": "",
+        "admin_contact_country": DEFAULT_COUNTRY,
+        "use_admin_for_preparation": False,
+        "preparation_contact_title": "",
+        "preparation_contact_first_name": "",
+        "preparation_contact_last_name": "",
+        "preparation_contact_email": "",
+        "preparation_contact_phone": "",
+        "preparation_contact_address_line1": "",
+        "preparation_contact_address_line2": "",
+        "preparation_contact_postal_code": "",
+        "preparation_contact_city": "",
+        "preparation_contact_country": DEFAULT_COUNTRY,
         "first_recipient_enabled": False,
         "first_recipient_destination_id": "",
         "first_recipient_structure_name": "",
+        "first_recipient_contact_title": "",
         "first_recipient_contact_first_name": "",
         "first_recipient_contact_last_name": "",
         "first_recipient_email": "",
@@ -127,6 +171,7 @@ def _extract_account_request_form_data(post_data):
     requested_account_type = (post_data.get("account_type") or "").strip().lower()
     account_type = requested_account_type or PublicAccountRequestType.SHIPPER
     return {
+        "form_action": (post_data.get("form_action") or "account_request").strip(),
         "account_type": account_type,
         "association_name": (post_data.get("association_name") or "").strip(),
         "requested_username": (post_data.get("requested_username") or "").strip(),
@@ -138,14 +183,61 @@ def _extract_account_request_form_data(post_data):
         "line2": (post_data.get("line2") or "").strip(),
         "postal_code": (post_data.get("postal_code") or "").strip(),
         "city": (post_data.get("city") or "").strip(),
-        "country": (post_data.get("country") or DEFAULT_COUNTRY).strip(),
+        "country": (post_data.get("country") or "").strip(),
         "destination_id": (post_data.get("destination_id") or "").strip(),
+        "legal_form": (post_data.get("legal_form") or "").strip(),
+        "beneficiary_count": (post_data.get("beneficiary_count") or "").strip(),
+        "recipient_contact_title": (post_data.get("recipient_contact_title") or "").strip(),
+        "recipient_contact_first_name": (
+            post_data.get("recipient_contact_first_name") or ""
+        ).strip(),
+        "recipient_contact_last_name": (post_data.get("recipient_contact_last_name") or "").strip(),
+        "recipient_contact_email": (post_data.get("recipient_contact_email") or "").strip(),
+        "recipient_contact_phone": (post_data.get("recipient_contact_phone") or "").strip(),
+        "admin_contact_title": (post_data.get("admin_contact_title") or "").strip(),
+        "admin_contact_first_name": (post_data.get("admin_contact_first_name") or "").strip(),
+        "admin_contact_last_name": (post_data.get("admin_contact_last_name") or "").strip(),
+        "admin_contact_email": (post_data.get("admin_contact_email") or "").strip(),
+        "admin_contact_phone": (post_data.get("admin_contact_phone") or "").strip(),
+        "admin_contact_address_line1": (post_data.get("admin_contact_address_line1") or "").strip(),
+        "admin_contact_address_line2": (post_data.get("admin_contact_address_line2") or "").strip(),
+        "admin_contact_postal_code": (post_data.get("admin_contact_postal_code") or "").strip(),
+        "admin_contact_city": (post_data.get("admin_contact_city") or "").strip(),
+        "admin_contact_country": (
+            post_data.get("admin_contact_country") or DEFAULT_COUNTRY
+        ).strip(),
+        "use_admin_for_preparation": bool(post_data.get("use_admin_for_preparation")),
+        "preparation_contact_title": (post_data.get("preparation_contact_title") or "").strip(),
+        "preparation_contact_first_name": (
+            post_data.get("preparation_contact_first_name") or ""
+        ).strip(),
+        "preparation_contact_last_name": (
+            post_data.get("preparation_contact_last_name") or ""
+        ).strip(),
+        "preparation_contact_email": (post_data.get("preparation_contact_email") or "").strip(),
+        "preparation_contact_phone": (post_data.get("preparation_contact_phone") or "").strip(),
+        "preparation_contact_address_line1": (
+            post_data.get("preparation_contact_address_line1") or ""
+        ).strip(),
+        "preparation_contact_address_line2": (
+            post_data.get("preparation_contact_address_line2") or ""
+        ).strip(),
+        "preparation_contact_postal_code": (
+            post_data.get("preparation_contact_postal_code") or ""
+        ).strip(),
+        "preparation_contact_city": (post_data.get("preparation_contact_city") or "").strip(),
+        "preparation_contact_country": (
+            post_data.get("preparation_contact_country") or DEFAULT_COUNTRY
+        ).strip(),
         "first_recipient_enabled": bool(post_data.get("first_recipient_enabled")),
         "first_recipient_destination_id": (
             post_data.get("first_recipient_destination_id") or ""
         ).strip(),
         "first_recipient_structure_name": (
             post_data.get("first_recipient_structure_name") or ""
+        ).strip(),
+        "first_recipient_contact_title": (
+            post_data.get("first_recipient_contact_title") or ""
         ).strip(),
         "first_recipient_contact_first_name": (
             post_data.get("first_recipient_contact_first_name") or ""
@@ -174,6 +266,32 @@ def _extract_account_request_form_data(post_data):
         "notes": (post_data.get("notes") or "").strip(),
         "contact_id": (post_data.get("contact_id") or "").strip(),
     }
+
+
+def _extract_stopover_request_payload(post_data):
+    fields = (
+        "requester_type",
+        "requested_stopovers",
+        "structure_name",
+        "legal_form",
+        "beneficiary_count",
+        "contact_title",
+        "contact_first_name",
+        "contact_last_name",
+        "contact_email",
+        "contact_phone",
+        "address_line1",
+        "address_line2",
+        "postal_code",
+        "city",
+        "country",
+        "message",
+    )
+    payload = {}
+    for field in fields:
+        prefixed_name = f"stopover_{field}"
+        payload[field] = post_data.get(prefixed_name, post_data.get(field, ""))
+    return payload
 
 
 def _is_shipper_request(form_data):
@@ -225,6 +343,100 @@ def _append_password_validation_errors(form_data, errors):
         errors.extend(exc.messages)
 
 
+def _valid_legal_form_values():
+    return {choice for choice, _label in RecipientLegalForm.choices}
+
+
+def _resolve_served_destination(destination_id):
+    parsed_id = parse_int(destination_id)
+    if parsed_id is None:
+        return None
+    return served_destination_queryset().filter(pk=parsed_id).first()
+
+
+def _append_email_error(value, errors, message):
+    if not value:
+        errors.append(message)
+        return
+    try:
+        EmailValidator()(value)
+    except ValidationError:
+        errors.append(message.replace("requis", "invalide"))
+
+
+def _append_required_contact_errors(form_data, errors, *, prefix, label, require_address):
+    field_labels = (
+        ("title", "titre"),
+        ("first_name", "prénom"),
+        ("last_name", "nom"),
+    )
+    for field_name, field_label in field_labels:
+        if not form_data.get(f"{prefix}_{field_name}"):
+            errors.append(f"{label}: {field_label} requis.")
+
+    _append_email_error(
+        form_data.get(f"{prefix}_email"),
+        errors,
+        f"{label}: email requis.",
+    )
+    if not form_data.get(f"{prefix}_phone"):
+        errors.append(f"{label}: téléphone requis.")
+
+    if not require_address:
+        return
+    address_fields = (
+        ("address_line1", "adresse"),
+        ("city", "ville"),
+        ("country", "pays"),
+    )
+    for field_name, field_label in address_fields:
+        if not form_data.get(f"{prefix}_{field_name}"):
+            errors.append(f"{label}: {field_label} requis.")
+
+
+def _append_recipient_structure_errors(form_data, errors):
+    legal_form = form_data.get("legal_form")
+    if not legal_form:
+        errors.append(ERROR_LEGAL_FORM_REQUIRED)
+    elif legal_form not in _valid_legal_form_values():
+        errors.append(ERROR_LEGAL_FORM_INVALID)
+
+    beneficiary_count_raw = form_data.get("beneficiary_count")
+    if not beneficiary_count_raw:
+        errors.append(ERROR_BENEFICIARY_COUNT_REQUIRED)
+    else:
+        beneficiary_count = parse_int(beneficiary_count_raw)
+        if beneficiary_count is None or beneficiary_count < 0:
+            errors.append(ERROR_BENEFICIARY_COUNT_INVALID)
+
+    _append_required_contact_errors(
+        form_data,
+        errors,
+        prefix="recipient_contact",
+        label="Contact réception",
+        require_address=False,
+    )
+
+
+def _append_shipper_contact_errors(form_data, errors):
+    _append_required_contact_errors(
+        form_data,
+        errors,
+        prefix="admin_contact",
+        label="Contact administratif",
+        require_address=True,
+    )
+    if form_data.get("use_admin_for_preparation"):
+        return
+    _append_required_contact_errors(
+        form_data,
+        errors,
+        prefix="preparation_contact",
+        label="Contact préparation",
+        require_address=True,
+    )
+
+
 def _append_required_field_errors(form_data, errors, *, allow_user_request):
     allowed_account_types = {
         PublicAccountRequestType.ASSOCIATION,
@@ -246,8 +458,12 @@ def _append_required_field_errors(form_data, errors, *, allow_user_request):
             errors.append(ERROR_ASSOCIATION_NAME_REQUIRED)
         if not form_data["line1"]:
             errors.append(ERROR_ADDRESS_REQUIRED)
-        if _is_recipient_request(form_data) and not form_data["destination_id"]:
-            errors.append(ERROR_DESTINATION_REQUIRED)
+        if _is_recipient_request(form_data):
+            if _resolve_served_destination(form_data["destination_id"]) is None:
+                errors.append(ERROR_DESTINATION_REQUIRED)
+            _append_recipient_structure_errors(form_data, errors)
+        if _is_shipper_request(form_data):
+            _append_shipper_contact_errors(form_data, errors)
         _append_initial_recipient_errors(form_data, errors)
         return
 
@@ -263,15 +479,22 @@ def _append_initial_recipient_errors(form_data, errors):
     destination_id = parse_int(form_data.get("first_recipient_destination_id"))
     if (
         destination_id is None
-        or not Destination.objects.filter(
-            pk=destination_id,
-            is_active=True,
-        ).exists()
+        or not served_destination_queryset().filter(pk=destination_id).exists()
     ):
         errors.append(ERROR_FIRST_RECIPIENT_DESTINATION_REQUIRED)
 
     if not form_data.get("first_recipient_structure_name"):
         errors.append(ERROR_FIRST_RECIPIENT_STRUCTURE_REQUIRED)
+    if not form_data.get("first_recipient_contact_title"):
+        errors.append(ERROR_FIRST_RECIPIENT_CONTACT_TITLE_REQUIRED)
+    if not form_data.get("first_recipient_contact_first_name"):
+        errors.append(ERROR_FIRST_RECIPIENT_CONTACT_FIRST_NAME_REQUIRED)
+    if not form_data.get("first_recipient_contact_last_name"):
+        errors.append(ERROR_FIRST_RECIPIENT_CONTACT_LAST_NAME_REQUIRED)
+    if not form_data.get("first_recipient_email"):
+        errors.append(ERROR_FIRST_RECIPIENT_CONTACT_EMAIL_REQUIRED)
+    if not form_data.get("first_recipient_phone"):
+        errors.append(ERROR_FIRST_RECIPIENT_CONTACT_PHONE_REQUIRED)
     if not form_data.get("first_recipient_address_line1"):
         errors.append(ERROR_FIRST_RECIPIENT_ADDRESS_REQUIRED)
 
@@ -304,6 +527,7 @@ def _build_initial_recipient_payload(form_data):
     return {
         "destination_id": parse_int(form_data["first_recipient_destination_id"]),
         "structure_name": form_data["first_recipient_structure_name"],
+        "contact_title": form_data["first_recipient_contact_title"],
         "contact_first_name": form_data["first_recipient_contact_first_name"],
         "contact_last_name": form_data["first_recipient_contact_last_name"],
         "email": form_data["first_recipient_email"],
@@ -399,6 +623,58 @@ def _resolve_account_request_contact(form_data):
     ).first()
 
 
+def _build_role_contact_payload(form_data, prefix, *, fallback_address_prefix=None):
+    address_prefix = fallback_address_prefix or prefix
+    return {
+        "title": form_data.get(f"{prefix}_title", ""),
+        "first_name": form_data.get(f"{prefix}_first_name", ""),
+        "last_name": form_data.get(f"{prefix}_last_name", ""),
+        "email": form_data.get(f"{prefix}_email", ""),
+        "phone": form_data.get(f"{prefix}_phone", ""),
+        "address_line1": form_data.get(f"{address_prefix}_address_line1", "")
+        or form_data.get("line1", ""),
+        "address_line2": form_data.get(f"{address_prefix}_address_line2", "")
+        or form_data.get("line2", ""),
+        "postal_code": form_data.get(f"{address_prefix}_postal_code", "")
+        or form_data.get("postal_code", ""),
+        "city": form_data.get(f"{address_prefix}_city", "") or form_data.get("city", ""),
+        "country": form_data.get(f"{address_prefix}_country", "")
+        or form_data.get("country", "")
+        or DEFAULT_COUNTRY,
+    }
+
+
+def _build_account_contact_payloads(form_data):
+    if _is_recipient_request(form_data):
+        return {
+            "recipient_reception": _build_role_contact_payload(
+                form_data,
+                "recipient_contact",
+                fallback_address_prefix="",
+            )
+        }
+    if not _is_shipper_request(form_data):
+        return {}
+
+    admin_payload = _build_role_contact_payload(form_data, "admin_contact")
+    if form_data.get("use_admin_for_preparation"):
+        preparation_payload = dict(admin_payload)
+    else:
+        preparation_payload = _build_role_contact_payload(form_data, "preparation_contact")
+    return {
+        "admin": admin_payload,
+        "preparation": preparation_payload,
+    }
+
+
+def _resolve_account_request_country(form_data):
+    if _is_recipient_request(form_data):
+        destination = _resolve_served_destination(form_data["destination_id"])
+        if destination is not None:
+            return destination.country
+    return form_data["country"] or DEFAULT_COUNTRY
+
+
 def _create_account_request(*, link, contact, form_data):
     is_structure_request = _is_structure_request(form_data)
     association_name = (
@@ -417,7 +693,7 @@ def _create_account_request(*, link, contact, form_data):
         address_line2=form_data["line2"] if is_structure_request else "",
         postal_code=form_data["postal_code"] if is_structure_request else "",
         city=form_data["city"] if is_structure_request else "",
-        country=(form_data["country"] or DEFAULT_COUNTRY) if is_structure_request else "",
+        country=_resolve_account_request_country(form_data) if is_structure_request else "",
         destination_id=parse_int(form_data["destination_id"])
         if _is_recipient_request(form_data)
         else None,
@@ -426,6 +702,7 @@ def _create_account_request(*, link, contact, form_data):
             make_password(form_data["password1"]) if not is_structure_request else ""
         ),
         initial_recipient_payload=_build_initial_recipient_payload(form_data),
+        contact_payloads=_build_account_contact_payloads(form_data),
         notes=form_data["notes"],
     )
 
@@ -466,11 +743,7 @@ def _render_account_request_form(
         {
             "link": link,
             "contacts": contact_payload,
-            "destinations": Destination.objects.filter(is_active=True).order_by(
-                "city",
-                "country",
-                "iata_code",
-            ),
+            "destinations": served_destination_queryset(),
             "form_data": form_data,
             "errors": errors,
             "lock_account_type_to_shipper": lock_account_type_to_shipper,
@@ -480,6 +753,7 @@ def _render_account_request_form(
             "ACCOUNT_TYPE_USER": PublicAccountRequestType.USER,
             "show_user_account_type": show_user_account_type,
             "recipient_legal_form_choices": RecipientLegalForm.choices,
+            "association_contact_title_choices": AssociationContactTitle.choices,
         },
     )
 
@@ -615,6 +889,33 @@ def handle_account_request_form(
         show_user_account_type = allow_user_request
 
     if request.method == "POST":
+        if (request.POST.get("form_action") or "").strip() == "stopover_request":
+            try:
+                with transaction.atomic():
+                    submit_stopover_feasibility_request(
+                        _extract_stopover_request_payload(request.POST),
+                        source="public_account_request",
+                        created_by=request.user if request.user.is_authenticated else None,
+                    )
+            except ValidationError as exc:
+                if hasattr(exc, "message_dict"):
+                    for field_errors in exc.message_dict.values():
+                        errors.extend(field_errors)
+                else:
+                    errors.extend(exc.messages)
+            else:
+                messages.success(request, SUCCESS_STOPOVER_REQUEST_SENT)
+                return redirect(redirect_url)
+            return _render_account_request_form(
+                request,
+                link=link,
+                contact_payload=contact_payload,
+                form_data=form_data,
+                errors=errors,
+                show_user_account_type=show_user_account_type,
+                lock_account_type_to_shipper=lock_account_type_to_shipper,
+            )
+
         form_data = _extract_account_request_form_data(request.POST)
         _append_required_field_errors(
             form_data,

@@ -113,6 +113,11 @@
       const countryInput = document.getElementById("country");
       const destinationInput = document.getElementById("destination_id");
       const destinationFieldWrapper = document.getElementById("destination-field-wrapper");
+      const recipientStructureFields = document.getElementById("recipient-structure-fields");
+      const recipientContactFields = document.getElementById("recipient-contact-fields");
+      const shipperContactFields = document.getElementById("shipper-contact-fields");
+      const preparationContactFields = document.getElementById("preparation-contact-fields");
+      const useAdminForPreparationInput = document.getElementById("use_admin_for_preparation");
 
       const requestedUsernameInput = document.getElementById("requested_username");
       const password1Input = document.getElementById("password1");
@@ -123,10 +128,45 @@
       const firstRecipientRequiredFields = [
         "first_recipient_destination_id",
         "first_recipient_structure_name",
+        "first_recipient_contact_title",
+        "first_recipient_contact_first_name",
+        "first_recipient_contact_last_name",
+        "first_recipient_email",
+        "first_recipient_phone",
         "first_recipient_address_line1",
         "first_recipient_legal_form",
         "first_recipient_beneficiary_count",
       ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
+      const recipientRequiredFields = [
+        "destination_id",
+        "legal_form",
+        "beneficiary_count",
+        "recipient_contact_title",
+        "recipient_contact_first_name",
+        "recipient_contact_last_name",
+        "recipient_contact_email",
+        "recipient_contact_phone",
+      ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
+      const shipperRequiredFields = [
+        "admin_contact_title",
+        "admin_contact_first_name",
+        "admin_contact_last_name",
+        "admin_contact_email",
+        "admin_contact_phone",
+      ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
+      const preparationRequiredFields = [
+        "preparation_contact_title",
+        "preparation_contact_first_name",
+        "preparation_contact_last_name",
+        "preparation_contact_email",
+        "preparation_contact_phone",
+      ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
+
+      const setFieldsRequired = (fields, required) => {
+        fields.forEach((field) => {
+          field.required = required;
+        });
+      };
 
       const setFirstRecipientRequired = (required) => {
         firstRecipientRequiredFields.forEach((field) => {
@@ -149,7 +189,15 @@
       };
 
       const setRecipientRequired = (required) => {
-        if (destinationInput) destinationInput.required = required;
+        setFieldsRequired(recipientRequiredFields, required);
+      };
+
+      const setShipperContactRequired = (required) => {
+        setFieldsRequired(shipperRequiredFields, required);
+      };
+
+      const setPreparationContactRequired = (required) => {
+        setFieldsRequired(preparationRequiredFields, required);
       };
 
       const setUserRequired = (required) => {
@@ -174,6 +222,21 @@
         if (destinationFieldWrapper) {
           destinationFieldWrapper.hidden = !isRecipient;
         }
+        if (recipientStructureFields) {
+          recipientStructureFields.hidden = !isRecipient;
+        }
+        if (recipientContactFields) {
+          recipientContactFields.hidden = !isRecipient;
+        }
+        if (shipperContactFields) {
+          shipperContactFields.hidden = !isShipper;
+        }
+        const useAdminForPreparation = Boolean(
+          useAdminForPreparationInput && useAdminForPreparationInput.checked
+        );
+        if (preparationContactFields) {
+          preparationContactFields.hidden = !isShipper || useAdminForPreparation;
+        }
         if (userSection) {
           userSection.hidden = !isUser;
         }
@@ -189,9 +252,22 @@
 
         setAssociationRequired(isAssociation);
         setRecipientRequired(isRecipient);
+        setShipperContactRequired(isShipper);
+        setPreparationContactRequired(isShipper && !useAdminForPreparation);
         setUserRequired(isUser);
         setFirstRecipientRequired(firstRecipientEnabled);
         setFirstRecipientDisabled(!firstRecipientEnabled);
+      };
+
+      const applyDestinationCountry = (select, targetInput) => {
+        if (!select || !targetInput) {
+          return;
+        }
+        const option = select.options[select.selectedIndex];
+        const country = option ? option.getAttribute("data-country") : "";
+        if (country) {
+          targetInput.value = country;
+        }
       };
 
       const findContact = (name) => {
@@ -249,8 +325,23 @@
       if (accountTypeInput) {
         accountTypeInput.addEventListener("change", toggleSections);
       }
+      if (destinationInput) {
+        destinationInput.addEventListener("change", () => {
+          applyDestinationCountry(destinationInput, countryInput);
+        });
+      }
+      const firstRecipientDestinationInput = document.getElementById("first_recipient_destination_id");
+      const firstRecipientCountryInput = document.getElementById("first_recipient_country");
+      if (firstRecipientDestinationInput) {
+        firstRecipientDestinationInput.addEventListener("change", () => {
+          applyDestinationCountry(firstRecipientDestinationInput, firstRecipientCountryInput);
+        });
+      }
       if (firstRecipientEnabledInput) {
         firstRecipientEnabledInput.addEventListener("change", toggleSections);
+      }
+      if (useAdminForPreparationInput) {
+        useAdminForPreparationInput.addEventListener("change", toggleSections);
       }
       toggleSections();
     })();

@@ -222,6 +222,7 @@ class PublicAccountRequest(models.Model):
     requested_password_hash = models.CharField(max_length=128, blank=True)
     notes = models.TextField(blank=True)
     initial_recipient_payload = models.JSONField(default=dict, blank=True)
+    contact_payloads = models.JSONField(default=dict, blank=True)
     review_snapshot = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
