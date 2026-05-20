@@ -11,6 +11,7 @@
     {% translate "Ajouter" as recipient_submit_label %}
   {% endif %}
   {% translate "Annuler" as cancel_label %}
+  {% translate "Envoyer" as stopover_submit_label %}
   {% translate "Réutiliser la structure existante si elle est déjà connue sur cette escale" as reuse_existing_structure_label %}
   <div class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
     <h2 class="ui-comp-title">{% trans "Destinataires" %}</h2>
@@ -77,6 +78,103 @@
     {% endif %}
   </div>
 
+  {% if not editing_recipient %}
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <details>
+        <summary class="ui-comp-title">{% trans "Autre escale" %}</summary>
+        <p class="scan-help">{% trans "Nous ne desservons que les escales présentes dans la liste ci dessus. Néanmoins, merci de nous préciser votre demande en indiquant bien la ou les escale(s) souhaitées. Nous ferons une étude pour voir la faisabilité." %}</p>
+        <form method="post" novalidate class="ui-comp-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="request_stopover">
+          <div class="scan-field">
+            <label class="form-label" for="requested_stopovers">{% trans "Escale(s) souhaitée(s)" %}</label>
+            <input class="form-control" type="text" id="requested_stopovers" name="requested_stopovers" required>
+          </div>
+          <div class="portal-recipient-grid-3">
+            <div class="scan-field">
+              <label class="form-label" for="stopover_structure_name">{% trans "Nom de la structure" %}</label>
+              <input class="form-control" type="text" id="stopover_structure_name" name="structure_name" required>
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="stopover_legal_form">{% trans "Forme juridique" %}</label>
+              <select class="form-select ui-select--md" id="stopover_legal_form" name="legal_form" required>
+                <option value="">---------</option>
+                {% for value, label in legal_form_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="stopover_beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
+              <input class="form-control ui-number-input-compact" type="number" min="0" step="1" id="stopover_beneficiary_count" name="beneficiary_count" required>
+            </div>
+          </div>
+          <div class="portal-recipient-grid-3">
+            <div class="scan-field">
+              <label class="form-label" for="stopover_contact_title">{% trans "Titre" %}</label>
+              <select class="form-select ui-select--md" id="stopover_contact_title" name="contact_title" required>
+                <option value="">---------</option>
+                {% for value, label in contact_title_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="stopover_contact_first_name">{% trans "Prénom" %}</label>
+              <input class="form-control" type="text" id="stopover_contact_first_name" name="contact_first_name" required>
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="stopover_contact_last_name">{% trans "NOM" %}</label>
+              <input class="form-control" type="text" id="stopover_contact_last_name" name="contact_last_name" required>
+            </div>
+          </div>
+          <div class="portal-recipient-grid-2">
+            <div class="scan-field">
+              <label class="form-label" for="stopover_emails">{% trans "Email" %}</label>
+              <input class="form-control" type="email" id="stopover_emails" name="emails" required>
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="stopover_phones">{% trans "Téléphone" %}</label>
+              <input class="form-control" type="text" id="stopover_phones" name="phones" required>
+            </div>
+          </div>
+          <div class="scan-field">
+            <label class="form-label" for="stopover_address_line1">{% trans "Adresse" %}</label>
+            <input class="form-control" type="text" id="stopover_address_line1" name="address_line1" required>
+          </div>
+          <div class="scan-field">
+            <label class="form-label" for="stopover_address_line2">{% trans "Complément adresse" %}</label>
+            <input class="form-control" type="text" id="stopover_address_line2" name="address_line2">
+          </div>
+          <div class="portal-recipient-grid-3-equal">
+            <div class="scan-field">
+              <label class="form-label" for="stopover_postal_code">{% trans "Code postal" %}</label>
+              <input class="form-control" type="text" id="stopover_postal_code" name="postal_code">
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="stopover_city">{% trans "Ville" %}</label>
+              <input class="form-control" type="text" id="stopover_city" name="city" required>
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="stopover_country">{% trans "Pays" %}</label>
+              <select class="form-select ui-select--md" id="stopover_country" name="country" required>
+                <option value="">---------</option>
+                {% for value, label in country_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="scan-field">
+            <label class="form-label" for="stopover_notes">{% trans "Message" %}</label>
+            <textarea class="form-control" id="stopover_notes" name="notes" rows="2"></textarea>
+          </div>
+          {% ui_button label=stopover_submit_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
+        </form>
+      </details>
+    </div>
+  {% endif %}
+
   <div class="scan-card portal-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title">{% if editing_recipient %}{% trans "Modifier un destinataire" %}{% else %}{% trans "Ajouter un destinataire" %}{% endif %}</h3>
     {% if errors %}
@@ -101,7 +199,7 @@
         <select class="form-select ui-select--lg" id="destination_id" name="destination_id" required>
           <option value="">---------</option>
           {% for destination in destinations %}
-            <option value="{{ destination.id }}" {% if form_data.destination_id == destination.id|stringformat:"s" %}selected{% endif %}>
+            <option value="{{ destination.id }}" data-country="{{ destination.country }}" {% if form_data.destination_id == destination.id|stringformat:"s" %}selected{% endif %}>
               {{ destination }}
             </option>
           {% endfor %}
@@ -158,11 +256,11 @@
         </div>
         <div class="scan-field">
           <label class="form-label" for="city">{% trans "Ville" %}</label>
-          <input class="form-control" type="text" id="city" name="city" value="{{ form_data.city }}">
+          <input class="form-control" type="text" id="city" name="city" value="{{ form_data.city }}" required>
         </div>
         <div class="scan-field">
           <label class="form-label" for="country">{% trans "Pays" %}</label>
-          <select class="form-select ui-select--md" id="country" name="country">
+          <select class="form-select ui-select--md" id="country" name="country" required>
             {% for value, label in country_choices %}
               <option value="{{ value }}" {% if form_data.country == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -355,6 +453,33 @@
 {% block extra_scripts %}
   {{ block.super }}
   <script>
+    (function () {
+      const destinationSelect = document.getElementById('destination_id');
+      const countrySelect = document.getElementById('country');
+      if (!destinationSelect || !countrySelect) {
+        return;
+      }
+
+      const setCountry = function (force) {
+        const selected = destinationSelect.options[destinationSelect.selectedIndex];
+        const country = selected ? selected.getAttribute('data-country') : '';
+        if (!country || (!force && countrySelect.value)) {
+          return;
+        }
+        for (const option of countrySelect.options) {
+          if (option.value === country) {
+            countrySelect.value = country;
+            break;
+          }
+        }
+      };
+
+      destinationSelect.addEventListener('change', function () {
+        setCountry(true);
+      });
+      setCountry(false);
+    })();
+
     (function () {
       const form = document.querySelector('[data-recipient-preference-form]');
       if (!form) {

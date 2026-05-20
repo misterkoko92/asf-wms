@@ -83,11 +83,11 @@
         </div>
         <div class="scan-field">
           <label class="form-label" for="city">{% trans "Ville" %}</label>
-          <input class="form-control" type="text" id="city" name="city" value="{{ form_data.city }}">
+          <input class="form-control" type="text" id="city" name="city" value="{{ form_data.city }}" required>
         </div>
         <div class="scan-field">
           <label class="form-label" for="country">{% trans "Pays" %}</label>
-          <select class="form-select ui-select--md" id="country" name="country">
+          <select class="form-select ui-select--md" id="country" name="country" required>
             {% for value, label in country_choices %}
               <option value="{{ value }}" {% if form_data.country == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}

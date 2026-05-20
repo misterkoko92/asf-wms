@@ -283,7 +283,7 @@ class UiPortalRecipientMutationSerializer(serializers.Serializer):
     address_line2 = serializers.CharField(required=False, allow_blank=True, default="")
     postal_code = serializers.CharField(required=False, allow_blank=True, default="")
     city = serializers.CharField(required=False, allow_blank=True, default="")
-    country = serializers.CharField(required=False, allow_blank=True, default="France")
+    country = serializers.CharField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     notify_deliveries = serializers.BooleanField(required=False, default=False)
     is_delivery_contact = serializers.BooleanField(required=False, default=False)

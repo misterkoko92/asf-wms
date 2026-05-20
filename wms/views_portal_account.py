@@ -27,6 +27,7 @@ from .application.portal.dashboard_queries import (
     build_recipient_scope_home_payload,
     build_runtime_recipient_profile_payload,
 )
+from .application.portal.destination_options import served_destination_queryset
 from .country_choices import DEFAULT_COUNTRY, build_country_choices, is_known_country
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
@@ -66,6 +67,7 @@ from .recipient_product_preferences import (
     list_effective_recipient_product_preferences,
 )
 from .scan_helpers import parse_int
+from .stopover_request_handlers import submit_stopover_feasibility_request
 from .upload_utils import validate_upload
 from .view_permissions import (
     BLOCKED_MESSAGES,
@@ -92,6 +94,7 @@ ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 ACTION_CREATE_RECIPIENT = "create_recipient"
 ACTION_UPDATE_RECIPIENT = "update_recipient"
 ACTION_UPDATE_RECIPIENT_PROFILE = "update_recipient_profile"
+ACTION_REQUEST_STOPOVER = "request_stopover"
 ACTION_SAVE_PRODUCT_PREFERENCE = "save_product_preference"
 ACTION_DELETE_PRODUCT_PREFERENCE = "delete_product_preference"
 ACTION_SAVE_RECIPIENT_PREFERENCE = "save_recipient_preference"
@@ -108,6 +111,7 @@ ACTION_REQUEST_BILLING_PREFERENCES = "request_billing_preferences"
 MAX_PORTAL_CONTACTS = 10
 MESSAGE_RECIPIENT_ADDED = _("Destinataire ajouté.")
 MESSAGE_RECIPIENT_UPDATED = _("Destinataire modifié.")
+MESSAGE_STOPOVER_REQUEST_SENT = _("Demande d'étude d'escale envoyée.")
 MESSAGE_RECIPIENT_PRODUCT_PREFERENCE_SAVED = _("Préférence produit enregistrée.")
 MESSAGE_RECIPIENT_PRODUCT_PREFERENCE_DELETED = _("Préférence produit supprimée.")
 MESSAGE_RECIPIENT_PREFERENCE_ADDED = _("Préférence produit ajoutée.")
@@ -128,7 +132,12 @@ ERROR_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 ERROR_RECIPIENT_DESTINATION_REQUIRED = _("Escale de livraison requise.")
 ERROR_RECIPIENT_STRUCTURE_REQUIRED = _("Nom de la structure requis.")
 ERROR_RECIPIENT_ADDRESS_REQUIRED = _("Adresse requise.")
+ERROR_RECIPIENT_CITY_REQUIRED = _("Ville requise.")
+ERROR_RECIPIENT_COUNTRY_REQUIRED = _("Pays requis.")
+ERROR_RECIPIENT_CONTACT_TITLE_REQUIRED = _("Titre du contact requis.")
 ERROR_RECIPIENT_TITLE_INVALID = _("Titre de contact invalide.")
+ERROR_RECIPIENT_CONTACT_LAST_NAME_REQUIRED = _("Nom du contact requis.")
+ERROR_RECIPIENT_CONTACT_FIRST_NAME_REQUIRED = _("Prénom du contact requis.")
 ERROR_RECIPIENT_LEGAL_FORM_REQUIRED = _("Forme juridique requise.")
 ERROR_RECIPIENT_LEGAL_FORM_INVALID = _("Forme juridique invalide.")
 ERROR_RECIPIENT_BENEFICIARY_COUNT_REQUIRED = _("Nombre de bénéficiaires requis.")
@@ -137,6 +146,8 @@ ERROR_RECIPIENT_COUNTRY_INVALID = _("Pays invalide.")
 ERROR_RECIPIENT_REGISTRATION_PROOF_REQUIRED = _("Preuve d'enregistrement requise.")
 ERROR_RECIPIENT_STATUTES_REQUIRED = _("Statut requis.")
 ERROR_RECIPIENT_EMAILS_INVALID = _("Adresses e-mail invalides: %(values)s.")
+ERROR_RECIPIENT_EMAIL_REQUIRED = _("Ajoutez au moins un email de réception.")
+ERROR_RECIPIENT_PHONE_REQUIRED = _("Ajoutez au moins un téléphone de réception.")
 ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED = _(
     "Ajoutez au moins un email pour activer l'alerte de livraison."
 )
@@ -262,11 +273,42 @@ def _extract_recipient_form_data(post_data):
         "address_line2": (post_data.get("address_line2") or "").strip(),
         "postal_code": (post_data.get("postal_code") or "").strip(),
         "city": (post_data.get("city") or "").strip(),
-        "country": (post_data.get("country") or DEFAULT_COUNTRY).strip(),
+        "country": (post_data.get("country") or "").strip(),
         "notes": (post_data.get("notes") or "").strip(),
         "notify_deliveries": bool(post_data.get("notify_deliveries")),
         "is_delivery_contact": bool(post_data.get("is_delivery_contact")),
     }
+
+
+def _extract_recipient_stopover_request_payload(post_data):
+    fields = (
+        "requested_stopovers",
+        "structure_name",
+        "legal_form",
+        "beneficiary_count",
+        "contact_title",
+        "contact_first_name",
+        "contact_last_name",
+        "contact_email",
+        "contact_phone",
+        "address_line1",
+        "address_line2",
+        "postal_code",
+        "city",
+        "country",
+        "message",
+    )
+    payload = {"requester_type": "shipper"}
+    for field in fields:
+        prefixed_name = f"stopover_{field}"
+        payload[field] = post_data.get(prefixed_name, post_data.get(field, ""))
+    if not payload["contact_email"]:
+        payload["contact_email"] = next(iter(_split_multi_values(post_data.get("emails"))), "")
+    if not payload["contact_phone"]:
+        payload["contact_phone"] = next(iter(_split_multi_values(post_data.get("phones"))), "")
+    if not payload["message"]:
+        payload["message"] = post_data.get("notes", "")
+    return payload
 
 
 def _extract_preference_form_data(post_data):
@@ -375,7 +417,9 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
     errors = []
     valid_titles = {choice for choice, _label in AssociationContactTitle.choices}
     valid_legal_forms = {choice for choice, _label in RecipientLegalForm.choices}
-    if form_data["contact_title"] and form_data["contact_title"] not in valid_titles:
+    if not form_data["contact_title"]:
+        errors.append(ERROR_RECIPIENT_CONTACT_TITLE_REQUIRED)
+    elif form_data["contact_title"] not in valid_titles:
         errors.append(ERROR_RECIPIENT_TITLE_INVALID)
 
     destination = None
@@ -404,10 +448,24 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
             errors.append(ERROR_RECIPIENT_BENEFICIARY_COUNT_INVALID)
         else:
             form_data["beneficiary_count_value"] = beneficiary_count
-    if not is_known_country(form_data["country"]):
+
+    if not form_data["contact_last_name"]:
+        errors.append(ERROR_RECIPIENT_CONTACT_LAST_NAME_REQUIRED)
+    if not form_data["contact_first_name"]:
+        errors.append(ERROR_RECIPIENT_CONTACT_FIRST_NAME_REQUIRED)
+    if not form_data["city"]:
+        errors.append(ERROR_RECIPIENT_CITY_REQUIRED)
+
+    if destination is not None and not form_data["country"]:
+        form_data["country"] = (destination.country or "").strip()
+    if not form_data["country"]:
+        errors.append(ERROR_RECIPIENT_COUNTRY_REQUIRED)
+    elif not is_known_country(form_data["country"]):
         errors.append(ERROR_RECIPIENT_COUNTRY_INVALID)
 
     email_values = _split_multi_values(form_data["emails"])
+    if not email_values:
+        errors.append(ERROR_RECIPIENT_EMAIL_REQUIRED)
     invalid_emails = []
     validator = EmailValidator()
     for value in email_values:
@@ -417,11 +475,17 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
             invalid_emails.append(value)
     if invalid_emails:
         errors.append(ERROR_RECIPIENT_EMAILS_INVALID % {"values": ", ".join(invalid_emails)})
-    if form_data["notify_deliveries"] and not email_values:
+    if (
+        form_data["notify_deliveries"]
+        and not email_values
+        and ERROR_RECIPIENT_EMAIL_REQUIRED not in errors
+    ):
         errors.append(ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED)
 
     form_data["email_values"] = email_values
     form_data["phone_values"] = _split_multi_values(form_data["phones"])
+    if not form_data["phone_values"]:
+        errors.append(ERROR_RECIPIENT_PHONE_REQUIRED)
     return errors
 
 
@@ -1354,10 +1418,7 @@ def portal_recipients(request):
     product_preference_errors = []
     product_preference_form_data = _build_default_product_preference_form_data()
     editing_product_preference = None
-    destinations = sorted(
-        Destination.objects.filter(is_active=True),
-        key=lambda destination: str(destination).lower(),
-    )
+    destinations = list(served_destination_queryset())
     destinations_by_id = {destination.id: destination for destination in destinations}
     product_choices, category_choices = _build_product_preference_choices()
     blocked_reason = (request.GET.get(BLOCKED_REASON_QUERY_PARAM) or "").strip()
@@ -1369,7 +1430,24 @@ def portal_recipients(request):
 
     if request.method == "POST":
         action = request.POST.get("action")
-        if action in {ACTION_CREATE_RECIPIENT, ACTION_UPDATE_RECIPIENT}:
+        if action == ACTION_REQUEST_STOPOVER:
+            try:
+                with transaction.atomic():
+                    submit_stopover_feasibility_request(
+                        _extract_recipient_stopover_request_payload(request.POST),
+                        source="portal_recipient",
+                        created_by=request.user if request.user.is_authenticated else None,
+                    )
+            except ValidationError as exc:
+                if hasattr(exc, "message_dict"):
+                    for field_errors in exc.message_dict.values():
+                        errors.extend(field_errors)
+                else:
+                    errors.extend(exc.messages)
+            else:
+                messages.success(request, MESSAGE_STOPOVER_REQUEST_SENT)
+                return redirect("portal:portal_recipients")
+        elif action in {ACTION_CREATE_RECIPIENT, ACTION_UPDATE_RECIPIENT}:
             form_data = _extract_recipient_form_data(request.POST)
             errors = _validate_recipient_form_data(form_data, destinations_by_id)
             if action == ACTION_CREATE_RECIPIENT:

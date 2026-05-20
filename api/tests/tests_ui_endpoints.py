@@ -511,6 +511,27 @@ class UiApiEndpointsTests(TestCase):
             "lines": lines,
         }
 
+    def _portal_recipient_payload(self, **overrides):
+        payload = {
+            "destination_id": self.destination.id,
+            "structure_name": "New Structure",
+            "legal_form": "association",
+            "beneficiary_count": 120,
+            "contact_title": AssociationContactTitle.MR,
+            "contact_last_name": "Martin",
+            "contact_first_name": "Luc",
+            "phones": "0100000000",
+            "emails": "luc.martin@example.org",
+            "address_line1": "2 Rue Test",
+            "postal_code": "75002",
+            "city": "Paris",
+            "country": "France",
+            "notify_deliveries": True,
+            "is_delivery_contact": True,
+        }
+        payload.update(overrides)
+        return payload
+
     def _call_endpoint(self, client, method, path, *, payload=None, fmt="json"):
         caller = getattr(client, method.lower())
         if payload is None:
@@ -2669,21 +2690,7 @@ class UiApiEndpointsTests(TestCase):
 
         create_response = self.portal_client.post(
             "/api/v1/ui/portal/recipients/",
-            {
-                "destination_id": self.destination.id,
-                "structure_name": "New Structure",
-                "contact_title": AssociationContactTitle.MR,
-                "contact_last_name": "Martin",
-                "contact_first_name": "Luc",
-                "phones": "0100000000",
-                "emails": "luc.martin@example.org",
-                "address_line1": "2 Rue Test",
-                "postal_code": "75002",
-                "city": "Paris",
-                "country": "France",
-                "notify_deliveries": True,
-                "is_delivery_contact": True,
-            },
+            self._portal_recipient_payload(),
             format="json",
         )
         self.assertEqual(create_response.status_code, 201)
@@ -2691,21 +2698,16 @@ class UiApiEndpointsTests(TestCase):
 
         patch_response = self.portal_client.patch(
             f"/api/v1/ui/portal/recipients/{recipient_id}/",
-            {
-                "destination_id": self.destination.id,
-                "structure_name": "New Structure Updated",
-                "contact_title": AssociationContactTitle.MRS,
-                "contact_last_name": "Martin",
-                "contact_first_name": "Lucie",
-                "phones": "0100000001",
-                "emails": "lucie.martin@example.org",
-                "address_line1": "3 Rue Test",
-                "postal_code": "75003",
-                "city": "Paris",
-                "country": "France",
-                "notify_deliveries": True,
-                "is_delivery_contact": False,
-            },
+            self._portal_recipient_payload(
+                structure_name="New Structure Updated",
+                contact_title=AssociationContactTitle.MRS,
+                contact_first_name="Lucie",
+                phones="0100000001",
+                emails="lucie.martin@example.org",
+                address_line1="3 Rue Test",
+                postal_code="75003",
+                is_delivery_contact=False,
+            ),
             format="json",
         )
         self.assertEqual(patch_response.status_code, 200)
@@ -2713,6 +2715,101 @@ class UiApiEndpointsTests(TestCase):
             patch_response.json()["recipient"]["structure_name"],
             "New Structure Updated",
         )
+
+    def test_ui_portal_recipients_lists_only_served_destinations(self):
+        inactive_correspondent = Contact.objects.create(
+            name="UI Inactive Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=False,
+        )
+        hidden_destination = Destination.objects.create(
+            city="HID",
+            iata_code="HID",
+            country="France",
+            correspondent_contact=inactive_correspondent,
+            is_active=True,
+        )
+
+        response = self.portal_client.get("/api/v1/ui/portal/recipients/")
+
+        self.assertEqual(response.status_code, 200)
+        destination_ids = {destination["id"] for destination in response.json()["destinations"]}
+        self.assertIn(self.destination.id, destination_ids)
+        self.assertNotIn(hidden_destination.id, destination_ids)
+
+    def test_ui_portal_recipients_post_defaults_country_from_destination(self):
+        correspondent = Contact.objects.create(
+            name="UI Dakar Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        senegal_destination = Destination.objects.create(
+            city="DKR",
+            iata_code="DKR",
+            country="Sénégal",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        response = self.portal_client.post(
+            "/api/v1/ui/portal/recipients/",
+            self._portal_recipient_payload(
+                destination_id=senegal_destination.id,
+                country="",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        recipient = AssociationRecipient.objects.get(pk=response.json()["recipient"]["id"])
+        self.assertEqual(recipient.destination, senegal_destination)
+        self.assertEqual(recipient.country, "Sénégal")
+
+    def test_ui_portal_recipients_post_rejects_missing_operational_contact_fields(self):
+        response = self.portal_client.post(
+            "/api/v1/ui/portal/recipients/",
+            self._portal_recipient_payload(
+                contact_title="",
+                contact_last_name="",
+                contact_first_name="",
+                emails="",
+                phones="",
+                city="",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        field_errors = response.json()["field_errors"]
+        self.assertIn("contact_title", field_errors)
+        self.assertIn("contact_last_name", field_errors)
+        self.assertIn("contact_first_name", field_errors)
+        self.assertIn("emails", field_errors)
+        self.assertIn("phones", field_errors)
+        self.assertIn("city", field_errors)
+
+    def test_ui_portal_recipient_patch_rejects_missing_operational_contact_fields(self):
+        response = self.portal_client.patch(
+            f"/api/v1/ui/portal/recipients/{self.portal_recipient.id}/",
+            self._portal_recipient_payload(
+                contact_title="",
+                contact_last_name="",
+                contact_first_name="",
+                emails="",
+                phones="",
+                city="",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        field_errors = response.json()["field_errors"]
+        self.assertIn("contact_title", field_errors)
+        self.assertIn("contact_last_name", field_errors)
+        self.assertIn("contact_first_name", field_errors)
+        self.assertIn("emails", field_errors)
+        self.assertIn("phones", field_errors)
+        self.assertIn("city", field_errors)
 
     def test_ui_portal_recipients_post_uses_shared_profile_use_case(self):
         with mock.patch(
@@ -2722,21 +2819,7 @@ class UiApiEndpointsTests(TestCase):
         ) as update_shared_profile:
             response = self.portal_client.post(
                 "/api/v1/ui/portal/recipients/",
-                {
-                    "destination_id": self.destination.id,
-                    "structure_name": "Canonical API Structure",
-                    "contact_title": AssociationContactTitle.MR,
-                    "contact_last_name": "Martin",
-                    "contact_first_name": "Luc",
-                    "phones": "0100000000",
-                    "emails": "luc.martin@example.org",
-                    "address_line1": "2 Rue Test",
-                    "postal_code": "75002",
-                    "city": "Paris",
-                    "country": "France",
-                    "notify_deliveries": True,
-                    "is_delivery_contact": True,
-                },
+                self._portal_recipient_payload(structure_name="Canonical API Structure"),
                 format="json",
             )
 
@@ -2753,21 +2836,18 @@ class UiApiEndpointsTests(TestCase):
             )
             response = self.recipient_scope_client.patch(
                 f"/api/v1/ui/portal/recipients/{self.shipment_recipient_organization.id}/",
-                {
-                    "destination_id": self.destination.id,
-                    "structure_name": "UI Recipient Updated",
-                    "contact_title": AssociationContactTitle.MRS,
-                    "contact_last_name": "Diallo",
-                    "contact_first_name": "Aicha",
-                    "phones": "0100000001",
-                    "emails": "aicha.diallo@example.org",
-                    "address_line1": "3 Rue Test",
-                    "postal_code": "75003",
-                    "city": "Paris",
-                    "country": "France",
-                    "notify_deliveries": False,
-                    "is_delivery_contact": False,
-                },
+                self._portal_recipient_payload(
+                    structure_name="UI Recipient Updated",
+                    contact_title=AssociationContactTitle.MRS,
+                    contact_last_name="Diallo",
+                    contact_first_name="Aicha",
+                    phones="0100000001",
+                    emails="aicha.diallo@example.org",
+                    address_line1="3 Rue Test",
+                    postal_code="75003",
+                    notify_deliveries=False,
+                    is_delivery_contact=False,
+                ),
                 format="json",
             )
 
@@ -2806,21 +2886,18 @@ class UiApiEndpointsTests(TestCase):
 
         response = self.recipient_scope_client.patch(
             f"/api/v1/ui/portal/recipients/{self.shipment_recipient_organization.id}/",
-            {
-                "destination_id": self.destination.id,
-                "structure_name": "UI Recipient Updated",
-                "contact_title": AssociationContactTitle.MRS,
-                "contact_last_name": "Diallo",
-                "contact_first_name": "Aicha",
-                "phones": "0100000001",
-                "emails": "aicha.diallo@example.org",
-                "address_line1": "3 Rue Test",
-                "postal_code": "75003",
-                "city": "Paris",
-                "country": "France",
-                "notify_deliveries": True,
-                "is_delivery_contact": True,
-            },
+            self._portal_recipient_payload(
+                structure_name="UI Recipient Updated",
+                contact_title=AssociationContactTitle.MRS,
+                contact_last_name="Diallo",
+                contact_first_name="Aicha",
+                phones="0100000001",
+                emails="aicha.diallo@example.org",
+                address_line1="3 Rue Test",
+                postal_code="75003",
+                notify_deliveries=True,
+                is_delivery_contact=True,
+            ),
             format="json",
         )
 
@@ -3269,21 +3346,14 @@ class UiApiEndpointsTests(TestCase):
 
             create_recipient_response = self.portal_client.post(
                 "/api/v1/ui/portal/recipients/",
-                {
-                    "destination_id": self.destination.id,
-                    "structure_name": "Audit Recipient",
-                    "contact_title": AssociationContactTitle.MR,
-                    "contact_last_name": "Audit",
-                    "contact_first_name": "Test",
-                    "phones": "0100000000",
-                    "emails": "audit.recipient@example.org",
-                    "address_line1": "12 Rue Audit",
-                    "postal_code": "75001",
-                    "city": "Paris",
-                    "country": "France",
-                    "notify_deliveries": True,
-                    "is_delivery_contact": True,
-                },
+                self._portal_recipient_payload(
+                    structure_name="Audit Recipient",
+                    contact_last_name="Audit",
+                    contact_first_name="Test",
+                    emails="audit.recipient@example.org",
+                    address_line1="12 Rue Audit",
+                    postal_code="75001",
+                ),
                 format="json",
             )
             self.assertEqual(create_recipient_response.status_code, 201)
@@ -3291,21 +3361,17 @@ class UiApiEndpointsTests(TestCase):
 
             patch_recipient_response = self.portal_client.patch(
                 f"/api/v1/ui/portal/recipients/{created_recipient_id}/",
-                {
-                    "destination_id": self.destination.id,
-                    "structure_name": "Audit Recipient Updated",
-                    "contact_title": AssociationContactTitle.MRS,
-                    "contact_last_name": "Audit",
-                    "contact_first_name": "Tester",
-                    "phones": "0100000001",
-                    "emails": "audit.updated@example.org",
-                    "address_line1": "13 Rue Audit",
-                    "postal_code": "75002",
-                    "city": "Paris",
-                    "country": "France",
-                    "notify_deliveries": True,
-                    "is_delivery_contact": False,
-                },
+                self._portal_recipient_payload(
+                    structure_name="Audit Recipient Updated",
+                    contact_title=AssociationContactTitle.MRS,
+                    contact_last_name="Audit",
+                    contact_first_name="Tester",
+                    phones="0100000001",
+                    emails="audit.updated@example.org",
+                    address_line1="13 Rue Audit",
+                    postal_code="75002",
+                    is_delivery_contact=False,
+                ),
                 format="json",
             )
             self.assertEqual(patch_recipient_response.status_code, 200)

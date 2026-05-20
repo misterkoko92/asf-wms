@@ -70,6 +70,7 @@ from wms.models import (
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
     ShipmentWorkflowProjection,
+    StopoverFeasibilityRequest,
     Warehouse,
 )
 from wms.portal_access import ACTIVE_PORTAL_SCOPE_SESSION_KEY, PORTAL_SCOPE_SOURCE_GRANT
@@ -2726,6 +2727,31 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         recipients = list(response.context["recipients"])
         self.assertEqual(recipients, [active])
 
+    def test_portal_recipients_get_lists_only_served_destinations(self):
+        inactive_correspondent = Contact.objects.create(
+            name="Correspondant inactif",
+            contact_type=ContactType.PERSON,
+            is_active=False,
+        )
+        inactive_correspondent_destination = Destination.objects.create(
+            city="Ghost",
+            iata_code="GST",
+            country="France",
+            correspondent_contact=inactive_correspondent,
+            is_active=True,
+        )
+        inactive_destination = self._create_destination(city="Inactive", country="France")
+        inactive_destination.is_active = False
+        inactive_destination.save(update_fields=["is_active"])
+
+        response = self.client.get(self.recipients_url)
+
+        self.assertEqual(response.status_code, 200)
+        destination_ids = {destination.id for destination in response.context["destinations"]}
+        self.assertIn(self.destination.id, destination_ids)
+        self.assertNotIn(inactive_correspondent_destination.id, destination_ids)
+        self.assertNotIn(inactive_destination.id, destination_ids)
+
     def test_portal_recipients_get_shows_recipient_validation_status(self):
         pending_recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
@@ -3530,6 +3556,31 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(home_response, "45 Rue Scope")
         self.assertContains(home_response, "Profil modifie par le destinataire")
 
+    def test_portal_recipient_profile_post_requires_reception_contact_fields(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Required")
+        recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.post(
+            self._recipient_profile_url(),
+            self._build_recipient_profile_payload(
+                recipient_organization,
+                contact_title="",
+                contact_last_name="",
+                contact_first_name="",
+                emails="",
+                phones="",
+                city="",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Titre du contact requis.", response.context["errors"])
+        self.assertIn("Nom du contact requis.", response.context["errors"])
+        self.assertIn("Prénom du contact requis.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un email de réception.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un téléphone de réception.", response.context["errors"])
+        self.assertIn("Ville requise.", response.context["errors"])
+
     def test_portal_recipient_profile_post_uses_runtime_recipient_profile_use_case(self):
         recipient = self._create_synced_recipient(structure_name="Recipient Scope Profile")
         recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
@@ -3753,6 +3804,87 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertIn("Nombre de bénéficiaires requis.", response.context["errors"])
         self.assertIn("Preuve d'enregistrement requise.", response.context["errors"])
         self.assertIn("Statut requis.", response.context["errors"])
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+
+    def test_portal_recipients_post_requires_reception_contact_and_location_fields(self):
+        destination_without_country = self._create_destination(city="Libreville", country="")
+        payload = self._build_recipient_payload(
+            destination_id=str(destination_without_country.id),
+            contact_title="",
+            contact_last_name="",
+            contact_first_name="",
+            emails="",
+            phones="",
+            city="",
+            country="",
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Titre du contact requis.", response.context["errors"])
+        self.assertIn("Nom du contact requis.", response.context["errors"])
+        self.assertIn("Prénom du contact requis.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un email de réception.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un téléphone de réception.", response.context["errors"])
+        self.assertIn("Ville requise.", response.context["errors"])
+        self.assertIn("Pays requis.", response.context["errors"])
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+
+    def test_portal_recipients_post_defaults_country_from_selected_destination(self):
+        senegal_destination = self._create_destination(city="Dakar", country="Sénégal")
+        payload = self._build_recipient_payload(
+            destination_id=str(senegal_destination.id),
+            country="",
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        recipient = AssociationRecipient.objects.get()
+        self.assertEqual(recipient.destination, senegal_destination)
+        self.assertEqual(recipient.country, "Sénégal")
+
+    @mock.patch("wms.stopover_request_handlers.send_or_enqueue_email_safe", return_value=True)
+    def test_portal_recipients_other_stopover_creates_study_request_only(self, _send_mock):
+        response = self.client.post(
+            self.recipients_url,
+            {
+                "action": "request_stopover",
+                "requested_stopovers": "Goma",
+                "structure_name": "Structure hors escale",
+                "legal_form": "association",
+                "beneficiary_count": "75",
+                "contact_title": "mrs",
+                "contact_last_name": "Diallo",
+                "contact_first_name": "Awa",
+                "emails": "awa@example.org",
+                "phones": "+243810000000",
+                "address_line1": "12 Rue Demande",
+                "address_line2": "",
+                "postal_code": "",
+                "city": "Goma",
+                "country": "République démocratique du Congo",
+                "notes": "Besoin récurrent.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipients_url)
+        self.assertEqual(StopoverFeasibilityRequest.objects.count(), 1)
+        request = StopoverFeasibilityRequest.objects.get()
+        self.assertEqual(request.requester_type, "shipper")
+        self.assertEqual(request.requested_stopovers, "Goma")
+        self.assertEqual(request.structure_name, "Structure hors escale")
+        self.assertEqual(request.contact_email, "awa@example.org")
+        self.assertEqual(request.contact_phone, "+243810000000")
+        self.assertEqual(request.source, "portal_recipient")
         self.assertEqual(AssociationRecipient.objects.count(), 0)
 
     def test_portal_recipients_post_rejects_invalid_country_choice_and_keeps_form_values(self):
