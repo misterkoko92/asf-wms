@@ -67,6 +67,8 @@ External users must understand status, next actions, and ownership clearly.
 
 Portal tutorial state must stay scoped by user, role, and active shipper / recipient / legacy association profile.
 
+Account onboarding must collect enough operational data to avoid validated-but-unusable accounts: served stopover, required structure fields, required contacts, and explicit unsupported-stopover study requests.
+
 ---
 
 ## Always Check
@@ -115,12 +117,15 @@ Portal tutorial state must stay scoped by user, role, and active shipper / recip
 ### Submission Questions
 
 - does order creation still validate properly?
+- does shipper readiness block only order execution while leaving recovery pages available?
 - does downstream data remain complete?
 - can duplicate submissions occur?
 
 ### Recipient Questions
 
 - can users maintain recipients correctly?
+- are recipient destinations limited to served stopovers with active correspondents?
+- does `Autre escale` create a study request instead of a recipient/account?
 - did selector defaults change unexpectedly?
 - is internal sync still coherent?
 
@@ -154,6 +159,7 @@ Also verify:
 Also verify:
 
 - `wms/application/portal/order_use_cases.py`
+- `wms/application/portal/readiness.py`
 - downstream shipment creation assumptions
 - confirmation messages
 - duplicate submit protection
@@ -194,11 +200,14 @@ Choose nearest tests.
 ### High Value
 
 - nearest tests under `wms/tests/portal/`
+- `wms/tests/portal/tests_portal_onboarding_readiness.py`
+- `wms/tests/portal/tests_stopover_feasibility_requests.py`
 
 ### UI / Views
 
 - portal bootstrap UI tests
 - nearest portal page tests
+- public account request and scan account validation tests when onboarding changes
 
 ### Cross Flow
 
@@ -229,6 +238,10 @@ Slow request causes repeated order creation.
 ### Silent Validation Trap
 
 Bad data accepted and breaks downstream operations.
+
+### Validated But Unusable Trap
+
+A partner account is approved but cannot create orders because required contacts or validated linked recipients are missing and no recovery checklist is visible.
 
 ### Scope Confusion Trap
 

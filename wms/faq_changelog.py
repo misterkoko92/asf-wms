@@ -2,6 +2,16 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 5, 20),
+        "pr_number": None,
+        "summary": (
+            "Onboarding portail : escales desservies obligatoires, demandes "
+            "Autre escale tracées, contacts opérationnels complets pour "
+            "expéditeurs/destinataires et création de commande bloquée tant "
+            "que le compte expéditeur n'est pas prêt."
+        ),
+    },
+    {
         "date": date(2026, 5, 19),
         "pr_number": 219,
         "summary": (

@@ -53,6 +53,9 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - `wms/views_scan_account_validations.py`
 - `wms/forms_scan_account_validations.py`
 - `wms/account_request_review_service.py`
+- `wms/application/portal/destination_options.py`
+- `wms/application/portal/readiness.py`
+- `wms/stopover_request_handlers.py`
 - `wms/default_shipper_bindings.py`
 - related templates and email templates
 
@@ -60,7 +63,11 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 
 - Account requests support `shipper`, `recipient`, and `user`.
 - Legacy `association` remains shipper-equivalent.
-- Recipient requests carry exactly one destination.
+- Recipient requests carry exactly one served destination. A served destination is active and has an active correspondent contact.
+- Unsupported stopovers are captured as `StopoverFeasibilityRequest` rows and send the internal subject `Demande nouvelle escale`; they must not create accounts, recipients, grants, or destinations.
+- Recipient signup and portal recipient creation require structure compliance data plus a reception contact with title, first name, last name, at least one email, at least one phone, and required address fields.
+- Shipper signup and portal account data require complete administrative and preparation/logistics contacts. A single contact may satisfy both roles.
+- Scan account review displays submitted operational contact payloads as read-only context while keeping the operator review form editable for correction and legacy requests.
 - Recipient approval creates/reactivates organization contact, destination-scoped recipient organization, active recipient contact, and `PortalAccessGrant(recipient_admin)`.
 - Shipper requests may include one optional first recipient payload and recipient structure documents; if present, approval creates/reactivates the destination-scoped recipient organization, an active delivery contact, a shipper-recipient link with that contact as default, and transfers the recipient documents to the provisioned structure.
 - Default ASF shipper binding is resolved through shared helper.
@@ -169,6 +176,7 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - `wms/application/portal/account_use_cases.py`
 - `wms/application/portal/order_use_cases.py`
 - `wms/application/portal/recipient_resolution.py`
+- `wms/application/portal/readiness.py`
 - portal views
 - `api/v1/ui_views.py`
 
@@ -179,6 +187,8 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - `Date d'expédition` stays empty until real `BOARDING_OK`.
 - Portal account writes use `save_portal_account_profile(...)`.
 - Order destination resolution uses shared helpers.
+- Shipper order creation is allowed only when `build_shipper_readiness(profile)` is ready: validated active shipper, complete administrative contact, complete preparation/logistics contact, and at least one active validated linked recipient organization.
+- `/portal/account/`, `/portal/recipients/`, and the shipper dashboard remain recovery surfaces for incomplete operational data; order creation is the hard gate.
 - `submit_portal_order(...)` is shared submission entrypoint.
 - HTML and UI API adapters stay thin.
 
@@ -216,7 +226,8 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - When shipper-prepared parcels are selected, stock ASF selection is opt-in and ignored server-side unless the stock-completion checkbox is checked.
 - Review displays a read-only shipping type derived from inbound mode and stock-completion intent: Stock ASF, Dépôt, Dépôt + Stock ASF, Enlèvement, or Enlèvement + Stock ASF.
 - The explicit draft-clear action must remain reachable even before route completion.
+- Before the order form is rendered or submitted, readiness gating must block incomplete shipper accounts and return actionable missing requirements in both HTML and UI API paths.
 
 ### Maintenance rule
 
-- If route/inbound/draft/ready-carton/unit-product semantics change, align views, includes, tests, and optional smoke tests.
+- If route/inbound/draft/readiness/ready-carton/unit-product semantics change, align views, includes, UI API, tests, and optional smoke tests.

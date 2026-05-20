@@ -15,6 +15,7 @@ from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
+    AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
     BillingDocument,
@@ -43,6 +44,7 @@ from wms.models import (
 )
 from wms.portal_access import ACTIVE_PORTAL_SCOPE_SESSION_KEY, PORTAL_SCOPE_SOURCE_GRANT
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
+from wms.shipment_party_setup import ensure_shipment_recipient_link, ensure_shipment_shipper
 
 
 class PortalBootstrapUiTests(TestCase):
@@ -95,6 +97,50 @@ class PortalBootstrapUiTests(TestCase):
             is_active=True,
         )
         sync_association_recipient_to_contact(recipient)
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=destination,
+        )
+        recipient_organization.validation_status = ShipmentValidationStatus.VALIDATED
+        recipient_organization.save(update_fields=["validation_status"])
+        shipper = ensure_shipment_shipper(
+            association_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        ensure_shipment_recipient_link(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+        )
+        AssociationPortalContact.objects.create(
+            profile=self.profile,
+            position=0,
+            title="mr",
+            first_name="Admin",
+            last_name="BOOTSTRAP",
+            email="admin-bootstrap@example.com",
+            phone="+33100000001",
+            emails="admin-bootstrap@example.com",
+            phones="+33100000001",
+            address_line1="1 Rue Test",
+            city="Paris",
+            country="France",
+            is_administrative=True,
+        )
+        AssociationPortalContact.objects.create(
+            profile=self.profile,
+            position=1,
+            title="mrs",
+            first_name="Prep",
+            last_name="BOOTSTRAP",
+            email="prep-bootstrap@example.com",
+            phone="+33100000002",
+            emails="prep-bootstrap@example.com",
+            phones="+33100000002",
+            address_line1="1 Rue Test",
+            city="Paris",
+            country="France",
+            is_shipping=True,
+        )
         Product.objects.create(
             sku="PORTAL-BOOTSTRAP-PREF-001",
             name="Produit Bootstrap",
