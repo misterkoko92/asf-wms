@@ -45,6 +45,28 @@
           <span class="scan-help">Contact de réception activé à la validation.</span>
         </dd>
       {% endif %}
+      {% if contact_payload_summaries %}
+        <dt class="col-sm-3">Contacts transmis</dt>
+        <dd class="col-sm-9">
+          {% for contact_summary in contact_payload_summaries %}
+            <div class="mb-2">
+              <strong>{{ contact_summary.label }}</strong><br>
+              {% if contact_summary.display_name %}
+                {{ contact_summary.display_name }}<br>
+              {% endif %}
+              {% if contact_summary.email %}
+                {{ contact_summary.email }}<br>
+              {% endif %}
+              {% if contact_summary.phone %}
+                {{ contact_summary.phone }}<br>
+              {% endif %}
+              {% for address_line in contact_summary.address_lines %}
+                {{ address_line }}{% if not forloop.last %}<br>{% endif %}
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </dd>
+      {% endif %}
       <dt class="col-sm-3">Documents</dt>
       <dd class="col-sm-9">
         <div class="scan-table-wrap table-responsive">

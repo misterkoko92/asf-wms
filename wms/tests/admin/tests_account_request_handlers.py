@@ -684,3 +684,16 @@ class PublicAccountRequestAdminTests(TestCase):
             f"/scan/account-validations/{self.pending_request.id}/",
             html,
         )
+
+
+class StopoverFeasibilityRequestAdminTests(TestCase):
+    def setUp(self):
+        self.admin_view = admin.site._registry[StopoverFeasibilityRequest]
+
+    def test_stopover_request_admin_exposes_list_and_search_fields(self):
+        self.assertIn("structure_name", self.admin_view.list_display)
+        self.assertIn("requested_stopovers", self.admin_view.list_display)
+        self.assertIn("contact_email", self.admin_view.list_display)
+        self.assertIn("structure_name", self.admin_view.search_fields)
+        self.assertIn("requested_stopovers", self.admin_view.search_fields)
+        self.assertIn("contact_email", self.admin_view.search_fields)

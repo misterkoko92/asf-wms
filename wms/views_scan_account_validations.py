@@ -43,6 +43,23 @@ TEMPLATE_CONTACT_VALIDATIONS_HUB = "scan/contact_validations_hub.html"
 TEMPLATE_RECIPIENT_VALIDATION_LIST = "scan/recipient_validation_list.html"
 TEMPLATE_RECIPIENT_VALIDATION_DETAIL = "scan/recipient_validation_detail.html"
 RECIPIENT_VALIDATION_ALLOWED_BUSINESS_TYPES = ("shipper", "recipient")
+CONTACT_PAYLOAD_ROLE_LABELS = (
+    ("admin", "Contact administratif"),
+    ("preparation", "Contact préparation/logistique"),
+    ("recipient_reception", "Contact réception"),
+)
+CONTACT_PAYLOAD_VALUE_FIELDS = (
+    "title",
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "address_line1",
+    "address_line2",
+    "postal_code",
+    "city",
+    "country",
+)
 
 
 def _account_validation_list_queryset():
@@ -78,6 +95,57 @@ def _recipient_validation_list_queryset():
         )
         .order_by("destination__city", "organization__name", "id")
     )
+
+
+def _clean_payload_value(value) -> str:
+    return str(value or "").strip()
+
+
+def _payload_has_values(payload) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    return any(_clean_payload_value(payload.get(field)) for field in CONTACT_PAYLOAD_VALUE_FIELDS)
+
+
+def _build_contact_payload_summary(*, label, payload):
+    first_name = _clean_payload_value(payload.get("first_name"))
+    last_name = _clean_payload_value(payload.get("last_name"))
+    title = _clean_payload_value(payload.get("title"))
+    display_name = " ".join(part for part in [title, first_name, last_name] if part)
+    city_line = " ".join(
+        part
+        for part in [
+            _clean_payload_value(payload.get("postal_code")),
+            _clean_payload_value(payload.get("city")),
+            _clean_payload_value(payload.get("country")),
+        ]
+        if part
+    )
+    address_lines = [
+        _clean_payload_value(payload.get("address_line1")),
+        _clean_payload_value(payload.get("address_line2")),
+        city_line,
+    ]
+    return {
+        "label": label,
+        "display_name": display_name,
+        "email": _clean_payload_value(payload.get("email")),
+        "phone": _clean_payload_value(payload.get("phone")),
+        "address_lines": [line for line in address_lines if line],
+    }
+
+
+def _build_contact_payload_summaries(account_request):
+    payloads = account_request.contact_payloads
+    if not isinstance(payloads, dict):
+        return []
+    summaries = []
+    for role, label in CONTACT_PAYLOAD_ROLE_LABELS:
+        payload = payloads.get(role)
+        if not _payload_has_values(payload):
+            continue
+        summaries.append(_build_contact_payload_summary(label=label, payload=payload))
+    return summaries
 
 
 def _resolve_recipient_validation_runtime(*, destination_id, saved_contact, fallback_runtime_id):
@@ -189,6 +257,7 @@ def scan_account_validation_detail(request, account_request_id):
         {
             "active": ACTIVE_SCAN_ACCOUNT_VALIDATIONS,
             "account_request": account_request,
+            "contact_payload_summaries": _build_contact_payload_summaries(account_request),
             "form": form,
         },
     )
