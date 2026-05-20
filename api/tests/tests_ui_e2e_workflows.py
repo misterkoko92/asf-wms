@@ -4,10 +4,11 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from contacts.capabilities import ContactCapabilityType
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactType, RecipientLegalForm
 from wms.carton_status_events import set_carton_status
 from wms.models import (
     AssociationContactTitle,
+    AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
     CartonStatus,
@@ -67,7 +68,7 @@ class UiApiE2EWorkflowsTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        AssociationProfile.objects.create(
+        self.association_profile = AssociationProfile.objects.create(
             user=self.portal_user,
             contact=self.association_contact,
         )
@@ -117,6 +118,16 @@ class UiApiE2EWorkflowsTests(TestCase):
             is_active=True,
         )
         self._grant_shipper_scope(self.association_contact, self.destination)
+        self._create_portal_operational_contact(
+            is_administrative=True,
+            email="e2e-admin@example.org",
+            phone="+33101010101",
+        )
+        self._create_portal_operational_contact(
+            is_shipping=True,
+            email="e2e-prep@example.org",
+            phone="+33202020202",
+        )
 
         self.shipper_contact = self._create_contact("E2E Shipper")
         self._grant_shipper_scope(self.shipper_contact, self.destination)
@@ -246,6 +257,53 @@ class UiApiE2EWorkflowsTests(TestCase):
             )
         return recipient_contact
 
+    def _create_portal_operational_contact(
+        self,
+        *,
+        is_administrative=False,
+        is_shipping=False,
+        email="e2e-ops@example.org",
+        phone="+33123456789",
+    ):
+        return AssociationPortalContact.objects.create(
+            profile=self.association_profile,
+            title=AssociationContactTitle.MRS,
+            first_name="Ada",
+            last_name="LOVELACE",
+            email=email,
+            phone=phone,
+            emails=email,
+            phones=phone,
+            address_line1="1 Rue Contact",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+            is_administrative=is_administrative,
+            is_shipping=is_shipping,
+            is_active=True,
+        )
+
+    def _portal_recipient_payload(self, **overrides):
+        payload = {
+            "destination_id": self.destination.id,
+            "structure_name": "Hopital E2E",
+            "legal_form": RecipientLegalForm.ASSOCIATION,
+            "beneficiary_count": 120,
+            "contact_title": AssociationContactTitle.MR,
+            "contact_last_name": "Martin",
+            "contact_first_name": "Luc",
+            "phones": "0102030405",
+            "emails": "luc.martin@example.org",
+            "address_line1": "5 Rue E2E",
+            "postal_code": "75001",
+            "city": "Paris",
+            "country": "France",
+            "notify_deliveries": True,
+            "is_delivery_contact": True,
+        }
+        payload.update(overrides)
+        return payload
+
     def _post_tracking(self, shipment_id, status_value):
         payload = {
             "status": status_value,
@@ -365,21 +423,7 @@ class UiApiE2EWorkflowsTests(TestCase):
     def test_e2e_portal_workflow_recipients_account_and_order(self):
         recipient_create = self.portal_client.post(
             "/api/v1/ui/portal/recipients/",
-            {
-                "destination_id": self.destination.id,
-                "structure_name": "Hopital E2E",
-                "contact_title": AssociationContactTitle.MR,
-                "contact_last_name": "Martin",
-                "contact_first_name": "Luc",
-                "phones": "0102030405",
-                "emails": "luc.martin@example.org",
-                "address_line1": "5 Rue E2E",
-                "postal_code": "75001",
-                "city": "Paris",
-                "country": "France",
-                "notify_deliveries": True,
-                "is_delivery_contact": True,
-            },
+            self._portal_recipient_payload(),
             format="json",
         )
         self.assertEqual(recipient_create.status_code, 201)
@@ -404,21 +448,20 @@ class UiApiE2EWorkflowsTests(TestCase):
 
         recipient_patch = self.portal_client.patch(
             f"/api/v1/ui/portal/recipients/{recipient_id}/",
-            {
-                "destination_id": self.destination.id,
-                "structure_name": "Hopital E2E Updated",
-                "contact_title": AssociationContactTitle.MRS,
-                "contact_last_name": "Martin",
-                "contact_first_name": "Lucie",
-                "phones": "0102030406",
-                "emails": "lucie.martin@example.org",
-                "address_line1": "6 Rue E2E",
-                "postal_code": "75002",
-                "city": "Paris",
-                "country": "France",
-                "notify_deliveries": True,
-                "is_delivery_contact": False,
-            },
+            self._portal_recipient_payload(
+                structure_name="Hopital E2E Updated",
+                contact_title=AssociationContactTitle.MRS,
+                contact_last_name="Martin",
+                contact_first_name="Lucie",
+                phones="0102030406",
+                emails="lucie.martin@example.org",
+                address_line1="6 Rue E2E",
+                postal_code="75002",
+                city="Paris",
+                country="France",
+                notify_deliveries=True,
+                is_delivery_contact=False,
+            ),
             format="json",
         )
         self.assertEqual(recipient_patch.status_code, 200)
@@ -470,21 +513,20 @@ class UiApiE2EWorkflowsTests(TestCase):
         )
         patch_response = self.recipient_scope_client.patch(
             f"/api/v1/ui/portal/recipients/{recipient_organization.id}/",
-            {
-                "destination_id": self.destination.id,
-                "structure_name": "E2E Recipient Updated",
-                "contact_title": AssociationContactTitle.MRS,
-                "contact_last_name": "Diallo",
-                "contact_first_name": "Aicha",
-                "phones": "0102030407",
-                "emails": "aicha.diallo@example.org",
-                "address_line1": "7 Rue E2E",
-                "postal_code": "75003",
-                "city": "Paris",
-                "country": "France",
-                "notify_deliveries": False,
-                "is_delivery_contact": False,
-            },
+            self._portal_recipient_payload(
+                structure_name="E2E Recipient Updated",
+                contact_title=AssociationContactTitle.MRS,
+                contact_last_name="Diallo",
+                contact_first_name="Aicha",
+                phones="0102030407",
+                emails="aicha.diallo@example.org",
+                address_line1="7 Rue E2E",
+                postal_code="75003",
+                city="Paris",
+                country="France",
+                notify_deliveries=False,
+                is_delivery_contact=False,
+            ),
             format="json",
         )
         self.assertEqual(patch_response.status_code, 200)
