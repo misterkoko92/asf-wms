@@ -123,14 +123,22 @@ class PortalShipperReadinessTests(TestCase):
         is_shipping: bool = False,
         email: str = "ops@example.org",
         phone: str = "+33123456789",
+        address_line1: str = "1 Rue Contact",
+        city: str = "Paris",
+        country: str = "France",
     ) -> AssociationPortalContact:
         return AssociationPortalContact.objects.create(
             profile=self.profile,
-            title="mme",
+            title="mrs",
             first_name="Ada",
             last_name="LOVELACE",
             email=email,
             phone=phone,
+            emails=email,
+            phones=phone,
+            address_line1=address_line1,
+            city=city,
+            country=country,
             is_administrative=is_administrative,
             is_shipping=is_shipping,
             is_active=True,
@@ -191,6 +199,20 @@ class PortalShipperReadinessTests(TestCase):
 
         self.assertFalse(readiness.is_ready)
         self.assertIn(MISSING_VALIDATED_RECIPIENT, readiness.missing_codes)
+
+    def test_readiness_fails_when_contact_address_is_incomplete(self):
+        self._create_portal_contact(
+            is_administrative=True,
+            is_shipping=True,
+            address_line1="",
+        )
+        self._create_validated_recipient_link()
+
+        readiness = build_shipper_readiness(self.profile)
+
+        self.assertFalse(readiness.is_ready)
+        self.assertIn(MISSING_ADMIN_CONTACT, readiness.missing_codes)
+        self.assertIn(MISSING_PREPARATION_CONTACT, readiness.missing_codes)
 
     def test_readiness_passes_with_complete_contacts_and_validated_linked_recipient(self):
         self._create_portal_contact(is_administrative=True, is_shipping=True)

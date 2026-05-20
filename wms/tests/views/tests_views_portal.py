@@ -202,6 +202,35 @@ class PortalBaseTestCase(TestCase):
             is_active=True,
         )
 
+    @classmethod
+    def _create_portal_operational_contact(
+        cls,
+        profile,
+        *,
+        is_administrative=False,
+        is_shipping=False,
+        email="ops@example.org",
+        phone="+33123456789",
+    ):
+        return AssociationPortalContact.objects.create(
+            profile=profile,
+            title="mrs",
+            first_name="Ada",
+            last_name="LOVELACE",
+            email=email,
+            phone=phone,
+            emails=email,
+            phones=phone,
+            address_line1="1 Rue Contact",
+            address_line2="",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+            is_administrative=is_administrative,
+            is_shipping=is_shipping,
+            is_active=True,
+        )
+
 
 class PortalHelpersTests(PortalBaseTestCase):
     def test_get_contact_address_returns_none_without_contact(self):
@@ -1026,12 +1055,25 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
         shipment_recipient.save(update_fields=["validation_status"])
         cls.destination = cls.delivery_recipient.destination
+        cls._create_portal_operational_contact(
+            cls.profile,
+            is_administrative=True,
+            email="orders-admin@example.org",
+            phone="+33101010101",
+        )
+        cls._create_portal_operational_contact(
+            cls.profile,
+            is_shipping=True,
+            email="orders-prep@example.org",
+            phone="+33202020202",
+        )
         cls.product = Product.objects.create(name="Produit Portail")
 
     def setUp(self):
         self.client.force_login(self.user)
         self.dashboard_url = reverse("portal:portal_dashboard")
         self.order_create_url = reverse("portal:portal_order_create")
+        self.account_url = reverse("portal:portal_account")
         self.product_options = [
             {"id": self.product.id, "name": self.product.name, "available_stock": 5}
         ]
@@ -1196,14 +1238,15 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(response.context["dashboard_kpis"], payload["dashboard_kpis"])
         self.assertEqual(len(response.context["orders"]), len(payload["orders"]))
 
-    def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
-        AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()
+    def test_portal_dashboard_shows_readiness_checklist_when_validated_recipient_missing(self):
+        ShipmentShipperRecipientLink.objects.filter(
+            shipper__organization=self.profile.contact
+        ).delete()
+
         response = self.client.get(self.dashboard_url)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            response.url,
-            f"{reverse('portal:portal_recipients')}?blocked=missing_delivery_contact",
-        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucun destinataire validé lié à votre structure")
 
     def test_portal_faq_renders_for_shipper_scope(self):
         response = self.client.get(reverse("portal:portal_faq"))
@@ -1238,6 +1281,50 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         response = self.client.get(self.order_create_url)
 
         self.assertEqual(response.status_code, 403)
+
+    def test_portal_order_create_redirects_when_admin_contact_incomplete(self):
+        AssociationPortalContact.objects.filter(
+            profile=self.profile,
+            is_administrative=True,
+        ).update(email="", emails="")
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{self.account_url}?blocked=operational_readiness")
+
+    def test_portal_order_create_redirects_when_preparation_contact_incomplete(self):
+        AssociationPortalContact.objects.filter(
+            profile=self.profile,
+            is_shipping=True,
+        ).update(phone="", phones="")
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{self.account_url}?blocked=operational_readiness")
+
+    def test_portal_order_create_redirects_when_no_validated_linked_recipient(self):
+        ShipmentRecipientOrganization.objects.filter(
+            organization=self.delivery_recipient.synced_contact,
+            destination=self.destination,
+        ).update(validation_status=ShipmentValidationStatus.PENDING)
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{self.account_url}?blocked=operational_readiness")
+
+    def test_portal_account_shows_readiness_checklist_when_incomplete(self):
+        AssociationPortalContact.objects.filter(
+            profile=self.profile,
+            is_shipping=True,
+        ).update(phone="", phones="")
+
+        response = self.client.get(self.account_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Contact préparation/logistique incomplet")
 
     def test_portal_dashboard_renders_recipient_scope_home_for_active_grant(self):
         recipient_user = self._create_portal_user(

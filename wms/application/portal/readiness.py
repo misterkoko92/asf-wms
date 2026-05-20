@@ -33,15 +33,28 @@ class ShipperReadiness:
 
 
 READINESS_LABELS = {
-    MISSING_VALIDATED_SHIPPER: "Compte expediteur non valide",
+    MISSING_VALIDATED_SHIPPER: "Compte expéditeur non validé",
     MISSING_ADMIN_CONTACT: "Contact administratif incomplet",
-    MISSING_PREPARATION_CONTACT: "Contact preparation/logistique incomplet",
-    MISSING_VALIDATED_RECIPIENT: "Aucun destinataire valide lie a votre structure",
+    MISSING_PREPARATION_CONTACT: "Contact préparation/logistique incomplet",
+    MISSING_VALIDATED_RECIPIENT: "Aucun destinataire validé lié à votre structure",
 }
 
 
 def _has_value(value) -> bool:
     return bool(str(value or "").strip())
+
+
+def _split_contact_values(value) -> list[str]:
+    raw = str(value or "").replace("\n", ";").replace(",", ";")
+    return [item.strip() for item in raw.split(";") if item.strip()]
+
+
+def _has_contact_email(contact: AssociationPortalContact) -> bool:
+    return _has_value(contact.email) or bool(_split_contact_values(contact.emails))
+
+
+def _has_contact_phone(contact: AssociationPortalContact) -> bool:
+    return _has_value(contact.phone) or bool(_split_contact_values(contact.phones))
 
 
 def _portal_contact_is_complete(contact: AssociationPortalContact) -> bool:
@@ -50,8 +63,11 @@ def _portal_contact_is_complete(contact: AssociationPortalContact) -> bool:
             _has_value(contact.title),
             _has_value(contact.last_name),
             _has_value(contact.first_name),
-            _has_value(contact.email),
-            _has_value(contact.phone),
+            _has_contact_email(contact),
+            _has_contact_phone(contact),
+            _has_value(contact.address_line1),
+            _has_value(contact.city),
+            _has_value(contact.country),
         ]
     )
 

@@ -1,0 +1,25 @@
+{% load i18n %}
+{% if shipper_readiness and not shipper_readiness.is_ready %}
+  <div id="portal-shipper-readiness-card" class="scan-card portal-card card border-0 ui-comp-card">
+    <h3 class="portal-section-title ui-comp-title">{% trans "Compte à compléter" %}</h3>
+    {% if blocked_popup_message %}
+      <div class="scan-message warning">{{ blocked_popup_message }}</div>
+    {% endif %}
+    <p class="scan-help">
+      {% trans "Ces informations sont nécessaires avant de créer une commande depuis le portail." %}
+    </p>
+    <ul class="mb-0">
+      {% for requirement in shipper_readiness.missing_requirements %}
+        <li>{{ requirement.label }}</li>
+      {% endfor %}
+    </ul>
+    <div class="ui-comp-actions mt-3">
+      <a class="btn btn-primary btn-sm" href="{% url 'portal:portal_account' %}">
+        {% trans "Compléter le compte" %}
+      </a>
+      <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}">
+        {% trans "Gérer les destinataires" %}
+      </a>
+    </div>
+  </div>
+{% endif %}

@@ -10,7 +10,6 @@ from django.urls import NoReverseMatch, reverse
 from .helper_install import resolve_helper_installer_access
 from .models import (
     AssociationProfile,
-    AssociationRecipient,
     PortalAccessRole,
     ShipmentShipper,
     ShipmentValidationStatus,
@@ -26,6 +25,7 @@ from .scan_permissions import is_scan_view_allowed_for_user, user_is_preparateur
 
 BLOCKED_REASON_QUERY_PARAM = "blocked"
 BLOCKED_REASON_MISSING_DELIVERY_CONTACT = "missing_delivery_contact"
+BLOCKED_REASON_OPERATIONAL_READINESS = "operational_readiness"
 BLOCKED_REASON_REVIEW_PENDING = "review_pending"
 BLOCKED_REASON_COMPLIANCE_REQUIRED = "compliance_required"
 BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT = (
@@ -38,8 +38,10 @@ BLOCKED_MESSAGE_REVIEW_PENDING = (
 BLOCKED_MESSAGE_COMPLIANCE_REQUIRED = (
     "Compte bloqué: documents expéditeur non conformes ou non validés par ASF."
 )
+BLOCKED_MESSAGE_OPERATIONAL_READINESS = "Compte validé, données opérationnelles incomplètes."
 BLOCKED_MESSAGES = {
     BLOCKED_REASON_MISSING_DELIVERY_CONTACT: BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT,
+    BLOCKED_REASON_OPERATIONAL_READINESS: BLOCKED_MESSAGE_OPERATIONAL_READINESS,
     BLOCKED_REASON_REVIEW_PENDING: BLOCKED_MESSAGE_REVIEW_PENDING,
     BLOCKED_REASON_COMPLIANCE_REQUIRED: BLOCKED_MESSAGE_COMPLIANCE_REQUIRED,
 }
@@ -240,16 +242,6 @@ def _bind_association_profile(request):
         if blocked_message:
             messages.error(request, blocked_message)
         return redirect(f"{account_url}?{BLOCKED_REASON_QUERY_PARAM}={shipper_block_reason}")
-
-    has_delivery_contact = AssociationRecipient.objects.filter(
-        association_contact=profile.contact,
-        is_active=True,
-        is_delivery_contact=True,
-    ).exists()
-    if not has_delivery_contact and not _is_allowed_portal_path(request.path):
-        return redirect(
-            f"{recipients_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_MISSING_DELIVERY_CONTACT}"
-        )
 
     request.association_profile = profile
     return None

@@ -29,6 +29,7 @@ from wms.application.portal.dashboard_queries import (
 )
 from wms.application.portal.destination_options import served_destination_queryset
 from wms.application.portal.order_use_cases import submit_portal_order
+from wms.application.portal.readiness import build_shipper_readiness
 from wms.application.portal.recipient_resolution import (
     PORTAL_DEFAULT_COUNTRY,
     PORTAL_RECIPIENT_SELF,
@@ -2229,6 +2230,20 @@ class UiPortalOrdersView(APIView):
 
     def post(self, request):
         profile = get_association_profile(request.user)
+        shipper_readiness = build_shipper_readiness(profile)
+        if not shipper_readiness.is_ready:
+            missing_requirements = [
+                {"code": requirement.code, "label": requirement.label}
+                for requirement in shipper_readiness.missing_requirements
+            ]
+            return api_error(
+                message="Compte validé, données opérationnelles incomplètes.",
+                code="shipper_readiness_incomplete",
+                http_status=status.HTTP_403_FORBIDDEN,
+                non_field_errors=[requirement["label"] for requirement in missing_requirements],
+                extra={"missing_requirements": missing_requirements},
+            )
+
         serializer = UiPortalOrderCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return api_error(

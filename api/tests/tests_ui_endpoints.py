@@ -20,6 +20,7 @@ from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     AssociationContactTitle,
+    AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
     Carton,
@@ -114,7 +115,7 @@ class UiApiEndpointsTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        AssociationProfile.objects.create(
+        cls.association_profile = AssociationProfile.objects.create(
             user=cls.portal_user,
             contact=cls.association_contact,
         )
@@ -298,6 +299,18 @@ class UiApiEndpointsTests(TestCase):
             role=PortalAccessRole.RECIPIENT_ADMIN,
             recipient_organization=cls.shipment_recipient_organization,
         )
+        cls._create_portal_operational_contact(
+            profile=cls.association_profile,
+            is_administrative=True,
+            email="api-admin@example.org",
+            phone="+33101010101",
+        )
+        cls._create_portal_operational_contact(
+            profile=cls.association_profile,
+            is_shipping=True,
+            email="api-prep@example.org",
+            phone="+33202020202",
+        )
 
     def setUp(self):
         self.staff_client = APIClient()
@@ -459,6 +472,34 @@ class UiApiEndpointsTests(TestCase):
             },
         )
         return shipper
+
+    @classmethod
+    def _create_portal_operational_contact(
+        cls,
+        *,
+        profile,
+        is_administrative=False,
+        is_shipping=False,
+        email="api-ops@example.org",
+        phone="+33123456789",
+    ):
+        return AssociationPortalContact.objects.create(
+            profile=profile,
+            title=AssociationContactTitle.MRS,
+            first_name="Ada",
+            last_name="LOVELACE",
+            email=email,
+            phone=phone,
+            emails=email,
+            phones=phone,
+            address_line1="1 Rue Contact",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+            is_administrative=is_administrative,
+            is_shipping=is_shipping,
+            is_active=True,
+        )
 
     @classmethod
     def _bind_recipient(
@@ -2624,6 +2665,28 @@ class UiApiEndpointsTests(TestCase):
         )
         self.assertEqual(created_order.lines.count(), 1)
         self.assertIsNotNone(created_order.shipment_id)
+
+    def test_ui_portal_order_create_rejects_incomplete_shipper_readiness(self):
+        AssociationPortalContact.objects.filter(
+            profile=self.association_profile,
+            is_administrative=True,
+        ).update(email="", emails="")
+
+        response = self.portal_client.post(
+            "/api/v1/ui/portal/orders/",
+            {
+                "destination_id": self.destination.id,
+                "recipient_id": str(self.portal_recipient.id),
+                "notes": "Besoin urgent",
+                "lines": [{"product_id": self.product.id, "quantity": 2}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        payload = response.json()
+        self.assertEqual(payload["code"], "shipper_readiness_incomplete")
+        self.assertIn("Contact administratif incomplet", payload["non_field_errors"])
 
     def test_ui_portal_order_create_uses_shared_resolution_and_submission_use_cases(self):
         fake_order = Order.objects.create(

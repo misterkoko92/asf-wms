@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_time
 from django.utils.translation import gettext_lazy as _
@@ -16,6 +17,7 @@ from .application.portal.dashboard_queries import (
     decorate_portal_dashboard_order,
 )
 from .application.portal.order_use_cases import submit_portal_order
+from .application.portal.readiness import build_shipper_readiness
 from .application.portal.recipient_resolution import (
     PORTAL_RECIPIENT_SELF,
     build_allowed_destination_ids_by_recipient,
@@ -62,6 +64,9 @@ from .shipment_helpers import (
 )
 from .upload_utils import validate_upload
 from .view_permissions import (
+    BLOCKED_MESSAGES,
+    BLOCKED_REASON_OPERATIONAL_READINESS,
+    BLOCKED_REASON_QUERY_PARAM,
     association_required,
     portal_scope_required,
     require_association_profile,
@@ -942,6 +947,7 @@ def portal_dashboard(request):
         {
             "orders": dashboard_payload["orders"],
             "dashboard_kpis": dashboard_payload["dashboard_kpis"],
+            "shipper_readiness": build_shipper_readiness(profile),
         },
     )
 
@@ -951,6 +957,15 @@ def portal_dashboard(request):
 @require_http_methods(["GET", "POST"])
 def portal_order_create(request):
     profile = request.association_profile
+    shipper_readiness = build_shipper_readiness(profile)
+    if not shipper_readiness.is_ready:
+        blocked_message = BLOCKED_MESSAGES[BLOCKED_REASON_OPERATIONAL_READINESS]
+        messages.error(request, blocked_message)
+        account_url = reverse("portal:portal_account")
+        return redirect(
+            f"{account_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_OPERATIONAL_READINESS}"
+        )
+
     recipients = _get_active_recipients(profile)
     destinations = _get_active_destinations()
     destination_by_id = {str(destination.id): destination for destination in destinations}

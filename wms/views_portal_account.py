@@ -28,6 +28,7 @@ from .application.portal.dashboard_queries import (
     build_runtime_recipient_profile_payload,
 )
 from .application.portal.destination_options import served_destination_queryset
+from .application.portal.readiness import build_shipper_readiness
 from .country_choices import DEFAULT_COUNTRY, build_country_choices, is_known_country
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
@@ -72,6 +73,7 @@ from .upload_utils import validate_upload
 from .view_permissions import (
     BLOCKED_MESSAGES,
     BLOCKED_REASON_MISSING_DELIVERY_CONTACT,
+    BLOCKED_REASON_OPERATIONAL_READINESS,
     BLOCKED_REASON_QUERY_PARAM,
     association_required,
     portal_scope_required,
@@ -1377,6 +1379,7 @@ def _build_portal_account_context(
     account_form_errors=None,
     profile_form_data=None,
     portal_contact_rows=None,
+    blocked_popup_message="",
 ):
     association = profile.contact
     account_documents = AccountDocument.objects.filter(association_contact=association).order_by(
@@ -1402,6 +1405,8 @@ def _build_portal_account_context(
         "contact_title_choices": sorted_choices(AssociationContactTitle.choices),
         "max_portal_contacts": MAX_PORTAL_CONTACTS,
         "portal_account_add_contact_button_attrs": {"id": "add-contact-row"},
+        "shipper_readiness": build_shipper_readiness(profile),
+        "blocked_popup_message": blocked_popup_message,
         "user": user,
     }
 
@@ -2147,6 +2152,13 @@ def portal_account(request):
     account_form_errors = []
     profile_form_data = _build_profile_form_data(association=association, address=address)
     portal_contact_rows = _build_contact_rows(profile)
+    blocked_reason = (request.GET.get(BLOCKED_REASON_QUERY_PARAM) or "").strip()
+    blocked_popup_message = ""
+    if blocked_reason in {
+        BLOCKED_REASON_MISSING_DELIVERY_CONTACT,
+        BLOCKED_REASON_OPERATIONAL_READINESS,
+    }:
+        blocked_popup_message = BLOCKED_MESSAGES.get(blocked_reason, "")
 
     if request.method == "POST":
         action = request.POST.get("action") or ""
@@ -2203,6 +2215,7 @@ def portal_account(request):
             account_form_errors=account_form_errors,
             profile_form_data=profile_form_data,
             portal_contact_rows=portal_contact_rows,
+            blocked_popup_message=blocked_popup_message,
         ),
     )
 
