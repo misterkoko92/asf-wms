@@ -16,7 +16,10 @@ from django.utils.translation import gettext as _
 
 from contacts.models import Contact, ContactType, RecipientLegalForm
 
-from .application.portal.destination_options import served_destination_queryset
+from .application.portal.destination_options import (
+    format_destination_label,
+    served_destination_queryset,
+)
 from .client_ip import get_client_ip
 from .contact_payloads import build_shipper_contact_payload
 from .document_scan import DocumentScanStatus
@@ -47,6 +50,7 @@ ADMIN_PUBLIC_ACCOUNT_REQUEST_CHANGE_LIST = "admin:wms_publicaccountrequest_chang
 ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de la structure requis."
 ERROR_ACCOUNT_TYPE_INVALID = "Type de profil invalide."
 ERROR_EMAIL_REQUIRED = "Email requis."
+ERROR_STRUCTURE_PHONE_REQUIRED = "Téléphone de la structure requis."
 ERROR_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_DESTINATION_REQUIRED = "Escale de livraison requise."
 ERROR_LEGAL_FORM_REQUIRED = "Forme juridique requise."
@@ -170,6 +174,7 @@ def _build_account_request_form_defaults():
 def _extract_account_request_form_data(post_data):
     requested_account_type = (post_data.get("account_type") or "").strip().lower()
     account_type = requested_account_type or PublicAccountRequestType.SHIPPER
+    shipper_stopover_values = _get_post_list(post_data, "shipper_stopover_destination_ids")
     return {
         "form_action": (post_data.get("form_action") or "account_request").strip(),
         "account_type": account_type,
@@ -185,6 +190,13 @@ def _extract_account_request_form_data(post_data):
         "city": (post_data.get("city") or "").strip(),
         "country": (post_data.get("country") or "").strip(),
         "destination_id": (post_data.get("destination_id") or "").strip(),
+        "shipper_stopover_destination_ids": [
+            value for value in shipper_stopover_values if value != "other"
+        ],
+        "shipper_stopover_other": bool(
+            post_data.get("shipper_stopover_other") or "other" in shipper_stopover_values
+        ),
+        "embedded_stopover_request_payload": _extract_stopover_request_payload(post_data),
         "legal_form": (post_data.get("legal_form") or "").strip(),
         "beneficiary_count": (post_data.get("beneficiary_count") or "").strip(),
         "recipient_contact_title": (post_data.get("recipient_contact_title") or "").strip(),
@@ -266,6 +278,16 @@ def _extract_account_request_form_data(post_data):
         "notes": (post_data.get("notes") or "").strip(),
         "contact_id": (post_data.get("contact_id") or "").strip(),
     }
+
+
+def _get_post_list(post_data, field_name):
+    if hasattr(post_data, "getlist"):
+        values = post_data.getlist(field_name)
+    else:
+        values = post_data.get(field_name, [])
+        if not isinstance(values, list | tuple):
+            values = [values]
+    return [str(value).strip() for value in values if str(value or "").strip()]
 
 
 def _extract_stopover_request_payload(post_data):
@@ -456,6 +478,8 @@ def _append_required_field_errors(form_data, errors, *, allow_user_request):
     if _is_structure_request(form_data):
         if not form_data["association_name"]:
             errors.append(ERROR_ASSOCIATION_NAME_REQUIRED)
+        if not form_data["phone"]:
+            errors.append(ERROR_STRUCTURE_PHONE_REQUIRED)
         if not form_data["line1"]:
             errors.append(ERROR_ADDRESS_REQUIRED)
         if _is_recipient_request(form_data):
@@ -667,6 +691,33 @@ def _build_account_contact_payloads(form_data):
     }
 
 
+def _build_shipper_stopover_indications(form_data):
+    if not _is_shipper_request(form_data):
+        return []
+    selected_ids = {
+        parsed_id
+        for raw_id in form_data.get("shipper_stopover_destination_ids", [])
+        if (parsed_id := parse_int(raw_id)) is not None
+    }
+    if not selected_ids:
+        return []
+    destinations = served_destination_queryset().filter(pk__in=selected_ids)
+    return [
+        {
+            "destination_id": destination.id,
+            "label": format_destination_label(destination),
+            "city": destination.city,
+            "country": destination.country,
+            "iata_code": destination.iata_code,
+        }
+        for destination in destinations
+    ]
+
+
+def _has_embedded_stopover_request(form_data):
+    return _is_shipper_request(form_data) and bool(form_data.get("shipper_stopover_other"))
+
+
 def _resolve_account_request_country(form_data):
     if _is_recipient_request(form_data):
         destination = _resolve_served_destination(form_data["destination_id"])
@@ -703,6 +754,7 @@ def _create_account_request(*, link, contact, form_data):
         ),
         initial_recipient_payload=_build_initial_recipient_payload(form_data),
         contact_payloads=_build_account_contact_payloads(form_data),
+        shipper_stopover_indications=_build_shipper_stopover_indications(form_data),
         notes=form_data["notes"],
     )
 
@@ -961,6 +1013,12 @@ def handle_account_request_form(
                         contact=contact,
                         uploads=uploads,
                     )
+                    if _has_embedded_stopover_request(form_data):
+                        submit_stopover_feasibility_request(
+                            form_data["embedded_stopover_request_payload"],
+                            source="public_account_request",
+                            created_by=request.user if request.user.is_authenticated else None,
+                        )
                     request_display_name = (
                         form_data["association_name"]
                         or form_data["requested_username"]
@@ -974,11 +1032,19 @@ def handle_account_request_form(
                         requested_username=form_data["requested_username"],
                         admin_url=_build_admin_account_request_url(request),
                     )
+            except ValidationError as exc:
+                _release_throttle_slot(email=form_data["email"], client_ip=client_ip)
+                if hasattr(exc, "message_dict"):
+                    for field_errors in exc.message_dict.values():
+                        errors.extend(field_errors)
+                else:
+                    errors.extend(exc.messages)
             except Exception:
                 _release_throttle_slot(email=form_data["email"], client_ip=client_ip)
                 raise
-            messages.success(request, SUCCESS_ACCOUNT_REQUEST_SENT)
-            return redirect(redirect_url)
+            else:
+                messages.success(request, SUCCESS_ACCOUNT_REQUEST_SENT)
+                return redirect(redirect_url)
 
     return _render_account_request_form(
         request,

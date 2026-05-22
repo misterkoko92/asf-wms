@@ -268,6 +268,15 @@ class AccountRequestFormHandlerTests(TestCase):
         self.assertIn("Email requis.", response.context["errors"])
         self.assertIn("Adresse requise.", response.context["errors"])
 
+    def test_structure_request_requires_phone(self):
+        shipper_response = self.client.post(self.url, self._payload(phone=""))
+        recipient_response = self.client.post(self.url, self._recipient_payload(phone=""))
+
+        self.assertEqual(shipper_response.status_code, 200)
+        self.assertEqual(recipient_response.status_code, 200)
+        self.assertIn("Téléphone de la structure requis.", shipper_response.context["errors"])
+        self.assertIn("Téléphone de la structure requis.", recipient_response.context["errors"])
+
     def test_form_rejects_existing_pending_request_for_same_email(self):
         PublicAccountRequest.objects.create(
             association_name="Association Existing",
@@ -476,6 +485,87 @@ class AccountRequestFormHandlerTests(TestCase):
             request_obj.contact_payloads["admin"],
             request_obj.contact_payloads["preparation"],
         )
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
+    def test_shipper_form_stores_indicative_stopovers(self, _get_admin_emails_mock):
+        dakar = Destination.objects.create(
+            city="Dakar",
+            iata_code="DSS",
+            country="Sénégal",
+            correspondent_contact=self.correspondent,
+            is_active=True,
+        )
+        payload = self._payload()
+        payload["shipper_stopover_destination_ids"] = [str(dakar.id), str(self.destination.id)]
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        request_obj = PublicAccountRequest.objects.get(email="association@example.com")
+        self.assertEqual(
+            request_obj.shipper_stopover_indications,
+            [
+                {
+                    "destination_id": self.destination.id,
+                    "label": "Bamako (BKO-REQ), Mali",
+                    "city": "Bamako",
+                    "country": "Mali",
+                    "iata_code": "BKO-REQ",
+                },
+                {
+                    "destination_id": dakar.id,
+                    "label": "Dakar (DSS), Sénégal",
+                    "city": "Dakar",
+                    "country": "Sénégal",
+                    "iata_code": "DSS",
+                },
+            ],
+        )
+        self.assertIsNone(request_obj.destination)
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
+    def test_shipper_form_creates_account_and_embedded_stopover_request(
+        self,
+        _get_admin_emails_mock,
+    ):
+        payload = self._payload()
+        payload.update(
+            {
+                "shipper_stopover_destination_ids": [str(self.destination.id), "other"],
+                "stopover_requester_type": "shipper",
+                "stopover_requested_stopovers": "Conakry (CKY), Guinée",
+                "stopover_structure_name": "Association Test",
+                "stopover_legal_form": "association",
+                "stopover_beneficiary_count": "90",
+                "stopover_contact_title": "mr",
+                "stopover_contact_first_name": "Admin",
+                "stopover_contact_last_name": "TEST",
+                "stopover_contact_email": "admin.association@example.com",
+                "stopover_contact_phone": "0102030405",
+                "stopover_address_line1": "1 Rue Admin",
+                "stopover_address_line2": "",
+                "stopover_postal_code": "75001",
+                "stopover_city": "Paris",
+                "stopover_country": "France",
+                "stopover_message": "Besoin à étudier.",
+            }
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        request_obj = PublicAccountRequest.objects.get(email="association@example.com")
+        self.assertEqual(
+            request_obj.shipper_stopover_indications[0]["label"],
+            "Bamako (BKO-REQ), Mali",
+        )
+        stopover_request = StopoverFeasibilityRequest.objects.get()
+        self.assertEqual(stopover_request.requester_type, "shipper")
+        self.assertEqual(stopover_request.requested_stopovers, "Conakry (CKY), Guinée")
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
     @mock.patch("wms.account_request_handlers.send_or_enqueue_email_safe", return_value=True)
