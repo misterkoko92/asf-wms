@@ -19,11 +19,19 @@
       <dt class="col-sm-3">Escale</dt>
       <dd class="col-sm-9">
         {% if account_request.destination %}
-          {{ account_request.destination.city }} ({{ account_request.destination.iata_code }})
+          {{ account_request.destination.city }}{% if account_request.destination.iata_code %} ({{ account_request.destination.iata_code }}){% endif %}{% if account_request.destination.country %}, {{ account_request.destination.country }}{% endif %}
         {% else %}
           -
         {% endif %}
       </dd>
+      {% if shipper_stopover_indications %}
+        <dt class="col-sm-3">Escales envisagées</dt>
+        <dd class="col-sm-9">
+          {% for stopover_indication in shipper_stopover_indications %}
+            {{ stopover_indication.label }}{% if not forloop.last %}<br>{% endif %}
+          {% endfor %}
+        </dd>
+      {% endif %}
       {% if account_request.initial_recipient_payload %}
         <dt class="col-sm-3">Premier destinataire</dt>
         <dd class="col-sm-9">

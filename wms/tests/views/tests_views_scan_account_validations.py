@@ -83,6 +83,48 @@ class ScanAccountValidationViewTests(TestCase):
         self.assertContains(response, "Traiter")
         self.assertEqual(response.context["active"], "account_validations")
 
+    def test_scan_account_validation_list_displays_and_filters_shipper_stopover_indications(self):
+        dakar = Destination.objects.create(
+            city="Dakar",
+            iata_code="DSS",
+            country="Sénégal",
+            correspondent_contact=self.correspondent,
+            is_active=True,
+        )
+        other_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Association Sans Dakar",
+            email="sans-dakar@example.org",
+            phone="+33100000000",
+            address_line1="1 Rue Paris",
+            city="Paris",
+            country="France",
+        )
+        self.pending_request.shipper_stopover_indications = [
+            {
+                "destination_id": dakar.id,
+                "label": "Dakar (DSS), Sénégal",
+                "city": "Dakar",
+                "country": "Sénégal",
+                "iata_code": "DSS",
+            }
+        ]
+        self.pending_request.save(update_fields=["shipper_stopover_indications"])
+        self.client.force_login(self.validator_user)
+
+        response = self.client.get(self.list_url)
+        filtered_response = self.client.get(self.list_url, {"stopover_id": str(dakar.id)})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Escales envisagées")
+        self.assertContains(response, "Dakar (DSS), Sénégal")
+        self.assertContains(response, other_request.association_name)
+        self.assertEqual(filtered_response.status_code, 200)
+        self.assertContains(filtered_response, self.pending_request.association_name)
+        self.assertNotContains(filtered_response, other_request.association_name)
+        self.assertEqual(filtered_response.context["selected_stopover_id"], str(dakar.id))
+
     def test_scan_account_validation_detail_renders_review_form(self):
         self.client.force_login(self.validator_user)
 
@@ -93,6 +135,25 @@ class ScanAccountValidationViewTests(TestCase):
         self.assertContains(response, 'name="final_account_type"')
         self.assertContains(response, PublicAccountRequestType.SHIPPER.label)
         self.assertContains(response, "Valider le compte")
+
+    def test_scan_account_validation_detail_displays_shipper_stopover_indications(self):
+        self.pending_request.shipper_stopover_indications = [
+            {
+                "destination_id": self.destination.id,
+                "label": "BAMAKO (BKO), MALI",
+                "city": "BAMAKO",
+                "country": "MALI",
+                "iata_code": "BKO",
+            }
+        ]
+        self.pending_request.save(update_fields=["shipper_stopover_indications"])
+        self.client.force_login(self.validator_user)
+
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Escales envisagées")
+        self.assertContains(response, "BAMAKO (BKO), MALI")
 
     def test_scan_account_validation_detail_displays_shipper_contact_payloads(self):
         self.pending_request.contact_payloads = {

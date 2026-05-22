@@ -16,6 +16,29 @@
   </section>
 
   <section class="scan-field ui-comp-panel mt-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-lg-5">
+        <label for="stopover_id" class="form-label">Filtrer par escale envisagée</label>
+        <select id="stopover_id" name="stopover_id" class="form-select">
+          <option value="">Toutes les escales</option>
+          {% for stopover_option in stopover_options %}
+            <option value="{{ stopover_option.id }}"
+                    {% if stopover_option.id == selected_stopover_id %}selected{% endif %}>
+              {{ stopover_option.label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-lg-auto ui-comp-actions">
+        <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+        {% if selected_stopover_id %}
+          <a href="{% url 'scan:scan_account_validation_list' %}" class="btn btn-tertiary btn-sm">Réinitialiser</a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="scan-field ui-comp-panel mt-3">
     <div class="table-responsive">
       <table id="scan-account-validations-list" class="table table-sm table-hover align-middle mb-0">
         <thead>
@@ -23,7 +46,7 @@
             <th>Structure</th>
             <th>Email</th>
             <th>Type demandé</th>
-            <th>Escale</th>
+            <th>Escales</th>
             <th>Créée le</th>
             <th class="text-end">Action</th>
           </tr>
@@ -36,7 +59,12 @@
               <td>{{ account_request.get_account_type_display }}</td>
               <td>
                 {% if account_request.destination %}
-                  {{ account_request.destination.city }} ({{ account_request.destination.iata_code }})
+                  {{ account_request.destination.city }}{% if account_request.destination.iata_code %} ({{ account_request.destination.iata_code }}){% endif %}{% if account_request.destination.country %}, {{ account_request.destination.country }}{% endif %}
+                {% elif account_request.shipper_stopover_indication_summaries %}
+                  <span class="scan-help">Escales envisagées</span><br>
+                  {% for stopover_indication in account_request.shipper_stopover_indication_summaries %}
+                    {{ stopover_indication.label }}{% if not forloop.last %}<br>{% endif %}
+                  {% endfor %}
                 {% else %}
                   -
                 {% endif %}

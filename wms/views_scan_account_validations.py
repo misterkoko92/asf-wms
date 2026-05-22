@@ -16,6 +16,10 @@ from .admin_contacts_crud import (
     build_admin_contacts_forms,
     handle_contact_submission,
 )
+from .application.portal.destination_options import (
+    format_destination_label,
+    served_destination_queryset,
+)
 from .emailing import enqueue_email_safe
 from .forms_scan_account_validations import ScanAccountValidationReviewForm
 from .models import (
@@ -148,6 +152,39 @@ def _build_contact_payload_summaries(account_request):
     return summaries
 
 
+def _clean_stopover_indications(account_request):
+    indications = account_request.shipper_stopover_indications
+    if not isinstance(indications, list):
+        return []
+    return [
+        {
+            "destination_id": _clean_payload_value(indication.get("destination_id")),
+            "label": _clean_payload_value(indication.get("label")),
+        }
+        for indication in indications
+        if isinstance(indication, dict) and _clean_payload_value(indication.get("label"))
+    ]
+
+
+def _account_request_matches_stopover(account_request, stopover_id):
+    if not stopover_id:
+        return True
+    return any(
+        indication["destination_id"] == stopover_id
+        for indication in _clean_stopover_indications(account_request)
+    )
+
+
+def _account_validation_stopover_options():
+    return [
+        {
+            "id": str(destination.id),
+            "label": format_destination_label(destination),
+        }
+        for destination in served_destination_queryset()
+    ]
+
+
 def _resolve_recipient_validation_runtime(*, destination_id, saved_contact, fallback_runtime_id):
     runtime_contact = (
         saved_contact.organization
@@ -187,12 +224,26 @@ def scan_contact_validations_hub(request):
 @scan_account_validator_required
 @require_http_methods(["GET"])
 def scan_account_validation_list(request):
+    selected_stopover_id = _clean_payload_value(request.GET.get("stopover_id"))
+    account_requests = list(_account_validation_list_queryset())
+    for account_request in account_requests:
+        account_request.shipper_stopover_indication_summaries = _clean_stopover_indications(
+            account_request
+        )
+    if selected_stopover_id:
+        account_requests = [
+            account_request
+            for account_request in account_requests
+            if _account_request_matches_stopover(account_request, selected_stopover_id)
+        ]
     return render(
         request,
         TEMPLATE_ACCOUNT_VALIDATION_LIST,
         {
             "active": ACTIVE_SCAN_ACCOUNT_VALIDATIONS,
-            "account_requests": list(_account_validation_list_queryset()),
+            "account_requests": account_requests,
+            "selected_stopover_id": selected_stopover_id,
+            "stopover_options": _account_validation_stopover_options(),
         },
     )
 
@@ -259,6 +310,7 @@ def scan_account_validation_detail(request, account_request_id):
             "account_request": account_request,
             "contact_payload_summaries": _build_contact_payload_summaries(account_request),
             "form": form,
+            "shipper_stopover_indications": _clean_stopover_indications(account_request),
         },
     )
 
