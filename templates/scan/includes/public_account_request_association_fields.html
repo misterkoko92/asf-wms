@@ -52,14 +52,9 @@
     <p class="scan-help">
       {% trans "Nous ne desservons que les escales présentes dans la liste ci-dessus. Si votre besoin concerne une autre escale, indiquez les informations ci-dessous : ASF étudiera la faisabilité." %}
     </p>
+    <input type="hidden" id="stopover_requester_type" name="stopover_requester_type">
+    <input type="hidden" id="stopover_contact_email" name="stopover_contact_email">
     <div class="row g-3 mt-2">
-      <div class="col-12 col-md-6">
-        <label class="form-label" for="stopover_requester_type">{% trans "Type de profil" %}</label>
-        <select class="form-select ui-select--md" id="stopover_requester_type" name="stopover_requester_type">
-          <option value="shipper">{% trans "Expéditeur" %}</option>
-          <option value="recipient">{% trans "Destinataire" %}</option>
-        </select>
-      </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="stopover_requested_stopovers">{% trans "Escale(s) souhaitée(s)" %}</label>
         <input class="form-control" type="text" id="stopover_requested_stopovers" name="stopover_requested_stopovers">
@@ -99,10 +94,6 @@
         <input class="form-control" type="text" id="stopover_contact_last_name" name="stopover_contact_last_name">
       </div>
       <div class="col-12 col-md-6">
-        <label class="form-label" for="stopover_contact_email">{% trans "Email" %}</label>
-        <input class="form-control" type="email" id="stopover_contact_email" name="stopover_contact_email">
-      </div>
-      <div class="col-12 col-md-6">
         <label class="form-label" for="stopover_contact_phone">{% trans "Téléphone" %}</label>
         <input class="form-control" type="text" id="stopover_contact_phone" name="stopover_contact_phone">
       </div>
@@ -133,6 +124,7 @@
       </button>
     </div>
   </section>
+  <div id="account-structure-detail-fields">
   <div class="scan-field">
     <label class="form-label" for="association_name">{% trans "Nom de la structure" %}</label>
     <input
@@ -235,6 +227,19 @@
 
   <section id="recipient-contact-fields" class="ui-comp-panel" hidden>
     <h3 class="ui-comp-title">{% trans "Contact réception" %}</h3>
+    <div class="scan-field">
+      <label class="form-check-label" for="recipient_use_structure_info">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="recipient_use_structure_info"
+          name="recipient_use_structure_info"
+          value="1"
+          {% if form_data.recipient_use_structure_info %}checked{% endif %}
+        >
+        {% trans "Réutiliser les informations de la structure" %}
+      </label>
+    </div>
     <div class="row g-3">
       <div class="col-12 col-md-3">
         <label class="form-label" for="recipient_contact_title">{% trans "Titre" %}</label>
@@ -260,6 +265,26 @@
       <div class="col-12 col-md-6">
         <label class="form-label" for="recipient_contact_phone">{% trans "Téléphone" %}</label>
         <input class="form-control" type="text" id="recipient_contact_phone" name="recipient_contact_phone" value="{{ form_data.recipient_contact_phone }}">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="recipient_contact_address_line1">{% trans "Adresse contact réception" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_address_line1" name="recipient_contact_address_line1" value="{{ form_data.recipient_contact_address_line1|default:form_data.line1 }}">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="recipient_contact_address_line2">{% trans "Complément adresse" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_address_line2" name="recipient_contact_address_line2" value="{{ form_data.recipient_contact_address_line2|default:form_data.line2 }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="recipient_contact_postal_code">{% trans "Code postal" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_postal_code" name="recipient_contact_postal_code" value="{{ form_data.recipient_contact_postal_code|default:form_data.postal_code }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="recipient_contact_city">{% trans "Ville" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_city" name="recipient_contact_city" value="{{ form_data.recipient_contact_city|default:form_data.city }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="recipient_contact_country">{% trans "Pays" %}</label>
+        <input class="form-control" type="text" id="recipient_contact_country" name="recipient_contact_country" value="{{ form_data.recipient_contact_country|default:form_data.country|default:'France' }}">
       </div>
     </div>
   </section>
@@ -505,4 +530,5 @@
   </section>
 
   {% include "scan/includes/public_account_request_documents.html" %}
+  </div>
 </section>

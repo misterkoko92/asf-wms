@@ -230,6 +230,11 @@ class AccountRequestFormHandlerTests(TestCase):
             "recipient_contact_last_name": "TRAORE",
             "recipient_contact_email": "reception-recipient@example.com",
             "recipient_contact_phone": "+22370000001",
+            "recipient_contact_address_line1": "1 Rue Reception",
+            "recipient_contact_address_line2": "",
+            "recipient_contact_postal_code": "",
+            "recipient_contact_city": "Bamako",
+            "recipient_contact_country": "Mali",
         }
         payload.update(overrides)
         return payload
@@ -443,21 +448,62 @@ class AccountRequestFormHandlerTests(TestCase):
         self.assertIn("Contact réception: email requis.", response.context["errors"])
         self.assertIn("Contact réception: téléphone requis.", response.context["errors"])
 
+    def test_recipient_form_requires_structure_and_reception_location_fields(self):
+        response = self.client.post(
+            self.url,
+            self._recipient_payload(
+                city="",
+                country="",
+                recipient_contact_address_line1="",
+                recipient_contact_city="",
+                recipient_contact_country="",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Ville requise.", response.context["errors"])
+        self.assertIn("Pays requis.", response.context["errors"])
+        self.assertIn("Contact réception: adresse requise.", response.context["errors"])
+        self.assertIn("Contact réception: ville requise.", response.context["errors"])
+        self.assertIn("Contact réception: pays requis.", response.context["errors"])
+
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
     @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
     def test_recipient_form_creates_request_with_destination(self, _get_admin_emails_mock):
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(self.url, self._recipient_payload(country=""))
+            response = self.client.post(self.url, self._recipient_payload(country="Mali modifié"))
 
         self.assertEqual(response.status_code, 302)
         request_obj = PublicAccountRequest.objects.get(email="recipient@example.com")
         self.assertEqual(request_obj.account_type, "recipient")
         self.assertEqual(request_obj.destination_id, self.destination.id)
-        self.assertEqual(request_obj.country, self.destination.country)
+        self.assertEqual(request_obj.country, "Mali modifié")
         self.assertEqual(
             request_obj.contact_payloads["recipient_reception"]["email"],
             "reception-recipient@example.com",
         )
+        self.assertEqual(
+            request_obj.contact_payloads["recipient_reception"]["address_line1"],
+            "1 Rue Reception",
+        )
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.send_or_enqueue_email_safe", return_value=True)
+    def test_recipient_other_stopover_request_reuses_profile_and_email(self, _send_mock):
+        payload = self._other_stopover_payload(
+            account_type=PublicAccountRequestType.RECIPIENT.value,
+            email="recipient-other@example.org",
+            requester_type="",
+            contact_email="",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        stopover_request = StopoverFeasibilityRequest.objects.get()
+        self.assertEqual(stopover_request.requester_type, PublicAccountRequestType.RECIPIENT)
+        self.assertEqual(stopover_request.contact_email, "recipient-other@example.org")
 
     def test_shipper_form_requires_admin_and_preparation_contacts(self):
         response = self.client.post(

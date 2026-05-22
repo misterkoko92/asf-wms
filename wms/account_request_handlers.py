@@ -52,6 +52,8 @@ ERROR_ACCOUNT_TYPE_INVALID = "Type de profil invalide."
 ERROR_EMAIL_REQUIRED = "Email requis."
 ERROR_STRUCTURE_PHONE_REQUIRED = "Téléphone de la structure requis."
 ERROR_ADDRESS_REQUIRED = "Adresse requise."
+ERROR_CITY_REQUIRED = "Ville requise."
+ERROR_COUNTRY_REQUIRED = "Pays requis."
 ERROR_DESTINATION_REQUIRED = "Escale de livraison requise."
 ERROR_LEGAL_FORM_REQUIRED = "Forme juridique requise."
 ERROR_LEGAL_FORM_INVALID = "Forme juridique invalide."
@@ -132,6 +134,12 @@ def _build_account_request_form_defaults():
         "recipient_contact_last_name": "",
         "recipient_contact_email": "",
         "recipient_contact_phone": "",
+        "recipient_contact_address_line1": "",
+        "recipient_contact_address_line2": "",
+        "recipient_contact_postal_code": "",
+        "recipient_contact_city": "",
+        "recipient_contact_country": DEFAULT_COUNTRY,
+        "recipient_use_structure_info": False,
         "admin_contact_title": "",
         "admin_contact_first_name": "",
         "admin_contact_last_name": "",
@@ -209,6 +217,18 @@ def _extract_account_request_form_data(post_data):
         "recipient_contact_last_name": (post_data.get("recipient_contact_last_name") or "").strip(),
         "recipient_contact_email": (post_data.get("recipient_contact_email") or "").strip(),
         "recipient_contact_phone": (post_data.get("recipient_contact_phone") or "").strip(),
+        "recipient_contact_address_line1": (
+            post_data.get("recipient_contact_address_line1") or ""
+        ).strip(),
+        "recipient_contact_address_line2": (
+            post_data.get("recipient_contact_address_line2") or ""
+        ).strip(),
+        "recipient_contact_postal_code": (
+            post_data.get("recipient_contact_postal_code") or ""
+        ).strip(),
+        "recipient_contact_city": (post_data.get("recipient_contact_city") or "").strip(),
+        "recipient_contact_country": (post_data.get("recipient_contact_country") or "").strip(),
+        "recipient_use_structure_info": bool(post_data.get("recipient_use_structure_info")),
         "admin_contact_title": (post_data.get("admin_contact_title") or "").strip(),
         "admin_contact_first_name": (post_data.get("admin_contact_first_name") or "").strip(),
         "admin_contact_last_name": (post_data.get("admin_contact_last_name") or "").strip(),
@@ -218,9 +238,7 @@ def _extract_account_request_form_data(post_data):
         "admin_contact_address_line2": (post_data.get("admin_contact_address_line2") or "").strip(),
         "admin_contact_postal_code": (post_data.get("admin_contact_postal_code") or "").strip(),
         "admin_contact_city": (post_data.get("admin_contact_city") or "").strip(),
-        "admin_contact_country": (
-            post_data.get("admin_contact_country") or DEFAULT_COUNTRY
-        ).strip(),
+        "admin_contact_country": (post_data.get("admin_contact_country") or "").strip(),
         "use_admin_for_preparation": bool(post_data.get("use_admin_for_preparation")),
         "preparation_contact_title": (post_data.get("preparation_contact_title") or "").strip(),
         "preparation_contact_first_name": (
@@ -241,9 +259,7 @@ def _extract_account_request_form_data(post_data):
             post_data.get("preparation_contact_postal_code") or ""
         ).strip(),
         "preparation_contact_city": (post_data.get("preparation_contact_city") or "").strip(),
-        "preparation_contact_country": (
-            post_data.get("preparation_contact_country") or DEFAULT_COUNTRY
-        ).strip(),
+        "preparation_contact_country": (post_data.get("preparation_contact_country") or "").strip(),
         "first_recipient_enabled": bool(post_data.get("first_recipient_enabled")),
         "first_recipient_destination_id": (
             post_data.get("first_recipient_destination_id") or ""
@@ -316,6 +332,15 @@ def _extract_stopover_request_payload(post_data):
     for field in fields:
         prefixed_name = f"stopover_{field}"
         payload[field] = post_data.get(prefixed_name, post_data.get(field, ""))
+    if not (payload.get("requester_type") or "").strip():
+        account_type = (post_data.get("account_type") or "").strip()
+        payload["requester_type"] = (
+            PublicAccountRequestType.SHIPPER
+            if account_type == PublicAccountRequestType.ASSOCIATION
+            else account_type
+        )
+    if not (payload.get("contact_email") or "").strip():
+        payload["contact_email"] = post_data.get("email", "")
     return payload
 
 
@@ -410,13 +435,13 @@ def _append_required_contact_errors(form_data, errors, *, prefix, label, require
     if not require_address:
         return
     address_fields = (
-        ("address_line1", "adresse"),
-        ("city", "ville"),
-        ("country", "pays"),
+        ("address_line1", "adresse", "requise"),
+        ("city", "ville", "requise"),
+        ("country", "pays", "requis"),
     )
-    for field_name, field_label in address_fields:
+    for field_name, field_label, required_label in address_fields:
         if not form_data.get(f"{prefix}_{field_name}"):
-            errors.append(f"{label}: {field_label} requis.")
+            errors.append(f"{label}: {field_label} {required_label}.")
 
 
 def _append_recipient_structure_errors(form_data, errors):
@@ -439,7 +464,7 @@ def _append_recipient_structure_errors(form_data, errors):
         errors,
         prefix="recipient_contact",
         label="Contact réception",
-        require_address=False,
+        require_address=True,
     )
 
 
@@ -486,6 +511,10 @@ def _append_required_field_errors(form_data, errors, *, allow_user_request):
         if not form_data["line1"]:
             errors.append(ERROR_ADDRESS_REQUIRED)
         if _is_recipient_request(form_data):
+            if not form_data["city"]:
+                errors.append(ERROR_CITY_REQUIRED)
+            if not form_data["country"]:
+                errors.append(ERROR_COUNTRY_REQUIRED)
             if _resolve_served_destination(form_data["destination_id"]) is None:
                 errors.append(ERROR_DESTINATION_REQUIRED)
             _append_recipient_structure_errors(form_data, errors)
@@ -725,7 +754,7 @@ def _resolve_account_request_country(form_data):
     if _is_recipient_request(form_data):
         destination = _resolve_served_destination(form_data["destination_id"])
         if destination is not None:
-            return destination.country
+            return form_data["country"] or destination.country
     return form_data["country"] or DEFAULT_COUNTRY
 
 

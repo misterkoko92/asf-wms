@@ -6,8 +6,9 @@ SCAN_FAQ_CHANGE_LOG_ENTRIES = [
         "pr_number": None,
         "summary": (
             "Création de compte : téléphone structure obligatoire, contacts "
-            "administratif/préparation visibles, escales indicatives expéditeur "
-            "et filtre associé dans la validation Scan."
+            "administratif/préparation visibles, contact réception complété, "
+            "Autre escale simplifiée, escales indicatives expéditeur et filtre "
+            "associé dans la validation Scan."
         ),
     },
     {

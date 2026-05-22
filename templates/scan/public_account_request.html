@@ -82,7 +82,7 @@
           {% include "scan/includes/public_account_request_association_fields.html" %}
           {% include "scan/includes/public_account_request_user_fields.html" %}
 
-          <div class="ui-comp-actions">
+          <div class="ui-comp-actions" id="account-request-submit-actions">
             {% translate "Envoyer la demande" as submit_request_label %}
             {% ui_button label=submit_request_label button_type="submit" extra_classes="scan-submit" %}
           </div>
@@ -121,13 +121,18 @@
       const countryInput = document.getElementById("country");
       const destinationInput = document.getElementById("destination_id");
       const destinationFieldWrapper = document.getElementById("destination-field-wrapper");
+      const accountStructureDetailFields = document.getElementById("account-structure-detail-fields");
+      const accountRequestSubmitActions = document.getElementById("account-request-submit-actions");
       const shipperStopoverFields = document.getElementById("shipper-stopover-fields");
       const shipperStopoverInputs = Array.from(
         document.querySelectorAll('[name="shipper_stopover_destination_ids"]')
       );
       const otherStopoverPanel = document.getElementById("other-stopover-panel");
+      const stopoverRequesterTypeInput = document.getElementById("stopover_requester_type");
+      const stopoverContactEmailInput = document.getElementById("stopover_contact_email");
       const recipientStructureFields = document.getElementById("recipient-structure-fields");
       const recipientContactFields = document.getElementById("recipient-contact-fields");
+      const recipientReuseStructureInput = document.getElementById("recipient_use_structure_info");
       const shipperContactFields = document.getElementById("shipper-contact-fields");
       const preparationContactFields = document.getElementById("preparation-contact-fields");
       const useAdminForPreparationInput = document.getElementById("use_admin_for_preparation");
@@ -159,6 +164,9 @@
         "recipient_contact_last_name",
         "recipient_contact_email",
         "recipient_contact_phone",
+        "recipient_contact_address_line1",
+        "recipient_contact_city",
+        "recipient_contact_country",
       ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
       const shipperRequiredFields = [
         "admin_contact_title",
@@ -222,6 +230,11 @@
         if (line1Input) line1Input.required = required;
       };
 
+      const setRecipientStructureLocationRequired = (required) => {
+        if (cityInput) cityInput.required = required;
+        if (countryInput) countryInput.required = required;
+      };
+
       const setRecipientRequired = (required) => {
         setFieldsRequired(recipientRequiredFields, required);
       };
@@ -243,6 +256,45 @@
       const shipperOtherStopoverSelected = () => shipperStopoverInputs.some(
         (input) => input.value === "other" && input.checked
       );
+
+      const getSelectedStructureContact = () => findContact(associationNameInput ? associationNameInput.value : "");
+
+      const setFieldValue = (fieldId, value) => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.value = value || "";
+        }
+      };
+
+      const syncStopoverHiddenFields = () => {
+        const accountType = accountTypeInput ? accountTypeInput.value : ACCOUNT_TYPE_SHIPPER;
+        if (stopoverRequesterTypeInput) {
+          stopoverRequesterTypeInput.value = accountType === ACCOUNT_TYPE_ASSOCIATION ? ACCOUNT_TYPE_SHIPPER : accountType;
+        }
+        if (stopoverContactEmailInput && emailInput) {
+          stopoverContactEmailInput.value = emailInput.value || "";
+        }
+      };
+
+      const syncRecipientContactFromStructure = () => {
+        if (!recipientReuseStructureInput || !recipientReuseStructureInput.checked) {
+          return;
+        }
+        const contact = getSelectedStructureContact();
+        setFieldValue("recipient_contact_title", contact ? contact.title : "");
+        setFieldValue("recipient_contact_first_name", contact ? contact.first_name : "");
+        setFieldValue(
+          "recipient_contact_last_name",
+          contact && contact.last_name ? contact.last_name : (associationNameInput ? associationNameInput.value : "")
+        );
+        setFieldValue("recipient_contact_email", emailInput ? emailInput.value : "");
+        setFieldValue("recipient_contact_phone", phoneInput ? phoneInput.value : "");
+        setFieldValue("recipient_contact_address_line1", line1Input ? line1Input.value : "");
+        setFieldValue("recipient_contact_address_line2", line2Input ? line2Input.value : "");
+        setFieldValue("recipient_contact_postal_code", postalInput ? postalInput.value : "");
+        setFieldValue("recipient_contact_city", cityInput ? cityInput.value : "");
+        setFieldValue("recipient_contact_country", countryInput ? countryInput.value : "");
+      };
 
       const toggleSections = () => {
         const accountType = accountTypeInput ? accountTypeInput.value : ACCOUNT_TYPE_SHIPPER;
@@ -275,6 +327,12 @@
         if (otherStopoverPanel) {
           otherStopoverPanel.hidden = !showOtherStopoverPanel;
         }
+        if (accountStructureDetailFields) {
+          accountStructureDetailFields.hidden = destinationIsOther;
+        }
+        if (accountRequestSubmitActions) {
+          accountRequestSubmitActions.hidden = destinationIsOther;
+        }
         if (recipientStructureFields) {
           recipientStructureFields.hidden = !isRecipient || destinationIsOther;
         }
@@ -306,7 +364,8 @@
           firstRecipientDetails.hidden = !firstRecipientEnabled;
         }
 
-        setAssociationRequired(isAssociation);
+        setAssociationRequired(isAssociation && !destinationIsOther);
+        setRecipientStructureLocationRequired(isRecipient && !destinationIsOther);
         setRecipientRequired(isRecipient && !destinationIsOther);
         setShipperContactRequired(isShipper);
         setPreparationContactRequired(isShipper && !useAdminForPreparation);
@@ -314,6 +373,8 @@
         setFirstRecipientRequired(firstRecipientEnabled);
         setFirstRecipientDisabled(!firstRecipientEnabled);
         setFieldsRequired(otherStopoverRequiredFields, showOtherStopoverPanel);
+        syncStopoverHiddenFields();
+        syncRecipientContactFromStructure();
       };
 
       const applyDestinationCountry = (select, targetInput) => {
@@ -376,15 +437,29 @@
           } else if (contactIdInput) {
             contactIdInput.value = "";
           }
+          syncRecipientContactFromStructure();
         });
       }
 
+      [emailInput, phoneInput, line1Input, line2Input, postalInput, cityInput, countryInput].forEach((field) => {
+        if (field) {
+          field.addEventListener("input", () => {
+            syncStopoverHiddenFields();
+            syncRecipientContactFromStructure();
+          });
+        }
+      });
+
       if (accountTypeInput) {
-        accountTypeInput.addEventListener("change", toggleSections);
+        accountTypeInput.addEventListener("change", () => {
+          syncStopoverHiddenFields();
+          toggleSections();
+        });
       }
       if (destinationInput) {
         destinationInput.addEventListener("change", () => {
           applyDestinationCountry(destinationInput, countryInput);
+          syncRecipientContactFromStructure();
           toggleSections();
         });
       }
@@ -403,6 +478,9 @@
       }
       if (useAdminForPreparationInput) {
         useAdminForPreparationInput.addEventListener("change", toggleSections);
+      }
+      if (recipientReuseStructureInput) {
+        recipientReuseStructureInput.addEventListener("change", syncRecipientContactFromStructure);
       }
       toggleSections();
     })();

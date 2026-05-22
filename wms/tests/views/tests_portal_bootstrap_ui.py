@@ -1264,6 +1264,37 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "Premier destinataire (optionnel)")
         self.assertContains(response, "background-color: #fff;")
 
+    def test_portal_account_request_recipient_existing_stopover_contact_contract(self):
+        self.client.logout()
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="recipient_use_structure_info"')
+        self.assertContains(response, "Réutiliser les informations de la structure")
+        self.assertContains(response, 'id="recipient_contact_address_line1"')
+        self.assertContains(response, 'id="recipient_contact_city"')
+        self.assertContains(response, 'id="recipient_contact_country"')
+        self.assertContains(response, '"recipient_contact_address_line1"')
+        self.assertContains(response, '"recipient_contact_city"')
+        self.assertContains(response, '"recipient_contact_country"')
+        self.assertContains(response, "const recipientReuseStructureInput")
+
+    def test_portal_account_request_other_stopover_avoids_duplicate_recipient_fields(self):
+        self.client.logout()
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="account-structure-detail-fields"')
+        self.assertContains(response, "accountStructureDetailFields.hidden = destinationIsOther")
+        self.assertContains(response, 'type="hidden" id="stopover_requester_type"')
+        self.assertContains(response, 'type="hidden" id="stopover_contact_email"')
+        self.assertNotContains(
+            response, '<select class="form-select ui-select--md" id="stopover_requester_type"'
+        )
+        self.assertNotContains(response, 'for="stopover_contact_email"')
+
     def test_portal_pages_use_design_component_classes(self):
         dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
