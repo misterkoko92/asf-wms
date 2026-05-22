@@ -2,6 +2,15 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 5, 22),
+        "pr_number": None,
+        "summary": (
+            "Création de compte : téléphone structure obligatoire, contacts "
+            "administratif/préparation visibles, escales indicatives expéditeur "
+            "et filtre associé dans la validation Scan."
+        ),
+    },
+    {
         "date": date(2026, 5, 20),
         "pr_number": None,
         "summary": (

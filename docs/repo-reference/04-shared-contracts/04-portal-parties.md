@@ -67,7 +67,9 @@ Read this file when touching portal access, recipient sync, shipment-party graph
 - Unsupported stopovers are captured as `StopoverFeasibilityRequest` rows and send the internal subject `Demande nouvelle escale`; they must not create accounts, recipients, grants, or destinations.
 - Recipient signup and portal recipient creation require structure compliance data plus a reception contact with title, first name, last name, at least one email, at least one phone, and required address fields.
 - Shipper signup and portal account data require complete administrative and preparation/logistics contacts. A single contact may satisfy both roles.
+- Shipper signup can store served stopovers selected as indicative review/history data in `PublicAccountRequest.shipper_stopover_indications`; this does not constrain future orders or grant route access.
 - Scan account review displays submitted operational contact payloads as read-only context while keeping the operator review form editable for correction and legacy requests.
+- Scan account review displays and filters shipper stopover indications so operators can find requests by served stopover before validation.
 - Recipient approval creates/reactivates organization contact, destination-scoped recipient organization, active recipient contact, and `PortalAccessGrant(recipient_admin)`.
 - Shipper requests may include one optional first recipient payload and recipient structure documents; if present, approval creates/reactivates the destination-scoped recipient organization, an active delivery contact, a shipper-recipient link with that contact as default, and transfers the recipient documents to the provisioned structure.
 - Default ASF shipper binding is resolved through shared helper.
