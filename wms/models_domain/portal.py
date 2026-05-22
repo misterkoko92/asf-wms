@@ -223,6 +223,7 @@ class PublicAccountRequest(models.Model):
     notes = models.TextField(blank=True)
     initial_recipient_payload = models.JSONField(default=dict, blank=True)
     contact_payloads = models.JSONField(default=dict, blank=True)
+    shipper_stopover_indications = models.JSONField(default=list, blank=True)
     review_snapshot = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)

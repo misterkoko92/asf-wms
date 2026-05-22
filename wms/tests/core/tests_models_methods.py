@@ -365,6 +365,28 @@ class WmsModelMethodsTests(TestCase):
         )
         self.assertEqual(str(user_request), "Utilisateur wms-user (Pending)")
 
+        stopover_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            association_name="Association Stopovers",
+            email="stopovers@example.org",
+            address_line1="3 Rue C",
+            shipper_stopover_indications=[
+                {
+                    "destination_id": "12",
+                    "label": "Dakar (DSS), Sénégal",
+                    "city": "Dakar",
+                    "country": "Sénégal",
+                    "iata_code": "DSS",
+                }
+            ],
+            status=PublicAccountRequestStatus.PENDING,
+        )
+        self.assertEqual(
+            stopover_request.shipper_stopover_indications[0]["label"],
+            "Dakar (DSS), Sénégal",
+        )
+        self.assertIsNone(stopover_request.destination)
+
         profile = AssociationProfile.objects.create(
             user=self.user,
             contact=self.contact,
