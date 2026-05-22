@@ -15,6 +15,14 @@
   {% include "includes/design_vars_style.html" %}
   <link rel="stylesheet" href="{% static 'scan/address_autocomplete.css' %}">
   <link rel="stylesheet" href="{% static 'wms/language-switch.css' %}">
+  <style>
+    .ui-comp-form .form-control:not(:disabled):not([readonly]),
+    .ui-comp-form .form-select:not(:disabled),
+    .ui-comp-form textarea.form-control:not(:disabled):not([readonly]),
+    .ui-comp-form .form-check-input:not(:disabled) {
+      background-color: #fff;
+    }
+  </style>
 </head>
 <body class="scan-bootstrap-enabled">
   <div class="scan-shell">
@@ -113,6 +121,11 @@
       const countryInput = document.getElementById("country");
       const destinationInput = document.getElementById("destination_id");
       const destinationFieldWrapper = document.getElementById("destination-field-wrapper");
+      const shipperStopoverFields = document.getElementById("shipper-stopover-fields");
+      const shipperStopoverInputs = Array.from(
+        document.querySelectorAll('[name="shipper_stopover_destination_ids"]')
+      );
+      const otherStopoverPanel = document.getElementById("other-stopover-panel");
       const recipientStructureFields = document.getElementById("recipient-structure-fields");
       const recipientContactFields = document.getElementById("recipient-contact-fields");
       const shipperContactFields = document.getElementById("shipper-contact-fields");
@@ -153,6 +166,9 @@
         "admin_contact_last_name",
         "admin_contact_email",
         "admin_contact_phone",
+        "admin_contact_address_line1",
+        "admin_contact_city",
+        "admin_contact_country",
       ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
       const preparationRequiredFields = [
         "preparation_contact_title",
@@ -160,6 +176,23 @@
         "preparation_contact_last_name",
         "preparation_contact_email",
         "preparation_contact_phone",
+        "preparation_contact_address_line1",
+        "preparation_contact_city",
+        "preparation_contact_country",
+      ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
+      const otherStopoverRequiredFields = [
+        "stopover_requested_stopovers",
+        "stopover_structure_name",
+        "stopover_legal_form",
+        "stopover_beneficiary_count",
+        "stopover_contact_title",
+        "stopover_contact_first_name",
+        "stopover_contact_last_name",
+        "stopover_contact_email",
+        "stopover_contact_phone",
+        "stopover_address_line1",
+        "stopover_city",
+        "stopover_country",
       ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
 
       const setFieldsRequired = (fields, required) => {
@@ -185,6 +218,7 @@
 
       const setAssociationRequired = (required) => {
         if (associationNameInput) associationNameInput.required = required;
+        if (phoneInput) phoneInput.required = required;
         if (line1Input) line1Input.required = required;
       };
 
@@ -206,6 +240,10 @@
         if (password2Input) password2Input.required = required;
       };
 
+      const shipperOtherStopoverSelected = () => shipperStopoverInputs.some(
+        (input) => input.value === "other" && input.checked
+      );
+
       const toggleSections = () => {
         const accountType = accountTypeInput ? accountTypeInput.value : ACCOUNT_TYPE_SHIPPER;
         const isAssociation = accountType === ACCOUNT_TYPE_ASSOCIATION
@@ -222,11 +260,26 @@
         if (destinationFieldWrapper) {
           destinationFieldWrapper.hidden = !isRecipient;
         }
+        if (shipperStopoverFields) {
+          shipperStopoverFields.hidden = !isShipper;
+        }
+        const destinationIsOther = Boolean(
+          isRecipient && destinationInput && destinationInput.value === "other"
+        );
+        const shipperOtherSelected = Boolean(isShipper && shipperOtherStopoverSelected());
+        const shipperServedStopoverSelected = shipperStopoverInputs.some(
+          (input) => input.value !== "other" && input.checked
+        );
+        const shipperOnlyOtherStopoverSelected = shipperOtherSelected && !shipperServedStopoverSelected;
+        const showOtherStopoverPanel = destinationIsOther || shipperOtherSelected;
+        if (otherStopoverPanel) {
+          otherStopoverPanel.hidden = !showOtherStopoverPanel;
+        }
         if (recipientStructureFields) {
-          recipientStructureFields.hidden = !isRecipient;
+          recipientStructureFields.hidden = !isRecipient || destinationIsOther;
         }
         if (recipientContactFields) {
-          recipientContactFields.hidden = !isRecipient;
+          recipientContactFields.hidden = !isRecipient || destinationIsOther;
         }
         if (shipperContactFields) {
           shipperContactFields.hidden = !isShipper;
@@ -241,22 +294,26 @@
           userSection.hidden = !isUser;
         }
         if (firstRecipientSection) {
-          firstRecipientSection.hidden = !isShipper;
+          firstRecipientSection.hidden = !isShipper || shipperOnlyOtherStopoverSelected;
         }
         const firstRecipientEnabled = Boolean(
-          isShipper && firstRecipientEnabledInput && firstRecipientEnabledInput.checked
+          isShipper
+          && !shipperOnlyOtherStopoverSelected
+          && firstRecipientEnabledInput
+          && firstRecipientEnabledInput.checked
         );
         if (firstRecipientDetails) {
           firstRecipientDetails.hidden = !firstRecipientEnabled;
         }
 
         setAssociationRequired(isAssociation);
-        setRecipientRequired(isRecipient);
+        setRecipientRequired(isRecipient && !destinationIsOther);
         setShipperContactRequired(isShipper);
         setPreparationContactRequired(isShipper && !useAdminForPreparation);
         setUserRequired(isUser);
         setFirstRecipientRequired(firstRecipientEnabled);
         setFirstRecipientDisabled(!firstRecipientEnabled);
+        setFieldsRequired(otherStopoverRequiredFields, showOtherStopoverPanel);
       };
 
       const applyDestinationCountry = (select, targetInput) => {
@@ -328,8 +385,12 @@
       if (destinationInput) {
         destinationInput.addEventListener("change", () => {
           applyDestinationCountry(destinationInput, countryInput);
+          toggleSections();
         });
       }
+      shipperStopoverInputs.forEach((input) => {
+        input.addEventListener("change", toggleSections);
+      });
       const firstRecipientDestinationInput = document.getElementById("first_recipient_destination_id");
       const firstRecipientCountryInput = document.getElementById("first_recipient_country");
       if (firstRecipientDestinationInput) {

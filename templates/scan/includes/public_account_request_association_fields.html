@@ -7,16 +7,51 @@
       <option value="">{% trans "Choisir une escale" %}</option>
       {% for destination in destinations %}
         <option value="{{ destination.id }}" data-country="{{ destination.country }}" {% if form_data.destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
-          {{ destination.city }} ({{ destination.iata_code }}){% if destination.country %} - {{ destination.country }}{% endif %}
+          {{ destination.city }}{% if destination.iata_code %} ({{ destination.iata_code }}){% endif %}{% if destination.country %}, {{ destination.country }}{% endif %}
         </option>
       {% endfor %}
+      <option value="other">{% trans "Autre escale / escale non listée" %}</option>
     </select>
-    <p class="scan-help">
-      {% trans "Autre escale : nous ne desservons que les escales présentes dans la liste ci dessus. Néanmoins, merci de nous préciser votre demande en indiquant bien la ou les escale(s) souhaitées. Nous ferons une étude pour voir la faisabilité." %}
-    </p>
   </div>
-  <details class="ui-comp-panel" id="other-stopover-panel">
-    <summary>{% trans "Autre escale" %}</summary>
+  <section class="ui-comp-panel" id="shipper-stopover-fields">
+    <h3 class="ui-comp-title h5">{% trans "Escales envisagées" %}</h3>
+    <p class="scan-help">
+      {% trans "Cochez les escales que vous pensez utiliser. Cette information aide ASF à anticiper vos besoins et ne limite pas vos futures commandes." %}
+    </p>
+    <div class="row g-2">
+      {% for destination in destinations %}
+        <div class="col-12 col-md-6">
+          <label class="form-check-label">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              name="shipper_stopover_destination_ids"
+              value="{{ destination.id }}"
+              {% if destination.id|stringformat:'s' in form_data.shipper_stopover_destination_ids %}checked{% endif %}
+            >
+            {{ destination.city }}{% if destination.iata_code %} ({{ destination.iata_code }}){% endif %}{% if destination.country %}, {{ destination.country }}{% endif %}
+          </label>
+        </div>
+      {% endfor %}
+      <div class="col-12 col-md-6">
+        <label class="form-check-label">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            name="shipper_stopover_destination_ids"
+            value="other"
+            {% if form_data.shipper_stopover_other %}checked{% endif %}
+          >
+          {% trans "Autre escale / escale non listée" %}
+        </label>
+      </div>
+    </div>
+  </section>
+  <section class="ui-comp-panel" id="other-stopover-panel" hidden>
+    <h3 class="ui-comp-title h5">{% trans "Demande d’étude pour une nouvelle escale" %}</h3>
+    <p class="scan-help">
+      {% trans "Nous ne desservons que les escales présentes dans la liste ci-dessus. Si votre besoin concerne une autre escale, indiquez les informations ci-dessous : ASF étudiera la faisabilité." %}
+    </p>
     <div class="row g-3 mt-2">
       <div class="col-12 col-md-6">
         <label class="form-label" for="stopover_requester_type">{% trans "Type de profil" %}</label>
@@ -94,10 +129,10 @@
     </div>
     <div class="ui-comp-actions mt-3">
       <button class="btn btn-primary" type="submit" name="form_action" value="stopover_request" formnovalidate>
-        {% trans "Envoyer" %}
+        {% trans "Envoyer la demande d’étude" %}
       </button>
     </div>
-  </details>
+  </section>
   <div class="scan-field">
     <label class="form-label" for="association_name">{% trans "Nom de la structure" %}</label>
     <input
@@ -113,7 +148,7 @@
   </div>
   <div class="scan-field">
     <label class="form-label" for="phone">{% trans "Téléphone" %}</label>
-    <input class="form-control" type="text" id="phone" name="phone" value="{{ form_data.phone }}">
+    <input class="form-control" type="text" id="phone" name="phone" value="{{ form_data.phone }}" required>
   </div>
   <div id="recipient-structure-fields" hidden>
     <div class="row g-3">
@@ -257,12 +292,27 @@
         <label class="form-label" for="admin_contact_phone">{% trans "Téléphone" %}</label>
         <input class="form-control" type="text" id="admin_contact_phone" name="admin_contact_phone" value="{{ form_data.admin_contact_phone }}">
       </div>
+      <div class="col-12">
+        <label class="form-label" for="admin_contact_address_line1">{% trans "Adresse contact administratif" %}</label>
+        <input class="form-control" type="text" id="admin_contact_address_line1" name="admin_contact_address_line1" value="{{ form_data.admin_contact_address_line1|default:form_data.line1 }}">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="admin_contact_address_line2">{% trans "Complément adresse" %}</label>
+        <input class="form-control" type="text" id="admin_contact_address_line2" name="admin_contact_address_line2" value="{{ form_data.admin_contact_address_line2|default:form_data.line2 }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="admin_contact_postal_code">{% trans "Code postal" %}</label>
+        <input class="form-control" type="text" id="admin_contact_postal_code" name="admin_contact_postal_code" value="{{ form_data.admin_contact_postal_code|default:form_data.postal_code }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="admin_contact_city">{% trans "Ville" %}</label>
+        <input class="form-control" type="text" id="admin_contact_city" name="admin_contact_city" value="{{ form_data.admin_contact_city|default:form_data.city }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="admin_contact_country">{% trans "Pays" %}</label>
+        <input class="form-control" type="text" id="admin_contact_country" name="admin_contact_country" value="{{ form_data.admin_contact_country|default:form_data.country|default:'France' }}">
+      </div>
     </div>
-    <input type="hidden" id="admin_contact_address_line1" name="admin_contact_address_line1" value="{{ form_data.admin_contact_address_line1|default:form_data.line1 }}">
-    <input type="hidden" id="admin_contact_address_line2" name="admin_contact_address_line2" value="{{ form_data.admin_contact_address_line2|default:form_data.line2 }}">
-    <input type="hidden" id="admin_contact_postal_code" name="admin_contact_postal_code" value="{{ form_data.admin_contact_postal_code|default:form_data.postal_code }}">
-    <input type="hidden" id="admin_contact_city" name="admin_contact_city" value="{{ form_data.admin_contact_city|default:form_data.city }}">
-    <input type="hidden" id="admin_contact_country" name="admin_contact_country" value="{{ form_data.admin_contact_country|default:form_data.country }}">
 
     <div class="scan-field">
       <label class="form-check-label" for="use_admin_for_preparation">
@@ -307,18 +357,33 @@
         <label class="form-label" for="preparation_contact_phone">{% trans "Téléphone" %}</label>
         <input class="form-control" type="text" id="preparation_contact_phone" name="preparation_contact_phone" value="{{ form_data.preparation_contact_phone }}">
       </div>
+      <div class="col-12">
+        <label class="form-label" for="preparation_contact_address_line1">{% trans "Adresse contact préparation" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_address_line1" name="preparation_contact_address_line1" value="{{ form_data.preparation_contact_address_line1|default:form_data.line1 }}">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="preparation_contact_address_line2">{% trans "Complément adresse" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_address_line2" name="preparation_contact_address_line2" value="{{ form_data.preparation_contact_address_line2|default:form_data.line2 }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="preparation_contact_postal_code">{% trans "Code postal" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_postal_code" name="preparation_contact_postal_code" value="{{ form_data.preparation_contact_postal_code|default:form_data.postal_code }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="preparation_contact_city">{% trans "Ville" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_city" name="preparation_contact_city" value="{{ form_data.preparation_contact_city|default:form_data.city }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="preparation_contact_country">{% trans "Pays" %}</label>
+        <input class="form-control" type="text" id="preparation_contact_country" name="preparation_contact_country" value="{{ form_data.preparation_contact_country|default:form_data.country|default:'France' }}">
+      </div>
     </div>
-    <input type="hidden" id="preparation_contact_address_line1" name="preparation_contact_address_line1" value="{{ form_data.preparation_contact_address_line1|default:form_data.line1 }}">
-    <input type="hidden" id="preparation_contact_address_line2" name="preparation_contact_address_line2" value="{{ form_data.preparation_contact_address_line2|default:form_data.line2 }}">
-    <input type="hidden" id="preparation_contact_postal_code" name="preparation_contact_postal_code" value="{{ form_data.preparation_contact_postal_code|default:form_data.postal_code }}">
-    <input type="hidden" id="preparation_contact_city" name="preparation_contact_city" value="{{ form_data.preparation_contact_city|default:form_data.city }}">
-    <input type="hidden" id="preparation_contact_country" name="preparation_contact_country" value="{{ form_data.preparation_contact_country|default:form_data.country }}">
   </section>
 
   <section id="first-recipient-section" class="ui-comp-panel">
-    <h3 class="ui-comp-title">{% trans "Premier destinataire" %}</h3>
+    <h3 class="ui-comp-title">{% trans "Premier destinataire (optionnel)" %}</h3>
     <p class="scan-help">
-      {% trans "Renseignez dès maintenant votre premier destinataire avec l'option “Contact de réception” activée pour utiliser immédiatement votre compte après validation, ou faites-le à la première connexion." %}
+      {% trans "Optionnel à l’inscription. Un destinataire lié et validé sera obligatoire avant de créer une commande ; vous pourrez le renseigner maintenant ou après validation du compte." %}
     </p>
     <div class="scan-field">
       <label class="form-check-label" for="first_recipient_enabled">

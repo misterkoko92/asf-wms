@@ -581,7 +581,8 @@ class AccountRequestFormHandlerTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Renseignez dès maintenant votre premier destinataire")
+        self.assertContains(response, "Premier destinataire (optionnel)")
+        self.assertContains(response, "Un destinataire lié et validé sera obligatoire")
         self.assertContains(response, "Contact de réception")
         self.assertContains(response, 'name="first_recipient_enabled"')
         self.assertContains(response, 'name="first_recipient_structure_name"')

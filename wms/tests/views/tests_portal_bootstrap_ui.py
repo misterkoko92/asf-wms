@@ -1208,6 +1208,62 @@ class PortalBootstrapUiTests(TestCase):
         )
         self.assertNotContains(response, "Utilisateur WMS")
 
+    def test_portal_account_request_exposes_shipper_stopovers_and_visible_contact_addresses(self):
+        self.client.logout()
+        correspondent = Contact.objects.create(
+            name="Correspondant Stopovers",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        dakar = Destination.objects.create(
+            city="Dakar",
+            iata_code="DSS",
+            country="Sénégal",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        paris_belgium = Destination.objects.create(
+            city="Paris",
+            iata_code="PAB",
+            country="Belgique",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Escales envisagées")
+        self.assertContains(response, "Dakar (DSS), Sénégal")
+        self.assertContains(response, "Paris (PAB), Belgique")
+        self.assertContains(response, "Paris (PBS), France")
+        self.assertLess(
+            content.index("Dakar (DSS), Sénégal"),
+            content.index("Paris (PAB), Belgique"),
+        )
+        self.assertLess(
+            content.index("Paris (PAB), Belgique"),
+            content.index("Paris (PBS), France"),
+        )
+        self.assertContains(response, 'name="shipper_stopover_destination_ids"')
+        self.assertContains(response, f'value="{dakar.id}"')
+        self.assertContains(response, f'value="{paris_belgium.id}"')
+        self.assertContains(response, 'value="other"')
+        self.assertContains(response, "Autre escale / escale non listée")
+        self.assertContains(
+            response,
+            '<input class="form-control" type="text" id="admin_contact_address_line1"',
+        )
+        self.assertContains(
+            response,
+            '<input class="form-control" type="text" id="preparation_contact_address_line1"',
+        )
+        self.assertContains(response, 'id="admin_contact_country"')
+        self.assertContains(response, 'id="preparation_contact_country"')
+        self.assertContains(response, "Premier destinataire (optionnel)")
+        self.assertContains(response, "background-color: #fff;")
+
     def test_portal_pages_use_design_component_classes(self):
         dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
