@@ -1263,6 +1263,31 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="preparation_contact_country"')
         self.assertContains(response, "Premier destinataire (optionnel)")
         self.assertContains(response, "background-color: #fff;")
+        self.assertContains(response, "form-check")
+        self.assertContains(response, ".form-check-input:checked")
+        self.assertContains(response, ".form-check-input:not(:checked):not(:disabled)")
+        self.assertNotContains(
+            response, ".form-check-input:not(:disabled) {\n      background-color: #fff;"
+        )
+
+    def test_portal_account_request_shipper_stopover_blocks_follow_expected_order(self):
+        self.client.logout()
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(
+            content.index("Documents de vérification"),
+            content.index("Premier destinataire (optionnel)"),
+        )
+        self.assertLess(
+            content.index("Premier destinataire (optionnel)"),
+            content.index("Demande d’étude pour une nouvelle escale"),
+        )
+        self.assertContains(response, "shipperOnlyOtherStopoverSelected")
+        self.assertContains(response, "hideAccountRequestFields")
+        self.assertContains(response, "otherStopoverStudyActions")
 
     def test_portal_account_request_recipient_existing_stopover_contact_contract(self):
         self.client.logout()
@@ -1279,6 +1304,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, '"recipient_contact_city"')
         self.assertContains(response, '"recipient_contact_country"')
         self.assertContains(response, "const recipientReuseStructureInput")
+        self.assertContains(response, "refreshRequiredMarkers")
+        self.assertContains(response, "ui-field-required-marker")
 
     def test_portal_account_request_other_stopover_avoids_duplicate_recipient_fields(self):
         self.client.logout()
@@ -1287,7 +1314,10 @@ class PortalBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="account-structure-detail-fields"')
-        self.assertContains(response, "accountStructureDetailFields.hidden = destinationIsOther")
+        self.assertContains(
+            response, "accountStructureDetailFields.hidden = hideAccountRequestFields"
+        )
+        self.assertContains(response, "shipperOnlyOtherStopoverSelected")
         self.assertContains(response, 'type="hidden" id="stopover_requester_type"')
         self.assertContains(response, 'type="hidden" id="stopover_contact_email"')
         self.assertNotContains(

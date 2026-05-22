@@ -69,6 +69,8 @@ ERROR_FIRST_RECIPIENT_CONTACT_EMAIL_REQUIRED = "Premier destinataire: email réf
 ERROR_FIRST_RECIPIENT_CONTACT_PHONE_REQUIRED = "Premier destinataire: téléphone référent requis."
 ERROR_FIRST_RECIPIENT_LEGAL_FORM_REQUIRED = "Premier destinataire: forme juridique requise."
 ERROR_FIRST_RECIPIENT_LEGAL_FORM_INVALID = "Premier destinataire: forme juridique invalide."
+ERROR_FIRST_RECIPIENT_CITY_REQUIRED = "Premier destinataire: ville requise."
+ERROR_FIRST_RECIPIENT_COUNTRY_REQUIRED = "Premier destinataire: pays requis."
 ERROR_FIRST_RECIPIENT_BENEFICIARY_COUNT_REQUIRED = (
     "Premier destinataire: nombre de bénéficiaires requis."
 )
@@ -286,9 +288,7 @@ def _extract_account_request_form_data(post_data):
         ).strip(),
         "first_recipient_postal_code": (post_data.get("first_recipient_postal_code") or "").strip(),
         "first_recipient_city": (post_data.get("first_recipient_city") or "").strip(),
-        "first_recipient_country": (
-            post_data.get("first_recipient_country") or DEFAULT_COUNTRY
-        ).strip(),
+        "first_recipient_country": (post_data.get("first_recipient_country") or "").strip(),
         "first_recipient_legal_form": (post_data.get("first_recipient_legal_form") or "").strip(),
         "first_recipient_beneficiary_count": (
             post_data.get("first_recipient_beneficiary_count") or ""
@@ -510,11 +510,11 @@ def _append_required_field_errors(form_data, errors, *, allow_user_request):
             errors.append(ERROR_STRUCTURE_PHONE_REQUIRED)
         if not form_data["line1"]:
             errors.append(ERROR_ADDRESS_REQUIRED)
+        if not form_data["city"]:
+            errors.append(ERROR_CITY_REQUIRED)
+        if not form_data["country"]:
+            errors.append(ERROR_COUNTRY_REQUIRED)
         if _is_recipient_request(form_data):
-            if not form_data["city"]:
-                errors.append(ERROR_CITY_REQUIRED)
-            if not form_data["country"]:
-                errors.append(ERROR_COUNTRY_REQUIRED)
             if _resolve_served_destination(form_data["destination_id"]) is None:
                 errors.append(ERROR_DESTINATION_REQUIRED)
             _append_recipient_structure_errors(form_data, errors)
@@ -553,6 +553,10 @@ def _append_initial_recipient_errors(form_data, errors):
         errors.append(ERROR_FIRST_RECIPIENT_CONTACT_PHONE_REQUIRED)
     if not form_data.get("first_recipient_address_line1"):
         errors.append(ERROR_FIRST_RECIPIENT_ADDRESS_REQUIRED)
+    if not form_data.get("first_recipient_city"):
+        errors.append(ERROR_FIRST_RECIPIENT_CITY_REQUIRED)
+    if not form_data.get("first_recipient_country"):
+        errors.append(ERROR_FIRST_RECIPIENT_COUNTRY_REQUIRED)
 
     legal_form = form_data.get("first_recipient_legal_form")
     valid_legal_forms = {choice for choice, _label in RecipientLegalForm.choices}

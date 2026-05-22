@@ -21,107 +21,36 @@
     <div class="row g-2">
       {% for destination in destinations %}
         <div class="col-12 col-md-6">
-          <label class="form-check-label">
+          <div class="form-check">
             <input
               class="form-check-input"
               type="checkbox"
+              id="shipper_stopover_destination_{{ destination.id }}"
               name="shipper_stopover_destination_ids"
               value="{{ destination.id }}"
               {% if destination.id|stringformat:'s' in form_data.shipper_stopover_destination_ids %}checked{% endif %}
             >
+            <label class="form-check-label" for="shipper_stopover_destination_{{ destination.id }}">
             {{ destination.city }}{% if destination.iata_code %} ({{ destination.iata_code }}){% endif %}{% if destination.country %}, {{ destination.country }}{% endif %}
-          </label>
+            </label>
+          </div>
         </div>
       {% endfor %}
       <div class="col-12 col-md-6">
-        <label class="form-check-label">
+        <div class="form-check">
           <input
             class="form-check-input"
             type="checkbox"
+            id="shipper_stopover_destination_other"
             name="shipper_stopover_destination_ids"
             value="other"
             {% if form_data.shipper_stopover_other %}checked{% endif %}
           >
+          <label class="form-check-label" for="shipper_stopover_destination_other">
           {% trans "Autre escale / escale non listée" %}
-        </label>
+          </label>
+        </div>
       </div>
-    </div>
-  </section>
-  <section class="ui-comp-panel" id="other-stopover-panel" hidden>
-    <h3 class="ui-comp-title h5">{% trans "Demande d’étude pour une nouvelle escale" %}</h3>
-    <p class="scan-help">
-      {% trans "Nous ne desservons que les escales présentes dans la liste ci-dessus. Si votre besoin concerne une autre escale, indiquez les informations ci-dessous : ASF étudiera la faisabilité." %}
-    </p>
-    <input type="hidden" id="stopover_requester_type" name="stopover_requester_type">
-    <input type="hidden" id="stopover_contact_email" name="stopover_contact_email">
-    <div class="row g-3 mt-2">
-      <div class="col-12 col-md-6">
-        <label class="form-label" for="stopover_requested_stopovers">{% trans "Escale(s) souhaitée(s)" %}</label>
-        <input class="form-control" type="text" id="stopover_requested_stopovers" name="stopover_requested_stopovers">
-      </div>
-      <div class="col-12 col-md-6">
-        <label class="form-label" for="stopover_structure_name">{% trans "Nom de la structure" %}</label>
-        <input class="form-control" type="text" id="stopover_structure_name" name="stopover_structure_name">
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label" for="stopover_legal_form">{% trans "Forme juridique" %}</label>
-        <select class="form-select ui-select--md" id="stopover_legal_form" name="stopover_legal_form">
-          <option value="">{% trans "Choisir..." %}</option>
-          {% for value, label in recipient_legal_form_choices %}
-            <option value="{{ value }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label" for="stopover_beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
-        <input class="form-control" type="number" min="0" step="1" id="stopover_beneficiary_count" name="stopover_beneficiary_count">
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label" for="stopover_contact_title">{% trans "Titre" %}</label>
-        <select class="form-select ui-select--md" id="stopover_contact_title" name="stopover_contact_title">
-          <option value="">{% trans "Choisir..." %}</option>
-          {% for value, label in association_contact_title_choices %}
-            <option value="{{ value }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label" for="stopover_contact_first_name">{% trans "Prénom" %}</label>
-        <input class="form-control" type="text" id="stopover_contact_first_name" name="stopover_contact_first_name">
-      </div>
-      <div class="col-12 col-md-5">
-        <label class="form-label" for="stopover_contact_last_name">{% trans "NOM" %}</label>
-        <input class="form-control" type="text" id="stopover_contact_last_name" name="stopover_contact_last_name">
-      </div>
-      <div class="col-12 col-md-6">
-        <label class="form-label" for="stopover_contact_phone">{% trans "Téléphone" %}</label>
-        <input class="form-control" type="text" id="stopover_contact_phone" name="stopover_contact_phone">
-      </div>
-      <div class="col-12">
-        <label class="form-label" for="stopover_address_line1">{% trans "Adresse" %}</label>
-        <input class="form-control" type="text" id="stopover_address_line1" name="stopover_address_line1">
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label" for="stopover_postal_code">{% trans "Code postal" %}</label>
-        <input class="form-control" type="text" id="stopover_postal_code" name="stopover_postal_code">
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label" for="stopover_city">{% trans "Ville" %}</label>
-        <input class="form-control" type="text" id="stopover_city" name="stopover_city">
-      </div>
-      <div class="col-12 col-md-4">
-        <label class="form-label" for="stopover_country">{% trans "Pays" %}</label>
-        <input class="form-control" type="text" id="stopover_country" name="stopover_country">
-      </div>
-      <div class="col-12">
-        <label class="form-label" for="stopover_message">{% trans "Message" %}</label>
-        <textarea class="form-control" id="stopover_message" name="stopover_message" rows="2"></textarea>
-      </div>
-    </div>
-    <div class="ui-comp-actions mt-3">
-      <button class="btn btn-primary" type="submit" name="form_action" value="stopover_request" formnovalidate>
-        {% trans "Envoyer la demande d’étude" %}
-      </button>
     </div>
   </section>
   <div id="account-structure-detail-fields">
@@ -405,6 +334,8 @@
     </div>
   </section>
 
+  {% include "scan/includes/public_account_request_documents.html" %}
+
   <section id="first-recipient-section" class="ui-comp-panel">
     <h3 class="ui-comp-title">{% trans "Premier destinataire (optionnel)" %}</h3>
     <p class="scan-help">
@@ -431,7 +362,7 @@
           <option value="">{% trans "Choisir une escale" %}</option>
           {% for destination in destinations %}
             <option value="{{ destination.id }}" data-country="{{ destination.country }}" {% if form_data.first_recipient_destination_id == destination.id|stringformat:'s' %}selected{% endif %}>
-              {{ destination.city }} ({{ destination.iata_code }}){% if destination.country %} - {{ destination.country }}{% endif %}
+              {{ destination.city }}{% if destination.iata_code %} ({{ destination.iata_code }}){% endif %}{% if destination.country %}, {{ destination.country }}{% endif %}
             </option>
           {% endfor %}
         </select>
@@ -529,6 +460,86 @@
     </div>
   </section>
 
-  {% include "scan/includes/public_account_request_documents.html" %}
   </div>
+  <section class="ui-comp-panel" id="other-stopover-panel" hidden>
+    <h3 class="ui-comp-title h5">{% trans "Demande d’étude pour une nouvelle escale" %}</h3>
+    <p class="scan-help">
+      {% trans "Nous ne desservons que les escales présentes dans la liste ci-dessus. Si votre besoin concerne une autre escale, indiquez les informations ci-dessous : ASF étudiera la faisabilité." %}
+    </p>
+    <input type="hidden" id="stopover_requester_type" name="stopover_requester_type">
+    <input type="hidden" id="stopover_contact_email" name="stopover_contact_email">
+    <div class="row g-3 mt-2">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_requested_stopovers">{% trans "Escale(s) souhaitée(s)" %}</label>
+        <input class="form-control" type="text" id="stopover_requested_stopovers" name="stopover_requested_stopovers">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_structure_name">{% trans "Nom de la structure" %}</label>
+        <input class="form-control" type="text" id="stopover_structure_name" name="stopover_structure_name">
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="stopover_legal_form">{% trans "Forme juridique" %}</label>
+        <select class="form-select ui-select--md" id="stopover_legal_form" name="stopover_legal_form">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in recipient_legal_form_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="stopover_beneficiary_count">{% trans "Nombre de bénéficiaires" %}</label>
+        <input class="form-control" type="number" min="0" step="1" id="stopover_beneficiary_count" name="stopover_beneficiary_count">
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="stopover_contact_title">{% trans "Titre" %}</label>
+        <select class="form-select ui-select--md" id="stopover_contact_title" name="stopover_contact_title">
+          <option value="">{% trans "Choisir..." %}</option>
+          {% for value, label in association_contact_title_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_contact_first_name">{% trans "Prénom" %}</label>
+        <input class="form-control" type="text" id="stopover_contact_first_name" name="stopover_contact_first_name">
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="stopover_contact_last_name">{% trans "NOM" %}</label>
+        <input class="form-control" type="text" id="stopover_contact_last_name" name="stopover_contact_last_name">
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="stopover_contact_phone">{% trans "Téléphone" %}</label>
+        <input class="form-control" type="text" id="stopover_contact_phone" name="stopover_contact_phone">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="stopover_address_line1">{% trans "Adresse" %}</label>
+        <input class="form-control" type="text" id="stopover_address_line1" name="stopover_address_line1">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="stopover_address_line2">{% trans "Complément adresse" %}</label>
+        <input class="form-control" type="text" id="stopover_address_line2" name="stopover_address_line2">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_postal_code">{% trans "Code postal" %}</label>
+        <input class="form-control" type="text" id="stopover_postal_code" name="stopover_postal_code">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_city">{% trans "Ville" %}</label>
+        <input class="form-control" type="text" id="stopover_city" name="stopover_city">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="stopover_country">{% trans "Pays" %}</label>
+        <input class="form-control" type="text" id="stopover_country" name="stopover_country">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="stopover_message">{% trans "Message" %}</label>
+        <textarea class="form-control" id="stopover_message" name="stopover_message" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="ui-comp-actions mt-3" id="other-stopover-study-actions">
+      <button class="btn btn-primary" type="submit" name="form_action" value="stopover_request" formnovalidate>
+        {% trans "Envoyer la demande d’étude" %}
+      </button>
+    </div>
+  </section>
 </section>

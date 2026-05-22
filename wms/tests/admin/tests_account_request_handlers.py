@@ -282,6 +282,16 @@ class AccountRequestFormHandlerTests(TestCase):
         self.assertIn("Téléphone de la structure requis.", shipper_response.context["errors"])
         self.assertIn("Téléphone de la structure requis.", recipient_response.context["errors"])
 
+    def test_shipper_form_requires_structure_location_fields(self):
+        response = self.client.post(
+            self.url,
+            self._payload(city="", country=""),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Ville requise.", response.context["errors"])
+        self.assertIn("Pays requis.", response.context["errors"])
+
     def test_form_rejects_existing_pending_request_for_same_email(self):
         PublicAccountRequest.objects.create(
             association_name="Association Existing",
@@ -700,6 +710,8 @@ class AccountRequestFormHandlerTests(TestCase):
             first_recipient_email="aicha.traore@example.org",
             first_recipient_phone="+22370000000",
             first_recipient_address_line1="1 Avenue Hopital",
+            first_recipient_city="Bamako",
+            first_recipient_country="Mali",
             first_recipient_legal_form="association",
             first_recipient_beneficiary_count="120",
         )
@@ -753,6 +765,8 @@ class AccountRequestFormHandlerTests(TestCase):
                 first_recipient_email="",
                 first_recipient_phone="",
                 first_recipient_address_line1="",
+                first_recipient_city="",
+                first_recipient_country="",
                 first_recipient_legal_form="",
                 first_recipient_beneficiary_count="",
             ),
@@ -769,6 +783,8 @@ class AccountRequestFormHandlerTests(TestCase):
             "Premier destinataire: nombre de bénéficiaires requis.",
             response.context["errors"],
         )
+        self.assertIn("Premier destinataire: ville requise.", response.context["errors"])
+        self.assertIn("Premier destinataire: pays requis.", response.context["errors"])
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=300)
     def test_form_releases_throttle_slot_when_request_creation_fails(self):

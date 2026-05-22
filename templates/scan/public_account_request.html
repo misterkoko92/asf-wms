@@ -18,9 +18,18 @@
   <style>
     .ui-comp-form .form-control:not(:disabled):not([readonly]),
     .ui-comp-form .form-select:not(:disabled),
-    .ui-comp-form textarea.form-control:not(:disabled):not([readonly]),
-    .ui-comp-form .form-check-input:not(:disabled) {
+    .ui-comp-form textarea.form-control:not(:disabled):not([readonly]) {
       background-color: #fff;
+    }
+    .ui-comp-form .form-check-input:not(:checked):not(:disabled) {
+      background-color: #fff;
+    }
+    .ui-comp-form .form-check-input:checked {
+      background-color: var(--bs-primary);
+      border-color: var(--bs-primary);
+    }
+    .ui-comp-form label {
+      font-family: var(--wms-font-body, "Nunito Sans", sans-serif);
     }
   </style>
 </head>
@@ -128,6 +137,7 @@
         document.querySelectorAll('[name="shipper_stopover_destination_ids"]')
       );
       const otherStopoverPanel = document.getElementById("other-stopover-panel");
+      const otherStopoverStudyActions = document.getElementById("other-stopover-study-actions");
       const stopoverRequesterTypeInput = document.getElementById("stopover_requester_type");
       const stopoverContactEmailInput = document.getElementById("stopover_contact_email");
       const recipientStructureFields = document.getElementById("recipient-structure-fields");
@@ -152,6 +162,8 @@
         "first_recipient_email",
         "first_recipient_phone",
         "first_recipient_address_line1",
+        "first_recipient_city",
+        "first_recipient_country",
         "first_recipient_legal_form",
         "first_recipient_beneficiary_count",
       ].map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
@@ -209,6 +221,31 @@
         });
       };
 
+      const refreshRequiredMarkers = () => {
+        document
+          .querySelectorAll('.ui-field-required-marker[data-required-marker="dynamic"]')
+          .forEach((marker) => marker.remove());
+        document
+          .querySelectorAll(".ui-comp-form input[required], .ui-comp-form select[required], .ui-comp-form textarea[required]")
+          .forEach((field) => {
+            if (!field.id || field.disabled || field.type === "hidden" || field.closest("[hidden]")) {
+              return;
+            }
+            const label = Array.from(document.querySelectorAll("label[for]")).find(
+              (candidate) => candidate.htmlFor === field.id
+            );
+            if (!label || label.querySelector(".ui-field-required-marker")) {
+              return;
+            }
+            const marker = document.createElement("span");
+            marker.className = "ui-field-required-marker";
+            marker.setAttribute("aria-hidden", "true");
+            marker.dataset.requiredMarker = "dynamic";
+            marker.textContent = "*";
+            label.appendChild(marker);
+          });
+      };
+
       const setFirstRecipientRequired = (required) => {
         firstRecipientRequiredFields.forEach((field) => {
           field.required = required;
@@ -228,6 +265,8 @@
         if (associationNameInput) associationNameInput.required = required;
         if (phoneInput) phoneInput.required = required;
         if (line1Input) line1Input.required = required;
+        if (cityInput) cityInput.required = required;
+        if (countryInput) countryInput.required = required;
       };
 
       const setRecipientStructureLocationRequired = (required) => {
@@ -324,14 +363,18 @@
         );
         const shipperOnlyOtherStopoverSelected = shipperOtherSelected && !shipperServedStopoverSelected;
         const showOtherStopoverPanel = destinationIsOther || shipperOtherSelected;
+        const hideAccountRequestFields = destinationIsOther || shipperOnlyOtherStopoverSelected;
         if (otherStopoverPanel) {
           otherStopoverPanel.hidden = !showOtherStopoverPanel;
         }
+        if (otherStopoverStudyActions) {
+          otherStopoverStudyActions.hidden = !showOtherStopoverPanel || !hideAccountRequestFields;
+        }
         if (accountStructureDetailFields) {
-          accountStructureDetailFields.hidden = destinationIsOther;
+          accountStructureDetailFields.hidden = hideAccountRequestFields;
         }
         if (accountRequestSubmitActions) {
-          accountRequestSubmitActions.hidden = destinationIsOther;
+          accountRequestSubmitActions.hidden = hideAccountRequestFields;
         }
         if (recipientStructureFields) {
           recipientStructureFields.hidden = !isRecipient || destinationIsOther;
@@ -352,11 +395,11 @@
           userSection.hidden = !isUser;
         }
         if (firstRecipientSection) {
-          firstRecipientSection.hidden = !isShipper || shipperOnlyOtherStopoverSelected;
+          firstRecipientSection.hidden = !isShipper || hideAccountRequestFields;
         }
         const firstRecipientEnabled = Boolean(
           isShipper
-          && !shipperOnlyOtherStopoverSelected
+          && !hideAccountRequestFields
           && firstRecipientEnabledInput
           && firstRecipientEnabledInput.checked
         );
@@ -364,17 +407,18 @@
           firstRecipientDetails.hidden = !firstRecipientEnabled;
         }
 
-        setAssociationRequired(isAssociation && !destinationIsOther);
-        setRecipientStructureLocationRequired(isRecipient && !destinationIsOther);
-        setRecipientRequired(isRecipient && !destinationIsOther);
-        setShipperContactRequired(isShipper);
-        setPreparationContactRequired(isShipper && !useAdminForPreparation);
+        setAssociationRequired(isAssociation && !hideAccountRequestFields);
+        setRecipientStructureLocationRequired(isRecipient && !hideAccountRequestFields);
+        setRecipientRequired(isRecipient && !hideAccountRequestFields);
+        setShipperContactRequired(isShipper && !hideAccountRequestFields);
+        setPreparationContactRequired(isShipper && !hideAccountRequestFields && !useAdminForPreparation);
         setUserRequired(isUser);
         setFirstRecipientRequired(firstRecipientEnabled);
         setFirstRecipientDisabled(!firstRecipientEnabled);
         setFieldsRequired(otherStopoverRequiredFields, showOtherStopoverPanel);
         syncStopoverHiddenFields();
         syncRecipientContactFromStructure();
+        refreshRequiredMarkers();
       };
 
       const applyDestinationCountry = (select, targetInput) => {
