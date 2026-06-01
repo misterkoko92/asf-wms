@@ -70,6 +70,7 @@ from wms.models import (
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
     ShipmentWorkflowProjection,
+    StopoverFeasibilityRequest,
     Warehouse,
 )
 from wms.portal_access import ACTIVE_PORTAL_SCOPE_SESSION_KEY, PORTAL_SCOPE_SOURCE_GRANT
@@ -198,6 +199,35 @@ class PortalBaseTestCase(TestCase):
             city=city,
             country=country,
             is_delivery_contact=True,
+            is_active=True,
+        )
+
+    @classmethod
+    def _create_portal_operational_contact(
+        cls,
+        profile,
+        *,
+        is_administrative=False,
+        is_shipping=False,
+        email="ops@example.org",
+        phone="+33123456789",
+    ):
+        return AssociationPortalContact.objects.create(
+            profile=profile,
+            title="mrs",
+            first_name="Ada",
+            last_name="LOVELACE",
+            email=email,
+            phone=phone,
+            emails=email,
+            phones=phone,
+            address_line1="1 Rue Contact",
+            address_line2="",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+            is_administrative=is_administrative,
+            is_shipping=is_shipping,
             is_active=True,
         )
 
@@ -1025,12 +1055,25 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
         shipment_recipient.save(update_fields=["validation_status"])
         cls.destination = cls.delivery_recipient.destination
+        cls._create_portal_operational_contact(
+            cls.profile,
+            is_administrative=True,
+            email="orders-admin@example.org",
+            phone="+33101010101",
+        )
+        cls._create_portal_operational_contact(
+            cls.profile,
+            is_shipping=True,
+            email="orders-prep@example.org",
+            phone="+33202020202",
+        )
         cls.product = Product.objects.create(name="Produit Portail")
 
     def setUp(self):
         self.client.force_login(self.user)
         self.dashboard_url = reverse("portal:portal_dashboard")
         self.order_create_url = reverse("portal:portal_order_create")
+        self.account_url = reverse("portal:portal_account")
         self.product_options = [
             {"id": self.product.id, "name": self.product.name, "available_stock": 5}
         ]
@@ -1195,14 +1238,15 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(response.context["dashboard_kpis"], payload["dashboard_kpis"])
         self.assertEqual(len(response.context["orders"]), len(payload["orders"]))
 
-    def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
-        AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()
+    def test_portal_dashboard_shows_readiness_checklist_when_validated_recipient_missing(self):
+        ShipmentShipperRecipientLink.objects.filter(
+            shipper__organization=self.profile.contact
+        ).delete()
+
         response = self.client.get(self.dashboard_url)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            response.url,
-            f"{reverse('portal:portal_recipients')}?blocked=missing_delivery_contact",
-        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucun destinataire validé lié à votre structure")
 
     def test_portal_faq_renders_for_shipper_scope(self):
         response = self.client.get(reverse("portal:portal_faq"))
@@ -1237,6 +1281,50 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         response = self.client.get(self.order_create_url)
 
         self.assertEqual(response.status_code, 403)
+
+    def test_portal_order_create_redirects_when_admin_contact_incomplete(self):
+        AssociationPortalContact.objects.filter(
+            profile=self.profile,
+            is_administrative=True,
+        ).update(email="", emails="")
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{self.account_url}?blocked=operational_readiness")
+
+    def test_portal_order_create_redirects_when_preparation_contact_incomplete(self):
+        AssociationPortalContact.objects.filter(
+            profile=self.profile,
+            is_shipping=True,
+        ).update(phone="", phones="")
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{self.account_url}?blocked=operational_readiness")
+
+    def test_portal_order_create_redirects_when_no_validated_linked_recipient(self):
+        ShipmentRecipientOrganization.objects.filter(
+            organization=self.delivery_recipient.synced_contact,
+            destination=self.destination,
+        ).update(validation_status=ShipmentValidationStatus.PENDING)
+
+        response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{self.account_url}?blocked=operational_readiness")
+
+    def test_portal_account_shows_readiness_checklist_when_incomplete(self):
+        AssociationPortalContact.objects.filter(
+            profile=self.profile,
+            is_shipping=True,
+        ).update(phone="", phones="")
+
+        response = self.client.get(self.account_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Contact préparation/logistique incomplet")
 
     def test_portal_dashboard_renders_recipient_scope_home_for_active_grant(self):
         recipient_user = self._create_portal_user(
@@ -2726,6 +2814,31 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         recipients = list(response.context["recipients"])
         self.assertEqual(recipients, [active])
 
+    def test_portal_recipients_get_lists_only_served_destinations(self):
+        inactive_correspondent = Contact.objects.create(
+            name="Correspondant inactif",
+            contact_type=ContactType.PERSON,
+            is_active=False,
+        )
+        inactive_correspondent_destination = Destination.objects.create(
+            city="Ghost",
+            iata_code="GST",
+            country="France",
+            correspondent_contact=inactive_correspondent,
+            is_active=True,
+        )
+        inactive_destination = self._create_destination(city="Inactive", country="France")
+        inactive_destination.is_active = False
+        inactive_destination.save(update_fields=["is_active"])
+
+        response = self.client.get(self.recipients_url)
+
+        self.assertEqual(response.status_code, 200)
+        destination_ids = {destination.id for destination in response.context["destinations"]}
+        self.assertIn(self.destination.id, destination_ids)
+        self.assertNotIn(inactive_correspondent_destination.id, destination_ids)
+        self.assertNotIn(inactive_destination.id, destination_ids)
+
     def test_portal_recipients_get_shows_recipient_validation_status(self):
         pending_recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
@@ -3530,6 +3643,31 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertContains(home_response, "45 Rue Scope")
         self.assertContains(home_response, "Profil modifie par le destinataire")
 
+    def test_portal_recipient_profile_post_requires_reception_contact_fields(self):
+        recipient = self._create_synced_recipient(structure_name="Recipient Scope Required")
+        recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
+
+        response = self.client.post(
+            self._recipient_profile_url(),
+            self._build_recipient_profile_payload(
+                recipient_organization,
+                contact_title="",
+                contact_last_name="",
+                contact_first_name="",
+                emails="",
+                phones="",
+                city="",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Titre du contact requis.", response.context["errors"])
+        self.assertIn("Nom du contact requis.", response.context["errors"])
+        self.assertIn("Prénom du contact requis.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un email de réception.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un téléphone de réception.", response.context["errors"])
+        self.assertIn("Ville requise.", response.context["errors"])
+
     def test_portal_recipient_profile_post_uses_runtime_recipient_profile_use_case(self):
         recipient = self._create_synced_recipient(structure_name="Recipient Scope Profile")
         recipient_organization, _recipient_user = self._activate_recipient_scope(recipient)
@@ -3753,6 +3891,87 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertIn("Nombre de bénéficiaires requis.", response.context["errors"])
         self.assertIn("Preuve d'enregistrement requise.", response.context["errors"])
         self.assertIn("Statut requis.", response.context["errors"])
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+
+    def test_portal_recipients_post_requires_reception_contact_and_location_fields(self):
+        destination_without_country = self._create_destination(city="Libreville", country="")
+        payload = self._build_recipient_payload(
+            destination_id=str(destination_without_country.id),
+            contact_title="",
+            contact_last_name="",
+            contact_first_name="",
+            emails="",
+            phones="",
+            city="",
+            country="",
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Titre du contact requis.", response.context["errors"])
+        self.assertIn("Nom du contact requis.", response.context["errors"])
+        self.assertIn("Prénom du contact requis.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un email de réception.", response.context["errors"])
+        self.assertIn("Ajoutez au moins un téléphone de réception.", response.context["errors"])
+        self.assertIn("Ville requise.", response.context["errors"])
+        self.assertIn("Pays requis.", response.context["errors"])
+        self.assertEqual(AssociationRecipient.objects.count(), 0)
+
+    def test_portal_recipients_post_defaults_country_from_selected_destination(self):
+        senegal_destination = self._create_destination(city="Dakar", country="Sénégal")
+        payload = self._build_recipient_payload(
+            destination_id=str(senegal_destination.id),
+            country="",
+            legal_form="association",
+            beneficiary_count="120",
+        )
+        payload.update(self._build_recipient_documents())
+
+        response = self.client.post(self.recipients_url, payload)
+
+        self.assertEqual(response.status_code, 302)
+        recipient = AssociationRecipient.objects.get()
+        self.assertEqual(recipient.destination, senegal_destination)
+        self.assertEqual(recipient.country, "Sénégal")
+
+    @mock.patch("wms.stopover_request_handlers.send_or_enqueue_email_safe", return_value=True)
+    def test_portal_recipients_other_stopover_creates_study_request_only(self, _send_mock):
+        response = self.client.post(
+            self.recipients_url,
+            {
+                "action": "request_stopover",
+                "requested_stopovers": "Goma",
+                "structure_name": "Structure hors escale",
+                "legal_form": "association",
+                "beneficiary_count": "75",
+                "contact_title": "mrs",
+                "contact_last_name": "Diallo",
+                "contact_first_name": "Awa",
+                "emails": "awa@example.org",
+                "phones": "+243810000000",
+                "address_line1": "12 Rue Demande",
+                "address_line2": "",
+                "postal_code": "",
+                "city": "Goma",
+                "country": "République démocratique du Congo",
+                "notes": "Besoin récurrent.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipients_url)
+        self.assertEqual(StopoverFeasibilityRequest.objects.count(), 1)
+        request = StopoverFeasibilityRequest.objects.get()
+        self.assertEqual(request.requester_type, "shipper")
+        self.assertEqual(request.requested_stopovers, "Goma")
+        self.assertEqual(request.structure_name, "Structure hors escale")
+        self.assertEqual(request.contact_email, "awa@example.org")
+        self.assertEqual(request.contact_phone, "+243810000000")
+        self.assertEqual(request.source, "portal_recipient")
         self.assertEqual(AssociationRecipient.objects.count(), 0)
 
     def test_portal_recipients_post_rejects_invalid_country_choice_and_keeps_form_values(self):
@@ -4400,6 +4619,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 "contact_1_first_name": "Claire",
                 "contact_1_phone": "0600000001",
                 "contact_1_email": "billing@example.com",
+                "contact_1_is_shipping": "1",
                 "contact_1_is_billing": "1",
             },
         )
@@ -4421,8 +4641,12 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         contacts = list(self.profile.portal_contacts.order_by("position"))
         self.assertEqual(len(contacts), 2)
         self.assertEqual(contacts[0].email, "admin@example.com")
+        self.assertEqual(contacts[0].emails, "admin@example.com")
+        self.assertEqual(contacts[0].phones, "0600000000")
+        self.assertEqual(contacts[0].address_line1, "10 Rue Update")
         self.assertTrue(contacts[0].is_administrative)
         self.assertEqual(contacts[1].email, "billing@example.com")
+        self.assertTrue(contacts[1].is_shipping)
         self.assertTrue(contacts[1].is_billing)
 
     def test_portal_account_updates_profile_via_shared_use_case(self):
@@ -4449,6 +4673,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                     "contact_0_phone": "0600000000",
                     "contact_0_email": "admin@example.com",
                     "contact_0_is_administrative": "1",
+                    "contact_0_is_shipping": "1",
                 },
             )
 
@@ -4503,6 +4728,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 "contact_1_first_name": "Claire",
                 "contact_1_phone": "0600000099",
                 "contact_1_email": "billing@example.com",
+                "contact_1_is_shipping": "1",
                 "contact_1_is_billing": "1",
             },
         )
@@ -4513,6 +4739,36 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             [contact.id for contact in contacts], [first_contact.id, second_contact.id]
         )
         self.assertEqual(contacts[1].phone, "0600000099")
+
+    def test_portal_account_update_profile_requires_admin_and_preparation_contacts(self):
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "update_profile",
+                "association_name": "Association X",
+                "association_email": "x@example.com",
+                "association_phone": "0601020304",
+                "address_line1": "10 Rue Update",
+                "address_line2": "",
+                "postal_code": "75011",
+                "city": "Paris",
+                "country": "France",
+                "contact_count": "1",
+                "contact_0_title": "mr",
+                "contact_0_last_name": "Durand",
+                "contact_0_first_name": "Marc",
+                "contact_0_phone": "0600000000",
+                "contact_0_email": "admin@example.com",
+                "contact_0_is_administrative": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Ajoutez au moins un contact préparation/logistique.",
+            response.context["account_form_errors"],
+        )
+        self.assertEqual(AssociationPortalContact.objects.count(), 0)
 
     def test_portal_account_update_profile_requires_contact_type(self):
         response = self.client.post(

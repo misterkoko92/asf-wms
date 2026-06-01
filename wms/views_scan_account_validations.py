@@ -16,6 +16,10 @@ from .admin_contacts_crud import (
     build_admin_contacts_forms,
     handle_contact_submission,
 )
+from .application.portal.destination_options import (
+    format_destination_label,
+    served_destination_queryset,
+)
 from .emailing import enqueue_email_safe
 from .forms_scan_account_validations import ScanAccountValidationReviewForm
 from .models import (
@@ -43,6 +47,23 @@ TEMPLATE_CONTACT_VALIDATIONS_HUB = "scan/contact_validations_hub.html"
 TEMPLATE_RECIPIENT_VALIDATION_LIST = "scan/recipient_validation_list.html"
 TEMPLATE_RECIPIENT_VALIDATION_DETAIL = "scan/recipient_validation_detail.html"
 RECIPIENT_VALIDATION_ALLOWED_BUSINESS_TYPES = ("shipper", "recipient")
+CONTACT_PAYLOAD_ROLE_LABELS = (
+    ("admin", "Contact administratif"),
+    ("preparation", "Contact préparation/logistique"),
+    ("recipient_reception", "Contact réception"),
+)
+CONTACT_PAYLOAD_VALUE_FIELDS = (
+    "title",
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "address_line1",
+    "address_line2",
+    "postal_code",
+    "city",
+    "country",
+)
 
 
 def _account_validation_list_queryset():
@@ -78,6 +99,90 @@ def _recipient_validation_list_queryset():
         )
         .order_by("destination__city", "organization__name", "id")
     )
+
+
+def _clean_payload_value(value) -> str:
+    return str(value or "").strip()
+
+
+def _payload_has_values(payload) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    return any(_clean_payload_value(payload.get(field)) for field in CONTACT_PAYLOAD_VALUE_FIELDS)
+
+
+def _build_contact_payload_summary(*, label, payload):
+    first_name = _clean_payload_value(payload.get("first_name"))
+    last_name = _clean_payload_value(payload.get("last_name"))
+    title = _clean_payload_value(payload.get("title"))
+    display_name = " ".join(part for part in [title, first_name, last_name] if part)
+    city_line = " ".join(
+        part
+        for part in [
+            _clean_payload_value(payload.get("postal_code")),
+            _clean_payload_value(payload.get("city")),
+            _clean_payload_value(payload.get("country")),
+        ]
+        if part
+    )
+    address_lines = [
+        _clean_payload_value(payload.get("address_line1")),
+        _clean_payload_value(payload.get("address_line2")),
+        city_line,
+    ]
+    return {
+        "label": label,
+        "display_name": display_name,
+        "email": _clean_payload_value(payload.get("email")),
+        "phone": _clean_payload_value(payload.get("phone")),
+        "address_lines": [line for line in address_lines if line],
+    }
+
+
+def _build_contact_payload_summaries(account_request):
+    payloads = account_request.contact_payloads
+    if not isinstance(payloads, dict):
+        return []
+    summaries = []
+    for role, label in CONTACT_PAYLOAD_ROLE_LABELS:
+        payload = payloads.get(role)
+        if not _payload_has_values(payload):
+            continue
+        summaries.append(_build_contact_payload_summary(label=label, payload=payload))
+    return summaries
+
+
+def _clean_stopover_indications(account_request):
+    indications = account_request.shipper_stopover_indications
+    if not isinstance(indications, list):
+        return []
+    return [
+        {
+            "destination_id": _clean_payload_value(indication.get("destination_id")),
+            "label": _clean_payload_value(indication.get("label")),
+        }
+        for indication in indications
+        if isinstance(indication, dict) and _clean_payload_value(indication.get("label"))
+    ]
+
+
+def _account_request_matches_stopover(account_request, stopover_id):
+    if not stopover_id:
+        return True
+    return any(
+        indication["destination_id"] == stopover_id
+        for indication in _clean_stopover_indications(account_request)
+    )
+
+
+def _account_validation_stopover_options():
+    return [
+        {
+            "id": str(destination.id),
+            "label": format_destination_label(destination),
+        }
+        for destination in served_destination_queryset()
+    ]
 
 
 def _resolve_recipient_validation_runtime(*, destination_id, saved_contact, fallback_runtime_id):
@@ -119,12 +224,26 @@ def scan_contact_validations_hub(request):
 @scan_account_validator_required
 @require_http_methods(["GET"])
 def scan_account_validation_list(request):
+    selected_stopover_id = _clean_payload_value(request.GET.get("stopover_id"))
+    account_requests = list(_account_validation_list_queryset())
+    for account_request in account_requests:
+        account_request.shipper_stopover_indication_summaries = _clean_stopover_indications(
+            account_request
+        )
+    if selected_stopover_id:
+        account_requests = [
+            account_request
+            for account_request in account_requests
+            if _account_request_matches_stopover(account_request, selected_stopover_id)
+        ]
     return render(
         request,
         TEMPLATE_ACCOUNT_VALIDATION_LIST,
         {
             "active": ACTIVE_SCAN_ACCOUNT_VALIDATIONS,
-            "account_requests": list(_account_validation_list_queryset()),
+            "account_requests": account_requests,
+            "selected_stopover_id": selected_stopover_id,
+            "stopover_options": _account_validation_stopover_options(),
         },
     )
 
@@ -189,7 +308,9 @@ def scan_account_validation_detail(request, account_request_id):
         {
             "active": ACTIVE_SCAN_ACCOUNT_VALIDATIONS,
             "account_request": account_request,
+            "contact_payload_summaries": _build_contact_payload_summaries(account_request),
             "form": form,
+            "shipper_stopover_indications": _clean_stopover_indications(account_request),
         },
     )
 

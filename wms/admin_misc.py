@@ -130,6 +130,30 @@ class PortalAccessGrantAdmin(admin.ModelAdmin):
         return tuple(readonly_fields)
 
 
+@admin.register(models.StopoverFeasibilityRequest)
+class StopoverFeasibilityRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "structure_name",
+        "requester_type",
+        "requested_stopovers",
+        "contact_email",
+        "contact_phone",
+        "status",
+        "created_at",
+    )
+    list_filter = ("requester_type", "status", "country", "created_at")
+    search_fields = (
+        "structure_name",
+        "requested_stopovers",
+        "contact_last_name",
+        "contact_first_name",
+        "contact_email",
+        "city",
+        "country",
+    )
+    readonly_fields = ("created_at",)
+
+
 @admin.register(models.ShipmentRecipientOrganization)
 class ShipmentRecipientOrganizationAdmin(admin.ModelAdmin):
     list_display = (

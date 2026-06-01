@@ -18,6 +18,7 @@ from wms.models import (
     Product,
     ProductLot,
     ShipmentRecipientOrganization,
+    ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
     Warehouse,
 )
@@ -39,6 +40,23 @@ class PortalOrderInboundFlowTests(PortalBaseTestCase):
         )
         shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
         shipment_recipient.save(update_fields=["validation_status"])
+        cls._create_portal_operational_contact(
+            cls.profile,
+            is_administrative=True,
+            email="inbound-admin@example.org",
+            phone="+33101010101",
+        )
+        cls._create_portal_operational_contact(
+            cls.profile,
+            is_shipping=True,
+            email="inbound-prep@example.org",
+            phone="+33202020202",
+        )
+        ShipmentShipperRecipientLink.objects.get_or_create(
+            shipper=cls.profile.contact.shipment_shippers.get(),
+            recipient_organization=shipment_recipient,
+            defaults={"is_active": True},
+        )
 
     def setUp(self):
         self.client.force_login(self.user)

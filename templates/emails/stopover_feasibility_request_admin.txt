@@ -1,0 +1,25 @@
+Demande nouvelle escale
+
+Type de demandeur : {{ request.get_requester_type_display }}
+Structure : {{ request.structure_name }}
+Forme juridique : {{ request.get_legal_form_display }}
+Nombre de bénéficiaires : {{ request.beneficiary_count }}
+
+Escale(s) demandée(s) :
+{{ request.requested_stopovers }}
+
+Contact :
+{{ request.get_contact_title_display }} {{ request.contact_first_name }} {{ request.contact_last_name }}
+Email : {{ request.contact_email }}
+Téléphone : {{ request.contact_phone }}
+
+Adresse :
+{{ request.address_line1 }}
+{% if request.address_line2 %}{{ request.address_line2 }}
+{% endif %}{% if request.postal_code %}{{ request.postal_code }} {% endif %}{{ request.city }}
+{{ request.country }}
+
+{% if request.message %}Message :
+{{ request.message }}
+{% endif %}
+Source : {{ request.source|default:"-" }}

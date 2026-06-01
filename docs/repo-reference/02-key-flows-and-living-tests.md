@@ -252,7 +252,10 @@ Read this flow when touching:
 ### Critical Contracts
 
 - Public account requests distinguish `shipper`, `recipient`, and `user`; legacy `association` remains shipper-equivalent during approval.
+- Account onboarding accepts only served stopovers in nominal account/recipient creation. `Autre escale` creates a traceable study request instead of operational records.
+- Shipper onboarding and account maintenance require complete administrative and preparation/logistics contacts; recipient onboarding and recipient maintenance require complete reception contact and structure compliance data.
 - Public account request review is scan-first via `/scan/contacts/validations/` and `/scan/account-validations/`; Django admin is fallback only.
+- Scan account review displays submitted operational contact payloads while remaining tolerant of legacy pending requests without payloads.
 - Recipient public account requests choose exactly one delivery stop because recipient portal access is scoped to one `ShipmentRecipientOrganization`.
 - Recipient approval provisions the recipient organization, minimal active recipient contact, `PortalAccessGrant(recipient_admin)`, and default ASF shipper binding together.
 - Shipper public account requests can carry one optional initial delivery recipient payload and recipient structure documents; approval provisions it as a validated shipper-linked delivery contact so the first order can start once the shipper account is validated.
@@ -269,6 +272,8 @@ Read this flow when touching:
 - Portal order creation keeps an active per-user/association draft for in-progress input;
   draft autosave must not trigger scan queues, email notifications, stock reservation, or
   order creation before final submit.
+- Portal order creation requires shipper operational readiness: validated active shipper, complete administrative contact, complete preparation/logistics contact, and at least one active validated linked recipient organization.
+- `/portal/account/`, `/portal/recipients/`, and the shipper dashboard remain accessible recovery surfaces when readiness is incomplete.
 - Scan/admin recipient shared-field edits route through the same application use-case layer.
 - Non-shipment contact history categories stay in legacy contact CRUD and do not create shipment-party runtime rows by themselves.
 - `rebuild_recipient_party_graph --dry-run|--apply` is the deterministic repair path for explicit shipper grants or legacy projection rebuilds.
@@ -285,6 +290,9 @@ Read this flow when touching:
 - `wms/tests/portal/tests_portal_access_grants.py`
 - `wms/tests/admin/tests_account_request_handlers.py`
 - `wms/tests/portal/tests_portal_role_review_gate.py`
+- `wms/tests/portal/tests_portal_onboarding_readiness.py`
+- `wms/tests/portal/tests_stopover_feasibility_requests.py`
+- `wms/tests/emailing/tests_stopover_feasibility_requests.py`
 - `wms/tests/portal/tests_portal_order_inbound_flow.py`
 - `wms/tests/core/tests_parties_destination_scope.py`
 - `wms/tests/core/tests_parties_use_cases.py`
@@ -293,6 +301,8 @@ Read this flow when touching:
 - `wms/tests/scan/tests_admin_contacts_contact_service.py`
 - `wms/tests/management/tests_management_rebuild_recipient_party_graph.py`
 - `wms/tests/views/tests_portal_bootstrap_ui.py`
+- `wms/tests/views/tests_views_public_account.py`
+- `wms/tests/views/tests_views_scan_account_validations.py`
 - `wms/tests/views/tests_views_portal.py`
 - `wms/tests/views/tests_views_scan_admin.py`
 - `wms/tests/views/tests_views_scan_admin_shipment_parties.py`

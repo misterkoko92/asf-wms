@@ -15,6 +15,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from contacts.models import RecipientLegalForm
 from wms.application.parties.use_cases import (
     update_recipient_shared_profile,
     update_runtime_recipient_profile,
@@ -26,7 +27,9 @@ from wms.application.portal.dashboard_queries import (
     build_recipient_scope_home_payload,
     build_runtime_recipient_profile_payload,
 )
+from wms.application.portal.destination_options import served_destination_queryset
 from wms.application.portal.order_use_cases import submit_portal_order
+from wms.application.portal.readiness import build_shipper_readiness
 from wms.application.portal.recipient_resolution import (
     PORTAL_DEFAULT_COUNTRY,
     PORTAL_RECIPIENT_SELF,
@@ -35,6 +38,7 @@ from wms.application.portal.recipient_resolution import (
 from wms.application.scan.dashboard_queries import build_scan_dashboard_payload
 from wms.carton_status_events import set_carton_status
 from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
+from wms.country_choices import is_known_country
 from wms.document_scan_queue import (
     DOCUMENT_SCAN_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
     DOCUMENT_SCAN_QUEUE_EVENT_TYPE,
@@ -635,6 +639,68 @@ def _validate_multi_emails(raw_value):
         except DjangoValidationError:
             invalid_values.append(value)
     return values, invalid_values
+
+
+def _portal_destination_option(destination):
+    return {
+        "id": destination.id,
+        "label": str(destination),
+        "country": destination.country or "",
+        "iata_code": destination.iata_code or "",
+    }
+
+
+def _validate_portal_recipient_mutation_payload(payload, destination):
+    field_errors = {}
+    valid_titles = {value for value, _label in AssociationContactTitle.choices}
+    valid_legal_forms = {value for value, _label in RecipientLegalForm.choices}
+
+    contact_title = (payload.get("contact_title") or "").strip()
+    if not contact_title:
+        field_errors["contact_title"] = ["Titre du contact requis."]
+    elif contact_title not in valid_titles:
+        field_errors["contact_title"] = ["Titre de contact invalide."]
+
+    if not (payload.get("contact_last_name") or "").strip():
+        field_errors["contact_last_name"] = ["Nom du contact requis."]
+    if not (payload.get("contact_first_name") or "").strip():
+        field_errors["contact_first_name"] = ["Prénom du contact requis."]
+
+    legal_form = (payload.get("legal_form") or "").strip()
+    if not legal_form:
+        field_errors["legal_form"] = ["Forme juridique requise."]
+    elif legal_form not in valid_legal_forms:
+        field_errors["legal_form"] = ["Forme juridique invalide."]
+    if payload.get("beneficiary_count") is None:
+        field_errors["beneficiary_count"] = ["Nombre de bénéficiaires requis."]
+
+    email_values, invalid_email_values = _validate_multi_emails(payload.get("emails", ""))
+    if not email_values:
+        field_errors["emails"] = ["Ajoutez au moins un email de réception."]
+    elif invalid_email_values:
+        field_errors["emails"] = [f"Emails invalides: {', '.join(invalid_email_values)}."]
+
+    phone_values = _split_multi_values(payload.get("phones", ""))
+    if not phone_values:
+        field_errors["phones"] = ["Ajoutez au moins un téléphone de réception."]
+
+    if not (payload.get("address_line1") or "").strip():
+        field_errors["address_line1"] = ["Adresse requise."]
+    if not (payload.get("city") or "").strip():
+        field_errors["city"] = ["Ville requise."]
+
+    country = (payload.get("country") or "").strip()
+    if not country and destination is not None:
+        country = (destination.country or "").strip()
+        payload["country"] = country
+    if not country:
+        field_errors["country"] = ["Pays requis."]
+    elif not is_known_country(country):
+        field_errors["country"] = ["Pays invalide."]
+    else:
+        payload["country"] = country
+
+    return field_errors
 
 
 def _portal_recipient_payload(validated_data, destination):
@@ -2164,6 +2230,20 @@ class UiPortalOrdersView(APIView):
 
     def post(self, request):
         profile = get_association_profile(request.user)
+        shipper_readiness = build_shipper_readiness(profile)
+        if not shipper_readiness.is_ready:
+            missing_requirements = [
+                {"code": requirement.code, "label": requirement.label}
+                for requirement in shipper_readiness.missing_requirements
+            ]
+            return api_error(
+                message="Compte validé, données opérationnelles incomplètes.",
+                code="shipper_readiness_incomplete",
+                http_status=status.HTTP_403_FORBIDDEN,
+                non_field_errors=[requirement["label"] for requirement in missing_requirements],
+                extra={"missing_requirements": missing_requirements},
+            )
+
         serializer = UiPortalOrderCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return api_error(
@@ -2299,10 +2379,7 @@ class UiPortalRecipientsView(APIView):
                     "mode": "recipient",
                     "recipients": [recipient],
                     "destinations": [
-                        {
-                            "id": scope.recipient_organization.destination_id,
-                            "label": str(scope.recipient_organization.destination),
-                        }
+                        _portal_destination_option(scope.recipient_organization.destination)
                     ],
                 }
             )
@@ -2322,15 +2399,12 @@ class UiPortalRecipientsView(APIView):
             .select_related("destination")
             .order_by("structure_name", "name", "contact_last_name", "contact_first_name")
         )
-        destinations = Destination.objects.filter(is_active=True).order_by(
-            "city", "country", "iata_code"
-        )
+        destinations = served_destination_queryset()
         return Response(
             {
                 "recipients": [_portal_recipient_row(recipient) for recipient in recipients],
                 "destinations": [
-                    {"id": destination.id, "label": str(destination)}
-                    for destination in destinations
+                    _portal_destination_option(destination) for destination in destinations
                 ],
             }
         )
@@ -2360,38 +2434,19 @@ class UiPortalRecipientsView(APIView):
             )
 
         payload = serializer.validated_data
-        destination = Destination.objects.filter(
-            pk=payload["destination_id"], is_active=True
-        ).first()
+        destination = served_destination_queryset().filter(pk=payload["destination_id"]).first()
         if destination is None:
             return api_error(
                 message="Escale de livraison requise.",
                 code="destination_required",
                 field_errors={"destination_id": ["Escale de livraison requise."]},
             )
-        if payload.get("contact_title") and payload["contact_title"] not in dict(
-            AssociationContactTitle.choices
-        ):
+        field_errors = _validate_portal_recipient_mutation_payload(payload, destination)
+        if field_errors:
             return api_error(
-                message="Titre de contact invalide.",
-                code="contact_title_invalid",
-                field_errors={"contact_title": ["Titre de contact invalide."]},
-            )
-
-        email_values, invalid_values = _validate_multi_emails(payload.get("emails", ""))
-        if invalid_values:
-            return api_error(
-                message="Emails invalides.",
-                code="emails_invalid",
-                field_errors={"emails": [f"Emails invalides: {', '.join(invalid_values)}."]},
-            )
-        if payload.get("notify_deliveries") and not email_values:
-            return api_error(
-                message="Ajoutez au moins un email pour activer l'alerte de livraison.",
-                code="notify_email_required",
-                field_errors={
-                    "emails": ["Ajoutez au moins un email pour activer l'alerte de livraison."]
-                },
+                message="Validation destinataire invalide.",
+                code="recipient_validation_error",
+                field_errors=field_errors,
             )
 
         result = update_recipient_shared_profile(
@@ -2407,7 +2462,7 @@ class UiPortalRecipientsView(APIView):
             address_line2=(payload.get("address_line2") or "").strip(),
             postal_code=(payload.get("postal_code") or "").strip(),
             city=(payload.get("city") or "").strip(),
-            country=((payload.get("country") or "").strip() or PORTAL_DEFAULT_COUNTRY),
+            country=(payload.get("country") or "").strip(),
             legal_form=(payload.get("legal_form") or "").strip(),
             beneficiary_count=payload.get("beneficiary_count"),
             notes=(payload.get("notes") or "").strip(),
@@ -2486,40 +2541,6 @@ class UiPortalRecipientDetailView(APIView):
             )
 
         payload = serializer.validated_data
-        destination = Destination.objects.filter(
-            pk=payload["destination_id"], is_active=True
-        ).first()
-        if destination is None:
-            return api_error(
-                message="Escale de livraison requise.",
-                code="destination_required",
-                field_errors={"destination_id": ["Escale de livraison requise."]},
-            )
-        if payload.get("contact_title") and payload["contact_title"] not in dict(
-            AssociationContactTitle.choices
-        ):
-            return api_error(
-                message="Titre de contact invalide.",
-                code="contact_title_invalid",
-                field_errors={"contact_title": ["Titre de contact invalide."]},
-            )
-
-        email_values, invalid_values = _validate_multi_emails(payload.get("emails", ""))
-        if invalid_values:
-            return api_error(
-                message="Emails invalides.",
-                code="emails_invalid",
-                field_errors={"emails": [f"Emails invalides: {', '.join(invalid_values)}."]},
-            )
-        if payload.get("notify_deliveries") and not email_values:
-            return api_error(
-                message="Ajoutez au moins un email pour activer l'alerte de livraison.",
-                code="notify_email_required",
-                field_errors={
-                    "emails": ["Ajoutez au moins un email pour activer l'alerte de livraison."]
-                },
-            )
-
         scope = request.portal_scope
         if (
             scope.role == PortalAccessRole.RECIPIENT_ADMIN
@@ -2530,6 +2551,20 @@ class UiPortalRecipientDetailView(APIView):
                     message="Destinataire introuvable.",
                     code="recipient_not_found",
                     http_status=status.HTTP_404_NOT_FOUND,
+                )
+            destination = scope.recipient_organization.destination
+            if payload["destination_id"] != scope.recipient_organization.destination_id:
+                return api_error(
+                    message="Escale de livraison requise.",
+                    code="destination_required",
+                    field_errors={"destination_id": ["Escale de livraison requise."]},
+                )
+            field_errors = _validate_portal_recipient_mutation_payload(payload, destination)
+            if field_errors:
+                return api_error(
+                    message="Validation destinataire invalide.",
+                    code="recipient_validation_error",
+                    field_errors=field_errors,
                 )
             result = update_runtime_recipient_profile(
                 recipient_organization=scope.recipient_organization,
@@ -2543,7 +2578,7 @@ class UiPortalRecipientDetailView(APIView):
                 address_line2=(payload.get("address_line2") or "").strip(),
                 postal_code=(payload.get("postal_code") or "").strip(),
                 city=(payload.get("city") or "").strip(),
-                country=((payload.get("country") or "").strip() or PORTAL_DEFAULT_COUNTRY),
+                country=(payload.get("country") or "").strip(),
                 legal_form=(payload.get("legal_form") or "").strip(),
                 beneficiary_count=payload.get("beneficiary_count"),
                 notes=(payload.get("notes") or "").strip(),
@@ -2609,6 +2644,21 @@ class UiPortalRecipientDetailView(APIView):
                 http_status=status.HTTP_403_FORBIDDEN,
             )
 
+        destination = served_destination_queryset().filter(pk=payload["destination_id"]).first()
+        if destination is None:
+            return api_error(
+                message="Escale de livraison requise.",
+                code="destination_required",
+                field_errors={"destination_id": ["Escale de livraison requise."]},
+            )
+        field_errors = _validate_portal_recipient_mutation_payload(payload, destination)
+        if field_errors:
+            return api_error(
+                message="Validation destinataire invalide.",
+                code="recipient_validation_error",
+                field_errors=field_errors,
+            )
+
         result = update_recipient_shared_profile(
             association_contact=association_contact,
             destination=destination,
@@ -2622,7 +2672,7 @@ class UiPortalRecipientDetailView(APIView):
             address_line2=(payload.get("address_line2") or "").strip(),
             postal_code=(payload.get("postal_code") or "").strip(),
             city=(payload.get("city") or "").strip(),
-            country=((payload.get("country") or "").strip() or PORTAL_DEFAULT_COUNTRY),
+            country=(payload.get("country") or "").strip(),
             legal_form=(payload.get("legal_form") or "").strip(),
             beneficiary_count=payload.get("beneficiary_count"),
             notes=(payload.get("notes") or "").strip(),

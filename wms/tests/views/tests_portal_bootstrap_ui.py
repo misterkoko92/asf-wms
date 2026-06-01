@@ -15,6 +15,7 @@ from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
+    AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
     BillingDocument,
@@ -43,6 +44,7 @@ from wms.models import (
 )
 from wms.portal_access import ACTIVE_PORTAL_SCOPE_SESSION_KEY, PORTAL_SCOPE_SOURCE_GRANT
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
+from wms.shipment_party_setup import ensure_shipment_recipient_link, ensure_shipment_shipper
 
 
 class PortalBootstrapUiTests(TestCase):
@@ -95,6 +97,50 @@ class PortalBootstrapUiTests(TestCase):
             is_active=True,
         )
         sync_association_recipient_to_contact(recipient)
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact,
+            destination=destination,
+        )
+        recipient_organization.validation_status = ShipmentValidationStatus.VALIDATED
+        recipient_organization.save(update_fields=["validation_status"])
+        shipper = ensure_shipment_shipper(
+            association_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        ensure_shipment_recipient_link(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+        )
+        AssociationPortalContact.objects.create(
+            profile=self.profile,
+            position=0,
+            title="mr",
+            first_name="Admin",
+            last_name="BOOTSTRAP",
+            email="admin-bootstrap@example.com",
+            phone="+33100000001",
+            emails="admin-bootstrap@example.com",
+            phones="+33100000001",
+            address_line1="1 Rue Test",
+            city="Paris",
+            country="France",
+            is_administrative=True,
+        )
+        AssociationPortalContact.objects.create(
+            profile=self.profile,
+            position=1,
+            title="mrs",
+            first_name="Prep",
+            last_name="BOOTSTRAP",
+            email="prep-bootstrap@example.com",
+            phone="+33100000002",
+            emails="prep-bootstrap@example.com",
+            phones="+33100000002",
+            address_line1="1 Rue Test",
+            city="Paris",
+            country="France",
+            is_shipping=True,
+        )
         Product.objects.create(
             sku="PORTAL-BOOTSTRAP-PREF-001",
             name="Produit Bootstrap",
@@ -1161,6 +1207,123 @@ class PortalBootstrapUiTests(TestCase):
             html=True,
         )
         self.assertNotContains(response, "Utilisateur WMS")
+
+    def test_portal_account_request_exposes_shipper_stopovers_and_visible_contact_addresses(self):
+        self.client.logout()
+        correspondent = Contact.objects.create(
+            name="Correspondant Stopovers",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        dakar = Destination.objects.create(
+            city="Dakar",
+            iata_code="DSS",
+            country="Sénégal",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        paris_belgium = Destination.objects.create(
+            city="Paris",
+            iata_code="PAB",
+            country="Belgique",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Escales envisagées")
+        self.assertContains(response, "Dakar (DSS), Sénégal")
+        self.assertContains(response, "Paris (PAB), Belgique")
+        self.assertContains(response, "Paris (PBS), France")
+        self.assertLess(
+            content.index("Dakar (DSS), Sénégal"),
+            content.index("Paris (PAB), Belgique"),
+        )
+        self.assertLess(
+            content.index("Paris (PAB), Belgique"),
+            content.index("Paris (PBS), France"),
+        )
+        self.assertContains(response, 'name="shipper_stopover_destination_ids"')
+        self.assertContains(response, f'value="{dakar.id}"')
+        self.assertContains(response, f'value="{paris_belgium.id}"')
+        self.assertContains(response, 'value="other"')
+        self.assertContains(response, "Autre escale / escale non listée")
+        self.assertContains(
+            response,
+            '<input class="form-control" type="text" id="admin_contact_address_line1"',
+        )
+        self.assertContains(
+            response,
+            '<input class="form-control" type="text" id="preparation_contact_address_line1"',
+        )
+        self.assertContains(response, 'id="admin_contact_country"')
+        self.assertContains(response, 'id="preparation_contact_country"')
+        self.assertContains(response, "Premier destinataire (optionnel)")
+        self.assertContains(response, "background-color: #fff;")
+        self.assertContains(response, "form-check")
+        self.assertContains(response, ".form-check-input:checked")
+        self.assertContains(response, ".form-check-input:not(:checked):not(:disabled)")
+        self.assertNotContains(
+            response, ".form-check-input:not(:disabled) {\n      background-color: #fff;"
+        )
+
+    def test_portal_account_request_shipper_stopover_blocks_follow_expected_order(self):
+        self.client.logout()
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(
+            content.index("Documents de vérification"),
+            content.index("Premier destinataire (optionnel)"),
+        )
+        self.assertLess(
+            content.index("Premier destinataire (optionnel)"),
+            content.index("Demande d’étude pour une nouvelle escale"),
+        )
+        self.assertContains(response, "shipperOnlyOtherStopoverSelected")
+        self.assertContains(response, "hideAccountRequestFields")
+        self.assertContains(response, "otherStopoverStudyActions")
+
+    def test_portal_account_request_recipient_existing_stopover_contact_contract(self):
+        self.client.logout()
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="recipient_use_structure_info"')
+        self.assertContains(response, "Réutiliser les informations de la structure")
+        self.assertContains(response, 'id="recipient_contact_address_line1"')
+        self.assertContains(response, 'id="recipient_contact_city"')
+        self.assertContains(response, 'id="recipient_contact_country"')
+        self.assertContains(response, '"recipient_contact_address_line1"')
+        self.assertContains(response, '"recipient_contact_city"')
+        self.assertContains(response, '"recipient_contact_country"')
+        self.assertContains(response, "const recipientReuseStructureInput")
+        self.assertContains(response, "refreshRequiredMarkers")
+        self.assertContains(response, "ui-field-required-marker")
+
+    def test_portal_account_request_other_stopover_avoids_duplicate_recipient_fields(self):
+        self.client.logout()
+
+        response = self.client.get(reverse("portal:portal_account_request"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="account-structure-detail-fields"')
+        self.assertContains(
+            response, "accountStructureDetailFields.hidden = hideAccountRequestFields"
+        )
+        self.assertContains(response, "shipperOnlyOtherStopoverSelected")
+        self.assertContains(response, 'type="hidden" id="stopover_requester_type"')
+        self.assertContains(response, 'type="hidden" id="stopover_contact_email"')
+        self.assertNotContains(
+            response, '<select class="form-select ui-select--md" id="stopover_requester_type"'
+        )
+        self.assertNotContains(response, 'for="stopover_contact_email"')
 
     def test_portal_pages_use_design_component_classes(self):
         dashboard_response = self.client.get(reverse("portal:portal_dashboard"))

@@ -21,6 +21,7 @@ from .application.parties.use_cases import (
     update_recipient_shared_profile,
     upsert_recipient_structure_documents,
 )
+from .application.portal.account_use_cases import upsert_operational_contacts_from_payloads
 from .default_shipper_bindings import _resolve_default_shipper
 from .portal_permissions import assign_association_portal_group
 from .shipment_party_setup import ensure_shipment_shipper
@@ -315,6 +316,10 @@ def approve_account_request(
                 profile.contact = contact
             profile.must_change_password = True
             profile.save(update_fields=["contact", "must_change_password"])
+            upsert_operational_contacts_from_payloads(
+                profile=profile,
+                contact_payloads=account_request.contact_payloads,
+            )
             assign_association_portal_group(user)
             ensure_shipment_shipper(contact)
             _provision_initial_delivery_recipient(

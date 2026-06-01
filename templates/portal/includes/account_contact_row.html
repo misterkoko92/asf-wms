@@ -20,6 +20,13 @@
   </div>
   <div class="scan-field">
     <input class="form-control" type="email" name="contact_{{ row.index }}_email" value="{{ row.email }}" placeholder="email@domaine.org">
+    <input type="hidden" name="contact_{{ row.index }}_emails" value="{{ row.emails|default:row.email }}">
+    <input type="hidden" name="contact_{{ row.index }}_phones" value="{{ row.phones|default:row.phone }}">
+    <input type="hidden" name="contact_{{ row.index }}_address_line1" value="{{ row.address_line1 }}">
+    <input type="hidden" name="contact_{{ row.index }}_address_line2" value="{{ row.address_line2 }}">
+    <input type="hidden" name="contact_{{ row.index }}_postal_code" value="{{ row.postal_code }}">
+    <input type="hidden" name="contact_{{ row.index }}_city" value="{{ row.city }}">
+    <input type="hidden" name="contact_{{ row.index }}_country" value="{{ row.country }}">
   </div>
   <div class="portal-contact-types ui-comp-panel">
     <label>
@@ -28,7 +35,7 @@
     </label>
     <label>
       <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_shipping" value="1" {% if row.is_shipping %}checked{% endif %}>
-      {% trans "Expédition" %}
+      {% trans "Préparation / logistique" %}
     </label>
     <label>
       <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_billing" value="1" {% if row.is_billing %}checked{% endif %}>

@@ -9,6 +9,7 @@ from wms.admin_account_request_approval import approve_account_request
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
+    AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
     Destination,
@@ -103,6 +104,38 @@ class PortalRoleReviewGateTests(TestCase):
     def _activate_shipper(self, *, status=ShipmentValidationStatus.VALIDATED) -> ShipmentShipper:
         return ensure_shipment_shipper(self.profile.contact, validation_status=status)
 
+    def _create_complete_operational_contacts(self):
+        AssociationPortalContact.objects.create(
+            profile=self.profile,
+            title="mr",
+            first_name="Admin",
+            last_name="CONTACT",
+            email="admin-role-gate@example.org",
+            phone="+33101010101",
+            emails="admin-role-gate@example.org",
+            phones="+33101010101",
+            address_line1="1 Rue Admin",
+            city="Paris",
+            country="France",
+            is_administrative=True,
+            is_active=True,
+        )
+        AssociationPortalContact.objects.create(
+            profile=self.profile,
+            title="mrs",
+            first_name="Prep",
+            last_name="CONTACT",
+            email="prep-role-gate@example.org",
+            phone="+33202020202",
+            emails="prep-role-gate@example.org",
+            phones="+33202020202",
+            address_line1="2 Rue Prep",
+            city="Paris",
+            country="France",
+            is_shipping=True,
+            is_active=True,
+        )
+
     def test_shipper_pending_review_blocks_order_creation(self):
         self._activate_shipper(status=ShipmentValidationStatus.PENDING)
 
@@ -125,6 +158,17 @@ class PortalRoleReviewGateTests(TestCase):
         self.assertRedirects(response, expected_redirect)
         self.assertContains(response, "documents expéditeur non conformes")
 
+    def test_validated_shipper_without_operational_readiness_blocks_order_creation(self):
+        self._activate_shipper(status=ShipmentValidationStatus.VALIDATED)
+
+        response = self.client.get(self.order_create_url, follow=True)
+
+        expected_redirect = f"{self.account_url}?blocked=operational_readiness"
+        self.assertRedirects(response, expected_redirect)
+        self.assertContains(response, "Contact administratif incomplet")
+        self.assertContains(response, "Contact préparation/logistique incomplet")
+        self.assertContains(response, "Aucun destinataire validé lié à votre structure")
+
     def test_recipient_creation_creates_shipment_party_runtime(self):
         destination = self._create_destination("DLA")
         response = self.client.post(
@@ -133,10 +177,10 @@ class PortalRoleReviewGateTests(TestCase):
                 "action": "create_recipient",
                 "destination_id": str(destination.id),
                 "structure_name": "Action contre la faim",
-                "contact_title": "",
-                "contact_last_name": "",
-                "contact_first_name": "",
-                "phones": "",
+                "contact_title": "mrs",
+                "contact_last_name": "Traore",
+                "contact_first_name": "Aicha",
+                "phones": "+237600000000",
                 "emails": "ops-acf@example.org",
                 "address_line1": "1 Avenue Recipient",
                 "address_line2": "",
@@ -216,6 +260,75 @@ class PortalRoleReviewGateTests(TestCase):
         self.assertTrue(shipper.is_active)
         self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
 
+    def test_approve_shipper_account_request_provisions_operational_contacts(self):
+        admin_user = get_user_model().objects.create_user(
+            username="admin-role-review-contacts",
+            email="admin-role-review-contacts@example.org",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
+        account_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.SHIPPER,
+            status=PublicAccountRequestStatus.PENDING,
+            association_name="Association With Contacts",
+            email="contacts-association@example.org",
+            phone="0102030405",
+            address_line1="1 Rue Contacts",
+            city="Paris",
+            country="France",
+            contact_payloads={
+                "admin": {
+                    "title": "mr",
+                    "first_name": "Marc",
+                    "last_name": "DURAND",
+                    "email": "admin-contact@example.org",
+                    "phone": "0600000001",
+                    "address_line1": "1 Rue Admin",
+                    "address_line2": "",
+                    "postal_code": "75001",
+                    "city": "Paris",
+                    "country": "France",
+                },
+                "preparation": {
+                    "title": "mrs",
+                    "first_name": "Claire",
+                    "last_name": "MARTIN",
+                    "email": "prep-contact@example.org",
+                    "phone": "0600000002",
+                    "address_line1": "2 Rue Prep",
+                    "address_line2": "",
+                    "postal_code": "75002",
+                    "city": "Paris",
+                    "country": "France",
+                },
+            },
+        )
+        request = RequestFactory().post("/admin/wms/publicaccountrequest/")
+        request.user = admin_user
+
+        ok, reason = approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=lambda **kwargs: None,
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        profile = AssociationProfile.objects.get(contact=account_request.contact)
+        contacts = list(profile.portal_contacts.order_by("position"))
+        self.assertEqual(len(contacts), 2)
+        self.assertEqual(contacts[0].email, "admin-contact@example.org")
+        self.assertEqual(contacts[0].emails, "admin-contact@example.org")
+        self.assertEqual(contacts[0].phones, "0600000001")
+        self.assertTrue(contacts[0].is_administrative)
+        self.assertEqual(contacts[0].address_line1, "1 Rue Admin")
+        self.assertEqual(contacts[1].email, "prep-contact@example.org")
+        self.assertTrue(contacts[1].is_shipping)
+        self.assertEqual(
+            profile.notification_emails, "admin-contact@example.org,prep-contact@example.org"
+        )
+
     def test_approve_shipper_account_request_provisions_first_delivery_recipient(self):
         admin_user = get_user_model().objects.create_user(
             username="admin-role-review-recipient",
@@ -238,6 +351,7 @@ class PortalRoleReviewGateTests(TestCase):
             initial_recipient_payload={
                 "destination_id": self.destination.id,
                 "structure_name": "Hopital Premier",
+                "contact_title": "mrs",
                 "contact_first_name": "Aicha",
                 "contact_last_name": "Traore",
                 "email": "aicha.traore@example.org",
@@ -251,6 +365,28 @@ class PortalRoleReviewGateTests(TestCase):
                 "beneficiary_count": 120,
                 "notes": "Premier destinataire",
                 "is_delivery_contact": True,
+            },
+            contact_payloads={
+                "admin": {
+                    "title": "mr",
+                    "first_name": "Marc",
+                    "last_name": "DURAND",
+                    "email": "admin-first-recipient@example.org",
+                    "phone": "0600000101",
+                    "address_line1": "1 Rue Admin",
+                    "city": "Paris",
+                    "country": "France",
+                },
+                "preparation": {
+                    "title": "mrs",
+                    "first_name": "Claire",
+                    "last_name": "MARTIN",
+                    "email": "prep-first-recipient@example.org",
+                    "phone": "0600000202",
+                    "address_line1": "2 Rue Prep",
+                    "city": "Paris",
+                    "country": "France",
+                },
             },
         )
         AccountDocument.objects.create(

@@ -19,11 +19,19 @@
       <dt class="col-sm-3">Escale</dt>
       <dd class="col-sm-9">
         {% if account_request.destination %}
-          {{ account_request.destination.city }} ({{ account_request.destination.iata_code }})
+          {{ account_request.destination.city }}{% if account_request.destination.iata_code %} ({{ account_request.destination.iata_code }}){% endif %}{% if account_request.destination.country %}, {{ account_request.destination.country }}{% endif %}
         {% else %}
           -
         {% endif %}
       </dd>
+      {% if shipper_stopover_indications %}
+        <dt class="col-sm-3">Escales envisagées</dt>
+        <dd class="col-sm-9">
+          {% for stopover_indication in shipper_stopover_indications %}
+            {{ stopover_indication.label }}{% if not forloop.last %}<br>{% endif %}
+          {% endfor %}
+        </dd>
+      {% endif %}
       {% if account_request.initial_recipient_payload %}
         <dt class="col-sm-3">Premier destinataire</dt>
         <dd class="col-sm-9">
@@ -43,6 +51,28 @@
           {% endif %}
           {{ account_request.initial_recipient_payload.postal_code }} {{ account_request.initial_recipient_payload.city }} {{ account_request.initial_recipient_payload.country }}<br>
           <span class="scan-help">Contact de réception activé à la validation.</span>
+        </dd>
+      {% endif %}
+      {% if contact_payload_summaries %}
+        <dt class="col-sm-3">Contacts transmis</dt>
+        <dd class="col-sm-9">
+          {% for contact_summary in contact_payload_summaries %}
+            <div class="mb-2">
+              <strong>{{ contact_summary.label }}</strong><br>
+              {% if contact_summary.display_name %}
+                {{ contact_summary.display_name }}<br>
+              {% endif %}
+              {% if contact_summary.email %}
+                {{ contact_summary.email }}<br>
+              {% endif %}
+              {% if contact_summary.phone %}
+                {{ contact_summary.phone }}<br>
+              {% endif %}
+              {% for address_line in contact_summary.address_lines %}
+                {{ address_line }}{% if not forloop.last %}<br>{% endif %}
+              {% endfor %}
+            </div>
+          {% endfor %}
         </dd>
       {% endif %}
       <dt class="col-sm-3">Documents</dt>

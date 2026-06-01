@@ -69,6 +69,10 @@ Do not assume global organization-only scope.
 
 Portal changes and admin/internal changes must not drift into conflicting truths.
 
+### Onboarding Completeness Integrity
+
+Portal/public onboarding must not create operational recipients or order-ready shippers from incomplete structure/contact data. Unsupported destinations must stay study requests until ASF explicitly decides otherwise.
+
 ### Display Integrity
 
 Printed labels, shipment forms, and UI actor names must reflect canonical data.
@@ -130,6 +134,7 @@ Printed labels, shipment forms, and UI actor names must reflect canonical data.
 
 - do portal users see the same recipient truth as internal users?
 - did portal self-service break sync assumptions?
+- are served destination filters, contact completeness rules, and validated-recipient links aligned between HTML and API?
 - are actor permissions still correct?
 
 ### Permission Questions
@@ -163,6 +168,8 @@ Also verify:
 
 - `wms/portal_recipient_sync.py`
 - portal recipient pages
+- `wms/application/portal/destination_options.py`
+- `wms/application/portal/readiness.py`
 - shipment create/edit selectors
 - downstream labels/documents
 

@@ -127,6 +127,9 @@ from .models_domain.portal import (
     PublicOrderLink,
     RecipientStructureDocument,
     RecipientStructureDocumentType,
+    StopoverFeasibilityRequest,
+    StopoverFeasibilityRequesterType,
+    StopoverFeasibilityRequestStatus,
 )
 from .models_domain.preparation import (
     PreparationCartonProposal,

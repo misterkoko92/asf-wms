@@ -2,6 +2,27 @@ from datetime import date
 
 SCAN_FAQ_CHANGE_LOG_ENTRIES = [
     {
+        "date": date(2026, 5, 22),
+        "pr_number": None,
+        "summary": (
+            "Création de compte : téléphone structure obligatoire, contacts "
+            "administratif/préparation visibles, contact réception complété, "
+            "ville/pays requis, Autre escale simplifiée, escales indicatives "
+            "expéditeur réordonnées avec état coché visible, et filtre associé "
+            "dans la validation Scan."
+        ),
+    },
+    {
+        "date": date(2026, 5, 20),
+        "pr_number": None,
+        "summary": (
+            "Onboarding portail : escales desservies obligatoires, demandes "
+            "Autre escale tracées, contacts opérationnels complets pour "
+            "expéditeurs/destinataires et création de commande bloquée tant "
+            "que le compte expéditeur n'est pas prêt."
+        ),
+    },
+    {
         "date": date(2026, 5, 19),
         "pr_number": 219,
         "summary": (

@@ -6,8 +6,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase
 
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactType, RecipientLegalForm
 from wms.models import (
+    AssociationContactTitle,
     AssociationPickupAddress,
     AssociationPortalContact,
     AssociationProfile,
@@ -42,6 +43,8 @@ from wms.models import (
     ShipmentTrackingAccessGrant,
     ShipmentTrackingAccessRole,
     ShipmentValidationStatus,
+    StopoverFeasibilityRequest,
+    StopoverFeasibilityRequesterType,
     Warehouse,
     WmsRuntimeSettings,
 )
@@ -136,6 +139,22 @@ class ResetOperationalDataCommandTests(TestCase):
             city="Paris",
             country="France",
         )
+        self.stopover_request = StopoverFeasibilityRequest.objects.create(
+            requester_type=StopoverFeasibilityRequesterType.SHIPPER,
+            requested_stopovers="Nouvelle escale test",
+            structure_name="Association A",
+            legal_form=RecipientLegalForm.ASSOCIATION,
+            beneficiary_count=120,
+            contact_title=AssociationContactTitle.MR,
+            contact_last_name="Admin",
+            contact_first_name="Alice",
+            contact_email="alice@example.com",
+            contact_phone="0102030405",
+            address_line1="1 rue de Paris",
+            city="Paris",
+            country="France",
+            created_by=self.user,
+        )
         self.recipient_structure_document = RecipientStructureDocument.objects.create(
             contact=self.association,
             doc_type=RecipientStructureDocumentType.REGISTRATION_PROOF,
@@ -214,6 +233,9 @@ class ResetOperationalDataCommandTests(TestCase):
         )
         self.assertTrue(
             PublicAccountRequest.objects.filter(pk=self.public_account_request.pk).exists()
+        )
+        self.assertTrue(
+            StopoverFeasibilityRequest.objects.filter(pk=self.stopover_request.pk).exists()
         )
         self.assertTrue(
             RecipientStructureDocument.objects.filter(
@@ -328,6 +350,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(AssociationPortalContact.objects.exists())
         self.assertFalse(AssociationRecipient.objects.exists())
         self.assertFalse(PublicAccountRequest.objects.exists())
+        self.assertFalse(StopoverFeasibilityRequest.objects.exists())
         self.assertFalse(RecipientStructureDocument.objects.exists())
         self.assertFalse(PortalAccessGrant.objects.exists())
         self.assertFalse(ShipmentTrackingAccessGrant.objects.exists())

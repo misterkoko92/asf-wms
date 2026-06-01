@@ -2228,6 +2228,15 @@ class PublicAccountRequestViewTests(TestCase):
             "country": "France",
             "notes": "Demande de test",
             "contact_id": "",
+            "admin_contact_title": "mrs",
+            "admin_contact_first_name": "Ada",
+            "admin_contact_last_name": "LOVELACE",
+            "admin_contact_email": "admin@example.com",
+            "admin_contact_phone": "0102030405",
+            "admin_contact_address_line1": "1 Rue Contact",
+            "admin_contact_city": "Paris",
+            "admin_contact_country": "France",
+            "use_admin_for_preparation": "1",
         }
         payload.update(overrides)
         return payload

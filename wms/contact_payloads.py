@@ -11,6 +11,9 @@ def build_shipper_contact_payload():
             {
                 "id": contact.id,
                 "name": contact.name,
+                "title": contact.title or "",
+                "first_name": contact.first_name or "",
+                "last_name": contact.last_name or "",
                 "email": contact.email or "",
                 "phone": contact.phone or "",
                 "address_line1": address.address_line1 if address else "",
