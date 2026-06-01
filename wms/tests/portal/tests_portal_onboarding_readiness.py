@@ -2,7 +2,10 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from contacts.models import Contact, ContactAddress, ContactType
-from wms.application.portal.destination_options import list_served_destination_options
+from wms.application.portal.destination_options import (
+    format_destination_label,
+    list_served_destination_options,
+)
 from wms.application.portal.readiness import (
     MISSING_ADMIN_CONTACT,
     MISSING_PREPARATION_CONTACT,
@@ -77,7 +80,7 @@ class ServedDestinationOptionsTests(TestCase):
             [
                 {
                     "id": served.id,
-                    "label": str(served),
+                    "label": format_destination_label(served),
                     "country": "Mali",
                     "iata_code": "BKO",
                 }
