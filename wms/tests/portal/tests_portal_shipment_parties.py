@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
+    AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
     Destination,
@@ -83,6 +84,26 @@ class PortalShipmentPartyTests(TestCase):
             organization=organization,
             default_contact=default_contact,
             validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+    def _create_operational_contact(
+        self, *, is_administrative: bool = False, is_shipping: bool = False
+    ) -> AssociationPortalContact:
+        return AssociationPortalContact.objects.create(
+            profile=self.profile,
+            title="mrs",
+            first_name="Ada",
+            last_name="LOVELACE",
+            email="ops@example.org",
+            phone="+33123456789",
+            emails="ops@example.org",
+            phones="+33123456789",
+            address_line1="1 Rue Contact",
+            city="Paris",
+            country="France",
+            is_administrative=is_administrative,
+            is_shipping=is_shipping,
             is_active=True,
         )
 
@@ -289,7 +310,7 @@ class PortalShipmentPartyTests(TestCase):
             country="Mali",
             is_default=True,
         )
-        ShipmentRecipientOrganization.objects.create(
+        recipient_organization = ShipmentRecipientOrganization.objects.create(
             organization=shared_org,
             destination=self.destination,
             validation_status=ShipmentValidationStatus.VALIDATED,
@@ -399,7 +420,7 @@ class PortalShipmentPartyTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        ShipmentRecipientOrganization.objects.create(
+        recipient_organization = ShipmentRecipientOrganization.objects.create(
             organization=shared_org,
             destination=self.destination,
             validation_status=ShipmentValidationStatus.VALIDATED,
@@ -410,6 +431,13 @@ class PortalShipmentPartyTests(TestCase):
             email="claire.martin@example.org",
             first_name="Claire",
             last_name="Martin",
+        )
+        self._create_operational_contact(is_administrative=True)
+        self._create_operational_contact(is_shipping=True)
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=self.association.shipment_shippers.get(),
+            recipient_organization=recipient_organization,
+            is_active=True,
         )
 
         response = self.client.get(self.order_create_url)
